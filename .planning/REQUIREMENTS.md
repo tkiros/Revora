@@ -128,13 +128,60 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CLAIM-01 through VALID-06 | Pending roadmap | Pending |
+| CLAIM-01 | Phase 1 | Pending |
+| CLAIM-02 | Phase 1 | Pending |
+| CLAIM-03 | Phase 1 | Pending |
+| CLAIM-04 | Phase 1 | Pending |
+| CLAIM-05 | Phase 2 | Pending |
+| INPUT-01 | Phase 3 | Pending |
+| INPUT-02 | Phase 3 | Pending |
+| INPUT-03 | Phase 3 | Pending |
+| INPUT-04 | Phase 1 | Pending |
+| INPUT-05 | Phase 1 | Pending |
+| INPUT-06 | Phase 2 | Pending |
+| INPUT-07 | Phase 2 | Pending |
+| INPUT-08 | Phase 2 | Pending |
+| GUIDE-01 | Phase 2 | Pending |
+| GUIDE-02 | Phase 1 | Pending |
+| GUIDE-03 | Phase 2 | Pending |
+| GUIDE-04 | Phase 2 | Pending |
+| GUIDE-05 | Phase 2 | Pending |
+| GUIDE-06 | Phase 2 | Pending |
+| GUIDE-07 | Phase 1 | Pending |
+| GUIDE-08 | Phase 3 | Pending |
+| GUARD-01 | Phase 2 | Pending |
+| GUARD-02 | Phase 2 | Pending |
+| GUARD-03 | Phase 2 | Pending |
+| GUARD-04 | Phase 1 | Pending |
+| GUARD-05 | Phase 2 | Pending |
+| GUARD-06 | Phase 2 | Pending |
+| GUARD-07 | Phase 5 | Pending |
+| UX-01 | Phase 3 | Pending |
+| UX-02 | Phase 3 | Pending |
+| UX-03 | Phase 3 | Pending |
+| UX-04 | Phase 3 | Pending |
+| UX-05 | Phase 3 | Pending |
+| UX-06 | Phase 3 | Pending |
+| UX-07 | Phase 3 | Pending |
+| PRIV-01 | Phase 4 | Pending |
+| PRIV-02 | Phase 4 | Pending |
+| PRIV-03 | Phase 4 | Pending |
+| PRIV-04 | Phase 4 | Pending |
+| OPS-01 | Phase 4 | Pending |
+| OPS-02 | Phase 4 | Pending |
+| OPS-03 | Phase 4 | Pending |
+| VALID-01 | Phase 5 | Pending |
+| VALID-02 | Phase 5 | Pending |
+| VALID-03 | Phase 5 | Pending |
+| VALID-04 | Phase 5 | Pending |
+| VALID-05 | Phase 5 | Pending |
+| VALID-06 | Phase 5 | Pending |
 
 **Coverage:**
 - v1 requirements: 48 total
-- Mapped to phases: 0
-- Unmapped: 48
+- Mapped to phases: 48
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-05-04*
-*Last updated: 2026-05-04 after initial definition*
+*Last updated: 2026-05-04 after roadmap creation*
