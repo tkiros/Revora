@@ -52,11 +52,14 @@ export async function checkFood(
     return buildClarifyResponse(contract, precheck.question);
   }
 
+  const precheckFlags = precheck.flags;
   const prompt = buildRevoraPrompt({
     request,
-    contract
+    contract,
+    a1cBand: route.band,
+    conservativeLevel: route.conservativeLevel,
+    precheckFlags
   });
-  const precheckFlags = precheck.flags;
 
   for (let attempt = 0; attempt < MAX_MODEL_ATTEMPTS; attempt += 1) {
     try {
