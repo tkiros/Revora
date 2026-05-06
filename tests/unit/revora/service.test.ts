@@ -29,14 +29,17 @@ describe("safety contract loader", () => {
 });
 
 describe("prompt composer", () => {
-  it("includes the claims boundary, A1C scope, qualitative-only rules, and strict output contract", () => {
+  it("includes the allowed response kinds, edge-case policy, and strict output contract", () => {
     const contract = loadSafetyContract();
     const prompt = buildRevoraPrompt({
       request: {
         food: "sweetened oatmeal",
         a1c: 6.2
       },
-      contract
+      contract,
+      a1cBand: "prediabetes_60_62",
+      conservativeLevel: "elevated",
+      precheckFlags: ["borderline"]
     });
 
     expect(prompt.instructions).toContain(contract.copy.productHomeHero);
@@ -48,8 +51,26 @@ describe("prompt composer", () => {
     expect(prompt.instructions).toContain("qualitative");
     expect(prompt.instructions).toContain("Return only one flat JSON object");
     expect(prompt.instructions).toContain("Do not diagnose");
+    expect(prompt.instructions).toContain(
+      "Allowed response kinds: result, clarify, not_food, carbs_only."
+    );
+    expect(prompt.instructions).toContain(
+      "Do not classify out-of-scope A1C, non-food, or ambiguous input with invented details."
+    );
+    expect(prompt.instructions).toContain(
+      "SAFE results keep adjustment and swap null."
+    );
+    expect(prompt.instructions).toContain(
+      "MODERATE and HIGH require exactly one adjustment and one swap."
+    );
+    expect(prompt.instructions).toContain(
+      "Carbs-only meals must add protein or nonstarchy vegetables."
+    );
     expect(prompt.input).toContain("Food: sweetened oatmeal");
     expect(prompt.input).toContain("A1C: 6.2");
+    expect(prompt.input).toContain("A1C band: prediabetes_60_62");
+    expect(prompt.input).toContain("Conservative level: elevated");
+    expect(prompt.input).toContain("Precheck flags: borderline");
   });
 });
 
@@ -159,6 +180,8 @@ describe("checkFood", () => {
       kind: "out_of_scope",
       route: "diabetes_range_out_of_scope"
     });
+    expect(belowRange.disclaimer).toContain("registered dietitian");
+    expect(highRange.disclaimer).toContain("registered dietitian");
   });
 
   it("returns non-food guidance without calling the model", async () => {
@@ -230,6 +253,49 @@ describe("checkFood", () => {
 
     expect(response.adjustment).toContain("protein or nonstarchy vegetables");
     expect(response.swap).toContain("less refined");
+    expect(response.disclaimer).toContain("registered dietitian");
+  });
+
+  it("passes A1C band and precheck flags into the prompt after deterministic checks pass", async () => {
+    const model = {
+      generate: vi.fn().mockResolvedValue({
+        kind: "result",
+        risk: "MODERATE",
+        reason:
+          "This may have a higher blood-sugar impact because it leans heavily on refined carbs.",
+        adjustment:
+          "If practical, add protein or nonstarchy vegetables to make it easier to handle.",
+        swap: "If you have the option, swap to a less refined version.",
+        question: null,
+        examples: [],
+        policy_flags: []
+      })
+    };
+
+    await checkFood(
+      {
+        food: "plain bagel",
+        a1c: 6.4
+      },
+      { model }
+    );
+
+    expect(model.generate).toHaveBeenCalledTimes(1);
+    expect(model.generate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.stringContaining("A1C band: prediabetes_63_64")
+      })
+    );
+    expect(model.generate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.stringContaining("Conservative level: high")
+      })
+    );
+    expect(model.generate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.stringContaining("Precheck flags: carbs_only, borderline")
+      })
+    );
   });
 
   it("retries malformed SAFE contract output once and then fails closed", async () => {
@@ -309,6 +375,43 @@ describe("checkFood", () => {
       reason: "This looks balanced.",
       adjustment: null,
       swap: null,
+      disclaimer:
+        "Revora is informational only and is not medical advice. Talk with a doctor or registered dietitian for guidance that is specific to you."
+    });
+  });
+
+  it("returns HIGH results with the disclaimer merged server-side", async () => {
+    const model = {
+      generate: vi.fn().mockResolvedValue({
+        kind: "result",
+        risk: "HIGH",
+        reason:
+          "This is likely a higher-impact choice because it is mostly sugary or refined carbs.",
+        adjustment:
+          "A smaller portion with protein or nonstarchy vegetables would be a steadier fit here.",
+        swap: "If you have the option, swap to a less sweet or less refined version.",
+        question: null,
+        examples: [],
+        policy_flags: ["high_risk"]
+      })
+    };
+
+    const response = await checkFood(
+      {
+        food: "pastry",
+        a1c: 6.1
+      },
+      { model }
+    );
+
+    expect(response).toEqual({
+      kind: "result",
+      risk: "HIGH",
+      reason:
+        "This is likely a higher-impact choice because it is mostly sugary or refined carbs.",
+      adjustment:
+        "A smaller portion with protein or nonstarchy vegetables would be a steadier fit here.",
+      swap: "If you have the option, swap to a less sweet or less refined version.",
       disclaimer:
         "Revora is informational only and is not medical advice. Talk with a doctor or registered dietitian for guidance that is specific to you."
     });
