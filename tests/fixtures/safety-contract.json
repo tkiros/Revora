@@ -1,0 +1,73 @@
+{
+  "forbiddenClaims": [
+    {
+      "label": "diagnosis",
+      "pattern": "\\bdiagnos(e|es|ing|is)\\b"
+    },
+    {
+      "label": "treatment",
+      "pattern": "\\btreat(s|ed|ing)?\\b"
+    },
+    {
+      "label": "reversal",
+      "pattern": "\\brevers(e|es|ing|al)\\b"
+    }
+  ],
+  "forbiddenPredictions": [
+    {
+      "label": "future a1c",
+      "pattern": "\\bA1C\\b.{0,40}\\b(will|going to)\\b"
+    },
+    {
+      "label": "glucose curve",
+      "pattern": "\\bglucose\\b.{0,40}\\bcurve\\b"
+    }
+  ],
+  "a1cRoutes": {
+    "requiredRouteIds": [
+      "below_prediabetes_range",
+      "prediabetes_57_59",
+      "prediabetes_60_62",
+      "prediabetes_63_64",
+      "diabetes_range_out_of_scope"
+    ]
+  },
+  "qualitativeOnly": {
+    "forbiddenPatterns": [
+      {
+        "label": "exact mg/dL",
+        "pattern": "\\b\\d+(?:\\.\\d+)?\\s*mg\\/dL\\b"
+      },
+      {
+        "label": "exact gi",
+        "pattern": "\\bGI\\s*(?:of|=)?\\s*\\d+\\b"
+      },
+      {
+        "label": "exact gl",
+        "pattern": "\\bGL\\s*(?:of|=)?\\s*\\d+\\b"
+      }
+    ]
+  },
+  "uncertaintyFloors": [
+    {
+      "scenarioId": "non_food_input",
+      "minimumClassification": "None"
+    },
+    {
+      "scenarioId": "ambiguous_food",
+      "minimumClassification": "MODERATE"
+    },
+    {
+      "scenarioId": "carbs_only_meal",
+      "minimumClassification": "MODERATE"
+    },
+    {
+      "scenarioId": "upper_band_borderline",
+      "minimumClassification": "MODERATE"
+    },
+    {
+      "scenarioId": "sugary_drink_or_dessert",
+      "minimumClassification": "HIGH"
+    }
+  ]
+}
