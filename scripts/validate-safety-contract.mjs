@@ -446,7 +446,7 @@ function splitCsv(value) {
 
   return value
     .split(",")
-    .map((item) => item.trim())
+    .map((item) => item.trim().replace(/^`(.+)`$/, "$1"))
     .filter(Boolean);
 }
 
