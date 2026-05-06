@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-stopped_at: Completed 02-02-PLAN.md
-last_updated: "2026-05-06T20:59:19.700Z"
-last_activity: 2026-05-06 - Completed Phase 2 Plan 02 edge-case handling, rubric application, and conservative fallback behavior
+stopped_at: Completed 02-03-PLAN.md
+last_updated: "2026-05-06T21:24:57Z"
+last_activity: 2026-05-06 - Completed Phase 2 Plan 03 safety evaluation suite and harmful SAFE launch gate
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 13
-  completed_plans: 5
-  percent: 38
+  completed_plans: 6
+  percent: 46
 ---
 
 # Project State
@@ -21,37 +21,37 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-04)
 
 **Core value:** Revora must give a clear, evidence-grounded, permission-first answer to "Can I eat this?" in under 5 seconds without increasing food anxiety.
-**Current focus:** Phase 2 - Guardrailed Inference Core and Eval Harness
+**Current focus:** Phase 3 - Public Mobile Permission Check
 
 ## Current Position
 
-Phase: 2 of 5 (Guardrailed Inference Core and Eval Harness)
-Plan: 2 of 3 in current phase
-Status: In progress
-Last activity: 2026-05-06 - Completed Phase 2 Plan 02 edge-case handling, rubric application, and conservative fallback behavior
+Phase: 3 of 5 (Public Mobile Permission Check)
+Plan: 0 of 3 in current phase
+Status: Ready to start
+Last activity: 2026-05-06 - Completed Phase 2 Plan 03 safety evaluation suite and harmful SAFE launch gate
 
-Progress: [████░░░░░░] 38%
+Progress: [█████░░░░░] 46%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
-- Average duration: 12 min
-- Total execution time: 1.0 hours
+- Total plans completed: 6
+- Average duration: 13 min
+- Total execution time: 1.3 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1. Claims Boundary, Evidence Pack, and Safety Spec | 3 | 17 min | 6 min |
-| 2. Guardrailed Inference Core and Eval Harness | 2 | 43 min | 22 min |
+| 2. Guardrailed Inference Core and Eval Harness | 3 | 60 min | 20 min |
 | 3. Public Mobile Permission Check | 0 | 0 min | - |
 | 4. Privacy-Minimal Launch Controls | 0 | 0 min | - |
 | 5. Community Launch and Founder Review Loop | 0 | 0 min | - |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (10 min), 01-02 (2 min), 01-03 (5 min), 02-01 (26 min), 02-02 (17 min)
-- Trend: Phase 2 deterministic guardrails and thin API adapter are in place; next execution step is Plan 02-03 launch-blocking evaluation coverage.
+- Last 5 plans: 01-02 (2 min), 01-03 (5 min), 02-01 (26 min), 02-02 (17 min), 02-03 (17 min)
+- Trend: Phase 2 is complete with a green local eval gate; next execution step is Phase 3 Plan 01 mobile form and local validation flow.
 
 ## Accumulated Context
 
@@ -80,6 +80,9 @@ Recent decisions affecting current work:
 - [Phase 02-guardrailed-inference-core-and-eval-harness]: A1C routing and high-confidence non-food or ambiguous checks run deterministically before prompt/model invocation; only in-scope ok or carbs-only cases reach the model.
 - [Phase 02-guardrailed-inference-core-and-eval-harness]: Unsafe SAFE outputs are corrected with deterministic conservative floors for carbs-only and upper-band borderline contexts instead of trusting prompt obedience.
 - [Phase 02-guardrailed-inference-core-and-eval-harness]: The public adapter stays a thin Node.js POST route over checkFood while app/page and app/layout remain compile-only until Phase 3.
+- [Phase 02-guardrailed-inference-core-and-eval-harness]: Phase 2 evals stay synthetic-fixture based and local; optional live checks reuse the same fixture set instead of hosted eval uploads.
+- [Phase 02-guardrailed-inference-core-and-eval-harness]: The eval harness keys deterministic model responses by the exact checkFood input so tests exercise the production prompt and service path without a second classifier seam.
+- [Phase 02-guardrailed-inference-core-and-eval-harness]: Missing OPENAI_API_KEY is treated as a setup-blocked launch check, not as a failure of the local deterministic safety gate.
 
 ### Pending Todos
 
@@ -88,11 +91,11 @@ None yet.
 ### Blockers/Concerns
 
 - Claims-safe wording, disclaimer language, and launch copy must stay consistent across prompt, UI, and community posts.
-- Harmful SAFE regressions remain the primary launch blocker until the evaluation suite is green.
+- The launch-only live eval still needs `OPENAI_API_KEY` and a recorded zero-harmful-SAFE result before public release.
 - Telemetry beyond pageviews must stay redacted or remain out of scope.
 
 ## Session Continuity
 
-Last session: 2026-05-06T20:59:19.640Z
-Stopped at: Completed 02-02-PLAN.md
+Last session: 2026-05-06T21:24:57Z
+Stopped at: Completed 02-03-PLAN.md
 Resume file: None

@@ -43,8 +43,8 @@ Requirements for the Permission MVP. Each maps to roadmap phases.
 - [x] **GUARD-02**: The server validates request input and model output against explicit schemas before rendering a result.
 - [x] **GUARD-03**: The server fails closed with safe retry copy when model output is malformed, incomplete, or outside the allowed schema.
 - [x] **GUARD-04**: The prompt and policy layer classify uncertain or borderline cases conservatively rather than returning unsafe reassurance.
-- [ ] **GUARD-05**: A launch-blocking evaluation set covers clearly safe foods, borderline foods, high-risk foods, non-food input, ambiguous input, carbs-only meals, and out-of-range A1C values.
-- [ ] **GUARD-06**: The evaluation set has zero harmful SAFE classifications before public launch.
+- [x] **GUARD-05**: A launch-blocking evaluation set covers clearly safe foods, borderline foods, high-risk foods, non-food input, ambiguous input, carbs-only meals, and out-of-range A1C values.
+- [x] **GUARD-06**: The evaluation set has zero harmful SAFE classifications before public launch.
 - [ ] **GUARD-07**: Founder manually reviews the first 50 production results and spot-checks at least 5 results per day for the first two weeks after launch.
 
 ### Mobile Public Experience
@@ -153,8 +153,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GUARD-02 | Phase 2 | Complete |
 | GUARD-03 | Phase 2 | Complete |
 | GUARD-04 | Phase 1 | Complete |
-| GUARD-05 | Phase 2 | Pending |
-| GUARD-06 | Phase 2 | Pending |
+| GUARD-05 | Phase 2 | Complete |
+| GUARD-06 | Phase 2 | Complete |
 | GUARD-07 | Phase 5 | Pending |
 | UX-01 | Phase 3 | Pending |
 | UX-02 | Phase 3 | Pending |
@@ -184,4 +184,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-05-04*
-*Last updated: 2026-05-06 after completing Phase 2 Plan 02*
+*Last updated: 2026-05-06 after completing Phase 2 Plan 03*
