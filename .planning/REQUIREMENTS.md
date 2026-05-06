@@ -13,7 +13,7 @@ Requirements for the Permission MVP. Each maps to roadmap phases.
 - [x] **CLAIM-02**: The product never claims to diagnose, treat, prevent, cure, or reverse diabetes or prediabetes.
 - [x] **CLAIM-03**: The product never predicts a user's future A1C or blood glucose curve.
 - [x] **CLAIM-04**: Sequencing, swap, and blood-sugar-impact guidance is grounded in documented evidence sources or kept qualitative when evidence is insufficient.
-- [ ] **CLAIM-05**: Every result includes an informational-only disclaimer that tells the user to consult a doctor or registered dietitian for personalized medical guidance.
+- [x] **CLAIM-05**: Every result includes an informational-only disclaimer that tells the user to consult a doctor or registered dietitian for personalized medical guidance.
 
 ### Inputs
 
@@ -28,7 +28,7 @@ Requirements for the Permission MVP. Each maps to roadmap phases.
 
 ### Guidance Output
 
-- [ ] **GUIDE-01**: User receives a result classified as SAFE, MODERATE, or HIGH when the food and A1C inputs are in scope.
+- [x] **GUIDE-01**: User receives a result classified as SAFE, MODERATE, or HIGH when the food and A1C inputs are in scope.
 - [x] **GUIDE-02**: The risk rubric calibrates guidance across A1C bands 5.7-5.9, 6.0-6.2, and 6.3-6.4.
 - [ ] **GUIDE-03**: Each in-scope result includes a one-sentence plain-English reason for the classification.
 - [ ] **GUIDE-04**: SAFE results lead with permission-first reassurance and do not include unnecessary swaps.
@@ -39,9 +39,9 @@ Requirements for the Permission MVP. Each maps to roadmap phases.
 
 ### Guardrails And Evaluation
 
-- [ ] **GUARD-01**: All model requests run server-side through a single controlled inference path.
-- [ ] **GUARD-02**: The server validates request input and model output against explicit schemas before rendering a result.
-- [ ] **GUARD-03**: The server fails closed with safe retry copy when model output is malformed, incomplete, or outside the allowed schema.
+- [x] **GUARD-01**: All model requests run server-side through a single controlled inference path.
+- [x] **GUARD-02**: The server validates request input and model output against explicit schemas before rendering a result.
+- [x] **GUARD-03**: The server fails closed with safe retry copy when model output is malformed, incomplete, or outside the allowed schema.
 - [x] **GUARD-04**: The prompt and policy layer classify uncertain or borderline cases conservatively rather than returning unsafe reassurance.
 - [ ] **GUARD-05**: A launch-blocking evaluation set covers clearly safe foods, borderline foods, high-risk foods, non-food input, ambiguous input, carbs-only meals, and out-of-range A1C values.
 - [ ] **GUARD-06**: The evaluation set has zero harmful SAFE classifications before public launch.
@@ -132,7 +132,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CLAIM-02 | Phase 1 | Complete |
 | CLAIM-03 | Phase 1 | Complete |
 | CLAIM-04 | Phase 1 | Complete |
-| CLAIM-05 | Phase 2 | Pending |
+| CLAIM-05 | Phase 2 | Complete |
 | INPUT-01 | Phase 3 | Pending |
 | INPUT-02 | Phase 3 | Pending |
 | INPUT-03 | Phase 3 | Pending |
@@ -141,7 +141,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INPUT-06 | Phase 2 | Pending |
 | INPUT-07 | Phase 2 | Pending |
 | INPUT-08 | Phase 2 | Pending |
-| GUIDE-01 | Phase 2 | Pending |
+| GUIDE-01 | Phase 2 | Complete |
 | GUIDE-02 | Phase 1 | Complete |
 | GUIDE-03 | Phase 2 | Pending |
 | GUIDE-04 | Phase 2 | Pending |
@@ -149,9 +149,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GUIDE-06 | Phase 2 | Pending |
 | GUIDE-07 | Phase 1 | Complete |
 | GUIDE-08 | Phase 3 | Pending |
-| GUARD-01 | Phase 2 | Pending |
-| GUARD-02 | Phase 2 | Pending |
-| GUARD-03 | Phase 2 | Pending |
+| GUARD-01 | Phase 2 | Complete |
+| GUARD-02 | Phase 2 | Complete |
+| GUARD-03 | Phase 2 | Complete |
 | GUARD-04 | Phase 1 | Complete |
 | GUARD-05 | Phase 2 | Pending |
 | GUARD-06 | Phase 2 | Pending |
@@ -184,4 +184,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-05-04*
-*Last updated: 2026-05-06 after completing Phase 1 Plan 03*
+*Last updated: 2026-05-06 after completing Phase 2 Plan 01*

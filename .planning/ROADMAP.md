@@ -48,7 +48,7 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 02-01: Implement the structured-output check service and server-side guardrails
+- [x] 02-01: Implement the structured-output check service and server-side guardrails
 - [ ] 02-02: Implement edge-case handling, rubric application, and conservative fallback behavior
 - [ ] 02-03: Build the safety evaluation suite and gate launch on zero harmful SAFE results
 
@@ -105,7 +105,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Claims Boundary, Evidence Pack, and Safety Spec | 3/3 | Complete | 01-01, 01-02, 01-03 |
-| 2. Guardrailed Inference Core and Eval Harness | 0/3 | Not started | - |
+| 2. Guardrailed Inference Core and Eval Harness | 1/3 | In Progress | 02-01 |
 | 3. Public Mobile Permission Check | 0/3 | Not started | - |
 | 4. Privacy-Minimal Launch Controls | 0/2 | Not started | - |
 | 5. Community Launch and Founder Review Loop | 0/2 | Not started | - |
