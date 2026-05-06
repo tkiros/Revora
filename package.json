@@ -5,7 +5,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:revora": "vitest run tests/unit/revora"
+    "test:revora": "vitest run tests/unit/revora",
+    "eval:revora": "vitest run tests/evals/revora-safety-eval.test.ts"
   },
   "dependencies": {
     "next": "16.2.4",

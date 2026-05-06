@@ -1,18 +1,42 @@
 import { describe, expect, it } from "vitest";
 
+type LiveEvalModule = {
+  planLiveEval: (env?: Record<string, string>) =>
+    | {
+        status: "setup_blocked";
+        message: string;
+      }
+    | {
+        status: "ready";
+        args: string[];
+        env: Record<string, string>;
+      };
+};
+
+const LIVE_EVAL_RUNNER_MODULE: string =
+  "../../../scripts/run-live-revora-evals.mjs";
+
+async function loadLiveEvalRunner(): Promise<LiveEvalModule> {
+  return (await import(LIVE_EVAL_RUNNER_MODULE)) as LiveEvalModule;
+}
+
 describe("run-live-revora-evals", () => {
   it("reports SETUP_BLOCKED when OPENAI_API_KEY is missing", async () => {
-    const { planLiveEval } = await import("../../../scripts/run-live-revora-evals.mjs");
+    const { planLiveEval } = await loadLiveEvalRunner();
 
     const plan = planLiveEval({});
 
     expect(plan.status).toBe("setup_blocked");
+    if (plan.status !== "setup_blocked") {
+      throw new Error("Expected setup_blocked plan.");
+    }
+
     expect(plan.message).toContain("SETUP_BLOCKED");
     expect(plan.message).toContain("OPENAI_API_KEY");
   });
 
   it("enables REVORA_LIVE_EVAL when credentials are present", async () => {
-    const { planLiveEval } = await import("../../../scripts/run-live-revora-evals.mjs");
+    const { planLiveEval } = await loadLiveEvalRunner();
 
     const plan = planLiveEval({ OPENAI_API_KEY: "test-key" });
 
