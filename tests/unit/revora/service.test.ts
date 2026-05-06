@@ -8,6 +8,8 @@ import {
   createOpenAIRevoraModelClient
 } from "../../../lib/revora/openai-client";
 import { buildRevoraPrompt } from "../../../lib/revora/prompt";
+import { checkFood } from "../../../lib/revora/service";
+import * as serviceModule from "../../../lib/revora/service";
 import { revoraModelJsonSchema } from "../../../lib/revora/schemas";
 import { loadSafetyContract } from "../../../lib/revora/safety-contract";
 
@@ -102,5 +104,84 @@ describe("OpenAI client", () => {
         }
       })
     );
+  });
+});
+
+describe("checkFood", () => {
+  it("is the only core service export", () => {
+    expect(Object.keys(serviceModule).sort()).toEqual(["checkFood"]);
+  });
+
+  it("returns a safe retry response for malformed requests without calling the model", async () => {
+    const model = {
+      generate: vi.fn()
+    };
+
+    const response = await checkFood(
+      {
+        food: "",
+        a1c: "nope"
+      },
+      { model }
+    );
+
+    expect(response.kind).toBe("retry");
+    expect(response.disclaimer).toContain("registered dietitian");
+    expect(model.generate).not.toHaveBeenCalled();
+  });
+
+  it("retries malformed model outputs once and then fails closed", async () => {
+    const model = {
+      generate: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("malformed output"))
+        .mockRejectedValueOnce(new Error("malformed output"))
+    };
+
+    const response = await checkFood(
+      {
+        food: "sweetened cereal",
+        a1c: 6.1
+      },
+      { model }
+    );
+
+    expect(model.generate).toHaveBeenCalledTimes(2);
+    expect(response.kind).toBe("retry");
+    expect(response.disclaimer).toContain("registered dietitian");
+  });
+
+  it("returns validated in-scope results with the disclaimer merged server-side", async () => {
+    const model = {
+      generate: vi.fn().mockResolvedValue({
+        kind: "result",
+        risk: "SAFE",
+        reason: "This looks balanced.",
+        adjustment: null,
+        swap: null,
+        question: null,
+        examples: [],
+        policy_flags: ["safe_food"]
+      })
+    };
+
+    const response = await checkFood(
+      {
+        food: "lentil soup",
+        a1c: 6.1
+      },
+      { model }
+    );
+
+    expect(model.generate).toHaveBeenCalledTimes(1);
+    expect(response).toEqual({
+      kind: "result",
+      risk: "SAFE",
+      reason: "This looks balanced.",
+      adjustment: null,
+      swap: null,
+      disclaimer:
+        "Revora is informational only and is not medical advice. Talk with a doctor or registered dietitian for guidance that is specific to you."
+    });
   });
 });
