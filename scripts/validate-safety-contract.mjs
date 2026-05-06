@@ -184,6 +184,7 @@ function checkForbiddenPredictions(context, failures) {
 }
 
 function checkClaimsBoundary(context, failures) {
+  const normalizedClaimsBoundary = context.claimsBoundary.toLowerCase();
   const requiredPhrases = [
     "Informational-only",
     "diagnosis",
@@ -201,7 +202,7 @@ function checkClaimsBoundary(context, failures) {
   ];
 
   for (const phrase of requiredPhrases) {
-    if (!context.claimsBoundary.includes(phrase)) {
+    if (!normalizedClaimsBoundary.includes(phrase.toLowerCase())) {
       failures.push(`claims boundary missing phrase: ${phrase}`);
     }
   }
@@ -427,7 +428,7 @@ function splitTableRow(row) {
     .replace(/^\|/, "")
     .replace(/\|$/, "")
     .split("|")
-    .map((value) => value.trim());
+    .map((value) => value.trim().replace(/^`(.+)`$/, "$1"));
 }
 
 function isSeparatorRow(row) {

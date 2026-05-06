@@ -4,13 +4,13 @@
 
 This document is the Phase 1 source of truth for what Revora may say in product
 copy, prompt copy, result copy, and launch copy. It exists to keep every active
-surface inside one informational-only boundary before any model or UI behavior
+surface inside one Informational-only boundary before any model or UI behavior
 expands.
 
 ## Current Product Boundary
 
 - Revora is a permission-first food checker for people using an A1C in the
-  prediabetes range.
+  prediabetes range of `5.7%` to `6.4%`.
 - Revora provides informational-only food guidance, not diagnosis or medical
   treatment.
 - Revora must stay qualitative when it talks about blood-sugar impact.
@@ -20,22 +20,24 @@ expands.
 
 | Claim Class | Applies To | Allowed Language | Not Allowed Yet | Notes |
 | --- | --- | --- | --- | --- |
-| `product-role` | Product and launch copy | Describe Revora as informational-only guidance for prediabetes-range meal decisions. | Disease outcomes, diagnosis, or reversal wording. | Expanded and locked in Task 1. |
-| `prompt-scope` | Intake prompt copy | Explain the supported A1C range and what input Revora needs. | Broad wellness promises or unsupported screening claims. | Must remain narrow and explicit. |
-| `result-qualitative-impact` | Result body copy | Use qualitative descriptions such as lower impact, more balanced, or carb-heavy. | Exact spike, GI, GL, or future A1C language. | Must match the evidence pack. |
-| `result-adjustment` | Result suggestions | Offer one practical meal adjustment or swap when the rubric allows it. | Treatment plan, dosing, or guaranteed outcomes. | Adjustment copy is still qualitative. |
-| `out-of-scope-routing` | Below-range and high-range routes | Explain that Revora is designed for a narrower A1C range and point to clinician guidance when needed. | Saying the user is normal or has diabetes. | Final wording is locked in Task 1. |
-| `launch-informational` | Founder posts and launch blurbs | Describe Revora as a cautious, informational MVP. | Clinical proof, FDA status, or disease claims. | Must stay aligned with approved copy ledger rows. |
-| `disclaimer-footer` | Result footer | Remind users to consult a doctor or registered dietitian for personalized guidance. | Any wording that weakens the informational-only boundary. | Final reusable disclaimer is locked in Task 1. |
+| `product-role` | Product copy | Describe Revora as informational-only food guidance for people using a prediabetes-range A1C. | Claims that Revora diagnoses, treats, prevents, cures, or reverses prediabetes or diabetes. | Use this for hero copy, product summary copy, and feature labels. |
+| `prompt-scope` | Prompt and intake copy | Explain that Revora checks a food or meal using an A1C in the `5.7%` to `6.4%` range. | Broad screening, wellness, or disease-management promises. | Prompt copy should explain input scope, not make clinical promises. |
+| `result-qualitative-impact` | Result body copy | Use qualitative descriptions such as lower impact, more balanced, carb-heavy, or likely higher impact. | Exact glucose-curve prediction, future-A1C prediction, exact GI, exact GL, or exact `mg/dL` spike claims. | Result language can explain why a meal is classified but must stay non-numeric. |
+| `result-adjustment` | Result suggestions | Offer one practical, food-level adjustment or swap such as adding protein, adding nonstarchy vegetables, or picking a less refined option. | Treatment plans, dosing, medication language, or guaranteed outcome claims. | Adjustments stay at the meal-choice level. |
+| `out-of-scope-routing` | Below-range and high-range routes | Explain that Revora is built for prediabetes-range A1C values and direct the user to clinician guidance when the input is outside scope. | Saying the user is normal, saying the user has diabetes, or offering a SAFE, MODERATE, or HIGH result outside scope. | Out-of-scope routes explain the boundary without diagnosing. |
+| `launch-informational` | Launch, founder, and community copy | Describe Revora as a cautious MVP for informational meal decisions in the prediabetes range. | Unsupported clinical proof, FDA approval or clearance, doctor endorsement, or disease-outcome guarantees. | Launch copy must not imply the MVP is medically validated. |
+| `disclaimer-footer` | Result footer | Repeat one stable informational-only disclaimer that sends users to a doctor or registered dietitian for personalized guidance. | Any wording that dilutes the boundary or promises personalized medical safety. | Use the same footer on all in-scope result states. |
 
 ## Banned Claim Families
 
 - Diagnosis or screening claims
 - Treatment, prevention, cure, or reversal claims
 - Future A1C prediction claims
-- Glucose-curve or exact spike prediction claims
+- Glucose-curve prediction claims
+- Exact `mg/dL` spike prediction claims
 - Exact GI or GL number claims
-- FDA approval, clearance, or unsupported clinical proof claims
+- FDA approval or clearance claims
+- Unsupported clinical proof or clinical-outcome guarantee claims
 
 ## Reusable Disclaimer
 
@@ -45,16 +47,31 @@ inherit the same boundary:
 > Revora is informational only and is not medical advice. Talk with a doctor or
 > registered dietitian for guidance that is specific to you.
 
+This disclaimer does not expand the allowed claim boundary. It only reinforces
+that Revora is not a source of personalized medical advice.
+
 ## Out-Of-Scope Routes
 
 ### Below the Supported Range
 
-When the entered A1C is below the prediabetes range, Revora should explain that
-the MVP was designed for prediabetes-range food decisions and should not present
-a SAFE, MODERATE, or HIGH classification.
+When the entered A1C is below `5.7%`, Revora should explain that the MVP was
+designed for prediabetes-range food decisions and should not present a SAFE,
+MODERATE, or HIGH classification.
+
+Approved route wording:
+
+> Revora is designed for the prediabetes A1C range of `5.7%` to `6.4%`. This
+> value sits below that range, so use a doctor or registered dietitian for
+> guidance that is specific to you.
 
 ### Above the Supported Range
 
-When the entered A1C is in the diabetes range, Revora should state that the
-value is outside the MVP boundary and direct the user to a doctor or registered
+When the entered A1C is `6.5%` or above, Revora should state that the value is
+outside the MVP boundary and direct the user to a doctor or registered
 dietitian for personalized guidance without diagnosing the user.
+
+Approved route wording:
+
+> This A1C value falls in a range used for diabetes and is outside Revora's
+> prediabetes-only MVP. For personalized next steps, talk with a doctor or
+> registered dietitian.
