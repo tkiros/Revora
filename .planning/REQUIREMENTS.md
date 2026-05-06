@@ -34,7 +34,7 @@ Requirements for the Permission MVP. Each maps to roadmap phases.
 - [ ] **GUIDE-04**: SAFE results lead with permission-first reassurance and do not include unnecessary swaps.
 - [ ] **GUIDE-05**: MODERATE and HIGH results include exactly one practical sequencing, eating-speed, or add-protein/add-vegetable instruction.
 - [ ] **GUIDE-06**: MODERATE and HIGH results include exactly one practical lower-glycemic swap.
-- [ ] **GUIDE-07**: Results use qualitative glycemic-impact language and never invent exact GI, GL, or glucose-spike numbers.
+- [x] **GUIDE-07**: Results use qualitative glycemic-impact language and never invent exact GI, GL, or glucose-spike numbers.
 - [ ] **GUIDE-08**: The app returns a useful result, clarification, or safe error state within a 5-second acceptable ceiling under normal network conditions.
 
 ### Guardrails And Evaluation
@@ -42,7 +42,7 @@ Requirements for the Permission MVP. Each maps to roadmap phases.
 - [ ] **GUARD-01**: All model requests run server-side through a single controlled inference path.
 - [ ] **GUARD-02**: The server validates request input and model output against explicit schemas before rendering a result.
 - [ ] **GUARD-03**: The server fails closed with safe retry copy when model output is malformed, incomplete, or outside the allowed schema.
-- [ ] **GUARD-04**: The prompt and policy layer classify uncertain or borderline cases conservatively rather than returning unsafe reassurance.
+- [x] **GUARD-04**: The prompt and policy layer classify uncertain or borderline cases conservatively rather than returning unsafe reassurance.
 - [ ] **GUARD-05**: A launch-blocking evaluation set covers clearly safe foods, borderline foods, high-risk foods, non-food input, ambiguous input, carbs-only meals, and out-of-range A1C values.
 - [ ] **GUARD-06**: The evaluation set has zero harmful SAFE classifications before public launch.
 - [ ] **GUARD-07**: Founder manually reviews the first 50 production results and spot-checks at least 5 results per day for the first two weeks after launch.
@@ -147,12 +147,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GUIDE-04 | Phase 2 | Pending |
 | GUIDE-05 | Phase 2 | Pending |
 | GUIDE-06 | Phase 2 | Pending |
-| GUIDE-07 | Phase 1 | Pending |
+| GUIDE-07 | Phase 1 | Complete |
 | GUIDE-08 | Phase 3 | Pending |
 | GUARD-01 | Phase 2 | Pending |
 | GUARD-02 | Phase 2 | Pending |
 | GUARD-03 | Phase 2 | Pending |
-| GUARD-04 | Phase 1 | Pending |
+| GUARD-04 | Phase 1 | Complete |
 | GUARD-05 | Phase 2 | Pending |
 | GUARD-06 | Phase 2 | Pending |
 | GUARD-07 | Phase 5 | Pending |
@@ -184,4 +184,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-05-04*
-*Last updated: 2026-05-06 after completing Phase 1 Plan 02*
+*Last updated: 2026-05-06 after completing Phase 1 Plan 03*

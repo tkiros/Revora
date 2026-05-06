@@ -12,7 +12,7 @@ Revora's Permission MVP stays narrow on purpose: first lock the safety and claim
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Claims Boundary, Evidence Pack, and Safety Spec** - Lock the allowed guidance contract before broader product behavior is built.
+- [x] **Phase 1: Claims Boundary, Evidence Pack, and Safety Spec** - Lock the allowed guidance contract before broader product behavior is built.
 - [ ] **Phase 2: Guardrailed Inference Core and Eval Harness** - Build the server-side classification engine and its launch-blocking safety checks.
 - [ ] **Phase 3: Public Mobile Permission Check** - Deliver the one-page mobile-first check flow for real users.
 - [ ] **Phase 4: Privacy-Minimal Launch Controls** - Make the public MVP deployable with explicit privacy, abuse, and rollback boundaries.
@@ -33,7 +33,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 Plans:
 - [x] 01-01: Lock claims boundary, evidence sources, and disclaimer language
 - [x] 01-02: Define A1C band rubric and out-of-range handling rules
-- [ ] 01-03: Freeze conservative tone and uncertainty policies
+- [x] 01-03: Freeze conservative tone and uncertainty policies
 
 ### Phase 2: Guardrailed Inference Core and Eval Harness
 **Goal**: Server-side inference returns schema-valid, conservative Revora answers for in-scope and edge-case checks before public launch.
@@ -104,7 +104,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Claims Boundary, Evidence Pack, and Safety Spec | 2/3 | In Progress | 01-01, 01-02 |
+| 1. Claims Boundary, Evidence Pack, and Safety Spec | 3/3 | Complete | 01-01, 01-02, 01-03 |
 | 2. Guardrailed Inference Core and Eval Harness | 0/3 | Not started | - |
 | 3. Public Mobile Permission Check | 0/3 | Not started | - |
 | 4. Privacy-Minimal Launch Controls | 0/2 | Not started | - |
