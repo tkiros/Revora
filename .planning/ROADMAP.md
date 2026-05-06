@@ -13,7 +13,7 @@ Revora's Permission MVP stays narrow on purpose: first lock the safety and claim
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Claims Boundary, Evidence Pack, and Safety Spec** - Lock the allowed guidance contract before broader product behavior is built.
-- [x] **Phase 2: Guardrailed Inference Core and Eval Harness** - Build the server-side classification engine and its launch-blocking safety checks. (completed 2026-05-06)
+- [ ] **Phase 2: Guardrailed Inference Core and Eval Harness** - Build the server-side classification engine and its launch-blocking safety checks. (verification gaps found 2026-05-06; see `.planning/phases/02-guardrailed-inference-core-and-eval-harness/02-VERIFICATION.md`)
 - [ ] **Phase 3: Public Mobile Permission Check** - Deliver the one-page mobile-first check flow for real users.
 - [ ] **Phase 4: Privacy-Minimal Launch Controls** - Make the public MVP deployable with explicit privacy, abuse, and rollback boundaries.
 - [ ] **Phase 5: Community Launch and Founder Review Loop** - Launch carefully, measure demand, and decide whether expansion is earned.
@@ -51,6 +51,8 @@ Plans:
 - [x] 02-01: Implement the structured-output check service and server-side guardrails
 - [x] 02-02: Implement edge-case handling, rubric application, and conservative fallback behavior
 - [x] 02-03: Build the safety evaluation suite and gate launch on zero harmful SAFE results
+
+**Verification:** gaps found in `.planning/phases/02-guardrailed-inference-core-and-eval-harness/02-VERIFICATION.md`. Phase 2 needs gap closure before it can be marked complete or advance to Phase 3.
 
 ### Phase 3: Public Mobile Permission Check
 **Goal**: A user standing in front of food can complete the Revora check from one mobile-first page and get a useful answer quickly.
@@ -105,7 +107,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Claims Boundary, Evidence Pack, and Safety Spec | 3/3 | Complete | 01-01, 01-02, 01-03 |
-| 2. Guardrailed Inference Core and Eval Harness | 3/3 | Complete | 02-01, 02-02, 02-03 |
+| 2. Guardrailed Inference Core and Eval Harness | 3/3 | Verification gaps found | 02-01, 02-02, 02-03 |
 | 3. Public Mobile Permission Check | 0/3 | Not started | - |
 | 4. Privacy-Minimal Launch Controls | 0/2 | Not started | - |
 | 5. Community Launch and Founder Review Loop | 0/2 | Not started | - |

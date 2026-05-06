@@ -22,9 +22,9 @@ Requirements for the Permission MVP. Each maps to roadmap phases.
 - [ ] **INPUT-03**: The app validates required food and A1C inputs before calling the model.
 - [x] **INPUT-04**: The app handles A1C values below 5.7 by explaining that Revora is designed for the prediabetes range.
 - [x] **INPUT-05**: The app handles A1C values of 6.5 or above by explaining that the value is in the Type 2 diabetes range and directing the user to clinician guidance.
-- [x] **INPUT-06**: The app handles non-food input by refusing to classify it and showing concrete food examples.
+- [ ] **INPUT-06**: The app handles non-food input by refusing to classify it and showing concrete food examples.
 - [x] **INPUT-07**: The app handles ambiguous food descriptions by asking at most one clarifying question instead of inventing meal details.
-- [x] **INPUT-08**: The app handles carbs-only meals by recommending adding protein or vegetables instead of giving an impossible sequencing instruction.
+- [ ] **INPUT-08**: The app handles carbs-only meals by recommending adding protein or vegetables instead of giving an impossible sequencing instruction.
 
 ### Guidance Output
 
@@ -138,9 +138,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INPUT-03 | Phase 3 | Pending |
 | INPUT-04 | Phase 1 | Complete |
 | INPUT-05 | Phase 1 | Complete |
-| INPUT-06 | Phase 2 | Complete |
+| INPUT-06 | Phase 2 | Pending |
 | INPUT-07 | Phase 2 | Complete |
-| INPUT-08 | Phase 2 | Complete |
+| INPUT-08 | Phase 2 | Pending |
 | GUIDE-01 | Phase 2 | Complete |
 | GUIDE-02 | Phase 1 | Complete |
 | GUIDE-03 | Phase 2 | Complete |
@@ -184,4 +184,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-05-04*
-*Last updated: 2026-05-06 after completing Phase 2 Plan 03*
+*Last updated: 2026-05-06 after Phase 2 verification gaps were recorded*

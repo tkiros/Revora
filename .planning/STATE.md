@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-stopped_at: Completed 02-03-PLAN.md
-last_updated: "2026-05-06T21:24:57Z"
-last_activity: 2026-05-06 - Completed Phase 2 Plan 03 safety evaluation suite and harmful SAFE launch gate
+stopped_at: Phase 2 verification gaps found
+last_updated: "2026-05-06T21:33:33Z"
+last_activity: 2026-05-06 - Phase 2 verification found gaps in non-food refusal and carbs-only guidance enforcement
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 1
   total_plans: 13
   completed_plans: 6
-  percent: 46
+  percent: 38
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-04)
 
 **Core value:** Revora must give a clear, evidence-grounded, permission-first answer to "Can I eat this?" in under 5 seconds without increasing food anxiety.
-**Current focus:** Phase 3 - Public Mobile Permission Check
+**Current focus:** Phase 2 - Guardrailed Inference Core and Eval Harness gap closure
 
 ## Current Position
 
-Phase: 3 of 5 (Public Mobile Permission Check)
-Plan: 0 of 3 in current phase
-Status: Ready to start
-Last activity: 2026-05-06 - Completed Phase 2 Plan 03 safety evaluation suite and harmful SAFE launch gate
+Phase: 2 of 5 (Guardrailed Inference Core and Eval Harness)
+Plan: 3 of 3 executed in current phase
+Status: Verification gaps found
+Last activity: 2026-05-06 - Verifier found gaps in ordinary non-food refusal and carbs-only add-protein/add-vegetable enforcement
 
-Progress: [█████░░░░░] 46%
+Progress: [████░░░░░░] 38%
 
 ## Performance Metrics
 
@@ -51,7 +51,7 @@ Progress: [█████░░░░░] 46%
 
 **Recent Trend:**
 - Last 5 plans: 01-02 (2 min), 01-03 (5 min), 02-01 (26 min), 02-02 (17 min), 02-03 (17 min)
-- Trend: Phase 2 is complete with a green local eval gate; next execution step is Phase 3 Plan 01 mobile form and local validation flow.
+- Trend: Phase 2 plan execution is complete and the local eval gate is green, but verification found two contract gaps; next step is `$gsd-plan-phase 2 --gaps`.
 
 ## Accumulated Context
 
@@ -86,16 +86,18 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-None yet.
+- Add deterministic ordinary non-food refusal before the model call and prove it with regression tests.
+- Tighten carbs-only enforcement so sequencing-only guidance is rejected or floored to add-protein/add-vegetable copy.
 
 ### Blockers/Concerns
 
 - Claims-safe wording, disclaimer language, and launch copy must stay consistent across prompt, UI, and community posts.
+- Phase 2 is not verified complete: ordinary non-food objects can still reach the model, and carbs-only guidance can still pass with sequencing-only language.
 - The launch-only live eval still needs `OPENAI_API_KEY` and a recorded zero-harmful-SAFE result before public release.
 - Telemetry beyond pageviews must stay redacted or remain out of scope.
 
 ## Session Continuity
 
-Last session: 2026-05-06T21:24:57Z
-Stopped at: Completed 02-03-PLAN.md
+Last session: 2026-05-06T21:33:33Z
+Stopped at: Phase 2 verification gaps found
 Resume file: None
