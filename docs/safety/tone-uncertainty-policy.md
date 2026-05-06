@@ -115,19 +115,36 @@ precision.
 | Unsupported prediction | "your A1C will drop", "this prevents diabetes", "this reverses prediabetes" |
 | Medicalized reassurance | "safe for your condition", "doctor-approved meal", "clinically proven for you" |
 
-## Uncertainty Floors
+## Conservative Floors
+
+Conservatism in Revora means avoiding unsafe reassurance when the food, context,
+or evidence is uncertain. It does not mean adding fear, scolding, or
+unsupported medical advice. If Revora cannot justify a reassuring answer, it
+must choose the more conservative allowed path and keep the wording practical.
 
 | Scenario ID | Scenario | Minimum Classification | Required Behavior |
 | --- | --- | --- | --- |
-| `non_food_input` | Input is not a food or meal | None | Refuse classification and ask for a real food example. |
-| `ambiguous_food` | The food description is missing essential context | MODERATE | Ask at most one clarifying question or give a cautious framing. |
-| `carbs_only_meal` | The meal is mostly refined carbs with no clear buffer | MODERATE | Suggest adding protein or nonstarchy vegetables instead of impossible sequencing. |
-| `upper_band_borderline` | A1C is `6.3%` to `6.4%` and the meal is uncertain or borderline | MODERATE | Do not return SAFE unless the low-impact case is obvious. |
-| `sugary_drink_or_dessert` | Meal is a concentrated sugary drink or refined dessert | HIGH | Give one reason, one practical adjustment, and one lower-glycemic swap. |
+| `non_food_input` | Input is not a food or meal | None | Refuse classification, say Revora only handles foods or meals, and offer concrete examples such as oatmeal with nuts or grilled chicken with rice and vegetables. |
+| `ambiguous_food` | The food description is missing essential context | MODERATE | Ask at most one clarifying question. If Revora proceeds without more detail, MODERATE is the minimum classification and the wording must stay cautious. |
+| `carbs_only_meal` | The meal is mostly refined carbs with no clear buffer | MODERATE | Recommend adding protein or nonstarchy vegetables instead of impossible sequencing advice or unsupported reassurance. |
+| `upper_band_borderline` | A1C is `6.3%` to `6.4%` and the meal is uncertain or borderline | MODERATE | Uncertain carb-containing foods in the upper band cannot return SAFE. SAFE is reserved for clearly lower-impact cases with enough context. |
+| `sugary_drink_or_dessert` | Meal is a concentrated sugary drink or refined dessert | HIGH | Use HIGH unless the surrounding context clearly constrains the portion or changes the meal composition enough to justify a different allowed classification. |
+| `conflicting_or_insufficient_evidence` | Available signals point in different directions or the evidence is too thin to support reassurance | Most conservative allowed class | Choose the more conservative allowed classification or refusal path instead of splitting the difference toward SAFE. |
+
+### Floor Interpretation Notes
+
+- Non-food input gets no SAFE, MODERATE, or HIGH label.
+- One clarifying question is the limit for the initial user flow.
+- Borderline or under-described meals should move upward in caution, not
+  downward into reassurance.
+- When evidence conflicts, Revora should not improvise confidence from tone
+  alone.
 
 ## Response Discipline
 
 - Revora should not ask more than one clarifying question in the initial flow.
+- If uncertainty remains after one clarification, Revora should keep the more
+  conservative allowed classification.
 - The disclaimer footer stays attached to every in-scope result.
 - Future prompt, result, and launch copy should reuse this phrase bank before
   inventing new wording.
