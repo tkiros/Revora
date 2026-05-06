@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-05-06T20:31:27.557Z"
-last_activity: 2026-05-06 - Completed Phase 2 Plan 01 structured-output check service and server-side guardrails
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-05-06T20:59:19.700Z"
+last_activity: 2026-05-06 - Completed Phase 2 Plan 02 edge-case handling, rubric application, and conservative fallback behavior
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 13
-  completed_plans: 4
-  percent: 31
+  completed_plans: 5
+  percent: 38
 ---
 
 # Project State
@@ -26,32 +26,32 @@ See: .planning/PROJECT.md (updated 2026-05-04)
 ## Current Position
 
 Phase: 2 of 5 (Guardrailed Inference Core and Eval Harness)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-05-06 - Completed Phase 2 Plan 01 structured-output check service and server-side guardrails
+Last activity: 2026-05-06 - Completed Phase 2 Plan 02 edge-case handling, rubric application, and conservative fallback behavior
 
-Progress: [███░░░░░░░] 31%
+Progress: [████░░░░░░] 38%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
-- Average duration: 11 min
-- Total execution time: 0.7 hours
+- Total plans completed: 5
+- Average duration: 12 min
+- Total execution time: 1.0 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1. Claims Boundary, Evidence Pack, and Safety Spec | 3 | 17 min | 6 min |
-| 2. Guardrailed Inference Core and Eval Harness | 1 | 26 min | 26 min |
+| 2. Guardrailed Inference Core and Eval Harness | 2 | 43 min | 22 min |
 | 3. Public Mobile Permission Check | 0 | 0 min | - |
 | 4. Privacy-Minimal Launch Controls | 0 | 0 min | - |
 | 5. Community Launch and Founder Review Loop | 0 | 0 min | - |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (10 min), 01-02 (2 min), 01-03 (5 min), 02-01 (26 min)
-- Trend: Phase 2 inference foundation is complete; next execution step is Plan 02-02 edge-case handling and rubric application.
+- Last 5 plans: 01-01 (10 min), 01-02 (2 min), 01-03 (5 min), 02-01 (26 min), 02-02 (17 min)
+- Trend: Phase 2 deterministic guardrails and thin API adapter are in place; next execution step is Plan 02-03 launch-blocking evaluation coverage.
 
 ## Accumulated Context
 
@@ -77,6 +77,9 @@ Recent decisions affecting current work:
 - [Phase 02-guardrailed-inference-core-and-eval-harness]: Phase 2 prompt snippets and disclaimer copy are loaded directly from Phase 1 safety artifacts.
 - [Phase 02-guardrailed-inference-core-and-eval-harness]: Revora model output stays a flat strict JSON object with nullable required fields before server-side response shaping.
 - [Phase 02-guardrailed-inference-core-and-eval-harness]: checkFood retries one model or contract failure and then fails closed to controlled retry copy with the Phase 1 disclaimer.
+- [Phase 02-guardrailed-inference-core-and-eval-harness]: A1C routing and high-confidence non-food or ambiguous checks run deterministically before prompt/model invocation; only in-scope ok or carbs-only cases reach the model.
+- [Phase 02-guardrailed-inference-core-and-eval-harness]: Unsafe SAFE outputs are corrected with deterministic conservative floors for carbs-only and upper-band borderline contexts instead of trusting prompt obedience.
+- [Phase 02-guardrailed-inference-core-and-eval-harness]: The public adapter stays a thin Node.js POST route over checkFood while app/page and app/layout remain compile-only until Phase 3.
 
 ### Pending Todos
 
@@ -90,6 +93,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-06T20:31:27.550Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-05-06T20:59:19.640Z
+Stopped at: Completed 02-02-PLAN.md
 Resume file: None
