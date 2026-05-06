@@ -9,10 +9,10 @@ Requirements for the Permission MVP. Each maps to roadmap phases.
 
 ### Claims And Evidence
 
-- [ ] **CLAIM-01**: Product copy, prompt copy, result copy, and launch copy use an approved claims boundary that defines allowed informational guidance and banned medical claims.
-- [ ] **CLAIM-02**: The product never claims to diagnose, treat, prevent, cure, or reverse diabetes or prediabetes.
-- [ ] **CLAIM-03**: The product never predicts a user's future A1C or blood glucose curve.
-- [ ] **CLAIM-04**: Sequencing, swap, and blood-sugar-impact guidance is grounded in documented evidence sources or kept qualitative when evidence is insufficient.
+- [x] **CLAIM-01**: Product copy, prompt copy, result copy, and launch copy use an approved claims boundary that defines allowed informational guidance and banned medical claims.
+- [x] **CLAIM-02**: The product never claims to diagnose, treat, prevent, cure, or reverse diabetes or prediabetes.
+- [x] **CLAIM-03**: The product never predicts a user's future A1C or blood glucose curve.
+- [x] **CLAIM-04**: Sequencing, swap, and blood-sugar-impact guidance is grounded in documented evidence sources or kept qualitative when evidence is insufficient.
 - [ ] **CLAIM-05**: Every result includes an informational-only disclaimer that tells the user to consult a doctor or registered dietitian for personalized medical guidance.
 
 ### Inputs
@@ -128,10 +128,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CLAIM-01 | Phase 1 | Pending |
-| CLAIM-02 | Phase 1 | Pending |
-| CLAIM-03 | Phase 1 | Pending |
-| CLAIM-04 | Phase 1 | Pending |
+| CLAIM-01 | Phase 1 | Complete |
+| CLAIM-02 | Phase 1 | Complete |
+| CLAIM-03 | Phase 1 | Complete |
+| CLAIM-04 | Phase 1 | Complete |
 | CLAIM-05 | Phase 2 | Pending |
 | INPUT-01 | Phase 3 | Pending |
 | INPUT-02 | Phase 3 | Pending |
@@ -184,4 +184,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-05-04*
-*Last updated: 2026-05-04 after roadmap creation*
+*Last updated: 2026-05-06 after completing Phase 1 Plan 01*

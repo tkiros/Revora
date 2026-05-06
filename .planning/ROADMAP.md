@@ -31,7 +31,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: Lock claims boundary, evidence sources, and disclaimer language
+- [x] 01-01: Lock claims boundary, evidence sources, and disclaimer language
 - [ ] 01-02: Define A1C band rubric and out-of-range handling rules
 - [ ] 01-03: Freeze conservative tone and uncertainty policies
 
@@ -104,7 +104,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Claims Boundary, Evidence Pack, and Safety Spec | 0/3 | Not started | - |
+| 1. Claims Boundary, Evidence Pack, and Safety Spec | 1/3 | In Progress | 01-01 |
 | 2. Guardrailed Inference Core and Eval Harness | 0/3 | Not started | - |
 | 3. Public Mobile Permission Check | 0/3 | Not started | - |
 | 4. Privacy-Minimal Launch Controls | 0/2 | Not started | - |
