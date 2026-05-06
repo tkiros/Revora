@@ -42,3 +42,41 @@ Use wording equivalent to:
 > diabetes, so it is outside Revora's prediabetes-only scope. Revora should not
 > classify this food or meal. For personalized next steps, talk with a doctor
 > or registered dietitian.
+
+## In-Scope Calibration Levels
+
+Higher in-scope bands increase conservatism, but they do not turn Revora into a
+precise physiology model.
+
+| Band | Conservatism Level | Guidance Effect |
+| --- | --- | --- |
+| `prediabetes_57_59` | Standard conservatism | SAFE, MODERATE, and HIGH remain available when the food evidence is clear, but borderline foods should still avoid casual reassurance. |
+| `prediabetes_60_62` | Elevated conservatism | Borderline foods should lean away from SAFE and toward MODERATE unless the meal is clearly low impact. |
+| `prediabetes_63_64` | High conservatism | Upper-band caution applies: uncertain carb-containing meals cannot return SAFE, and borderline foods should default to MODERATE rather than reassuring SAFE. |
+
+## Conservative Floors
+
+- Upper-band A1C plus an uncertain carb-containing meal cannot return SAFE.
+- Clearly low-impact foods may still return SAFE in any in-scope band when the
+  food evidence is clear and the explanation stays permission-first.
+- Borderline foods should move to MODERATE rather than use reassuring SAFE copy.
+- The same food can become equally cautious or more cautious as A1C increases,
+  but never more reassuring because of a higher A1C band.
+
+## Example Calibration Rows
+
+| A1C Band | Example Food | Expected Classification Shape | Why |
+| --- | --- | --- | --- |
+| `5.7%` to `5.9%` | Sweetened oatmeal with banana and an unclear portion | `MODERATE` at minimum | This is a borderline carb-containing meal, so standard conservatism still avoids a casual SAFE. |
+| `6.0%` to `6.2%` | Sweetened oatmeal with banana and an unclear portion | `MODERATE` with less reassuring language than the lower band | Elevated conservatism keeps the same borderline meal from sounding safer as A1C rises. |
+| `6.3%` to `6.4%` | Sweetened oatmeal with banana and an unclear portion | `MODERATE` and never SAFE while uncertainty remains | High conservatism blocks reassuring SAFE output for the same borderline meal in the upper band. |
+| `6.3%` to `6.4%` | Egg scramble with nonstarchy vegetables | `SAFE` is still allowed with permission-first reassurance | Clearly low-impact foods can still receive SAFE when the evidence is strong and the explanation stays qualitative. |
+
+## Precision Limits
+
+- Do not predict exact `mg/dL` changes, exact glucose curves, or future A1C
+  changes from these bands.
+- Do not treat `6.1` versus `6.2` as precise personalization. Both sit inside
+  the same broad conservatism bucket.
+- Use A1C bands only to calibrate caution, not to imply Revora knows exact
+  metabolic response.
