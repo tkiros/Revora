@@ -19,7 +19,8 @@ created: 2026-05-06
 |----------|-------|
 | **Framework** | Vitest for privacy/launch-control units plus the privacy-boundary audit seam; Playwright for public shutdown smoke; Vercel build/deploy checks |
 | **Config file** | Vitest config from Phase 2 scaffold; `playwright.config.ts`; Vercel project settings |
-| **Quick run command** | `npx vitest run tests/unit/revora/privacy-minimal.test.ts tests/unit/revora/openai-client.test.ts tests/unit/revora/telemetry.test.ts tests/unit/revora/launch-controls.test.ts` |
+| **Quick run command (Wave 1)** | `npx vitest run tests/unit/revora/privacy-minimal.test.ts tests/unit/revora/openai-client.test.ts tests/unit/revora/telemetry.test.ts tests/unit/revora/env.test.ts` |
+| **Quick run command (Wave 2)** | `npx vitest run tests/unit/revora/privacy-minimal.test.ts tests/unit/revora/openai-client.test.ts tests/unit/revora/telemetry.test.ts tests/unit/revora/env.test.ts tests/unit/revora/launch-controls.test.ts` |
 | **Full suite command** | `npm run typecheck && npm run build && npx vitest run tests/unit/revora/privacy-minimal.test.ts tests/unit/revora/openai-client.test.ts tests/unit/revora/telemetry.test.ts tests/unit/revora/env.test.ts tests/unit/revora/launch-controls.test.ts && npx playwright test tests/smoke/launch-controls.spec.ts --project="Mobile Chrome"` |
 | **Estimated runtime** | ~100 seconds locally, excluding Vercel Preview deployment |
 
@@ -27,8 +28,10 @@ created: 2026-05-06
 
 ## Sampling Rate
 
-- **After every task commit:** Run `npx vitest run tests/unit/revora/privacy-minimal.test.ts tests/unit/revora/openai-client.test.ts tests/unit/revora/telemetry.test.ts tests/unit/revora/launch-controls.test.ts`
-- **After every plan wave:** Run `npm run typecheck && npm run build && npx vitest run tests/unit/revora/privacy-minimal.test.ts tests/unit/revora/openai-client.test.ts tests/unit/revora/telemetry.test.ts tests/unit/revora/env.test.ts tests/unit/revora/launch-controls.test.ts && npx playwright test tests/smoke/launch-controls.spec.ts --project="Mobile Chrome"`
+- **After every Wave 1 task commit:** Run `npx vitest run tests/unit/revora/privacy-minimal.test.ts tests/unit/revora/openai-client.test.ts tests/unit/revora/telemetry.test.ts tests/unit/revora/env.test.ts`
+- **After Wave 1 completes:** Run `npm run typecheck && npm run build && npx vercel build && npx vitest run tests/unit/revora/privacy-minimal.test.ts tests/unit/revora/openai-client.test.ts tests/unit/revora/telemetry.test.ts tests/unit/revora/env.test.ts`
+- **After every Wave 2 task commit:** Run `npx vitest run tests/unit/revora/privacy-minimal.test.ts tests/unit/revora/openai-client.test.ts tests/unit/revora/telemetry.test.ts tests/unit/revora/env.test.ts tests/unit/revora/launch-controls.test.ts`
+- **After Wave 2 completes:** Run `npm run typecheck && npm run build && npx vitest run tests/unit/revora/privacy-minimal.test.ts tests/unit/revora/openai-client.test.ts tests/unit/revora/telemetry.test.ts tests/unit/revora/env.test.ts tests/unit/revora/launch-controls.test.ts && npx playwright test tests/smoke/launch-controls.spec.ts --project="Mobile Chrome"`
 - **Before `$gsd-verify-work`:** Full suite must be green, Vercel Preview deploy must be verified, and the rollback/kill-switch drill must have recorded command evidence.
 - **Max feedback latency:** 120 seconds locally, excluding provider-side Preview deployment time.
 
@@ -52,8 +55,8 @@ created: 2026-05-06
 ## Wave 0 Requirements
 
 - [ ] `package.json` - existing Phase 2/3 app scaffold with scripts for `typecheck`, `build`, Vitest, and Playwright
-- [ ] `components/request-status.tsx`, `components/result-card.tsx`, `lib/client/ui-state.ts`, `tests/smoke/mobile-check.spec.ts`, `app/layout.tsx`, and `app/globals.css` - existing Phase 3 public-flow artifacts required before Phase 4 hardening begins
-- [ ] `.planning/phases/03-public-mobile-permission-check/03-02-SUMMARY.md` and `.planning/phases/03-public-mobile-permission-check/03-03-SUMMARY.md` - fallback execution evidence if the dependency gate must rely on completed Phase 3 summaries
+- [ ] `components/request-status.tsx`, `components/result-card.tsx`, `lib/client/ui-state.ts`, `tests/smoke/mobile-check.spec.ts`, `app/layout.tsx`, and `app/globals.css` - concrete Phase 3 public-flow artifacts required in the workspace before Phase 4 hardening begins; summary files are not acceptable substitutes
+- [ ] `lib/revora/service.ts` - existing service seam preserving the audited request path `app/api/check/route.ts -> lib/revora/service.ts -> lib/revora/openai-client.ts`
 - [ ] `lib/revora/openai-client.ts` - single server-only OpenAI wrapper that can be tested for `store: false`
 - [ ] `lib/revora/telemetry.ts` - allowlisted coarse telemetry event builder with no raw food/A1C fields
 - [ ] `lib/revora/env.ts` - Preview/Production environment validation and documented required env names
