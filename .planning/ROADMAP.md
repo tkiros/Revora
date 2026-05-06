@@ -79,8 +79,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 04-01: Lock privacy-minimal data flow, telemetry, and deployment configuration
-- [ ] 04-02: Add abuse-cost thresholds plus rollback and kill-switch procedures
+- [ ] 04-01-PLAN.md — Lock privacy-minimal data flow, telemetry, and deployment configuration
+- [ ] 04-02-PLAN.md — Add abuse-cost thresholds plus rollback and kill-switch procedures
 
 ### Phase 5: Community Launch and Founder Review Loop
 **Goal**: Revora can launch into trust-sensitive communities, measure demand, and learn safely before any broader product expansion.
