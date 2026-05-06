@@ -20,8 +20,8 @@ Requirements for the Permission MVP. Each maps to roadmap phases.
 - [ ] **INPUT-01**: User can enter a food name or meal description without creating an account.
 - [ ] **INPUT-02**: User can enter an A1C value as a numeric input that supports one decimal place.
 - [ ] **INPUT-03**: The app validates required food and A1C inputs before calling the model.
-- [ ] **INPUT-04**: The app handles A1C values below 5.7 by explaining that Revora is designed for the prediabetes range.
-- [ ] **INPUT-05**: The app handles A1C values of 6.5 or above by explaining that the value is in the Type 2 diabetes range and directing the user to clinician guidance.
+- [x] **INPUT-04**: The app handles A1C values below 5.7 by explaining that Revora is designed for the prediabetes range.
+- [x] **INPUT-05**: The app handles A1C values of 6.5 or above by explaining that the value is in the Type 2 diabetes range and directing the user to clinician guidance.
 - [ ] **INPUT-06**: The app handles non-food input by refusing to classify it and showing concrete food examples.
 - [ ] **INPUT-07**: The app handles ambiguous food descriptions by asking at most one clarifying question instead of inventing meal details.
 - [ ] **INPUT-08**: The app handles carbs-only meals by recommending adding protein or vegetables instead of giving an impossible sequencing instruction.
@@ -29,7 +29,7 @@ Requirements for the Permission MVP. Each maps to roadmap phases.
 ### Guidance Output
 
 - [ ] **GUIDE-01**: User receives a result classified as SAFE, MODERATE, or HIGH when the food and A1C inputs are in scope.
-- [ ] **GUIDE-02**: The risk rubric calibrates guidance across A1C bands 5.7-5.9, 6.0-6.2, and 6.3-6.4.
+- [x] **GUIDE-02**: The risk rubric calibrates guidance across A1C bands 5.7-5.9, 6.0-6.2, and 6.3-6.4.
 - [ ] **GUIDE-03**: Each in-scope result includes a one-sentence plain-English reason for the classification.
 - [ ] **GUIDE-04**: SAFE results lead with permission-first reassurance and do not include unnecessary swaps.
 - [ ] **GUIDE-05**: MODERATE and HIGH results include exactly one practical sequencing, eating-speed, or add-protein/add-vegetable instruction.
@@ -136,13 +136,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INPUT-01 | Phase 3 | Pending |
 | INPUT-02 | Phase 3 | Pending |
 | INPUT-03 | Phase 3 | Pending |
-| INPUT-04 | Phase 1 | Pending |
-| INPUT-05 | Phase 1 | Pending |
+| INPUT-04 | Phase 1 | Complete |
+| INPUT-05 | Phase 1 | Complete |
 | INPUT-06 | Phase 2 | Pending |
 | INPUT-07 | Phase 2 | Pending |
 | INPUT-08 | Phase 2 | Pending |
 | GUIDE-01 | Phase 2 | Pending |
-| GUIDE-02 | Phase 1 | Pending |
+| GUIDE-02 | Phase 1 | Complete |
 | GUIDE-03 | Phase 2 | Pending |
 | GUIDE-04 | Phase 2 | Pending |
 | GUIDE-05 | Phase 2 | Pending |
@@ -184,4 +184,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-05-04*
-*Last updated: 2026-05-06 after completing Phase 1 Plan 01*
+*Last updated: 2026-05-06 after completing Phase 1 Plan 02*
