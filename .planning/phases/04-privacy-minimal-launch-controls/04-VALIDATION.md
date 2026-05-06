@@ -21,7 +21,7 @@ created: 2026-05-06
 | **Config file** | Vitest config from Phase 2 scaffold; `playwright.config.ts`; Vercel project settings |
 | **Quick run command (Wave 1)** | `npx vitest run tests/unit/revora/privacy-minimal.test.ts tests/unit/revora/openai-client.test.ts tests/unit/revora/telemetry.test.ts tests/unit/revora/env.test.ts` |
 | **Quick run command (Wave 2)** | `npx vitest run tests/unit/revora/privacy-minimal.test.ts tests/unit/revora/openai-client.test.ts tests/unit/revora/telemetry.test.ts tests/unit/revora/env.test.ts tests/unit/revora/launch-controls.test.ts` |
-| **Full suite command** | `npm run typecheck && npm run build && npx vitest run tests/unit/revora/privacy-minimal.test.ts tests/unit/revora/openai-client.test.ts tests/unit/revora/telemetry.test.ts tests/unit/revora/env.test.ts tests/unit/revora/launch-controls.test.ts && npx playwright test tests/smoke/launch-controls.spec.ts --project="Mobile Chrome"` |
+| **Full suite command** | `npm run typecheck && npm run build && npx vercel build && npx vitest run tests/unit/revora/privacy-minimal.test.ts tests/unit/revora/openai-client.test.ts tests/unit/revora/telemetry.test.ts tests/unit/revora/env.test.ts tests/unit/revora/launch-controls.test.ts && npx playwright test tests/smoke/launch-controls.spec.ts --project="Mobile Chrome"` |
 | **Estimated runtime** | ~100 seconds locally, excluding Vercel Preview deployment |
 
 ---
@@ -31,7 +31,7 @@ created: 2026-05-06
 - **After every Wave 1 task commit:** Run `npx vitest run tests/unit/revora/privacy-minimal.test.ts tests/unit/revora/openai-client.test.ts tests/unit/revora/telemetry.test.ts tests/unit/revora/env.test.ts`
 - **After Wave 1 completes:** Run `npm run typecheck && npm run build && npx vercel build && npx vitest run tests/unit/revora/privacy-minimal.test.ts tests/unit/revora/openai-client.test.ts tests/unit/revora/telemetry.test.ts tests/unit/revora/env.test.ts`
 - **After every Wave 2 task commit:** Run `npx vitest run tests/unit/revora/privacy-minimal.test.ts tests/unit/revora/openai-client.test.ts tests/unit/revora/telemetry.test.ts tests/unit/revora/env.test.ts tests/unit/revora/launch-controls.test.ts`
-- **After Wave 2 completes:** Run `npm run typecheck && npm run build && npx vitest run tests/unit/revora/privacy-minimal.test.ts tests/unit/revora/openai-client.test.ts tests/unit/revora/telemetry.test.ts tests/unit/revora/env.test.ts tests/unit/revora/launch-controls.test.ts && npx playwright test tests/smoke/launch-controls.spec.ts --project="Mobile Chrome"`
+- **After Wave 2 completes:** Run `npm run typecheck && npm run build && npx vercel build && npx vitest run tests/unit/revora/privacy-minimal.test.ts tests/unit/revora/openai-client.test.ts tests/unit/revora/telemetry.test.ts tests/unit/revora/env.test.ts tests/unit/revora/launch-controls.test.ts && npx playwright test tests/smoke/launch-controls.spec.ts --project="Mobile Chrome"`
 - **Before `$gsd-verify-work`:** Full suite must be green, Vercel Preview deploy must be verified, and the rollback/kill-switch drill must have recorded command evidence.
 - **Max feedback latency:** 120 seconds locally, excluding provider-side Preview deployment time.
 
@@ -45,7 +45,7 @@ created: 2026-05-06
 | 04-01-02 | 01 | 1 | PRIV-02 | unit + static | `npx vitest run tests/unit/revora/openai-client.test.ts -t "store false|single OpenAI client"` | no - W0 | pending |
 | 04-01-03 | 01 | 1 | PRIV-03, PRIV-04 | unit + static | `npx vitest run tests/unit/revora/telemetry.test.ts -t "allowlist|redacts raw"` | no - W0 | pending |
 | 04-01-04 | 01 | 1 | OPS-01 | build + config | `npm run typecheck && npm run build && npx vercel build` | no - W0 | pending |
-| 04-02-01 | 02 | 2 | OPS-02 | unit + smoke | `npx vitest run tests/unit/revora/launch-controls.test.ts -t "rate limit|pause" && npx playwright test tests/smoke/launch-controls.spec.ts -g "maintenance mode|rate limit" --project="Mobile Chrome"` | no - W0 | pending |
+| 04-02-01 | 02 | 2 | OPS-02 | unit + smoke + Vercel build | `npx vitest run tests/unit/revora/launch-controls.test.ts -t "normal|rate limit|pause" && npx playwright test tests/smoke/launch-controls.spec.ts -g "normal mode|maintenance mode|rate limit" --project="Mobile Chrome" && npx vercel build` | no - W0 | pending |
 | 04-02-02 | 02 | 2 | OPS-03 | smoke + manual drill | `npx playwright test tests/smoke/launch-controls.spec.ts -g "maintenance mode" --project="Mobile Chrome"` | no - W0 | pending |
 
 *Status: pending, green, red, flaky*
