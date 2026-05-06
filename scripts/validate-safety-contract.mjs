@@ -124,6 +124,13 @@ function checkCopyLedger(context, failures) {
   const requiredIds = [
     "product-home-hero",
     "prompt-a1c-scope",
+    "prompt-safe-tone-snippet",
+    "prompt-conservative-floor-snippet",
+    "result-safe-example",
+    "result-moderate-example",
+    "result-high-example",
+    "result-clarification-example",
+    "result-non-food-refusal",
     "result-footer",
     "below-range-route",
     "high-range-route",
