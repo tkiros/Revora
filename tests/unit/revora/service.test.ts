@@ -197,6 +197,68 @@ describe("checkFood", () => {
     expect(model.generate).not.toHaveBeenCalled();
   });
 
+  it("applies conservative carbs-only floors to upper-band SAFE results", async () => {
+    const model = {
+      generate: vi.fn().mockResolvedValue({
+        kind: "result",
+        risk: "SAFE",
+        reason: "This looks like a reasonable fit.",
+        adjustment: null,
+        swap: null,
+        question: null,
+        examples: [],
+        policy_flags: []
+      })
+    };
+
+    const response = await checkFood(
+      {
+        food: "plain bagel",
+        a1c: 6.4
+      },
+      { model }
+    );
+
+    expect(model.generate).toHaveBeenCalledTimes(1);
+    expect(response).toMatchObject({
+      kind: "result",
+      risk: "MODERATE"
+    });
+    if (response.kind !== "result") {
+      throw new Error("Expected a result response.");
+    }
+
+    expect(response.adjustment).toContain("protein or nonstarchy vegetables");
+    expect(response.swap).toContain("less refined");
+  });
+
+  it("retries malformed SAFE contract output once and then fails closed", async () => {
+    const model = {
+      generate: vi.fn().mockResolvedValue({
+        kind: "result",
+        risk: "SAFE",
+        reason: "This looks like a reasonable fit.",
+        adjustment: "Take a walk after eating it.",
+        swap: null,
+        question: null,
+        examples: [],
+        policy_flags: ["safe_food"]
+      })
+    };
+
+    const response = await checkFood(
+      {
+        food: "lentil soup",
+        a1c: 6.1
+      },
+      { model }
+    );
+
+    expect(model.generate).toHaveBeenCalledTimes(2);
+    expect(response.kind).toBe("retry");
+    expect(response.disclaimer).toContain("registered dietitian");
+  });
+
   it("retries malformed model outputs once and then fails closed", async () => {
     const model = {
       generate: vi
