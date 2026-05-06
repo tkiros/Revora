@@ -94,8 +94,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 05-01: Prepare community launch assets and lightweight demand measurement
-- [ ] 05-02: Run the founder review loop and define the post-launch go/no-go gate
+- [ ] 05-01-PLAN.md — Prepare community launch assets and lightweight demand measurement
+- [ ] 05-02-PLAN.md — Run the founder review loop and define the post-launch go/no-go gate
 
 ## Progress
 
