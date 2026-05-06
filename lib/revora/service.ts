@@ -8,14 +8,18 @@ import {
 } from "./fallback";
 import { classifyInputBeforeModel } from "./input-precheck";
 import type { RevoraModelClient } from "./openai-client";
+import { postprocessModelOutput } from "./postprocess";
 import { buildRevoraPrompt } from "./prompt";
 import {
   CheckRequestSchema,
   RevoraUserClarifySchema,
-  RevoraUserResponseSchema,
-  RevoraUserResultSchema
+  RevoraUserResponseSchema
 } from "./schemas";
-import type { RevoraModelOutput, RevoraUserResponse } from "./schemas";
+import type {
+  RevoraModelOutput,
+  RevoraPolicyFlag,
+  RevoraUserResponse
+} from "./schemas";
 import { loadSafetyContract } from "./safety-contract";
 
 const MAX_MODEL_ATTEMPTS = 2;
@@ -52,11 +56,12 @@ export async function checkFood(
     request,
     contract
   });
+  const precheckFlags = precheck.flags;
 
   for (let attempt = 0; attempt < MAX_MODEL_ATTEMPTS; attempt += 1) {
     try {
       const modelOutput = await deps.model.generate(prompt);
-      return mapModelOutput(modelOutput, contract);
+      return mapModelOutput(modelOutput, contract, route, precheckFlags);
     } catch {
       // Retry once, then fail closed to controlled retry copy.
     }
@@ -67,12 +72,18 @@ export async function checkFood(
 
 function mapModelOutput(
   modelOutput: RevoraModelOutput,
-  contract: ReturnType<typeof loadSafetyContract>
+  contract: ReturnType<typeof loadSafetyContract>,
+  route: ReturnType<typeof routeA1C>,
+  precheckFlags: RevoraPolicyFlag[]
 ): RevoraUserResponse {
   switch (modelOutput.kind) {
     case "result":
     case "carbs_only":
-      return mapResultOutput(modelOutput, contract);
+      return postprocessModelOutput(modelOutput, {
+        contract,
+        route,
+        precheckFlags
+      });
     case "clarify":
       return RevoraUserResponseSchema.parse(
         RevoraUserClarifySchema.parse({
@@ -85,20 +96,4 @@ function mapModelOutput(
     case "not_food":
       return buildNotFoodResponse(contract, modelOutput.examples);
   }
-}
-
-function mapResultOutput(
-  modelOutput: RevoraModelOutput,
-  contract: ReturnType<typeof loadSafetyContract>
-): RevoraUserResponse {
-  return RevoraUserResponseSchema.parse(
-    RevoraUserResultSchema.parse({
-      kind: "result",
-      risk: modelOutput.risk,
-      reason: modelOutput.reason,
-      adjustment: modelOutput.adjustment,
-      swap: modelOutput.swap,
-      disclaimer: contract.copy.disclaimer
-    })
-  );
 }
