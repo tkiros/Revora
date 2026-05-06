@@ -1,4 +1,12 @@
-import { buildInvalidRequestResponse, buildNotFoodResponse, buildOutOfScopeResponse, buildRetryResponse } from "./fallback";
+import { routeA1C } from "./a1c";
+import {
+  buildClarifyResponse,
+  buildInvalidRequestResponse,
+  buildNotFoodResponse,
+  buildOutOfScopeResponse,
+  buildRetryResponse
+} from "./fallback";
+import { classifyInputBeforeModel } from "./input-precheck";
 import type { RevoraModelClient } from "./openai-client";
 import { buildRevoraPrompt } from "./prompt";
 import {
@@ -26,8 +34,18 @@ export async function checkFood(
   const request = parsedRequest.data;
   const route = routeA1C(request.a1c);
 
-  if (route) {
-    return buildOutOfScopeResponse(contract, route);
+  if (route.kind === "out_of_scope") {
+    return buildOutOfScopeResponse(contract, route.band);
+  }
+
+  const precheck = classifyInputBeforeModel(request.food);
+
+  if (precheck.kind === "not_food") {
+    return buildNotFoodResponse(contract, precheck.examples);
+  }
+
+  if (precheck.kind === "clarify") {
+    return buildClarifyResponse(contract, precheck.question);
   }
 
   const prompt = buildRevoraPrompt({
@@ -45,20 +63,6 @@ export async function checkFood(
   }
 
   return buildRetryResponse(contract);
-}
-
-function routeA1C(
-  a1c: number
-): "below_prediabetes_range" | "diabetes_range_out_of_scope" | null {
-  if (a1c < 5.7) {
-    return "below_prediabetes_range";
-  }
-
-  if (a1c >= 6.5) {
-    return "diabetes_range_out_of_scope";
-  }
-
-  return null;
 }
 
 function mapModelOutput(
