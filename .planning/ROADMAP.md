@@ -64,9 +64,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 03-01: Build the single-screen mobile form and local validation flow
-- [ ] 03-02: Connect the public API route to result, clarification, and error states
-- [ ] 03-03: Tune mobile readability, latency messaging, and bright-environment UX
+- [ ] 03-01-PLAN.md — Build the single-screen mobile form and local validation flow
+- [ ] 03-02-PLAN.md — Connect the public API route to result, clarification, and error states
+- [ ] 03-03-PLAN.md — Tune mobile readability, latency messaging, and bright-environment UX
 
 ### Phase 4: Privacy-Minimal Launch Controls
 **Goal**: Revora can be deployed publicly with explicit privacy, abuse, and rollback boundaries that protect user trust and operating cost.
