@@ -130,6 +130,73 @@ describe("checkFood", () => {
     expect(model.generate).not.toHaveBeenCalled();
   });
 
+  it("short-circuits out-of-scope A1C inputs before the model call", async () => {
+    const model = {
+      generate: vi.fn()
+    };
+
+    const belowRange = await checkFood(
+      {
+        food: "lentil soup",
+        a1c: 5.6
+      },
+      { model }
+    );
+    const highRange = await checkFood(
+      {
+        food: "lentil soup",
+        a1c: 6.5
+      },
+      { model }
+    );
+
+    expect(model.generate).not.toHaveBeenCalled();
+    expect(belowRange).toMatchObject({
+      kind: "out_of_scope",
+      route: "below_prediabetes_range"
+    });
+    expect(highRange).toMatchObject({
+      kind: "out_of_scope",
+      route: "diabetes_range_out_of_scope"
+    });
+  });
+
+  it("returns non-food guidance without calling the model", async () => {
+    const model = {
+      generate: vi.fn()
+    };
+
+    const response = await checkFood(
+      {
+        food: "write a poem about blood sugar",
+        a1c: 6.1
+      },
+      { model }
+    );
+
+    expect(response.kind).toBe("not_food");
+    expect(response.disclaimer).toContain("registered dietitian");
+    expect(model.generate).not.toHaveBeenCalled();
+  });
+
+  it("returns one ambiguous question without calling the model", async () => {
+    const model = {
+      generate: vi.fn()
+    };
+
+    const response = await checkFood(
+      {
+        food: "oatmeal",
+        a1c: 6.1
+      },
+      { model }
+    );
+
+    expect(response.kind).toBe("clarify");
+    expect(response.disclaimer).toContain("registered dietitian");
+    expect(model.generate).not.toHaveBeenCalled();
+  });
+
   it("retries malformed model outputs once and then fails closed", async () => {
     const model = {
       generate: vi
