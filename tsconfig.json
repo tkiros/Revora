@@ -10,7 +10,7 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "incremental": true,
+    "incremental": false,
     "skipLibCheck": true,
     "types": ["node", "vitest/globals"],
     "plugins": [{ "name": "next" }]
