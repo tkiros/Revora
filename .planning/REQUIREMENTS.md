@@ -17,9 +17,9 @@ Requirements for the Permission MVP. Each maps to roadmap phases.
 
 ### Inputs
 
-- [ ] **INPUT-01**: User can enter a food name or meal description without creating an account.
-- [ ] **INPUT-02**: User can enter an A1C value as a numeric input that supports one decimal place.
-- [ ] **INPUT-03**: The app validates required food and A1C inputs before calling the model.
+- [x] **INPUT-01**: User can enter a food name or meal description without creating an account.
+- [x] **INPUT-02**: User can enter an A1C value as a numeric input that supports one decimal place.
+- [x] **INPUT-03**: The app validates required food and A1C inputs before calling the model.
 - [x] **INPUT-04**: The app handles A1C values below 5.7 by explaining that Revora is designed for the prediabetes range.
 - [x] **INPUT-05**: The app handles A1C values of 6.5 or above by explaining that the value is in the Type 2 diabetes range and directing the user to clinician guidance.
 - [x] **INPUT-06**: The app handles non-food input by refusing to classify it and showing concrete food examples.
@@ -49,9 +49,9 @@ Requirements for the Permission MVP. Each maps to roadmap phases.
 
 ### Mobile Public Experience
 
-- [ ] **UX-01**: User can complete the entire check from a single mobile-first page with no modal, account wall, or navigation flow.
-- [ ] **UX-02**: The food input and A1C input work with mobile keyboards without auto-focusing the page into an obscured state.
-- [ ] **UX-03**: The primary CTA is a large thumb-reachable button labeled "Should I eat this?"
+- [x] **UX-01**: User can complete the entire check from a single mobile-first page with no modal, account wall, or navigation flow.
+- [x] **UX-02**: The food input and A1C input work with mobile keyboards without auto-focusing the page into an obscured state.
+- [x] **UX-03**: The primary CTA is a large thumb-reachable button labeled "Should I eat this?"
 - [ ] **UX-04**: The submit button shows a loading state during the model request.
 - [ ] **UX-05**: If a model request exceeds 5 seconds, the UI tells the user the check is still running.
 - [ ] **UX-06**: If a request fails, times out, or is rate-limited, the UI shows friendly retry copy and never shows a raw error.
@@ -133,9 +133,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CLAIM-03 | Phase 1 | Complete |
 | CLAIM-04 | Phase 1 | Complete |
 | CLAIM-05 | Phase 2 | Complete |
-| INPUT-01 | Phase 3 | Pending |
-| INPUT-02 | Phase 3 | Pending |
-| INPUT-03 | Phase 3 | Pending |
+| INPUT-01 | Phase 3 | Complete |
+| INPUT-02 | Phase 3 | Complete |
+| INPUT-03 | Phase 3 | Complete |
 | INPUT-04 | Phase 1 | Complete |
 | INPUT-05 | Phase 1 | Complete |
 | INPUT-06 | Phase 2 | Complete |
@@ -156,9 +156,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GUARD-05 | Phase 2 | Complete |
 | GUARD-06 | Phase 2 | Complete |
 | GUARD-07 | Phase 5 | Pending |
-| UX-01 | Phase 3 | Pending |
-| UX-02 | Phase 3 | Pending |
-| UX-03 | Phase 3 | Pending |
+| UX-01 | Phase 3 | Complete |
+| UX-02 | Phase 3 | Complete |
+| UX-03 | Phase 3 | Complete |
 | UX-04 | Phase 3 | Pending |
 | UX-05 | Phase 3 | Pending |
 | UX-06 | Phase 3 | Pending |
@@ -184,4 +184,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-05-04*
-*Last updated: 2026-05-29 after Phase 2 completion*
+*Last updated: 2026-05-29 after Phase 03-01 completion*
