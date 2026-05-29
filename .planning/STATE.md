@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: in_progress
-stopped_at: Phase 2 verification gaps found
-last_updated: "2026-05-06T21:33:33Z"
-last_activity: 2026-05-06 - Phase 2 verification found gaps in non-food refusal and carbs-only guidance enforcement
+status: ready_to_plan
+stopped_at: Phase 2 complete; ready to plan Phase 3
+last_updated: "2026-05-29T18:36:06Z"
+last_activity: 2026-05-29 - Phase 2 completed after gap-closure verification approval; Phase 3 is ready for planning
 progress:
   total_phases: 5
-  completed_phases: 1
-  total_plans: 13
-  completed_plans: 6
-  percent: 38
+  completed_phases: 2
+  total_plans: 15
+  completed_plans: 8
+  percent: 53
 ---
 
 # Project State
@@ -21,37 +21,37 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-04)
 
 **Core value:** Revora must give a clear, evidence-grounded, permission-first answer to "Can I eat this?" in under 5 seconds without increasing food anxiety.
-**Current focus:** Phase 2 - Guardrailed Inference Core and Eval Harness gap closure
+**Current focus:** Phase 3 - Public Mobile Permission Check planning
 
 ## Current Position
 
-Phase: 2 of 5 (Guardrailed Inference Core and Eval Harness)
-Plan: 3 of 3 executed in current phase
-Status: Verification gaps found
-Last activity: 2026-05-06 - Verifier found gaps in ordinary non-food refusal and carbs-only add-protein/add-vegetable enforcement
+Phase: 3 of 5 (Public Mobile Permission Check)
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-05-29 - Phase 2 completed after gap-closure verification approval; Phase 3 is ready for planning
 
-Progress: [████░░░░░░] 38%
+Progress: [█████░░░░░] 53%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
-- Average duration: 13 min
-- Total execution time: 1.3 hours
+- Total plans completed: 8
+- Average duration: 11 min
+- Total execution time: 1.4 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1. Claims Boundary, Evidence Pack, and Safety Spec | 3 | 17 min | 6 min |
-| 2. Guardrailed Inference Core and Eval Harness | 3 | 60 min | 20 min |
+| 2. Guardrailed Inference Core and Eval Harness | 5 | 68 min | 14 min |
 | 3. Public Mobile Permission Check | 0 | 0 min | - |
 | 4. Privacy-Minimal Launch Controls | 0 | 0 min | - |
 | 5. Community Launch and Founder Review Loop | 0 | 0 min | - |
 
 **Recent Trend:**
-- Last 5 plans: 01-02 (2 min), 01-03 (5 min), 02-01 (26 min), 02-02 (17 min), 02-03 (17 min)
-- Trend: Phase 2 plan execution is complete and the local eval gate is green, but verification found two contract gaps; next step is `$gsd-plan-phase 2 --gaps`.
+- Last 5 plans: 02-01 (26 min), 02-02 (17 min), 02-03 (17 min), 02-04 (3 min), 02-05 (5 min)
+- Trend: Phase 2 is complete and Phase 3 is ready for planning via `$gsd-plan-phase 3`.
 
 ## Accumulated Context
 
@@ -83,21 +83,24 @@ Recent decisions affecting current work:
 - [Phase 02-guardrailed-inference-core-and-eval-harness]: Phase 2 evals stay synthetic-fixture based and local; optional live checks reuse the same fixture set instead of hosted eval uploads.
 - [Phase 02-guardrailed-inference-core-and-eval-harness]: The eval harness keys deterministic model responses by the exact checkFood input so tests exercise the production prompt and service path without a second classifier seam.
 - [Phase 02-guardrailed-inference-core-and-eval-harness]: Missing OPENAI_API_KEY is treated as a setup-blocked launch check, not as a failure of the local deterministic safety gate.
+- [Phase 02-guardrailed-inference-core-and-eval-harness]: Ordinary object-like non-food detection stays a narrow curated lexicon layered onto the existing prompt-injection refusal path instead of a broad noun blacklist.
+- [Phase 02-guardrailed-inference-core-and-eval-harness]: Local non_food eval fixtures may not define mockModelOutput, so passing non-food evals prove `checkFood()` short-circuits before the model seam.
+- [Phase 02-guardrailed-inference-core-and-eval-harness]: Carbs-only guidance only counts when it explicitly adds or pairs the meal with protein or nonstarchy-vegetable companions.
+- [Phase 02-guardrailed-inference-core-and-eval-harness]: Sequencing-only carbs-only model prose is floored to `buildCarbsOnlyResponse()` before rendering.
 
 ### Pending Todos
 
-- Add deterministic ordinary non-food refusal before the model call and prove it with regression tests.
-- Tighten carbs-only enforcement so sequencing-only guidance is rejected or floored to add-protein/add-vegetable copy.
+- Plan Phase 3's single-screen mobile form, result flow, and bright-environment UX.
+- Run `node scripts/run-live-revora-evals.mjs` with `OPENAI_API_KEY` before public release.
 
 ### Blockers/Concerns
 
 - Claims-safe wording, disclaimer language, and launch copy must stay consistent across prompt, UI, and community posts.
-- Phase 2 is not verified complete: ordinary non-food objects can still reach the model, and carbs-only guidance can still pass with sequencing-only language.
 - The launch-only live eval still needs `OPENAI_API_KEY` and a recorded zero-harmful-SAFE result before public release.
 - Telemetry beyond pageviews must stay redacted or remain out of scope.
 
 ## Session Continuity
 
-Last session: 2026-05-06T21:33:33Z
-Stopped at: Phase 2 verification gaps found
+Last session: 2026-05-29T18:36:06Z
+Stopped at: Phase 2 complete; ready to plan Phase 3
 Resume file: None
