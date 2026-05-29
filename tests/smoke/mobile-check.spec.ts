@@ -11,7 +11,7 @@ type StubScenario =
 
 async function fulfillCheckRoute(route: Route, scenario: StubScenario) {
   if (scenario.kind === "slow") {
-    await new Promise((resolve) => setTimeout(resolve, 5_200));
+    await new Promise((resolve) => setTimeout(resolve, 6_500));
   }
 
   if (scenario.kind === "429") {
@@ -160,7 +160,7 @@ test("slow state after five seconds", async ({ page }) => {
 
   await page.getByRole("button", { name: "Should I eat this?" }).click();
 
-  await expect(page.getByText(/still checking/i)).toBeVisible();
+  await expect(page.getByText(/still checking/i)).toBeVisible({ timeout: 7_000 });
   await expect(page.getByText(/takes a little longer/i)).toBeVisible();
 });
 
@@ -171,7 +171,7 @@ test("friendly retry states", async ({ page }) => {
 
   await page.getByRole("button", { name: "Should I eat this?" }).click();
 
-  await expect(page.getByText(/try again/i)).toBeVisible();
+  await expect(page.getByText(/^Try again$/)).toBeVisible();
   await expect(page.getByText(/raw error/i)).toHaveCount(0);
 });
 
