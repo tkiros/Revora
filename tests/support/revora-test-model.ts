@@ -27,6 +27,9 @@ export const REQUIRED_CATEGORIES = [
 ] as const;
 
 const RevoraEvalCategorySchema = z.enum(REQUIRED_CATEGORIES);
+const DETERMINISTIC_SHORT_CIRCUIT_CATEGORIES = new Set<
+  (typeof REQUIRED_CATEGORIES)[number]
+>(["non_food"]);
 
 export const RevoraEvalCaseSchema = z
   .object({
@@ -63,6 +66,15 @@ export function createEvalModelClient(
   const casesByInput = new Map<string, RevoraEvalCase>();
 
   for (const evalCase of cases) {
+    if (
+      DETERMINISTIC_SHORT_CIRCUIT_CATEGORIES.has(evalCase.category) &&
+      evalCase.mockModelOutput
+    ) {
+      throw new Error(
+        `Eval fixture ${evalCase.id} sets mockModelOutput for deterministic short-circuit category ${evalCase.category}.`
+      );
+    }
+
     const key = buildLookupKey(evalCase.input);
     if (casesByInput.has(key)) {
       throw new Error(`Duplicate eval fixture input key: ${key}`);
