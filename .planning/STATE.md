@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: ready_to_verify
-stopped_at: Completed 03-03-PLAN.md
-last_updated: "2026-05-29T22:05:36Z"
-last_activity: 2026-05-29 - Completed Phase 03 Plan 03 after bright-environment polish, Playwright mobile verification, and approved checkpoint review
+status: ready_to_plan
+stopped_at: Phase 3 verified and complete; ready to plan Phase 4
+last_updated: "2026-05-29T22:47:10Z"
+last_activity: 2026-05-29 - Phase 3 verified and completed after user-approved mobile evidence review; Phase 4 is ready for planning
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 15
   completed_plans: 11
   percent: 73
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-04)
 
 **Core value:** Revora must give a clear, evidence-grounded, permission-first answer to "Can I eat this?" in under 5 seconds without increasing food anxiety.
-**Current focus:** Phase 3 - Public Mobile Permission Check
+**Current focus:** Phase 4 - Privacy-Minimal Launch Controls
 
 ## Current Position
 
-Phase: 3 of 5 (Public Mobile Permission Check)
-Plan: Phase plans complete
-Status: Ready for verification
-Last activity: 2026-05-29 - Completed 03-03 with bright-environment polish and approved mobile verification evidence
+Phase: 4 of 5 (Privacy-Minimal Launch Controls)
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-05-29 - Phase 3 verified and completed after user-approved mobile evidence review
 
 Progress: [███████░░░] 73%
 
@@ -51,7 +51,7 @@ Progress: [███████░░░] 73%
 
 **Recent Trend:**
 - Last 5 plans: 02-04 (3 min), 02-05 (5 min), 03-01 (36 min), 03-02 (9 min), 03-03 (106 min)
-- Trend: Phase 3 implementation is complete and ready for phase-level verification.
+- Trend: Phase 3 is complete and Phase 4 is ready for planning.
 | Phase 03 P01 | 36 min | 2 tasks | 9 files |
 | Phase 03 P02 | 9 min | 3 tasks | 7 files |
 | Phase 03 P03 | 106 min | 3 tasks | 7 files |
@@ -99,7 +99,7 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-- Verify Phase 3 against the mobile public-check goal and create `03-VERIFICATION.md`.
+- Plan Phase 4 privacy-minimal launch controls, telemetry boundaries, and rollback safeguards.
 - Run `node scripts/run-live-revora-evals.mjs` with `OPENAI_API_KEY` before public release.
 
 ### Blockers/Concerns
@@ -111,6 +111,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-05-29T22:05:36Z
-Stopped at: Completed 03-03-PLAN.md
+Last session: 2026-05-29T22:47:10Z
+Stopped at: Phase 3 verified and complete; ready to plan Phase 4
 Resume file: None

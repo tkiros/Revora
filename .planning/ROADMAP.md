@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Claims Boundary, Evidence Pack, and Safety Spec** - Lock the allowed guidance contract before broader product behavior is built.
 - [x] **Phase 2: Guardrailed Inference Core and Eval Harness** - Build the server-side classification engine and its launch-blocking safety checks. (completed 2026-05-29)
-- [ ] **Phase 3: Public Mobile Permission Check** - Deliver the one-page mobile-first check flow for real users.
+- [x] **Phase 3: Public Mobile Permission Check** - Deliver the one-page mobile-first check flow for real users. (completed 2026-05-29)
 - [ ] **Phase 4: Privacy-Minimal Launch Controls** - Make the public MVP deployable with explicit privacy, abuse, and rollback boundaries.
 - [ ] **Phase 5: Community Launch and Founder Review Loop** - Launch carefully, measure demand, and decide whether expansion is earned.
 
@@ -71,6 +71,8 @@ Plans:
 - [x] 03-01-PLAN.md — Build the single-screen mobile form and local validation flow
 - [x] 03-02-PLAN.md — Connect the public API route to result, clarification, and error states
 - [x] 03-03-PLAN.md — Tune mobile readability, latency messaging, and bright-environment UX
+
+**Verification:** passed in `.planning/phases/03-public-mobile-permission-check/03-VERIFICATION.md` on 2026-05-29 after Playwright-backed mobile evidence review and explicit user approval.
 
 ### Phase 4: Privacy-Minimal Launch Controls
 **Goal**: Revora can be deployed publicly with explicit privacy, abuse, and rollback boundaries that protect user trust and operating cost.
