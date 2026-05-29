@@ -133,7 +133,7 @@ export function assertModerateHighFields(
     );
   }
 
-  if (flags.has("carbs_only") && !mentionsProteinOrVegetables(result.adjustment)) {
+  if (flags.has("carbs_only") && !hasCarbsOnlyCompanionGuidance(result.adjustment)) {
     throw new RevoraContractError(
       "Carbs-only adjustments must add protein or nonstarchy vegetables."
     );
@@ -163,7 +163,7 @@ export function applyConservativeFloors(
   if (flags.has("carbs_only")) {
     if (
       result.risk === "SAFE" ||
-      !mentionsProteinOrVegetables(result.adjustment) ||
+      !hasCarbsOnlyCompanionGuidance(result.adjustment) ||
       result.swap === null ||
       !looksLikeSwap(result.swap)
     ) {
@@ -202,18 +202,36 @@ function isPermissionFirstReason(reason: string): boolean {
   );
 }
 
+const CARBS_ONLY_COMPANION_TARGET =
+  "(?:protein|non[- ]starchy vegetables?|eggs?|egg whites?|greek yogurt|yogurt|cottage cheese|chicken|turkey|tuna|salmon|fish|tofu|tempeh|beans?|lentils?|nuts?|seeds?|side salad|salad|spinach|broccoli|greens)";
+const CARBS_ONLY_EXPLICIT_ADD_OR_PAIR_PATTERN = new RegExp(
+  String.raw`\b(?:add|pair|include|combine|top)\b[^.?!\n]{0,80}\b${CARBS_ONLY_COMPANION_TARGET}\b`,
+  "i"
+);
+const CARBS_ONLY_WITH_COMPANION_PATTERN = new RegExp(
+  String.raw`\b(?:with|alongside)\b[^.?!\n]{0,40}\b${CARBS_ONLY_COMPANION_TARGET}\b`,
+  "i"
+);
+const CARBS_ONLY_SEQUENCING_ONLY_PATTERN =
+  /\bvegetables?\s+first\b|\beat\s+(?:the\s+)?vegetables?\s+first\b|\bstart\s+with\s+(?:vegetables?|fiber)\b|\bbegin\s+with\s+(?:vegetables?|fiber)\b|\bbefore\s+the\s+carbs\b/i;
+
 function looksLikeSwap(value: string): boolean {
   return /\bswap\b|\binstead of\b|\bchoose\b|\bless refined\b|\bless sweet\b|\bwhole[- ]grain\b|\bbrown rice\b|\bbeans?\b|\blentil/i.test(
     value
   );
 }
 
-function mentionsProteinOrVegetables(value: string | null): boolean {
+function hasCarbsOnlyCompanionGuidance(value: string | null): boolean {
   if (value === null) {
     return false;
   }
 
-  return /\bprotein\b|\bnonstarchy vegetables\b|\bvegetables\b|\bfiber\b/i.test(
-    value
+  if (CARBS_ONLY_EXPLICIT_ADD_OR_PAIR_PATTERN.test(value)) {
+    return true;
+  }
+
+  return (
+    CARBS_ONLY_WITH_COMPANION_PATTERN.test(value) &&
+    !CARBS_ONLY_SEQUENCING_ONLY_PATTERN.test(value)
   );
 }
