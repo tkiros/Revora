@@ -1,89 +1,71 @@
 import type { RevoraUserResponse } from "../lib/client/ui-state";
 
 export function ResultCard({ response }: { response: RevoraUserResponse }) {
-  return (
-    <section
-      aria-live="polite"
-      style={{
-        border: "1px solid #cbd5e1",
-        borderRadius: "20px",
-        padding: "16px",
-        backgroundColor: "#f8fafc",
-        color: "#334155",
-        display: "grid",
-        gap: "10px"
-      }}
-    >
-      {response.kind === "result" ? (
-        <>
-          <p
-            style={{
-              margin: 0,
-              fontWeight: 800,
-              color: "#0f172a",
-              textTransform: "uppercase",
-              letterSpacing: "0.08em"
-            }}
-          >
-            {response.risk}
-          </p>
-          <p style={{ margin: 0, color: "#0f172a", lineHeight: 1.6 }}>
-            {response.reason}
-          </p>
+  if (response.kind === "result") {
+    return (
+      <section
+        aria-live="polite"
+        className="result-card"
+        data-testid="result-card"
+        data-kind={response.kind}
+        data-risk={response.risk}
+      >
+        <p className="result-eyebrow">Revora result</p>
+        <p className="result-title">{response.risk}</p>
+        <p className="result-copy">{response.reason}</p>
+        <div className="result-list">
           {response.adjustment ? (
-            <p style={{ margin: 0 }}>
+            <p>
               <strong>Adjustment:</strong> {response.adjustment}
             </p>
           ) : null}
           {response.swap ? (
-            <p style={{ margin: 0 }}>
+            <p>
               <strong>Swap:</strong> {response.swap}
             </p>
           ) : null}
-        </>
-      ) : null}
+        </div>
+        <p className="result-disclaimer">{response.disclaimer}</p>
+      </section>
+    );
+  }
 
-      {response.kind === "clarify" ? (
-        <>
-          <p style={{ margin: 0, fontWeight: 700, color: "#0f172a" }}>
-            Revora needs one more detail
-          </p>
-          <p style={{ margin: 0, lineHeight: 1.6 }}>{response.question}</p>
-        </>
-      ) : null}
+  const content =
+    response.kind === "clarify"
+      ? {
+          eyebrow: "Need one more detail",
+          title: "Revora needs one more detail",
+          body: response.question
+        }
+      : response.kind === "not_food"
+        ? {
+            eyebrow: "Food description needed",
+            title: "Enter a food or meal",
+            body: `Revora can help once you enter a food or meal, such as ${response.examples.join(", ")}.`
+          }
+        : response.kind === "out_of_scope"
+          ? {
+              eyebrow: "Current scope",
+              title: "Outside Revora's current A1C range",
+              body: response.reason
+            }
+          : {
+              eyebrow: "Try again",
+              title: "Try this check again",
+              body: response.message
+            };
 
-      {response.kind === "not_food" ? (
-        <>
-          <p style={{ margin: 0, fontWeight: 700, color: "#0f172a" }}>
-            Try a food description instead
-          </p>
-          <p style={{ margin: 0, lineHeight: 1.6 }}>
-            Revora can help once you enter a food or meal, such as {response.examples.join(", ")}.
-          </p>
-        </>
-      ) : null}
-
-      {response.kind === "out_of_scope" ? (
-        <>
-          <p style={{ margin: 0, fontWeight: 700, color: "#0f172a" }}>
-            Outside Revora&apos;s current scope
-          </p>
-          <p style={{ margin: 0, lineHeight: 1.6 }}>{response.reason}</p>
-        </>
-      ) : null}
-
-      {response.kind === "retry" ? (
-        <>
-          <p style={{ margin: 0, fontWeight: 700, color: "#0f172a" }}>
-            Try again
-          </p>
-          <p style={{ margin: 0, lineHeight: 1.6 }}>{response.message}</p>
-        </>
-      ) : null}
-
-      <p style={{ margin: 0, fontSize: "14px", color: "#475569" }}>
-        {response.disclaimer}
-      </p>
+  return (
+    <section
+      aria-live="polite"
+      className="result-card"
+      data-testid="result-card"
+      data-kind={response.kind}
+    >
+      <p className="result-eyebrow">{content.eyebrow}</p>
+      <p className="status-title">{content.title}</p>
+      <p className="result-copy">{content.body}</p>
+      <p className="result-disclaimer">{response.disclaimer}</p>
     </section>
   );
 }

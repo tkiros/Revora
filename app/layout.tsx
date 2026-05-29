@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
+import "./globals.css";
+
 export const metadata: Metadata = {
   title: "Revora",
   description: "Server-side permission-first food checks for prediabetes-range A1C inputs."

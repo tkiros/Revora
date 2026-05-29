@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties, FormEvent } from "react";
+import type { FormEvent } from "react";
 import { useState } from "react";
 
 import { submitCheck } from "../lib/client/check";
@@ -17,18 +17,6 @@ import { RequestStatus } from "./request-status";
 import { ResultCard } from "./result-card";
 
 type FieldErrors = Partial<Record<"food" | "a1c", string>>;
-
-const fieldStyle = {
-  width: "100%",
-  minHeight: "48px",
-  border: "1px solid #cbd5e1",
-  borderRadius: "16px",
-  padding: "14px 16px",
-  fontSize: "16px",
-  lineHeight: 1.5,
-  backgroundColor: "#ffffff",
-  color: "#0f172a"
-} satisfies CSSProperties;
 
 export function FoodCheckForm() {
   const [input, setInput] = useState<CheckFormInput>({ food: "", a1c: "" });
@@ -98,13 +86,9 @@ export function FoodCheckForm() {
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      style={{ display: "grid", gap: "14px" }}
-      noValidate
-    >
-      <div style={{ display: "grid", gap: "8px" }}>
-        <label htmlFor="food" style={{ fontWeight: 600, color: "#0f172a" }}>
+    <form onSubmit={handleSubmit} className="form-grid" noValidate>
+      <div className="field-stack">
+        <label htmlFor="food" className="field-label">
           What are you thinking about eating?
         </label>
         <textarea
@@ -119,17 +103,17 @@ export function FoodCheckForm() {
           placeholder="Example: grilled chicken with rice and salad"
           aria-describedby={errors.food ? "food-error" : undefined}
           aria-invalid={errors.food ? true : undefined}
-          style={{ ...fieldStyle, resize: "vertical" }}
+          className="text-input"
         />
         {errors.food ? (
-          <p id="food-error" style={{ margin: 0, color: "#b91c1c", fontSize: "14px" }}>
+          <p id="food-error" className="field-error">
             {errors.food}
           </p>
         ) : null}
       </div>
 
-      <div style={{ display: "grid", gap: "8px" }}>
-        <label htmlFor="a1c" style={{ fontWeight: 600, color: "#0f172a" }}>
+      <div className="field-stack">
+        <label htmlFor="a1c" className="field-label">
           Latest A1C
         </label>
         <input
@@ -146,33 +130,19 @@ export function FoodCheckForm() {
           placeholder="6.1"
           aria-describedby={errors.a1c ? "a1c-error" : "a1c-help"}
           aria-invalid={errors.a1c ? true : undefined}
-          style={fieldStyle}
+          className="text-input"
         />
-        <p id="a1c-help" style={{ margin: 0, color: "#475569", fontSize: "14px" }}>
+        <p id="a1c-help" className="field-hint">
           Enter one decimal place, like 6.1.
         </p>
         {errors.a1c ? (
-          <p id="a1c-error" style={{ margin: 0, color: "#b91c1c", fontSize: "14px" }}>
+          <p id="a1c-error" className="field-error">
             {errors.a1c}
           </p>
         ) : null}
       </div>
 
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        style={{
-          minHeight: "52px",
-          border: "none",
-          borderRadius: "999px",
-          padding: "14px 18px",
-          fontSize: "16px",
-          fontWeight: 700,
-          backgroundColor: isSubmitting ? "#94a3b8" : "#0f172a",
-          color: "#f8fafc",
-          cursor: isSubmitting ? "progress" : "pointer"
-        }}
-      >
+      <button type="submit" disabled={isSubmitting} className="primary-button">
         {isSubmitting ? "Checking..." : "Should I eat this?"}
       </button>
 
@@ -183,20 +153,9 @@ export function FoodCheckForm() {
       ) : uiState.kind === "done" ? (
         <ResultCard response={uiState.response} />
       ) : (
-        <section
-          aria-live="polite"
-          style={{
-            border: "1px solid #cbd5e1",
-            borderRadius: "20px",
-            padding: "16px",
-            backgroundColor: "#f8fafc",
-            color: "#334155"
-          }}
-        >
-          <p style={{ margin: 0, fontWeight: 600, color: "#0f172a" }}>
-            Response area
-          </p>
-          <p style={{ margin: "8px 0 0" }}>
+        <section aria-live="polite" className="placeholder-card">
+          <p className="placeholder-title">Response area</p>
+          <p className="placeholder-copy">
             {uiState.kind === "invalid"
               ? uiState.message
               : "Your food check result will appear here on this page after you submit."}

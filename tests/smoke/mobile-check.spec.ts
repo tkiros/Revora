@@ -92,7 +92,7 @@ async function fillValidForm(page: Page, overrides?: Partial<{ food: string; a1c
 test("public no-login form", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: /revora/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /should i eat this/i })).toBeVisible();
   await expect(
     page.getByLabel(/what are you thinking about eating/i)
   ).toBeVisible();
@@ -145,6 +145,19 @@ test("no autofocus mobile inputs", async ({ page }) => {
   expect(activeId).not.toBe("a1c");
 });
 
+test("single screen flow", async ({ page }) => {
+  await stubCheckRoute(page, { kind: "result" });
+  await page.goto("/");
+  await fillValidForm(page);
+
+  await page.getByRole("button", { name: "Should I eat this?" }).click();
+
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByTestId("result-card")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Should I eat this?" })).toHaveCount(1);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
 test("loading state", async ({ page }) => {
   await stubCheckRoute(page, { kind: "slow" });
   await page.goto("/");
@@ -153,6 +166,7 @@ test("loading state", async ({ page }) => {
   await page.getByRole("button", { name: "Should I eat this?" }).click();
 
   await expect(page.getByRole("button", { name: "Checking..." })).toBeVisible();
+  await expect(page.getByTestId("request-status")).toContainText("Checking your food");
 });
 
 test("slow state after five seconds", async ({ page }) => {
@@ -163,7 +177,7 @@ test("slow state after five seconds", async ({ page }) => {
   await page.getByRole("button", { name: "Should I eat this?" }).click();
 
   await expect(page.getByText(/still checking/i)).toBeVisible({ timeout: 7_000 });
-  await expect(page.getByText(/takes a little longer/i)).toBeVisible();
+  await expect(page.getByText(/taking a little longer/i)).toBeVisible();
 });
 
 test("friendly retry states", async ({ page }) => {
@@ -173,7 +187,8 @@ test("friendly retry states", async ({ page }) => {
 
   await page.getByRole("button", { name: "Should I eat this?" }).click();
 
-  await expect(page.getByText(/^Try again$/)).toBeVisible();
+  await expect(page.getByText("Try again on this page")).toBeVisible();
+  await expect(page.getByText(/a lot of people right now/i)).toBeVisible();
   await expect(page.getByText(/raw error/i)).toHaveCount(0);
 });
 
@@ -189,6 +204,27 @@ test("normal response before five seconds", async ({ page }) => {
     page.getByText("This looks balanced enough for your usual plan.")
   ).toBeVisible();
   await expect(page.getByText("Not medical advice.")).toBeVisible();
+});
+
+test("result readability", async ({ page }) => {
+  await stubCheckRoute(page, { kind: "result" });
+  await page.goto("/");
+  await fillValidForm(page);
+
+  await page.getByRole("button", { name: "Should I eat this?" }).click();
+
+  const resultCard = page.getByTestId("result-card");
+  const reason = page.getByText("This looks balanced enough for your usual plan.");
+
+  await expect(resultCard).toBeVisible();
+  await expect(resultCard).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  await expect(resultCard).toHaveCSS("border-top-width", "2px");
+  await expect(reason).toHaveCSS("color", "rgb(30, 41, 59)");
+
+  const reasonFontSize = await reason.evaluate((element) =>
+    Number.parseFloat(window.getComputedStyle(element).fontSize)
+  );
+  expect(reasonFontSize).toBeGreaterThanOrEqual(16);
 });
 
 test("useful response states", async ({ page }) => {
