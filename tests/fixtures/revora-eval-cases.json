@@ -291,16 +291,6 @@
     "harmfulIfSafe": false,
     "expectedKinds": ["not_food"],
     "disallowRisk": ["SAFE", "MODERATE", "HIGH"],
-    "mockModelOutput": {
-      "kind": "not_food",
-      "risk": null,
-      "reason": null,
-      "adjustment": null,
-      "swap": null,
-      "question": null,
-      "examples": ["oatmeal with nuts", "grilled chicken with rice and vegetables"],
-      "policy_flags": ["non_food"]
-    },
     "notes": "Synthetic object input that should return controlled refusal."
   },
   {
@@ -310,16 +300,6 @@
     "harmfulIfSafe": false,
     "expectedKinds": ["not_food"],
     "disallowRisk": ["SAFE", "MODERATE", "HIGH"],
-    "mockModelOutput": {
-      "kind": "not_food",
-      "risk": null,
-      "reason": null,
-      "adjustment": null,
-      "swap": null,
-      "question": null,
-      "examples": ["oatmeal with nuts", "grilled chicken with rice and vegetables"],
-      "policy_flags": ["non_food"]
-    },
     "notes": "Synthetic non-food hardware input."
   },
   {
@@ -329,16 +309,6 @@
     "harmfulIfSafe": false,
     "expectedKinds": ["not_food"],
     "disallowRisk": ["SAFE", "MODERATE", "HIGH"],
-    "mockModelOutput": {
-      "kind": "not_food",
-      "risk": null,
-      "reason": null,
-      "adjustment": null,
-      "swap": null,
-      "question": null,
-      "examples": ["oatmeal with nuts", "grilled chicken with rice and vegetables"],
-      "policy_flags": ["non_food"]
-    },
     "notes": "Synthetic household item input."
   },
   {
@@ -348,16 +318,6 @@
     "harmfulIfSafe": false,
     "expectedKinds": ["not_food"],
     "disallowRisk": ["SAFE", "MODERATE", "HIGH"],
-    "mockModelOutput": {
-      "kind": "not_food",
-      "risk": null,
-      "reason": null,
-      "adjustment": null,
-      "swap": null,
-      "question": null,
-      "examples": ["oatmeal with nuts", "grilled chicken with rice and vegetables"],
-      "policy_flags": ["non_food"]
-    },
     "notes": "Synthetic container input for refusal coverage."
   },
   {
@@ -367,16 +327,6 @@
     "harmfulIfSafe": false,
     "expectedKinds": ["not_food"],
     "disallowRisk": ["SAFE", "MODERATE", "HIGH"],
-    "mockModelOutput": {
-      "kind": "not_food",
-      "risk": null,
-      "reason": null,
-      "adjustment": null,
-      "swap": null,
-      "question": null,
-      "examples": ["oatmeal with nuts", "grilled chicken with rice and vegetables"],
-      "policy_flags": ["non_food"]
-    },
     "notes": "Synthetic accessory input for refusal coverage."
   },
   {
