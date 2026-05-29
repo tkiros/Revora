@@ -5,12 +5,12 @@ export default defineConfig({
   fullyParallel: true,
   retries: 0,
   use: {
-    baseURL: "http://127.0.0.1:3000"
+    baseURL: "http://127.0.0.1:3100"
   },
   webServer: {
-    command: "npx next dev --hostname 127.0.0.1 --port 3000",
-    url: "http://127.0.0.1:3000",
-    reuseExistingServer: true,
+    command: "npx next dev --hostname 127.0.0.1 --port 3100",
+    url: "http://127.0.0.1:3100",
+    reuseExistingServer: false,
     stdout: "pipe",
     stderr: "pipe",
     timeout: 120000
