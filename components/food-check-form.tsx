@@ -1,7 +1,7 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { submitCheck } from "../lib/client/check";
 import {
@@ -22,6 +22,11 @@ export function FoodCheckForm() {
   const [input, setInput] = useState<CheckFormInput>({ food: "", a1c: "" });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [uiState, setUiState] = useState<CheckUiState>({ kind: "idle" });
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
   const isSubmitting =
     uiState.kind === "submitting" || uiState.kind === "slow";
@@ -83,6 +88,17 @@ export function FoodCheckForm() {
     if (uiState.kind === "invalid" || uiState.kind === "error") {
       setUiState({ kind: "idle" });
     }
+  }
+
+  if (!isHydrated) {
+    return (
+      <section aria-live="polite" className="placeholder-card">
+        <p className="placeholder-title">Preparing form</p>
+        <p className="placeholder-copy">
+          Revora is getting the mobile check ready on this page.
+        </p>
+      </section>
+    );
   }
 
   return (
