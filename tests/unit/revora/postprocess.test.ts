@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { routeA1C } from "../../../lib/revora/a1c";
+import { buildCarbsOnlyResponse } from "../../../lib/revora/fallback";
 import {
   RevoraContractError,
   applyConservativeFloors,
@@ -78,6 +79,59 @@ describe("postprocessModelOutput", () => {
         new Set()
       )
     ).toThrow(RevoraContractError);
+  });
+
+  it("rejects carbs-only sequencing-only adjustments that only say vegetables first", () => {
+    expect(() =>
+      assertModerateHighFields(
+        {
+          risk: "MODERATE",
+          reason:
+            "This may have a higher blood-sugar impact because it leans heavily on refined carbs.",
+          adjustment: "Eat vegetables first if you can.",
+          swap: "If you have the option, swap to a less refined version."
+        },
+        new Set(["carbs_only"])
+      )
+    ).toThrow(RevoraContractError);
+  });
+
+  it.each([
+    "Add protein or nonstarchy vegetables to this meal.",
+    "Pair it with eggs or a side salad."
+  ])(
+    "accepts carbs-only adjustments that add or pair with a steadier companion: %s",
+    (adjustment) => {
+      expect(() =>
+        assertModerateHighFields(
+          {
+            risk: "MODERATE",
+            reason:
+              "This may have a higher blood-sugar impact because it leans heavily on refined carbs.",
+            adjustment,
+            swap: "If you have the option, swap to a less refined version."
+          },
+          new Set(["carbs_only"])
+        )
+      ).not.toThrow();
+    }
+  );
+
+  it("floors invalid carbs-only adjustments back to deterministic add-protein copy", () => {
+    const response = postprocessModelOutput(
+      makeModelOutput({
+        kind: "carbs_only",
+        adjustment: "Start with vegetables before the carbs.",
+        policy_flags: ["carbs_only"]
+      }),
+      {
+        contract,
+        route: routeA1C(6.1),
+        precheckFlags: ["carbs_only"]
+      }
+    );
+
+    expect(response).toEqual(buildCarbsOnlyResponse(contract, "MODERATE"));
   });
 
   it("applies conservative floors to upper-band carbs-only SAFE outputs", () => {
