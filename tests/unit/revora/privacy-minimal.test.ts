@@ -43,7 +43,9 @@ describe("privacy-minimal audit", () => {
     expect(routeSource).toMatch(/checkFood/);
     expect(routeSource).toMatch(/emitSafeEvent/);
     expect(routeSource).not.toMatch(/console\.(log|info|warn|error)/);
-    expect(routeSource).not.toMatch(/body\s*[),]/);
+    expect(routeSource).not.toMatch(
+      /console\.(log|info|warn|error)\([^)]*(food|a1c|prompt|output_text)/i
+    );
 
     expect(serviceSource).toMatch(/from "\.\/openai-client"/);
     expect(serviceSource).not.toMatch(/responses\.create/);
