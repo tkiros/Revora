@@ -82,9 +82,11 @@ async function stubCheckRoute(page: Page, scenario: StubScenario) {
   });
 }
 
-async function fillValidForm(page: Page) {
-  await page.getByLabel(/what are you thinking about eating/i).fill("lentil soup");
-  await page.getByLabel(/latest a1c/i).fill("6.1");
+async function fillValidForm(page: Page, overrides?: Partial<{ food: string; a1c: string }>) {
+  await page
+    .getByLabel(/what are you thinking about eating/i)
+    .fill(overrides?.food ?? "lentil soup");
+  await page.getByLabel(/latest a1c/i).fill(overrides?.a1c ?? "6.1");
 }
 
 test("public no-login form", async ({ page }) => {
@@ -198,6 +200,24 @@ test("useful response states", async ({ page }) => {
 
   await expect(
     page.getByText("Can you share the main portion or sides?")
+  ).toBeVisible();
+
+  await page.unroute("**/api/check");
+  await stubCheckRoute(page, { kind: "not_food" });
+  await page.reload();
+  await fillValidForm(page, { food: "glass vase" });
+  await page.getByRole("button", { name: "Should I eat this?" }).click();
+
+  await expect(page.getByText(/turkey sandwich/i)).toBeVisible();
+
+  await page.unroute("**/api/check");
+  await stubCheckRoute(page, { kind: "out_of_scope" });
+  await page.reload();
+  await fillValidForm(page, { a1c: "7.0" });
+  await page.getByRole("button", { name: "Should I eat this?" }).click();
+
+  await expect(
+    page.getByText(/prediabetes-range a1c checks right now/i)
   ).toBeVisible();
   await expect(page.getByText("Not medical advice.")).toBeVisible();
 });

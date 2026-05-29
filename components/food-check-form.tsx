@@ -14,6 +14,7 @@ import {
   validateCheckForm
 } from "../lib/client/validation";
 import { RequestStatus } from "./request-status";
+import { ResultCard } from "./result-card";
 
 type FieldErrors = Partial<Record<"food" | "a1c", string>>;
 
@@ -79,12 +80,7 @@ export function FoodCheckForm() {
 
     try {
       const response = await submitCheck(result.data);
-
-      if (response.kind === "retry") {
-        setUiState({ kind: "error", message: mapCheckFailure({ code: "retry" }) });
-      } else {
-        setUiState({ kind: "done", response });
-      }
+      setUiState({ kind: "done", response });
     } catch (error) {
       setUiState({ kind: "error", message: mapCheckFailure(error) });
     } finally {
@@ -184,6 +180,8 @@ export function FoodCheckForm() {
       uiState.kind === "slow" ||
       uiState.kind === "error" ? (
         <RequestStatus state={uiState} />
+      ) : uiState.kind === "done" ? (
+        <ResultCard response={uiState.response} />
       ) : (
         <section
           aria-live="polite"
