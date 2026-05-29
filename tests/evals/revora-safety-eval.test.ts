@@ -55,6 +55,12 @@ function formatRunLabel(run: EvalRun): string {
   return `${run.evalCase.category}:${run.evalCase.id}`;
 }
 
+function hasCarbsOnlyAdjustmentGuidance(adjustment: string | null): boolean {
+  return /protein|nonstarchy vegetables|vegetables|eggs?|side salad|salad/i.test(
+    adjustment ?? ""
+  );
+}
+
 describe("revora safety evals", () => {
   it("covers every required launch category with at least five cases each", () => {
     const cases = loadEvalCases();
@@ -103,6 +109,18 @@ describe("revora safety evals", () => {
     }
   });
 
+  it("rejects sequencing-only carbs-only adjustment text in eval assertions", () => {
+    expect(hasCarbsOnlyAdjustmentGuidance("Eat vegetables first if you can.")).toBe(
+      false
+    );
+    expect(
+      hasCarbsOnlyAdjustmentGuidance("Start with vegetables before the carbs.")
+    ).toBe(false);
+    expect(
+      hasCarbsOnlyAdjustmentGuidance("Pair it with eggs or a side salad.")
+    ).toBe(true);
+  });
+
   it("routes carbs-only evals through checkFood with add-protein guidance", async () => {
     const runs = await getEvalRuns();
     const carbsOnlyRuns = runs.filter((item) => item.evalCase.category === "carbs_only");
@@ -119,11 +137,7 @@ describe("revora safety evals", () => {
       expect(run.response.risk).not.toBe("SAFE");
       expect(run.response.adjustment).not.toBeNull();
       expect(run.response.swap).not.toBeNull();
-      expect(
-        /protein|nonstarchy vegetables|vegetables/i.test(
-          run.response.adjustment ?? ""
-        )
-      ).toBe(true);
+      expect(hasCarbsOnlyAdjustmentGuidance(run.response.adjustment)).toBe(true);
     }
   });
 
