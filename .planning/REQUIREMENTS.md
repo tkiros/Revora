@@ -35,7 +35,7 @@ Requirements for the Permission MVP. Each maps to roadmap phases.
 - [x] **GUIDE-05**: MODERATE and HIGH results include exactly one practical sequencing, eating-speed, or add-protein/add-vegetable instruction.
 - [x] **GUIDE-06**: MODERATE and HIGH results include exactly one practical lower-glycemic swap.
 - [x] **GUIDE-07**: Results use qualitative glycemic-impact language and never invent exact GI, GL, or glucose-spike numbers.
-- [ ] **GUIDE-08**: The app returns a useful result, clarification, or safe error state within a 5-second acceptable ceiling under normal network conditions.
+- [x] **GUIDE-08**: The app returns a useful result, clarification, or safe error state within a 5-second acceptable ceiling under normal network conditions.
 
 ### Guardrails And Evaluation
 
@@ -52,9 +52,9 @@ Requirements for the Permission MVP. Each maps to roadmap phases.
 - [x] **UX-01**: User can complete the entire check from a single mobile-first page with no modal, account wall, or navigation flow.
 - [x] **UX-02**: The food input and A1C input work with mobile keyboards without auto-focusing the page into an obscured state.
 - [x] **UX-03**: The primary CTA is a large thumb-reachable button labeled "Should I eat this?"
-- [ ] **UX-04**: The submit button shows a loading state during the model request.
-- [ ] **UX-05**: If a model request exceeds 5 seconds, the UI tells the user the check is still running.
-- [ ] **UX-06**: If a request fails, times out, or is rate-limited, the UI shows friendly retry copy and never shows a raw error.
+- [x] **UX-04**: The submit button shows a loading state during the model request.
+- [x] **UX-05**: If a model request exceeds 5 seconds, the UI tells the user the check is still running.
+- [x] **UX-06**: If a request fails, times out, or is rate-limited, the UI shows friendly retry copy and never shows a raw error.
 - [ ] **UX-07**: Result text is high-contrast and readable on mobile in bright environments.
 
 ### Privacy And Operations
@@ -148,7 +148,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GUIDE-05 | Phase 2 | Complete |
 | GUIDE-06 | Phase 2 | Complete |
 | GUIDE-07 | Phase 1 | Complete |
-| GUIDE-08 | Phase 3 | Pending |
+| GUIDE-08 | Phase 3 | Complete |
 | GUARD-01 | Phase 2 | Complete |
 | GUARD-02 | Phase 2 | Complete |
 | GUARD-03 | Phase 2 | Complete |
@@ -159,9 +159,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | UX-01 | Phase 3 | Complete |
 | UX-02 | Phase 3 | Complete |
 | UX-03 | Phase 3 | Complete |
-| UX-04 | Phase 3 | Pending |
-| UX-05 | Phase 3 | Pending |
-| UX-06 | Phase 3 | Pending |
+| UX-04 | Phase 3 | Complete |
+| UX-05 | Phase 3 | Complete |
+| UX-06 | Phase 3 | Complete |
 | UX-07 | Phase 3 | Pending |
 | PRIV-01 | Phase 4 | Pending |
 | PRIV-02 | Phase 4 | Pending |
@@ -184,4 +184,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-05-04*
-*Last updated: 2026-05-29 after Phase 03-01 completion*
+*Last updated: 2026-05-29 after Phase 03-02 completion*

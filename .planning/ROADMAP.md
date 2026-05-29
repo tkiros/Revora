@@ -65,11 +65,11 @@ Plans:
   2. The form validates required food and A1C values before any model call and works with mobile keyboards without auto-focus breaking the screen.
   3. The page shows clear loading, still-running, and friendly retry states instead of raw errors when checks are slow, fail, or are rate-limited.
   4. Under normal network conditions the user receives a useful result, clarification, or safe error state within the 5-second ceiling, and the rendered result stays readable in bright mobile conditions.
-**Plans**: 1/3 plans complete
+**Plans**: 2/3 plans complete
 
 Plans:
 - [x] 03-01-PLAN.md — Build the single-screen mobile form and local validation flow
-- [ ] 03-02-PLAN.md — Connect the public API route to result, clarification, and error states
+- [x] 03-02-PLAN.md — Connect the public API route to result, clarification, and error states
 - [ ] 03-03-PLAN.md — Tune mobile readability, latency messaging, and bright-environment UX
 
 ### Phase 4: Privacy-Minimal Launch Controls
@@ -110,6 +110,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 |-------|----------------|--------|-----------|
 | 1. Claims Boundary, Evidence Pack, and Safety Spec | 3/3 | Complete | 01-01, 01-02, 01-03 |
 | 2. Guardrailed Inference Core and Eval Harness | 5/5 | Complete | 2026-05-29 |
-| 3. Public Mobile Permission Check | 1/3 | In Progress | 03-01 |
+| 3. Public Mobile Permission Check | 2/3 | In Progress | 03-01, 03-02 |
 | 4. Privacy-Minimal Launch Controls | 0/2 | Not started | - |
 | 5. Community Launch and Founder Review Loop | 0/2 | Not started | - |
