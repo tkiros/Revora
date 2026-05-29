@@ -21,6 +21,19 @@ const PROMPT_INJECTION_PATTERNS = [
   /\btell me a joke\b/i
 ];
 
+const ORDINARY_OBJECT_PATTERNS = [
+  /\brunning shoes?\b/i,
+  /\bsneakers?\b/i,
+  /\blaptop charger\b/i,
+  /\bphone charger\b/i,
+  /\bdish soap\b/i,
+  /\bhand soap\b/i,
+  /\bwater bottle\b/i,
+  /\bphone case\b/i,
+  /\btoothbrush\b/i,
+  /\bshampoo\b/i
+] as const;
+
 const AMBIGUOUS_PLAIN_OR_SWEETENED = [
   "oatmeal",
   "cereal",
@@ -153,7 +166,10 @@ function normalize(food: string): string {
 }
 
 function looksLikeNonFood(food: string): boolean {
-  return PROMPT_INJECTION_PATTERNS.some((pattern) => pattern.test(food));
+  return (
+    PROMPT_INJECTION_PATTERNS.some((pattern) => pattern.test(food)) ||
+    ORDINARY_OBJECT_PATTERNS.some((pattern) => pattern.test(food))
+  );
 }
 
 function getAmbiguousQuestion(food: string): string | null {
