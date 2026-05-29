@@ -55,7 +55,7 @@ Requirements for the Permission MVP. Each maps to roadmap phases.
 - [x] **UX-04**: The submit button shows a loading state during the model request.
 - [x] **UX-05**: If a model request exceeds 5 seconds, the UI tells the user the check is still running.
 - [x] **UX-06**: If a request fails, times out, or is rate-limited, the UI shows friendly retry copy and never shows a raw error.
-- [ ] **UX-07**: Result text is high-contrast and readable on mobile in bright environments.
+- [x] **UX-07**: Result text is high-contrast and readable on mobile in bright environments.
 
 ### Privacy And Operations
 
@@ -162,7 +162,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | UX-04 | Phase 3 | Complete |
 | UX-05 | Phase 3 | Complete |
 | UX-06 | Phase 3 | Complete |
-| UX-07 | Phase 3 | Pending |
+| UX-07 | Phase 3 | Complete |
 | PRIV-01 | Phase 4 | Pending |
 | PRIV-02 | Phase 4 | Pending |
 | PRIV-03 | Phase 4 | Pending |
@@ -184,4 +184,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-05-04*
-*Last updated: 2026-05-29 after Phase 03-02 completion*
+*Last updated: 2026-05-29 after Phase 03-03 completion*
