@@ -88,7 +88,8 @@ describe("GET /api/health", () => {
     expect(payload).toEqual({
       ok: true,
       environment: "preview",
-      launch: "ready"
+      launch: "ready",
+      launchMode: "normal"
     });
     expect(JSON.stringify(payload)).not.toContain("sk-preview");
     expect(JSON.stringify(payload)).not.toContain("ecfg_connection_string");
@@ -110,7 +111,8 @@ describe("GET /api/health", () => {
     expect(payload).toEqual({
       ok: false,
       environment: "development",
-      launch: "missing_config"
+      launch: "missing_config",
+      launchMode: "normal"
     });
   });
 });

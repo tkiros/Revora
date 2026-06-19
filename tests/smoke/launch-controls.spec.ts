@@ -101,14 +101,20 @@ test("maintenance mode — friendly pause response before model spend", async ({
   await page.getByLabel(/latest a1c/i).fill("6.0");
   await page.getByRole("button", { name: "Should I eat this?" }).click();
 
-  // Friendly pause copy should appear
+  // A 503 from the middleware (or stubbed here) is mapped to a "server" error
+  // in lib/client/check.ts, which renders RequestStatus with:
+  //   eyebrow: "Check paused" and title: "Try again on this page"
   await expect(
-    page.getByText(/paused|try again/i)
+    page.getByText("Try again on this page")
   ).toBeVisible({ timeout: 10_000 });
 
   // Must never leak raw provider errors, stack traces, food text, or prompt text
-  await expect(page.getByText(/Error:|TypeError|node_modules/i)).toHaveCount(0);
-  await expect(page.getByText(/prompt|raw food|A1C:/i)).toHaveCount(0);
+  await expect(page.locator(".status-title, .status-copy, .status-note").filter({
+    hasText: /Error:|TypeError|node_modules|prompt|raw food/i
+  })).toHaveCount(0);
+
+  // No SAFE/MODERATE/HIGH classification leaked (maintenance mode must not classify)
+  await expect(page.getByTestId("result-card")).toHaveCount(0);
 });
 
 test("rate limit — friendly retry response (WAF 429 behavior)", async ({
@@ -122,11 +128,18 @@ test("rate limit — friendly retry response (WAF 429 behavior)", async ({
   await page.getByLabel(/latest a1c/i).fill("6.2");
   await page.getByRole("button", { name: "Should I eat this?" }).click();
 
-  // Friendly rate-limit copy should appear
-  await expect(
-    page.getByText(/try again|a lot of people right now|too many requests/i)
-  ).toBeVisible({ timeout: 10_000 });
+  // A 429 is mapped to "rate_limited" → RequestStatus with "Try again on this page"
+  // and "Revora is helping a lot of people right now" copy
+  await expect(page.getByText("Try again on this page")).toBeVisible({
+    timeout: 10_000
+  });
+  await expect(page.getByText(/a lot of people right now/i)).toBeVisible();
 
-  // Must not contain raw error text or status codes
-  await expect(page.getByText(/Error:|429|stack trace/i)).toHaveCount(0);
+  // Must not contain raw error text or status codes in visible content
+  await expect(page.locator(".status-title, .status-copy, .status-note").filter({
+    hasText: /Error:|TypeError|node_modules|stack trace/i
+  })).toHaveCount(0);
+
+  // No SAFE/MODERATE/HIGH classification leaked
+  await expect(page.getByTestId("result-card")).toHaveCount(0);
 });
