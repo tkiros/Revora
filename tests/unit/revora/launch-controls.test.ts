@@ -1,5 +1,5 @@
 /**
- * Unit tests for launch-control contracts and thresholds (Plan 04-02)
+ * Unit tests for launch-control contracts, thresholds, and middleware gate (Plan 04-02)
  *
  * Coverage:
  *  - 04-01 artifact dependency gate
@@ -7,6 +7,8 @@
  *  - evaluateLaunchMode() pause path (public_checks_enabled false)
  *  - shouldPauseForOps() threshold helper (harmful-guidance, provider-failure, 2,000 checks/24h)
  *  - Missing / absent Edge Config values fail closed to safe defaults
+ *  - /api/health reports launchMode from launch-control seam
+ *  - Middleware pause gate: normal mode passthrough, paused mode 503 with friendly copy
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -279,5 +281,123 @@ describe("missing Edge Config values fail closed to safe defaults", () => {
       launchMode: "normal",
       publicChecksEnabled: true
     });
+  });
+});
+
+// ----- /api/health reports launch state (Task 1, Test 4) -----
+describe("/api/health reports launchMode from launch-control seam", () => {
+  const ORIGINAL_ENV = { ...process.env };
+
+  afterEach(() => {
+    process.env = { ...ORIGINAL_ENV };
+    vi.resetModules();
+  });
+
+  it("includes launchMode:normal in the success response", async () => {
+    process.env = {
+      ...ORIGINAL_ENV,
+      NODE_ENV: "production",
+      VERCEL_ENV: "preview",
+      OPENAI_API_KEY: "sk-preview-test"
+    };
+    delete process.env.EDGE_CONFIG;
+    delete process.env.REVORA_LAUNCH_MODE_OVERRIDE;
+
+    const { GET } = await import("../../../app/api/health/route");
+    const response = await GET();
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.ok).toBe(true);
+    expect(payload.launchMode).toBe("normal");
+  });
+
+  it("includes launchMode:paused when the override is active", async () => {
+    process.env = {
+      ...ORIGINAL_ENV,
+      NODE_ENV: "development",
+      OPENAI_API_KEY: "sk-dev-test",
+      REVORA_LAUNCH_MODE_OVERRIDE: "paused"
+    };
+    delete process.env.EDGE_CONFIG;
+
+    const { GET } = await import("../../../app/api/health/route");
+    const response = await GET();
+    const payload = await response.json();
+
+    // Health still returns 200 (the probe is always accessible);
+    // only the launch field reflects the paused state
+    expect(payload.launchMode).toBe("paused");
+    expect(payload.launch).toBe("paused");
+  });
+
+  it("never exposes secrets in the health response", async () => {
+    process.env = {
+      ...ORIGINAL_ENV,
+      NODE_ENV: "production",
+      VERCEL_ENV: "preview",
+      OPENAI_API_KEY: "sk-secret-key-value",
+      EDGE_CONFIG: "ecfg_secret_connection"
+    };
+    delete process.env.REVORA_LAUNCH_MODE_OVERRIDE;
+
+    const { GET } = await import("../../../app/api/health/route");
+    const response = await GET();
+    const body = JSON.stringify(await response.json());
+
+    expect(body).not.toContain("sk-secret-key-value");
+    expect(body).not.toContain("ecfg_secret_connection");
+  });
+});
+
+// ----- Middleware pause gate (Task 1, Tests 1-3) -----
+describe("middleware pause gate (evaluateLaunchMode integration)", () => {
+  afterEach(() => {
+    vi.resetModules();
+    delete process.env.REVORA_LAUNCH_MODE_OVERRIDE;
+  });
+
+  it("returns ok:true in normal mode so the public path can continue", async () => {
+    delete process.env.REVORA_LAUNCH_MODE_OVERRIDE;
+
+    const { evaluateLaunchMode } = await import(
+      "../../../lib/revora/launch-controls"
+    );
+    const result = await evaluateLaunchMode();
+
+    expect(result.ok).toBe(true);
+  });
+
+  it("returns ok:false with 503 and friendly copy in paused mode (pre-model gate)", async () => {
+    process.env.REVORA_LAUNCH_MODE_OVERRIDE = "paused";
+
+    const { evaluateLaunchMode } = await import(
+      "../../../lib/revora/launch-controls"
+    );
+    const result = await evaluateLaunchMode();
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.status).toBe(503);
+      // Must never contain raw errors, stack traces, food text, or prompt text
+      expect(result.message).not.toMatch(
+        /Error:|TypeError|stack|node_modules|OpenAI|prompt/i
+      );
+      expect(result.message.length).toBeGreaterThan(10);
+    }
+  });
+
+  it("pause response never leaks raw food text or prompt text", async () => {
+    process.env.REVORA_LAUNCH_MODE_OVERRIDE = "paused";
+
+    const { evaluateLaunchMode } = await import(
+      "../../../lib/revora/launch-controls"
+    );
+    const result = await evaluateLaunchMode();
+
+    if (!result.ok) {
+      const safeFields = JSON.stringify(result);
+      expect(safeFields).not.toMatch(/food:|a1c:|prompt|model output/i);
+    }
   });
 });
