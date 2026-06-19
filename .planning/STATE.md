@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 3 verified and complete; ready to plan Phase 4
-last_updated: "2026-06-19T05:22:28.794Z"
-last_activity: 2026-06-19 -- Phase 04 execution started
+stopped_at: Phase 04-02 complete; Phase 4 done; ready for Phase 5
+last_updated: "2026-06-19T05:48:00Z"
+last_activity: 2026-06-19 -- Phase 04-02 executed (launch-controls, middleware, runbook)
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 15
-  completed_plans: 12
-  percent: 60
+  completed_plans: 14
+  percent: 87
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-05-04)
 
 ## Current Position
 
-Phase: 04 (privacy-minimal-launch-controls) — EXECUTING
-Plan: 1 of 2
-Status: Executing Phase 04
-Last activity: 2026-06-19 -- Phase 04 execution started
+Phase: 04 (privacy-minimal-launch-controls) — COMPLETE
+Plan: 2 of 2 (DONE)
+Status: Ready for Phase 05 — Community Launch and Founder Review Loop
+Last activity: 2026-06-19 -- Phase 04-02 complete (launch-controls, middleware, runbook)
 
-Progress: [███████░░░] 73%
+Progress: [█████████░] 87%
 
 ## Performance Metrics
 
@@ -47,13 +47,13 @@ Progress: [███████░░░] 73%
 | 1. Claims Boundary, Evidence Pack, and Safety Spec | 3 | 17 min | 6 min |
 | 2. Guardrailed Inference Core and Eval Harness | 5 | 68 min | 14 min |
 | 3. Public Mobile Permission Check | 3 | 151 min | 50 min |
-| 4. Privacy-Minimal Launch Controls | 0 | 0 min | - |
+| 4. Privacy-Minimal Launch Controls | 2 | ~150 min | 75 min |
 | 5. Community Launch and Founder Review Loop | 0 | 0 min | - |
 
 **Recent Trend:**
 
-- Last 5 plans: 02-04 (3 min), 02-05 (5 min), 03-01 (36 min), 03-02 (9 min), 03-03 (106 min)
-- Trend: Phase 3 is complete and Phase 4 is ready for planning.
+- Last 5 plans: 03-01 (36 min), 03-02 (9 min), 03-03 (106 min), 04-01 (resumed), 04-02 (~75 min)
+- Trend: Phase 4 is complete. Ready for Phase 5 community launch planning.
 
 | Phase 03 P01 | 36 min | 2 tasks | 9 files |
 | Phase 03 P02 | 9 min | 3 tasks | 7 files |
@@ -70,6 +70,10 @@ Recent decisions affecting current work:
 - Phase 2: Treat harmful SAFE classifications as the launch-blocking quality risk.
 - Phase 3: Preserve the one-page no-login mobile flow as the MVP interaction model.
 - Phase 4: Keep telemetry privacy-minimal and avoid raw food/A1C retention by default.
+- [Phase 04-02]: Middleware reads only launch-control state (not OPENAI_API_KEY) to avoid edge-runtime throw.
+- [Phase 04-02]: shouldPauseForOps() takes operator-supplied checksLast24h; no durable counter built in.
+- [Phase 04-02]: REVORA_LAUNCH_MODE_OVERRIDE is ignored in production environments.
+- [Phase 04-02]: Edge Config SDK dynamically imported; absent EDGE_CONFIG returns safe defaults.
 - Phase 5: Defer scanner, auth, saved history, and payments unless launch evidence clears the expansion gate.
 - [Phase 01]: Active claims validation scans only approved active ledger rows so policy docs can record banned language without false positives.
 - [Phase 01]: Evidence sources stay attached to narrow allowed-use statements and explicit do-not-claim limits rather than acting as broad citation permission.
@@ -102,8 +106,10 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-- Plan Phase 4 privacy-minimal launch controls, telemetry boundaries, and rollback safeguards.
 - Run `node scripts/run-live-revora-evals.mjs` with `OPENAI_API_KEY` before public release.
+- Set up Vercel Edge Config store with launch_mode / public_checks_enabled / incident_message keys before deployment.
+- Publish WAF rate-limit rule (10 req/10min/IP on /api/check) in Vercel Dashboard → Security → WAF.
+- Run `vercel login` then verify the rollback procedure from docs/ops/launch-controls.md before going live.
 
 ### Blockers/Concerns
 
@@ -114,6 +120,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-05-29T22:47:10Z
-Stopped at: Phase 3 verified and complete; ready to plan Phase 4
+Last session: 2026-06-19T05:48:00Z
+Stopped at: Phase 04-02 complete — middleware pause gate, launch-control seam, Edge Config integration, ops runbook, smoke coverage. Phase 4 done; ready for Phase 5.
 Resume file: None

@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Claims Boundary, Evidence Pack, and Safety Spec** - Lock the allowed guidance contract before broader product behavior is built.
 - [x] **Phase 2: Guardrailed Inference Core and Eval Harness** - Build the server-side classification engine and its launch-blocking safety checks. (completed 2026-05-29)
 - [x] **Phase 3: Public Mobile Permission Check** - Deliver the one-page mobile-first check flow for real users. (completed 2026-05-29)
-- [ ] **Phase 4: Privacy-Minimal Launch Controls** - Make the public MVP deployable with explicit privacy, abuse, and rollback boundaries.
+- [x] **Phase 4: Privacy-Minimal Launch Controls** - Make the public MVP deployable with explicit privacy, abuse, and rollback boundaries. (completed 2026-06-19)
 - [ ] **Phase 5: Community Launch and Founder Review Loop** - Launch carefully, measure demand, and decide whether expansion is earned.
 
 ## Phase Details
@@ -103,7 +103,7 @@ Plans:
 Plans:
 
 - [x] 04-01-PLAN.md — Lock privacy-minimal data flow, telemetry, and deployment configuration
-- [ ] 04-02-PLAN.md — Add abuse-cost thresholds plus rollback and kill-switch procedures
+- [x] 04-02-PLAN.md — Add abuse-cost thresholds plus rollback and kill-switch procedures
 
 ### Phase 5: Community Launch and Founder Review Loop
 
@@ -134,5 +134,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 1. Claims Boundary, Evidence Pack, and Safety Spec | 3/3 | Complete | 01-01, 01-02, 01-03 |
 | 2. Guardrailed Inference Core and Eval Harness | 5/5 | Complete | 2026-05-29 |
 | 3. Public Mobile Permission Check | 3/3 | Complete | 2026-05-29 |
-| 4. Privacy-Minimal Launch Controls | 1/2 | In Progress|  |
+| 4. Privacy-Minimal Launch Controls | 2/2 | Complete | 2026-06-19 |
 | 5. Community Launch and Founder Review Loop | 0/2 | Not started | - |
