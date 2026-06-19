@@ -70,8 +70,8 @@ Preview and Production are separate Vercel environments.
 
 - Preview uses Preview-scoped environment variables for safe verification.
 - Production uses Production-scoped environment variables for the public MVP.
-- `OPENAI_API_KEY` is required in each server environment.
-- Future Edge Config launch controls may be configured separately from the OpenAI key.
+- `OPENAI_API_KEY` is required in Preview, Production, local development, and test server environments.
+- `EDGE_CONFIG` stays optional in Phase 04-01 and is reserved for later launch controls in Plan 04-02.
 - Environment-variable changes apply to new deployments, so Preview and Production must be validated independently.
 
 ## Safe health probe
@@ -82,6 +82,6 @@ It may expose only minimal non-secret JSON such as:
 
 - `ok`
 - `environment`
-- `launch`
+- `launch` (`ready` or `missing_config`)
 
 The probe must not expose secrets, raw inputs, prompt text, or model output.

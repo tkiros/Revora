@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "build": "next build",
     "test": "vitest run",
     "test:revora": "vitest run tests/unit/revora",
     "eval:revora": "vitest run tests/evals/revora-safety-eval.test.ts"
