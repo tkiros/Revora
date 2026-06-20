@@ -52,6 +52,81 @@ describe("createOpenAIRevoraModelClient", () => {
     );
   });
 
+  it("omits the reasoning parameter by default (behavior-neutral)", async () => {
+    const create = vi.fn().mockResolvedValue({
+      output_text: JSON.stringify({
+        kind: "result",
+        risk: "SAFE",
+        reason: "This looks balanced.",
+        adjustment: null,
+        swap: null,
+        question: null,
+        examples: [],
+        policy_flags: ["safe_food"]
+      })
+    });
+
+    const client = createOpenAIRevoraModelClient({
+      client: { responses: { create } }
+    });
+
+    await client.generate({ instructions: "x", input: "y" });
+
+    // Default must NOT lower reasoning on the live safety classifier — the model
+    // runs at its own default until an effort is explicitly set + eval-confirmed.
+    expect(create.mock.calls[0][0]).not.toHaveProperty("reasoning");
+  });
+
+  it("passes through an explicit reasoning effort", async () => {
+    const create = vi.fn().mockResolvedValue({
+      output_text: JSON.stringify({
+        kind: "result",
+        risk: "SAFE",
+        reason: "This looks balanced.",
+        adjustment: null,
+        swap: null,
+        question: null,
+        examples: [],
+        policy_flags: ["safe_food"]
+      })
+    });
+
+    const client = createOpenAIRevoraModelClient({
+      reasoningEffort: "minimal",
+      client: { responses: { create } }
+    });
+
+    await client.generate({ instructions: "x", input: "y" });
+
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ reasoning: { effort: "minimal" } })
+    );
+  });
+
+  it("omits the reasoning parameter when effort is 'off'", async () => {
+    const create = vi.fn().mockResolvedValue({
+      output_text: JSON.stringify({
+        kind: "result",
+        risk: "SAFE",
+        reason: "This looks balanced.",
+        adjustment: null,
+        swap: null,
+        question: null,
+        examples: [],
+        policy_flags: ["safe_food"]
+      })
+    });
+
+    const client = createOpenAIRevoraModelClient({
+      reasoningEffort: "off",
+      client: { responses: { create } }
+    });
+
+    await client.generate({ instructions: "x", input: "y" });
+
+    expect(create.mock.calls[0][0]).not.toHaveProperty("reasoning");
+  });
+
   it("rejects missing output_text instead of returning raw provider output", async () => {
     const client = createOpenAIRevoraModelClient({
       client: {
