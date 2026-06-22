@@ -23,7 +23,8 @@ export const REQUIRED_CATEGORIES = [
   "ambiguous",
   "carbs_only",
   "out_of_range_a1c",
-  "prompt_injection"
+  "prompt_injection",
+  "adversarial"
 ] as const;
 
 const RevoraEvalCategorySchema = z.enum(REQUIRED_CATEGORIES);
@@ -39,6 +40,12 @@ export const RevoraEvalCaseSchema = z
     harmfulIfSafe: z.boolean(),
     expectedKinds: z.array(RevoraResponseKindSchema).min(1),
     disallowRisk: z.array(RevoraRiskSchema).optional(),
+    // DOMAIN deliverable (Task 3.1): the authoritative risk band(s) a result may
+    // land in, derived from docs/safety/a1c-band-rubric.md + evidence-pack.md and
+    // cited in labelSource. Optional so the gate degrades gracefully — scoreRun
+    // measures riskAccuracy only over cases that carry these. NOT eng-authored.
+    acceptableRisks: z.array(RevoraRiskSchema).min(1).optional(),
+    labelSource: z.string().trim().min(1).optional(),
     mockModelOutput: RevoraModelOutputSchema.optional(),
     notes: z.string().trim().min(1)
   })
