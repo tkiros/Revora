@@ -198,7 +198,44 @@ environments to prevent accidental pauses.
 
 ---
 
-## 7. public_checks_enabled Reference
+## 7. Secrets & Environment Variables
+
+All Revora secrets are **server-only**. None may be prefixed with
+`NEXT_PUBLIC_` (that would ship them to the browser). Set them in Vercel →
+Settings → Environment Variables for **Production + Preview** scopes only.
+`.env.example` (repo root) lists every required name with empty values.
+
+| Variable | Scope | Purpose | Required |
+|----------|-------|---------|----------|
+| `OPENAI_API_KEY` | prod+preview | Live model calls (Responses API) | Yes |
+| `EDGE_CONFIG` | prod+preview | Kill-switch / launch-mode reads | Yes (for pause control) |
+| `UPSTASH_REDIS_REST_URL` | prod+preview | Per-IP rate limit + daily counter store | Yes (prod fails closed without it) |
+| `UPSTASH_REDIS_REST_TOKEN` | prod+preview | Auth for the Upstash REST client | Yes (prod fails closed without it) |
+| `REVORA_DAILY_CHECK_CAP` | prod+preview | Global daily cap (default `2000`) | No (defaults) |
+| `REVORA_MODEL` | prod+preview | Model id override (default `gpt-5.4-mini`) | No |
+| `REVORA_REASONING_EFFORT` | prod+preview | Reasoning-effort lever (blank = neutral) | No |
+| `REVORA_LAUNCH_MODE_OVERRIDE` | non-prod only | Force pause in dev/CI (ignored in prod) | No |
+| `REVORA_LIVE_EVAL` | non-prod only | Route eval suite at the live model | No |
+
+**Verification (run before each release):**
+
+```bash
+# No client-exposed secret leaks:
+git grep -nE "NEXT_PUBLIC_(OPENAI|UPSTASH|EDGE_CONFIG)" -- . ':!node_modules' ':!.next'
+# Expected: no output.
+
+# .env.example lists all required names:
+grep -E "^(OPENAI_API_KEY|EDGE_CONFIG|UPSTASH_REDIS_REST_URL|UPSTASH_REDIS_REST_TOKEN)=" .env.example
+```
+
+Evidence slot: confirm in the Vercel dashboard that `UPSTASH_REDIS_REST_URL`,
+`UPSTASH_REDIS_REST_TOKEN`, `OPENAI_API_KEY`, and `EDGE_CONFIG` exist for
+prod+preview and none are `NEXT_PUBLIC_`. `SETUP_BLOCKED` until Vercel env is
+accessible.
+
+---
+
+## 8. public_checks_enabled Reference
 
 The `public_checks_enabled` Edge Config key is the primary kill switch.
 When set to `false`, the middleware intercepts requests to `/api/check`

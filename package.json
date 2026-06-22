@@ -10,6 +10,8 @@
     "eval:revora": "vitest run tests/evals/revora-safety-eval.test.ts"
   },
   "dependencies": {
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.38.0",
     "@vercel/edge-config": "^1.4.3",
     "next": "16.2.4",
     "openai": "6.36.0",
