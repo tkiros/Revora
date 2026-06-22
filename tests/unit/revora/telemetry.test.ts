@@ -33,6 +33,17 @@ describe("emitSafeEvent", () => {
     );
   });
 
+  it("accepts the daily_cap reason code", () => {
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    expect(() =>
+      emitSafeEvent({
+        name: "check_failed",
+        environment: "test",
+        reasonCode: "daily_cap"
+      })
+    ).not.toThrow();
+  });
+
   it("rejects raw food text, raw A1C, prompt text, and full model output fields", () => {
     const unsafeFields = [
       { food: "sweetened cereal" },

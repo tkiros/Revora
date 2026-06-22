@@ -10,7 +10,7 @@ const SafeTelemetryEventSchema = z
     risk: z.enum(["SAFE", "MODERATE", "HIGH"]).optional(),
     latencyBucket: z.enum(["<2s", "2-5s", "5-12s", ">12s"]).optional(),
     reasonCode: z
-      .enum(["rate_limited", "provider_error", "schema_error", "paused"])
+      .enum(["rate_limited", "daily_cap", "provider_error", "schema_error", "paused"])
       .optional()
   })
   .strict();
