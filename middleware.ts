@@ -1,54 +1,126 @@
 /**
- * Revora middleware — pre-model pause gate (Plan 04-02)
+ * Revora middleware — pre-model abuse + cost gate (Plans 04-02 + launch-hardening)
  *
- * Intercepts requests to /api/check and evaluates launch mode before any
- * model spend occurs. If public checks are paused (via Edge Config or the
- * REVORA_LAUNCH_MODE_OVERRIDE test seam), returns a friendly 503 with calm
- * copy instead of forwarding to the OpenAI path.
+ * Intercepts POST /api/check and runs, in order, BEFORE any model spend:
+ *   1. Launch-mode pause gate (Edge Config kill-switch).
+ *   2. Per-IP rate limit + global daily cap (Upstash).
  *
- * The public page and /api/health remain accessible regardless of launch mode.
+ * Order matters: IP-blocked requests must NOT increment the global daily
+ * counter, or an attacker could trip the global pause cheaply (handled inside
+ * evaluateRateLimit). Production with no Upstash config fails CLOSED (never run
+ * public + unlimited); dev/test without config skips limiting. Transient Redis
+ * errors fail OPEN — the OpenAI dashboard hard cap is the true cost ceiling.
  *
  * Edge-runtime safe: does NOT call getRevoraEnv() (which requires
- * OPENAI_API_KEY and would throw when absent). Reads only launch-control
- * state via getLaunchControls() which is designed to never throw.
+ * OPENAI_API_KEY and would throw when absent).
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { evaluateLaunchMode } from "./lib/revora/launch-controls";
+import {
+  createRateLimitDeps,
+  evaluateRateLimit,
+  getClientIp,
+  type RateLimitDeps
+} from "./lib/revora/rate-limit";
+import { emitSafeEvent } from "./lib/revora/telemetry";
 
-// Only gate the public check path — everything else passes through.
 const CHECK_PATH = "/api/check";
-
-// Default pause copy for middleware responses (keeps it independent of
-// loadSafetyContract() which may do filesystem reads incompatible with Edge).
 const DEFAULT_PAUSE_DISCLAIMER = "Not medical advice.";
+const RATE_LIMIT_COPY =
+  "Revora is helping a lot of people right now. Please try again in a moment.";
+
+// Built once per runtime; null when Upstash env is absent.
+const rateLimitDeps: RateLimitDeps | null = createRateLimitDeps();
+
+/**
+ * True for any internet-reachable Vercel deploy (preview OR production). Preview
+ * URLs are public and shareable, so a missing-Upstash misconfiguration there
+ * must also fail closed — never run public + unlimited. Only genuine local dev
+ * and the test runner skip limiting.
+ */
+function isPublicDeploy(): boolean {
+  if (process.env.NODE_ENV === "test") return false;
+  if (process.env.VERCEL_ENV === "preview" || process.env.VERCEL_ENV === "production") {
+    return true;
+  }
+  return process.env.NODE_ENV === "production";
+}
+
+function environment(): "preview" | "production" | "development" | "test" {
+  if (process.env.NODE_ENV === "test") return "test";
+  switch (process.env.VERCEL_ENV) {
+    case "preview":
+      return "preview";
+    case "production":
+      return "production";
+    case "development":
+      return "development";
+    default:
+      return process.env.NODE_ENV === "production"
+        ? "production"
+        : "development";
+  }
+}
+
+function pause503(message: string) {
+  return NextResponse.json(
+    { kind: "retry", message, disclaimer: DEFAULT_PAUSE_DISCLAIMER },
+    { status: 503 }
+  );
+}
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-
-  // Only intercept POST /api/check — passthrough everything else
   if (pathname !== CHECK_PATH || request.method !== "POST") {
     return NextResponse.next();
   }
 
+  // 1. Global pause gate (existing behavior).
   const evaluation = await evaluateLaunchMode();
-
   if (!evaluation.ok) {
-    // Paused: return friendly 503 before any model spend
+    return pause503(evaluation.message);
+  }
+
+  // 2. Inbound abuse + cost gate.
+  if (!rateLimitDeps) {
+    // Never run public + unlimited. Fail closed on any public deploy; skip in
+    // local dev / test only.
+    if (isPublicDeploy()) {
+      emitSafeEvent({
+        name: "check_failed",
+        environment: environment(),
+        reasonCode: "paused"
+      });
+      return pause503(RATE_LIMIT_COPY);
+    }
+    return NextResponse.next();
+  }
+
+  const decision = await evaluateRateLimit(
+    getClientIp(request.headers),
+    rateLimitDeps
+  );
+  if (!decision.ok) {
+    emitSafeEvent({
+      name: "check_failed",
+      environment: environment(),
+      reasonCode: decision.reason === "daily_cap" ? "daily_cap" : "rate_limited"
+    });
     return NextResponse.json(
       {
         kind: "retry",
-        message: evaluation.message,
+        message: RATE_LIMIT_COPY,
         disclaimer: DEFAULT_PAUSE_DISCLAIMER
       },
-      { status: 503 }
+      {
+        status: 429,
+        headers: { "Retry-After": String(decision.retryAfterSeconds) }
+      }
     );
   }
 
-  // Normal mode: forward to the route handler
   return NextResponse.next();
 }
 
-export const config = {
-  matcher: ["/api/check"]
-};
+export const config = { matcher: ["/api/check"] };
