@@ -127,6 +127,17 @@ describe("createOpenAIRevoraModelClient", () => {
     expect(create.mock.calls[0][0]).not.toHaveProperty("reasoning");
   });
 
+  it("constructs the OpenAI client with a bounded timeout and no SDK retries", () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const FakeOpenAI = function (this: unknown, opts: Record<string, unknown>) {
+      captured.push(opts);
+      return { responses: { create: async () => ({ output_text: "{}" }) } };
+    } as unknown as typeof import("openai").default;
+
+    createOpenAIRevoraModelClient({ apiKey: "k", openAiCtor: FakeOpenAI });
+    expect(captured[0]).toMatchObject({ timeout: 10_000, maxRetries: 0 });
+  });
+
   it("rejects missing output_text instead of returning raw provider output", async () => {
     const client = createOpenAIRevoraModelClient({
       client: {

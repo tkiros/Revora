@@ -71,6 +71,7 @@ export function createOpenAIRevoraModelClient(options?: {
   model?: string;
   reasoningEffort?: ReasoningEffort | "off";
   client?: OpenAIResponsesTransport;
+  openAiCtor?: typeof OpenAI;
 }): RevoraModelClient {
   const model = options?.model ?? process.env.REVORA_MODEL ?? DEFAULT_REVORA_MODEL;
   const reasoningEffort = resolveReasoningEffort(
@@ -78,7 +79,10 @@ export function createOpenAIRevoraModelClient(options?: {
   );
   const client =
     options?.client ??
-    createTransport(options?.apiKey ?? process.env.OPENAI_API_KEY);
+    createTransport(
+      options?.apiKey ?? process.env.OPENAI_API_KEY,
+      options?.openAiCtor
+    );
 
   return {
     async generate(prompt) {
@@ -118,7 +122,10 @@ export function createOpenAIRevoraModelClient(options?: {
   };
 }
 
-function createTransport(apiKey: string | undefined): OpenAIResponsesTransport {
+function createTransport(
+  apiKey: string | undefined,
+  ctor: typeof OpenAI = OpenAI
+): OpenAIResponsesTransport {
   if (typeof window !== "undefined") {
     throw new Error(
       "Revora OpenAI client must run server-side only."
@@ -131,5 +138,8 @@ function createTransport(apiKey: string | undefined): OpenAIResponsesTransport {
     );
   }
 
-  return new OpenAI({ apiKey });
+  // timeout (10s) stays under the client's 12s abort so a slow call can never
+  // spend after the browser has given up; maxRetries 0 means the SDK never
+  // silently stacks a second paid attempt (the service does one live attempt).
+  return new ctor({ apiKey, timeout: 10_000, maxRetries: 0 });
 }
