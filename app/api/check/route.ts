@@ -14,6 +14,14 @@ import {
 
 export const runtime = "nodejs";
 
+// Hard ceiling on function execution. Sits above the 10s OpenAI client timeout
+// (server budget) and below/at the Vercel plan's function-duration limit so a
+// stuck call is cut, not left hanging. ponytail: 15 is a safe default; OPS MUST
+// verify it is ≤ the active Vercel plan limit (Hobby has historically capped
+// low — Pro may be required) and ≥ the 12s client abort (plan A1/B7) before
+// production. Adjust here if the plan limit differs.
+export const maxDuration = 15;
+
 type CheckRouteDeps = {
   checkFoodImpl?: typeof checkFood;
   emitEvent?: typeof emitSafeEvent;
