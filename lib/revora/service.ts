@@ -22,7 +22,11 @@ import type {
 } from "./schemas";
 import { loadSafetyContract } from "./safety-contract";
 
-const MAX_MODEL_ATTEMPTS = 2;
+// One live attempt only. At ~10s per attempt a second would land after the
+// client's 12s abort — spending money on a response the browser has already
+// discarded. The bounded SDK timeout (openai-client) + this cap keep the
+// server budget under the client abort.
+const MAX_MODEL_ATTEMPTS = 1;
 
 export async function checkFood(
   rawRequest: unknown,
@@ -66,7 +70,7 @@ export async function checkFood(
       const modelOutput = await deps.model.generate(prompt);
       return mapModelOutput(modelOutput, contract, route, precheckFlags);
     } catch {
-      // Retry once, then fail closed to controlled retry copy.
+      // Single attempt: fail closed to controlled retry copy.
     }
   }
 
