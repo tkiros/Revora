@@ -59,6 +59,7 @@ describe("privacy-minimal audit", () => {
 
     const sdkImportsOutsideWrapper = [
       "app/page.tsx",
+      "app/privacy/page.tsx",
       "app/api/check/route.ts",
       "lib/revora/service.ts",
       ...collectTsFiles("components"),

@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { FoodCheckForm } from "../components/food-check-form";
 
 export default function HomePage() {
@@ -17,6 +19,10 @@ export default function HomePage() {
         <section className="surface-card form-card">
           <FoodCheckForm />
         </section>
+
+        <footer className="page-footer">
+          <Link href="/privacy">Privacy</Link>
+        </footer>
       </div>
     </main>
   );

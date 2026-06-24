@@ -1,4 +1,17 @@
+import Link from "next/link";
+
 import type { RevoraUserResponse } from "../lib/client/ui-state";
+
+function DisclaimerLine({ disclaimer }: { disclaimer: string }) {
+  return (
+    <p className="result-disclaimer">
+      {disclaimer}{" "}
+      <Link className="result-disclaimer-link" href="/privacy">
+        Privacy
+      </Link>
+    </p>
+  );
+}
 
 export function ResultCard({ response }: { response: RevoraUserResponse }) {
   if (response.kind === "result") {
@@ -25,7 +38,7 @@ export function ResultCard({ response }: { response: RevoraUserResponse }) {
             </p>
           ) : null}
         </div>
-        <p className="result-disclaimer">{response.disclaimer}</p>
+        <DisclaimerLine disclaimer={response.disclaimer} />
       </section>
     );
   }
@@ -65,7 +78,7 @@ export function ResultCard({ response }: { response: RevoraUserResponse }) {
       <p className="result-eyebrow">{content.eyebrow}</p>
       <p className="status-title">{content.title}</p>
       <p className="result-copy">{content.body}</p>
-      <p className="result-disclaimer">{response.disclaimer}</p>
+      <DisclaimerLine disclaimer={response.disclaimer} />
     </section>
   );
 }
