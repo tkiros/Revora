@@ -214,6 +214,7 @@ Settings → Environment Variables for **Production + Preview** scopes only.
 | `REVORA_DAILY_CHECK_CAP` | prod+preview | Global daily cap (default `2000`) | No (defaults) |
 | `REVORA_MODEL` | prod+preview | Model id override (default `gpt-5.4-mini`) | No |
 | `REVORA_REASONING_EFFORT` | prod+preview | Reasoning-effort lever (blank = neutral) | No |
+| `SENTRY_DSN` | prod+preview | Server-side error capture (Responses-path exceptions) | No (SDK inert without it) |
 | `REVORA_LAUNCH_MODE_OVERRIDE` | non-prod only | Force pause in dev/CI (ignored in prod) | No |
 | `REVORA_LIVE_EVAL` | non-prod only | Route eval suite at the live model | No |
 
@@ -245,3 +246,88 @@ This ensures:
 - No model spend during a pause incident.
 - No raw food text, prompt text, or stack traces in the pause response.
 - The public page remains accessible; only the check path is blocked.
+
+---
+
+## 9. Observability & Alerting
+
+Two distinct signal streams. They do **not** overlap — wire alerts on both.
+
+### 9.1 Sentry — server exceptions (the provider-spike signal)
+
+Server-only error capture (`@sentry/node`, initialized from `instrumentation.ts`
+on the Node runtime only; the Edge middleware is intentionally **not**
+instrumented). Set `SENTRY_DSN` (server-only, never `NEXT_PUBLIC_`) to enable; the
+SDK is inert without it.
+
+> **Why Sentry, not logs, owns the provider signal:** a model/provider failure is
+> swallowed at `lib/revora/service.ts` and returned to the user as calm `retry`
+> copy, so it emits `check_completed` + `responseKind:"retry"` — **not**
+> `check_failed`. The only place a provider outage is visible is the explicit
+> `Sentry.captureException` at that catch site. Do not try to alert on provider
+> failures from the `check_failed` log stream — it won't see them.
+
+Captured events carry only PII-free tags: `stage` (`model` | `route`),
+`errorClass` (e.g. `RateLimitError`, `APIConnectionTimeoutError`, `ZodError`),
+and `httpStatus`. Message, request body, IP, stack-frame locals, and breadcrumbs
+are stripped (allowlist at init + `beforeSend` scrubber).
+
+**Alert rule (ops):** notify when captured-exception volume spikes. Filter
+`stage:model` for provider/model failures specifically.
+
+### 9.2 Logs — cost/abuse counters (the cap signal)
+
+`daily_cap`, `rate_limited`, and `paused` are emitted by `emitSafeEvent` as
+single-line JSON to stdout (Vercel runtime logs). `daily_cap` fires in the **Edge
+middleware**, which is why it is a log signal and not a Sentry event.
+
+Each line looks like: `{"name":"check_failed","environment":"production","reasonCode":"daily_cap"}`
+
+**Alert rule (ops):** in the Vercel log drain / log search, alert on:
+- any line with `"reasonCode":"daily_cap"` (cost ceiling hit — investigate), and
+- a rate spike of `"name":"check_failed"` lines (sustained failure burst).
+
+---
+
+## 10. Incident Response
+
+One page for "something is wrong — make it stop." Target: **public checks paused
+in < 60s** following only this section.
+
+### 10.1 Pause (kill switch)
+
+1. Vercel Dashboard → Storage → Edge Config → Edit.
+2. Set `public_checks_enabled = false` **or** `launch_mode = "paused"` (either
+   pauses; see §2.3). Optionally set `incident_message`.
+3. Confirm: `curl https://your-domain.com/api/health`.
+
+### 10.2 Expected `/api/health` by state
+
+| State | Response |
+|-------|----------|
+| Healthy | `{"ok":true,"launch":"ready","launchMode":"normal","upstash":"configured", ...}` |
+| Paused | `{"ok":true,"launch":"paused","launchMode":"paused", ...}` |
+| Missing config (no `OPENAI_API_KEY`) | `503 {"ok":false,"launch":"missing_config", ...}` |
+
+`upstash:"unconfigured"` in a healthy response is a **red flag** on a public
+deploy: the rate-limit/cap store is unset, so the middleware is failing closed
+(503) on every `/api/check`. Set `UPSTASH_REDIS_REST_URL` / `_TOKEN` (§7).
+
+### 10.3 Who to notify
+
+- On-call eng (provider/schema error spikes in Sentry, §9.1).
+- Ops owner (cost: `daily_cap` in logs, §9.2; or WAF/abuse).
+- Clinical reviewer **immediately** for any harmful-guidance incident (§10.4).
+
+### 10.4 Harmful-guidance response
+
+A `SAFE` classification for a genuinely high-risk food (per the threshold table
+§1) is the highest-severity incident:
+
+1. Pause immediately (§10.1) — do **not** wait to confirm the pattern first.
+2. Notify the clinical reviewer.
+3. Review recent model outputs in Vercel logs (telemetry is PII-free — `risk` /
+   `responseKind` only; raw food/prompt are never logged, so reproduction uses
+   the reviewer's own test inputs, not user data).
+4. Restore (§2.4) only after the reviewer signs off and one synthetic check
+   passes.

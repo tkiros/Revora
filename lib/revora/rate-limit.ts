@@ -58,6 +58,21 @@ export function getClientIp(headers: Headers): string {
 }
 
 /**
+ * True when the Upstash store is configured (both env vars present). Cheap —
+ * no allocation, no network, cannot throw — so it is safe on hot paths like the
+ * health probe. This is the merge-gate signal: the middleware fails CLOSED on a
+ * public deploy only when these are ABSENT. (URL *validity* is a separate
+ * concern the limiter fails open on; presence is what we report.)
+ */
+export function isRateLimitConfigured(
+  env: NodeJS.ProcessEnv = process.env
+): boolean {
+  return Boolean(
+    env.UPSTASH_REDIS_REST_URL?.trim() && env.UPSTASH_REDIS_REST_TOKEN?.trim()
+  );
+}
+
+/**
  * Build the live Upstash-backed deps. Returns null when Upstash env is absent
  * so the caller can decide (dev: skip limiting; prod: fail closed).
  */

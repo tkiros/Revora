@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { getLaunchControls } from "../../../lib/revora/launch-controls";
 import { getRevoraEnv } from "../../../lib/revora/env";
+import { isRateLimitConfigured } from "../../../lib/revora/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -20,7 +21,8 @@ export async function GET() {
         ok: false,
         environment,
         launch: "missing_config",
-        launchMode: "normal"
+        launchMode: "normal",
+        upstash: isRateLimitConfigured() ? "configured" : "unconfigured"
       },
       { status: 503 }
     );
@@ -35,7 +37,12 @@ export async function GET() {
     ok: true,
     environment,
     launch: isPaused ? "paused" : "ready",
-    launchMode
+    launchMode,
+    // Surfaces the merge-gate dependency: middleware fails CLOSED (503) on a
+    // public deploy when Upstash env is absent. ponytail: presence only, no live
+    // ping and no client construction — the limiter fails open on reachability, so
+    // a ping failure isn't app-fatal and doesn't belong in a frequently-hit probe.
+    upstash: isRateLimitConfigured() ? "configured" : "unconfigured"
   });
 }
 

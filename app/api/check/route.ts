@@ -6,6 +6,7 @@ import {
   type RevoraModelClient
 } from "../../../lib/revora/openai-client";
 import { loadSafetyContract } from "../../../lib/revora/safety-contract";
+import { captureServerError } from "../../../lib/revora/sentry-capture";
 import { checkFood } from "../../../lib/revora/service";
 import {
   emitSafeEvent,
@@ -66,6 +67,12 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
 
       return NextResponse.json(response);
     } catch (error) {
+      // Surface schema/infra throws to Sentry (awaited, guarded, no-op without
+      // SENTRY_DSN), then keep the existing safe telemetry + calm retry response
+      // unchanged. captureServerError never throws, so the calm-retry contract
+      // below always runs.
+      await captureServerError(error, "route");
+
       emitEvent({
         name: "check_failed",
         environment,
