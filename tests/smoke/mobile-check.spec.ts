@@ -192,6 +192,47 @@ test("friendly retry states", async ({ page }) => {
   await expect(page.getByText(/raw error/i)).toHaveCount(0);
 });
 
+test("offline submit short-circuits before any network call", async ({
+  page
+}) => {
+  // If the synchronous navigator.onLine guard were removed, the submit would
+  // fetch and this stub would render a SAFE result instead of the offline copy
+  // — so apiCalls and the visible copy both distinguish guard-present from not.
+  let apiCalls = 0;
+  await page.route("**/api/check", async (route) => {
+    apiCalls += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        kind: "result",
+        risk: "SAFE",
+        reason: "This looks fine.",
+        adjustment: null,
+        swap: null,
+        disclaimer: "Not medical advice."
+      })
+    });
+  });
+
+  // Report offline without simulating a dead network, so a missing guard would
+  // actually reach the stub above.
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "onLine", {
+      configurable: true,
+      get: () => false
+    });
+  });
+
+  await page.goto("/");
+  await fillValidForm(page);
+  await page.getByRole("button", { name: "Should I eat this?" }).click();
+
+  await expect(page.getByText(/check your connection/i)).toBeVisible();
+  await expect(page.getByText("SAFE")).toHaveCount(0);
+  expect(apiCalls).toBe(0);
+});
+
 test("normal response before five seconds", async ({ page }) => {
   await stubCheckRoute(page, { kind: "result" });
   await page.goto("/");

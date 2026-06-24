@@ -41,6 +41,7 @@ export type CheckUiState =
 export type CheckFailureCode =
   | "timeout"
   | "rate_limited"
+  | "paused"
   | "network"
   | "retry"
   | "server"
@@ -67,6 +68,8 @@ export function mapCheckFailure(failure: unknown) {
       return "This check took longer than expected. Please try again.";
     case "rate_limited":
       return "Revora is helping a lot of people right now. Please try again in a moment.";
+    case "paused":
+      return "Revora checks are paused for maintenance right now. Please try again in a few minutes.";
     case "network":
       return "We couldn't reach Revora just now. Please check your connection and try again.";
     case "retry":
@@ -91,6 +94,7 @@ function getFailureCode(failure: unknown): CheckFailureCode | null {
   switch (maybeCode) {
     case "timeout":
     case "rate_limited":
+    case "paused":
     case "network":
     case "retry":
     case "server":

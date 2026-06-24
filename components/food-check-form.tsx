@@ -55,6 +55,13 @@ export function FoodCheckForm() {
     }
 
     setErrors({});
+
+    // Offline? Short-circuit to the network copy instead of a hanging fetch.
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      setUiState({ kind: "error", message: mapCheckFailure({ code: "network" }) });
+      return;
+    }
+
     setUiState({ kind: "submitting" });
 
     const startedAt = Date.now();

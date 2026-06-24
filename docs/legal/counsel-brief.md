@@ -28,6 +28,12 @@ though the product is positioned as informational-only.
    ("informational only … not medical advice … talk with a doctor or registered
    dietitian") adequate for the public, no-account, no-storage MVP, and is its
    placement (every result surface + the `/privacy` page) sufficient?
+   - **Known divergence:** the middleware pause / rate-limit responses (HTTP
+     503/429) carry the short disclaimer `"Not medical advice."` rather than the
+     full contract disclaimer, because middleware runs on the Edge runtime and
+     cannot read the contract file (`loadSafetyContract` uses `node:fs`). Please
+     confirm the short form is acceptable for these transient, no-classification
+     states.
 4. **Parallel-launch risk.** Confirm the residual regulatory risk of launching
    informational-only while review is ongoing is understood and acceptable, and
    flag any condition that should hard-block launch.

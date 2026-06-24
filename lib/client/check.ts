@@ -63,19 +63,64 @@ export async function submitCheck(
     throw new CheckRequestError("rate_limited");
   }
 
+  // Read the body defensively — a paused deploy may answer 503 with HTML (a CDN
+  // maintenance page) or an empty body, which must not surface as a hard error.
   let payload: unknown;
-
   try {
     payload = await response.json();
   } catch {
-    throw new CheckRequestError("invalid_response");
+    payload = undefined;
+  }
+
+  // Fail closed on 503 (paused / unavailable): render the server's calm retry
+  // copy only when it is a well-formed retry payload, otherwise generic pause
+  // copy. Never a risk classification, never a raw error.
+  if (response.status === 503) {
+    const retry = asRetryResponse(payload);
+    if (retry) {
+      return retry;
+    }
+    throw new CheckRequestError("paused");
   }
 
   if (!response.ok) {
     throw new CheckRequestError("server");
   }
 
+  if (payload === undefined) {
+    throw new CheckRequestError("invalid_response");
+  }
+
   return normalizeResponse(payload);
+}
+
+/**
+ * Fail-closed extractor for the 503 path: returns the payload as a retry
+ * response only when it is a well-formed `kind:"retry"` body. Anything else
+ * (a risk result, malformed JSON, missing fields) yields null so the caller
+ * shows generic pause copy instead of leaking a classification.
+ */
+function asRetryResponse(
+  payload: unknown
+): Extract<RevoraUserResponse, { kind: "retry" }> | null {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  const candidate = payload as Record<string, unknown>;
+  if (
+    candidate.kind === "retry" &&
+    typeof candidate.message === "string" &&
+    typeof candidate.disclaimer === "string"
+  ) {
+    return {
+      kind: "retry",
+      message: candidate.message,
+      disclaimer: candidate.disclaimer
+    };
+  }
+
+  return null;
 }
 
 function normalizeResponse(payload: unknown): RevoraUserResponse {
