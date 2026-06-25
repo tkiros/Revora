@@ -59,7 +59,7 @@ describe("Phase 7 — service worker privacy invariant", () => {
   });
 
   it("only intercepts navigations", () => {
-    expect(sw).toContain('request.mode === "navigate"');
+    expect(sw).toContain('request.mode !== "navigate"');
   });
 
   it("never writes responses to the cache (so no API response is ever cached)", () => {

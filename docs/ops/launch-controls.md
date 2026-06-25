@@ -331,3 +331,108 @@ A `SAFE` classification for a genuinely high-risk food (per the threshold table
    the reviewer's own test inputs, not user data).
 4. Restore (§2.4) only after the reviewer signs off and one synthetic check
    passes.
+
+---
+
+## 11. Go-Live Sequence
+
+The ordered path from "release commit is green" to "public link is live." The
+golden rule: **publish the public link LAST — only after both rollback drills
+(§11.5) pass on the production deploy.** Each step has an evidence slot.
+
+### 11.1 Pre-flight — release gates + QA matrix
+
+Release gates on the release commit (attach output to the release PR):
+
+```bash
+npm run typecheck         # clean
+npm test                  # all unit + integration green
+npm run eval:revora       # mock routing gate green
+npm run eval:revora:live  # graded quality gate — SETUP_BLOCKED until OPENAI_API_KEY
+                          # + domain gold labels (acceptableRisks/labelSource) are set
+npx playwright test       # smoke suite green (Mobile Chrome + Mobile Safari)
+```
+
+`eval:revora:live` is **blocked** until (a) `OPENAI_API_KEY` is exported and
+(b) the domain reviewer authors per-case gold labels in
+`tests/fixtures/revora-eval-cases.json`. Record `SETUP_BLOCKED` here until both
+land; do not publish the link on a faked pass.
+
+Manual QA matrix — run against the **Preview** URL (§4) on real devices before
+promoting. Mark each cell pass/fail:
+
+- [ ] **Android Chrome** — happy SAFE / MODERATE / HIGH, clarify, not-food,
+      out-of-scope, invalid input, slow (>5s), timeout, offline, rate-limited
+      (429), paused (503).
+- [ ] **iOS Safari** — same row as above.
+- [ ] **Desktop** — same row as above.
+- [ ] **Install + offline launch** (both mobiles): install to home screen; go
+      offline; relaunch shows `offline.html` (not the browser error); confirm in
+      DevTools → Network that `/api/check` is never served from cache.
+- [ ] **DevTools → Application → Manifest**: no errors; install prompt available.
+- [ ] **Lighthouse**: PWA "installable" passes; **accessibility ≥ 95**.
+- [ ] **Manual a11y** (folds in deferred Phase 5.3): keyboard-only flow;
+      VoiceOver (iOS) + TalkBack (Android) read the form, result, and disclaimer;
+      200% browser zoom has no clipping or horizontal scroll.
+
+Evidence slot: attach the filled matrix + Lighthouse report to the release PR.
+
+### 11.2 Deploy to production
+
+Promote the release deploy with `launch_mode = "normal"` and
+`public_checks_enabled = true` in Edge Config (§2.1). Record the deployment ID.
+Evidence slot: `SETUP_BLOCKED` if Vercel access is unavailable.
+
+### 11.3 Health smoke
+
+```bash
+curl https://your-domain.com/api/health
+```
+
+Expected: `{"ok":true,"launch":"ready","launchMode":"normal","upstash":"configured", ...}`
+(see the state table §10.2).
+
+**Merge/deploy gate:** `upstash:"unconfigured"` here means the rate-limit + cap
+store is unset, so the middleware is failing **closed (503)** on every
+`/api/check`. Set `UPSTASH_REDIS_REST_URL` / `_TOKEN` + `REVORA_DAILY_CHECK_CAP`
+(§7) and re-probe before continuing — do not proceed past this step until it
+reports `configured`.
+
+### 11.4 Controlled burst — confirm rate-limit + cap
+
+Trip the WAF rule (§3 — 10 req / 10 min / IP) from a single IP and confirm the
+client-facing 429, with no model spend:
+
+```bash
+for i in $(seq 1 12); do
+  curl -s -o /dev/null -w "%{http_code}\n" -X POST https://your-domain.com/api/check \
+    -H 'Content-Type: application/json' \
+    -d '{"food":"apple","a1c":"6.1"}'
+done
+# Expected: the first ~10 return 200, then 429 for the remainder.
+```
+
+The 2,000-checks/24h operator cost gate (§1) is **not** auto-enforced — confirm
+the `daily_cap` / `rate_limited` log signals are visible in the Vercel log drain
+(§9.2) so the operator can read the aggregate and act. Evidence slot: record the
+status-code sequence + a sample log line.
+
+### 11.5 Rehearse both rollback drills (BEFORE publishing the link)
+
+Run both drills on the live production deploy and **time them**:
+
+| Drill | Procedure | Target | Start | Restored | Elapsed | Operator |
+|-------|-----------|--------|-------|----------|---------|----------|
+| Pause via Edge Config | §10.1 → restore §2.4 | < 60s | | | | |
+| Vercel instant rollback | §5.1–5.5 (incl. health + synthetic check) | < 5 min | | | | |
+
+Both drills must pass — pause restores public checks in < 60s, and rollback
+reaches recovery (§5.3–5.5 all green) in < 5 min. If either misses its target,
+**do not publish**; fix the gap and re-rehearse.
+
+### 11.6 Publish the public link
+
+Only after 11.1–11.5 are all green. Announce the URL. Watch Sentry (§9.1) and the
+log drain (§9.2) for the first hour; keep the §10 incident runbook one click away.
+
+Evidence slot: timestamp of publication + link to the filled drill-log (11.5).
