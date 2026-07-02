@@ -37,12 +37,35 @@ function scan(text: string): string[] {
 const COPY_FILES = [
   "app/page.tsx",
   "app/privacy/page.tsx",
+  "app/history/page.tsx",
   "components/food-check-form.tsx",
   "components/result-card.tsx",
   "components/request-status.tsx",
+  "components/daily-loop.tsx",
+  "components/today-list.tsx",
+  "components/streak-chip.tsx",
+  "components/insight-card.tsx",
+  "components/voice-input-button.tsx",
   "lib/revora/fallback.ts",
   "lib/revora/coach-outputs.ts",
+  "lib/coach/insights.ts",
   "lib/client/ui-state.ts"
+];
+
+// The single approved user-as-agent line (docs/product-marketing.md; counsel
+// Q8 tracks the app-as-agent variants). It is the ONLY sanctioned use of the
+// "reversal" family in product copy; the onboarding surface is scanned with
+// exactly this sentence removed (whitespace-normalized so JSX wrapping cannot
+// dodge the audit) — everything else on the page stays audited.
+const APPROVED_NORTH_STAR_LINE =
+  "Reversal is achieved through your dietary choices — Revora gives you the clarity to make them.";
+
+function normalizeWhitespace(text: string): string {
+  return text.replace(/\s+/g, " ");
+}
+
+const CARVE_OUT_FILES: Array<{ file: string; approved: string[] }> = [
+  { file: "app/onboarding/page.tsx", approved: [APPROVED_NORTH_STAR_LINE] }
 ];
 
 // User-facing contract copy only. The disclaimer is excluded — it is the single
@@ -60,6 +83,21 @@ const surfaces = [
     source: rel,
     text: fs.readFileSync(path.join(ROOT, rel), "utf8")
   })),
+  ...CARVE_OUT_FILES.map(({ file, approved }) => {
+    let text = normalizeWhitespace(fs.readFileSync(path.join(ROOT, file), "utf8"));
+    for (const line of approved) {
+      const normalized = normalizeWhitespace(line);
+      // The approved line must actually be present verbatim — a silent drift
+      // in the North Star copy should fail here, not pass unnoticed.
+      if (!text.includes(normalized)) {
+        throw new Error(
+          `${file} no longer contains the approved line: "${line}"`
+        );
+      }
+      text = text.split(normalized).join("");
+    }
+    return { source: `${file} (minus approved lines)`, text };
+  }),
   ...USER_FACING_COPY_KEYS.map((key) => ({
     source: `contract.copy.${key}`,
     text: contract.copy[key]

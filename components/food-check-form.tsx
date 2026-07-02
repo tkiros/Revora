@@ -4,6 +4,9 @@ import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 
 import { submitCheck } from "../lib/client/check";
+import { historyStore } from "../lib/client/history-store";
+import { profileStore } from "../lib/client/profile-store";
+import { routeA1C } from "../lib/revora/a1c";
 import {
   type CheckUiState,
   isSlowThresholdReached,
@@ -25,9 +28,32 @@ export function FoodCheckForm() {
   const [uiState, setUiState] = useState<CheckUiState>({ kind: "idle" });
   const [isHydrated, setIsHydrated] = useState(false);
   const [inputMethod, setInputMethod] = useState<"text" | "voice">("text");
+  const [lastCheckId, setLastCheckId] = useState<string | null>(null);
+  const [actionDone, setActionDone] = useState(false);
 
   useEffect(() => {
     setIsHydrated(true);
+
+    // Daily-loop conveniences (P3): remember the onboarding A1C, and honor a
+    // one-tap re-check handoff from the history page. Storage reads stay
+    // outside the setState updater — updaters must be pure (StrictMode
+    // double-invokes them).
+    const profile = profileStore.get();
+    let recheck: string | null = null;
+    try {
+      recheck = window.sessionStorage.getItem("revora.recheck");
+      if (recheck) {
+        window.sessionStorage.removeItem("revora.recheck");
+      }
+    } catch {
+      // best-effort prefill only
+    }
+
+    setInput((current) => ({
+      food: current.food === "" && recheck ? recheck : current.food,
+      a1c:
+        current.a1c === "" && profile ? profile.a1c.toFixed(1) : current.a1c
+    }));
   }, []);
 
   const isSubmitting =
@@ -82,6 +108,23 @@ export function FoodCheckForm() {
 
     try {
       const response = await submitCheck(result.data);
+
+      // Meal memory (P3): persist successful verdicts on-device. Non-result
+      // kinds (clarify/not_food/out_of_scope/retry) are moments, not meals.
+      if (response.kind === "result") {
+        const clientId = crypto.randomUUID();
+        historyStore.add({
+          clientId,
+          food: result.data.food,
+          risk: response.risk,
+          a1cBand: routeA1C(result.data.a1c).band,
+          inputMethod,
+          createdAt: new Date().toISOString()
+        });
+        setLastCheckId(clientId);
+        setActionDone(false);
+      }
+
       setUiState({ kind: "done", response });
     } catch (error) {
       setUiState({ kind: "error", message: mapCheckFailure(error) });
@@ -201,7 +244,18 @@ export function FoodCheckForm() {
       uiState.kind === "error" ? (
         <RequestStatus state={uiState} />
       ) : uiState.kind === "done" ? (
-        <ResultCard response={uiState.response} />
+        <ResultCard
+          response={uiState.response}
+          actionDone={actionDone}
+          onActionDone={
+            lastCheckId
+              ? () => {
+                  historyStore.markActionDone(lastCheckId);
+                  setActionDone(true);
+                }
+              : undefined
+          }
+        />
       ) : (
         <section aria-live="polite" className="placeholder-card">
           <p className="placeholder-title">Response area</p>

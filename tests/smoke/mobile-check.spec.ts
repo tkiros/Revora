@@ -269,7 +269,7 @@ test("offline submit short-circuits before any network call", async ({
   await page.getByRole("button", { name: "Should I eat this?" }).click();
 
   await expect(page.getByText(/check your connection/i)).toBeVisible();
-  await expect(page.getByText("SAFE")).toHaveCount(0);
+  await expect(page.getByText("Clear", { exact: true })).toHaveCount(0);
   expect(apiCalls).toBe(0);
 });
 
@@ -280,7 +280,7 @@ test("normal response before five seconds", async ({ page }) => {
 
   await page.getByRole("button", { name: "Should I eat this?" }).click();
 
-  await expect(page.getByText("SAFE")).toBeVisible();
+  await expect(page.getByText("Clear", { exact: true })).toBeVisible();
   await expect(
     page.getByText("This looks balanced enough for your usual plan.")
   ).toBeVisible();

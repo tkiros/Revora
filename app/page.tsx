@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { DailyLoop } from "../components/daily-loop";
 import { FoodCheckForm } from "../components/food-check-form";
 
 export default function HomePage() {
@@ -20,7 +21,10 @@ export default function HomePage() {
           <FoodCheckForm />
         </section>
 
+        <DailyLoop />
+
         <footer className="page-footer">
+          <Link href="/history">Your week</Link>
           <Link href="/privacy">Privacy</Link>
         </footer>
       </div>

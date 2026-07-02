@@ -39,15 +39,27 @@ export default function PrivacyPage() {
           </p>
 
           <h2>What Revora keeps</h2>
-          <p>Nothing is saved. There is:</p>
+          <p>Nothing is saved on Revora&apos;s side. There is:</p>
           <ul>
             <li>no account or login,</li>
             <li>no database,</li>
-            <li>no saved history of your checks.</li>
+            <li>no server-side history of your checks.</li>
           </ul>
           <p>
-            Your food text and A1C are held in memory only long enough to build
-            the request and return your answer, then dropped.
+            On the server, your food text and A1C are held in memory only long
+            enough to build the request and return your answer, then dropped.
+          </p>
+          <h2>What stays on your device</h2>
+          <p>
+            Your recent checks, streak, and onboarding A1C are stored only in
+            this browser&apos;s local storage so the app can show your day and
+            your week. They never leave your device, and you can wipe them at
+            any time by clearing this site&apos;s data in your browser.
+          </p>
+          <p>
+            If you use the microphone, your speech is transcribed by your
+            browser or device&apos;s own speech service — Revora only ever
+            receives the final text you review and submit.
           </p>
 
           <h2>What Revora records</h2>

@@ -80,7 +80,7 @@ test("normal mode — public check completes successfully", async ({ page }) => 
   await page.getByRole("button", { name: "Should I eat this?" }).click();
 
   // Normal result should appear
-  await expect(page.getByText("SAFE")).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("Clear", { exact: true })).toBeVisible({ timeout: 10_000 });
   await expect(
     page.getByText("This meal looks well-balanced for your plan.")
   ).toBeVisible();
