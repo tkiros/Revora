@@ -16,13 +16,15 @@ unavailable.
 | Signal | Value | Response |
 |--------|-------|----------|
 | WAF rate limit (Vercel WAF) | 10 requests / 10 minutes / IP on `/api/check` | Vercel blocks the request; client sees friendly 429 |
-| Operator cost gate | 2,000 checks / 24h (aggregate across IPs) | Operator sets `public_checks_enabled = false` in Edge Config |
+| App daily cap | 2,000 checks / 24h (aggregate across IPs, configurable by `REVORA_DAILY_CHECK_CAP`) | Middleware returns friendly 429 before model spend and emits `reasonCode:"daily_cap"` |
+| Operator pause gate | Any manual cost, abuse, legal, or safety concern | Operator sets `public_checks_enabled = false` or `launch_mode = "paused"` in Edge Config |
 | Harmful-guidance incident | Any SAFE classification for a high-risk food | Operator sets `launch_mode = paused` and reviews model outputs |
 | Provider-failure spike | Repeated provider errors (`check_failed` events) | Operator sets `launch_mode = paused` until provider recovers |
 
-No durable counter is built into the app. Operators read the aggregate
-from Vercel logs and act manually. Upstash, Redis, and client-only
-throttling are explicitly out of scope for this MVP.
+Upstash backs both the per-IP limiter and the aggregate daily cap. A public
+deploy with missing Upstash env fails closed on `/api/check`; `/api/health`
+surfaces this as `upstash:"unconfigured"`. Edge Config remains the manual
+operator kill switch for incidents and rollback drills.
 
 ---
 
@@ -412,10 +414,10 @@ done
 # Expected: the first ~10 return 200, then 429 for the remainder.
 ```
 
-The 2,000-checks/24h operator cost gate (§1) is **not** auto-enforced — confirm
-the `daily_cap` / `rate_limited` log signals are visible in the Vercel log drain
-(§9.2) so the operator can read the aggregate and act. Evidence slot: record the
-status-code sequence + a sample log line.
+The 2,000-checks/24h daily cap (§1) is enforced by middleware through Upstash.
+Confirm the `daily_cap` / `rate_limited` log signals are visible in the Vercel
+log drain (§9.2) so operators can distinguish cap exhaustion from per-IP abuse.
+Evidence slot: record the status-code sequence + a sample log line.
 
 ### 11.5 Rehearse both rollback drills (BEFORE publishing the link)
 

@@ -1,3 +1,5 @@
+> **Forward note (2026-06-30, coach pivot):** The "no account / no server database / no saved history" stance remains TRUE for the current app and through coach Steps 1–3 (history is on-device localStorage only). It changes ONLY at coach Step 4 (Pay → backend + identity + server-side history). When Step 4 lands, THIS document, the in-app privacy copy, and the Play Data Safety form MUST be updated in lockstep. See `docs/implementation-plan-to-play.md` Phase 5.
+
 # Revora — Google Play (TWA) Runbook
 
 > **⛔ BLOCKED — do not execute yet.** Phase 9 is gated on two preconditions:
