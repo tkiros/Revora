@@ -87,6 +87,25 @@ export function ResultCard({
     );
   }
 
+  if (response.kind === "upsell") {
+    return (
+      <section
+        aria-live="polite"
+        className="result-card"
+        data-testid="result-card"
+        data-kind="upsell"
+      >
+        <p className="result-eyebrow">Daily limit reached</p>
+        <p className="status-title">That&apos;s five for today</p>
+        <p className="result-copy">{response.message}</p>
+        <Link className="primary-button link-button" href="/subscribe">
+          See what Premium includes
+        </Link>
+        <DisclaimerLine disclaimer={response.disclaimer} />
+      </section>
+    );
+  }
+
   const content =
     response.kind === "clarify"
       ? {

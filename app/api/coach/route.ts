@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { computeCoachView } from "../../../lib/coach/compute";
 import { getDb, schema, type Db } from "../../../lib/server/db";
+import { getEntitlement } from "../../../lib/server/entitlement";
 import {
   getSessionInfo,
   type SessionInfo
@@ -53,25 +54,28 @@ export function createCoachRouteHandler(deps: CoachRouteDeps = {}) {
 
     const view = computeCoachView(rows, timezone, now());
 
-    const [latestBai] = await db()
-      .select()
-      .from(schema.baiWeekly)
-      .where(eq(schema.baiWeekly.userId, session.userId))
-      .orderBy(desc(schema.baiWeekly.weekStart))
-      .limit(1);
+    // Progress/BAI is a premium surface (plan 4D entitlement split).
+    const entitlement = await getEntitlement(db(), session.userId, { now });
+    let latestBai = null;
+    if (entitlement.tier === "premium") {
+      const [row] = await db()
+        .select()
+        .from(schema.baiWeekly)
+        .where(eq(schema.baiWeekly.userId, session.userId))
+        .orderBy(desc(schema.baiWeekly.weekStart))
+        .limit(1);
+      if (row) {
+        latestBai = {
+          weekStart: row.weekStart,
+          score: row.score,
+          adherence: row.adherence,
+          consistency: row.consistency,
+          action: row.action
+        };
+      }
+    }
 
-    return NextResponse.json({
-      ...view,
-      latestBai: latestBai
-        ? {
-            weekStart: latestBai.weekStart,
-            score: latestBai.score,
-            adherence: latestBai.adherence,
-            consistency: latestBai.consistency,
-            action: latestBai.action
-          }
-        : null
-    });
+    return NextResponse.json({ ...view, tier: entitlement.tier, latestBai });
   };
 }
 

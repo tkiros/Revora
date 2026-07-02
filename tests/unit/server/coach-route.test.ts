@@ -58,6 +58,16 @@ beforeAll(async () => {
     consistency: 66,
     action: 90
   });
+
+  // Premium — the BAI surface is entitlement-gated.
+  await testDb.db.insert(schema.subscriptions).values({
+    userId,
+    provider: "stripe",
+    providerRef: "sub_coach",
+    productId: "premium_monthly",
+    status: "active",
+    currentPeriodEnd: new Date("2026-08-01T00:00:00.000Z")
+  });
 });
 
 afterAll(async () => {
@@ -97,5 +107,22 @@ describe("GET /api/coach", () => {
     expect(serialized).not.toContain("salmon");
     expect(serialized).not.toContain("6.1");
     expect(serialized).not.toContain("coach@test.dev");
+  });
+
+  it("hides the BAI from free users (entitlement-gated surface)", async () => {
+    const { schema: s } = await import("../../../lib/server/db");
+    await testDb.db.delete(s.subscriptions);
+
+    const GET = createCoachRouteHandler({
+      db: () => testDb.db,
+      getSession: async () => ({ userId, email: "coach@test.dev" }),
+      now: () => NOW
+    });
+
+    const body = await (await GET()).json();
+
+    expect(body.tier).toBe("free");
+    expect(body.latestBai).toBeNull();
+    expect(body.streak).toBe(3); // streak/week stay free
   });
 });

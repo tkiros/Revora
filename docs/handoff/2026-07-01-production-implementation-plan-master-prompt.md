@@ -1,4 +1,4 @@
-# Master Prompt — Generate the Definitive Production Implementation Plan (full build, ship everything now, defer only D5)
+# Master Prompt — Generate the Definitive Production Implementation Plan (full build, ship everything now, defer only Executing D5)
 
 **Date:** 2026-07-01 · **Repo:** `/home/tefera/Desktop/Revora` · **Type:** plan-generation prompt (produces a plan; does not itself build).
 **Supersedes for scope:** `docs/implementation-plan-to-play.md` (coach-first, kill-gated) and `docs/handoff/2026-06-30-execute-full-implementation-plan-handoff.md`. Absorb their solid parts (stack decisions, heavy-build/store/legal phases, human-action inventory, DoD checklists); **drop their kill-gates and their camera-fully-deferred posture.**

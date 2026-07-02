@@ -1,9 +1,10 @@
-import { and, desc, eq, lt } from "drizzle-orm";
+import { and, desc, eq, gte, lt } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { decryptField, encryptField } from "../../../lib/server/crypto";
 import { getDb, schema, type Db } from "../../../lib/server/db";
+import { getEntitlement, type Entitlement } from "../../../lib/server/entitlement";
 import {
   getSessionInfo,
   type SessionInfo
@@ -17,11 +18,15 @@ import {
 export type RouteDeps = {
   db?: () => Db;
   getSession?: () => Promise<SessionInfo>;
+  entitlementOf?: (db: Db, userId: string) => Promise<Entitlement>;
 };
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
 const MAX_MIGRATE_BATCH = 500;
+// Free tier keeps the recent week (guest parity); the full archive is
+// premium (plan 4D: premium = history + insights + progress + nudge).
+const FREE_HISTORY_DAYS = 7;
 
 const StoredCheckSchema = z
   .object({
@@ -60,6 +65,8 @@ async function readJson(request: Request): Promise<unknown> {
 export function createHistoryGetHandler(deps: RouteDeps = {}) {
   const db = deps.db ?? getDb;
   const getSession = deps.getSession ?? getSessionInfo;
+  const entitlementOf =
+    deps.entitlementOf ?? ((d: Db, userId: string) => getEntitlement(d, userId));
 
   return async function GET(request: Request) {
     const session = await getSession();
@@ -75,18 +82,24 @@ export function createHistoryGetHandler(deps: RouteDeps = {}) {
     const beforeParam = url.searchParams.get("before");
     const before = beforeParam ? new Date(beforeParam) : null;
 
-    const where =
-      before && !Number.isNaN(before.getTime())
-        ? and(
-            eq(schema.checks.userId, session.userId),
-            lt(schema.checks.createdAt, before)
-          )
-        : eq(schema.checks.userId, session.userId);
+    const conditions = [eq(schema.checks.userId, session.userId)];
+    if (before && !Number.isNaN(before.getTime())) {
+      conditions.push(lt(schema.checks.createdAt, before));
+    }
+
+    // Server-enforced free-tier window.
+    const entitlement = await entitlementOf(db(), session.userId);
+    if (entitlement.tier === "free") {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - (FREE_HISTORY_DAYS - 1));
+      cutoff.setHours(0, 0, 0, 0);
+      conditions.push(gte(schema.checks.createdAt, cutoff));
+    }
 
     const rows = await db()
       .select()
       .from(schema.checks)
-      .where(where)
+      .where(and(...conditions))
       .orderBy(desc(schema.checks.createdAt))
       .limit(limit);
 

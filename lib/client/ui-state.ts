@@ -30,6 +30,12 @@ export type RevoraUserResponse =
       kind: "retry";
       message: string;
       disclaimer: string;
+    }
+  | {
+      // 4D free-tier limit reached — calm upsell, rendered like a card
+      kind: "upsell";
+      message: string;
+      disclaimer: string;
     };
 
 export type CheckUiState =

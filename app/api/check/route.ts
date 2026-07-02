@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { routeA1C } from "../../../lib/revora/a1c";
@@ -17,6 +18,12 @@ import {
 } from "../../../lib/revora/telemetry";
 import { encryptField } from "../../../lib/server/crypto";
 import { getDb, schema, type Db } from "../../../lib/server/db";
+import {
+  countChecksToday,
+  getEntitlement,
+  FREE_DAILY_CHECKS
+} from "../../../lib/server/entitlement";
+import { fetchPlaySubscription } from "../../../lib/server/play-api";
 import {
   getSessionInfo,
   type SessionInfo
@@ -39,7 +46,13 @@ type CheckRouteDeps = {
   now?: () => number;
   db?: () => Db;
   getSession?: () => Promise<SessionInfo>;
+  playLookup?: typeof fetchPlaySubscription;
 };
+
+// Calm upsell, never a scary wall (plan 4D): the daily loop keeps working
+// tomorrow; premium removes the limit.
+const FREE_LIMIT_MESSAGE =
+  "You've used today's five free checks. Premium removes the daily limit and keeps your full history — or check back in with your first meal tomorrow.";
 
 let model: RevoraModelClient | null = null;
 
@@ -55,6 +68,7 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
   const now = deps.now ?? Date.now;
   const db = deps.db ?? getDb;
   const getSession = deps.getSession ?? getSessionInfo;
+  const playLookup = deps.playLookup ?? fetchPlaySubscription;
 
   return async function POST(request: Request) {
     const startedAt = now();
@@ -65,6 +79,49 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
       body = await request.json();
     } catch {
       body = null;
+    }
+
+    // 4D free tier, enforced server-side BEFORE any model spend. Signed-in
+    // only (guests are metered by the existing IP rate limit); fail-open on
+    // any error — metering must never take the product down.
+    try {
+      const session = await getSession();
+      if (session) {
+        const entitlement = await getEntitlement(db(), session.userId, {
+          refreshPlaySubscription: (token) => playLookup(token)
+        });
+
+        if (entitlement.tier === "free") {
+          const [profile] = await db()
+            .select({ timezone: schema.profiles.timezone })
+            .from(schema.profiles)
+            .where(eq(schema.profiles.userId, session.userId));
+          const used = await countChecksToday(
+            db(),
+            session.userId,
+            profile?.timezone ?? "America/New_York"
+          );
+
+          if (used >= FREE_DAILY_CHECKS) {
+            emitEvent({
+              name: "check_failed",
+              environment,
+              reasonCode: "daily_cap",
+              latencyBucket: getLatencyBucket(now() - startedAt)
+            });
+            return NextResponse.json(
+              {
+                kind: "upsell",
+                message: FREE_LIMIT_MESSAGE,
+                disclaimer: loadSafetyContract().copy.disclaimer
+              },
+              { status: 402 }
+            );
+          }
+        }
+      }
+    } catch (error) {
+      await captureServerError(error, "route");
     }
 
     try {

@@ -569,3 +569,39 @@ textarea.text-input {
   font-size: 14px;
   line-height: 1.55;
 }
+
+/* Account + paywall (P4D/E) */
+
+.account-section {
+  display: grid;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.paywall-card {
+  display: grid;
+  gap: 14px;
+}
+
+.paywall-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.danger-button {
+  min-height: 44px;
+  border: 2px solid var(--danger);
+  border-radius: 999px;
+  padding: 8px 16px;
+  background: var(--danger);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.delete-confirm {
+  display: grid;
+  gap: 10px;
+}

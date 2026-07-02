@@ -28,6 +28,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testDb.db.delete(schema.checks);
+  await testDb.db.delete(schema.subscriptions);
 });
 
 const RESULT_RESPONSE = {
@@ -139,5 +140,64 @@ describe("check persistence (4B)", () => {
 
     expect(response.status).toBe(200);
     expect(body.kind).toBe("result");
+  });
+});
+
+describe("free-tier enforcement (4D)", () => {
+  it("402s the sixth check of the day for a free signed-in user, before any model spend", async () => {
+    await testDb.db.insert(schema.profiles).values({
+      userId,
+      a1cCiphertext: "cipher",
+      a1cBand: "prediabetes_60_62",
+      timezone: "UTC",
+      consentedAt: new Date()
+    });
+
+    const POST = createHandler({ sessionUserId: userId });
+
+    for (let i = 0; i < 5; i += 1) {
+      const okResponse = await POST(checkRequest());
+      expect(okResponse.status).toBe(200);
+    }
+
+    const limited = await POST(checkRequest());
+    const body = await limited.json();
+
+    expect(limited.status).toBe(402);
+    expect(body.kind).toBe("upsell");
+    expect(body.message).toMatch(/premium/i);
+    expect(body.message).not.toMatch(/upgrade now|last chance|warning/i);
+    expect(body.disclaimer).toContain("registered dietitian");
+
+    // nothing persisted for the blocked check
+    const rows = await testDb.db.select().from(schema.checks);
+    expect(rows).toHaveLength(5);
+  });
+
+  it("premium users are unlimited", async () => {
+    await testDb.db.insert(schema.subscriptions).values({
+      userId,
+      provider: "stripe",
+      providerRef: "sub_unlimited",
+      productId: "premium_monthly",
+      status: "active",
+      currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    });
+
+    const POST = createHandler({ sessionUserId: userId });
+
+    for (let i = 0; i < 7; i += 1) {
+      const response = await POST(checkRequest());
+      expect(response.status).toBe(200);
+    }
+  });
+
+  it("guests are never blocked by the free-tier meter", async () => {
+    const POST = createHandler({ sessionUserId: null });
+
+    for (let i = 0; i < 7; i += 1) {
+      const response = await POST(checkRequest());
+      expect(response.status).toBe(200);
+    }
   });
 });

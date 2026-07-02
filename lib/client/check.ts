@@ -75,6 +75,27 @@ export async function submitCheck(
     throw new CheckRequestError("rate_limited");
   }
 
+  // 402: the free-tier daily limit — a calm upsell body, not an error.
+  if (response.status === 402) {
+    try {
+      const payload = (await response.json()) as Record<string, unknown>;
+      if (
+        payload.kind === "upsell" &&
+        typeof payload.message === "string" &&
+        typeof payload.disclaimer === "string"
+      ) {
+        return {
+          kind: "upsell",
+          message: payload.message,
+          disclaimer: payload.disclaimer
+        };
+      }
+    } catch {
+      // fall through to the generic error below
+    }
+    throw new CheckRequestError("server");
+  }
+
   // Read the body defensively — a paused deploy may answer 503 with HTML (a CDN
   // maintenance page) or an empty body, which must not surface as a hard error.
   let payload: unknown;
