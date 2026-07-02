@@ -14,6 +14,9 @@ export const metadata: Metadata = {
 // before Play submission (docs/handoff/human-actions-required.md).
 export default function TermsPage() {
   const { copy } = loadSafetyContract();
+  // Same fallback pattern as app/api/cron/nudge/route.ts:32 — override via
+  // SUPPORT_EMAIL, default to the placeholder until a domain is final.
+  const supportEmail = process.env.SUPPORT_EMAIL ?? "support@revora.app";
 
   return (
     <main className="page-shell">
@@ -167,8 +170,8 @@ export default function TermsPage() {
           <h2>Contact</h2>
           <p>
             Questions about these Terms? Email{" "}
-            <a className="inline-link" href="mailto:support@revora.app">
-              support@revora.app
+            <a className="inline-link" href={`mailto:${supportEmail}`}>
+              {supportEmail}
             </a>
             .
           </p>

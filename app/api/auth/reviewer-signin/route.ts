@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -86,6 +86,19 @@ function sha256Hex(input: string): string {
   return createHash("sha256").update(input, "utf8").digest("hex");
 }
 
+/**
+ * Constant-time secret comparison. Both sides are SHA-256'd first so the
+ * buffers `timingSafeEqual` compares are always the same fixed length (32
+ * bytes) regardless of the raw secret's length — `timingSafeEqual` itself
+ * throws on a length mismatch, and a plain `!==` on the raw strings would
+ * leak the correct secret's length/prefix through response timing.
+ */
+function timingSafeEqualSecret(a: string, b: string): boolean {
+  const hashA = createHash("sha256").update(a, "utf8").digest();
+  const hashB = createHash("sha256").update(b, "utf8").digest();
+  return timingSafeEqual(hashA, hashB);
+}
+
 export function createReviewerSigninHandler(deps: ReviewerSigninDeps = {}) {
   const db = deps.db ?? getDb;
   const getEnv = deps.getEnv ?? (() => process.env);
@@ -118,7 +131,7 @@ export function createReviewerSigninHandler(deps: ReviewerSigninDeps = {}) {
     }
 
     if (
-      parsed.data.secret !== env.REVIEWER_TEST_SECRET ||
+      !timingSafeEqualSecret(parsed.data.secret, env.REVIEWER_TEST_SECRET) ||
       parsed.data.email !== REVIEWER_EMAIL
     ) {
       return notFound();

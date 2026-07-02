@@ -72,6 +72,15 @@ though the product is positioned as informational-only.
    class-critical detail before the unchanged text engine judges) is fully
    specified but NOT built. What would push an imaging input across the SaMD
    line? This answer gates any future build (plan §6.3); nothing ships now.
+10. **Terms of Service review (NEW, P9).** `app/terms/page.tsx` is a
+    plain-language ToS draft (marked `COUNSEL-DRAFT` in-app, visible
+    "Last updated" date) covering eligibility, accounts, subscriptions/
+    billing/refunds, free-tier limits, health-data consent (cross-references
+    `/privacy`), IP/license, termination, availability, and liability. Two
+    items are left as placeholders pending counsel: the operating-entity
+    name in the ownership/license clause, and the governing law/venue
+    clause. Please also confirm the liability-limitation and no-warranty
+    wording is adequate given the refund stance from Q7.
 
 ## Homework already done (provide to counsel)
 
