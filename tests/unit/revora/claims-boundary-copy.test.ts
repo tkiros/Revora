@@ -41,6 +41,7 @@ const COPY_FILES = [
   "components/result-card.tsx",
   "components/request-status.tsx",
   "lib/revora/fallback.ts",
+  "lib/revora/coach-outputs.ts",
   "lib/client/ui-state.ts"
 ];
 

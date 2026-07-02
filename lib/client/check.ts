@@ -8,6 +8,8 @@ type ServerResponse =
       reason: string;
       adjustment: string | null;
       swap: string | null;
+      sequencingTip: string | null;
+      postMealAction: string | null;
       disclaimer: string;
     }
   | {
@@ -145,6 +147,10 @@ function normalizeResponse(payload: unknown): RevoraUserResponse {
           reason: response.reason,
           adjustment: response.adjustment,
           swap: response.swap,
+          // Coach outputs are additive card content — tolerate their absence
+          // (older cached responses) instead of failing the whole check.
+          sequencingTip: asNullableString(response.sequencingTip),
+          postMealAction: asNullableString(response.postMealAction),
           disclaimer: response.disclaimer
         } satisfies ServerResponse;
       }
@@ -230,6 +236,10 @@ function normalizeFetchError(error: unknown) {
   }
 
   return new CheckRequestError("server");
+}
+
+function asNullableString(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
 }
 
 function isRisk(value: unknown): value is "SAFE" | "MODERATE" | "HIGH" {

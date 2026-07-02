@@ -20,6 +20,8 @@ describe("CheckUiState", () => {
           reason: "Looks balanced.",
           adjustment: null,
           swap: null,
+          sequencingTip: null,
+          postMealAction: null,
           disclaimer: "Not medical advice."
         }
       },

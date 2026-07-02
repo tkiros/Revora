@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { deriveCoachOutputs } from "../../../lib/revora/coach-outputs";
 import { buildRetryResponse } from "../../../lib/revora/fallback";
 import {
   createOpenAIRevoraModelClient,
@@ -65,7 +66,9 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
         latencyBucket: getLatencyBucket(now() - startedAt)
       });
 
-      return NextResponse.json(response);
+      // Decision card v2 (plan P1): coach outputs are derived rule-based from
+      // the engine response at the route layer — the engine stays untouched.
+      return NextResponse.json({ ...response, ...deriveCoachOutputs(response) });
     } catch (error) {
       // Surface schema/infra throws to Sentry (awaited, guarded, no-op without
       // SENTRY_DSN), then keep the existing safe telemetry + calm retry response
@@ -80,7 +83,8 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
         latencyBucket: getLatencyBucket(now() - startedAt)
       });
 
-      return NextResponse.json(buildRetryResponse(loadSafetyContract()));
+      const retry = buildRetryResponse(loadSafetyContract());
+      return NextResponse.json({ ...retry, ...deriveCoachOutputs(retry) });
     }
   };
 }

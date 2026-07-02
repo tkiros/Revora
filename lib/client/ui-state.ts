@@ -7,6 +7,8 @@ export type RevoraUserResponse =
       reason: string;
       adjustment: string | null;
       swap: string | null;
+      sequencingTip: string | null;
+      postMealAction: string | null;
       disclaimer: string;
     }
   | {

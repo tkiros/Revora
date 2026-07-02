@@ -37,6 +37,16 @@ export function ResultCard({ response }: { response: RevoraUserResponse }) {
               <strong>Swap:</strong> {response.swap}
             </p>
           ) : null}
+          {response.sequencingTip ? (
+            <p data-testid="sequencing-tip">
+              <strong>Eat it in this order:</strong> {response.sequencingTip}
+            </p>
+          ) : null}
+          {response.postMealAction ? (
+            <p data-testid="post-meal-action">
+              <strong>After this meal:</strong> {response.postMealAction}
+            </p>
+          ) : null}
         </div>
         <DisclaimerLine disclaimer={response.disclaimer} />
       </section>

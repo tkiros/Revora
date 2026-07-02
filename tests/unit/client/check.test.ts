@@ -90,4 +90,47 @@ describe("submitCheck", () => {
       expect(response.risk).toBe("SAFE");
     }
   });
+
+  it("carries the coach outputs through on a MODERATE result", async () => {
+    mockFetch(200, {
+      kind: "result",
+      risk: "MODERATE",
+      reason: "This leans on refined carbs.",
+      adjustment: "Add protein.",
+      swap: "Swap to brown rice.",
+      sequencingTip: "Start with the vegetables or protein.",
+      postMealAction: "A short walk is a calm next step.",
+      disclaimer: DISCLAIMER
+    });
+
+    const response = await submitCheck(input);
+    if (response.kind !== "result") {
+      throw new Error("Expected a result response.");
+    }
+
+    expect(response.sequencingTip).toBe(
+      "Start with the vegetables or protein."
+    );
+    expect(response.postMealAction).toBe("A short walk is a calm next step.");
+  });
+
+  it("defaults missing or malformed coach outputs to null instead of failing", async () => {
+    mockFetch(200, {
+      kind: "result",
+      risk: "SAFE",
+      reason: "This looks balanced.",
+      adjustment: null,
+      swap: null,
+      sequencingTip: 42,
+      disclaimer: DISCLAIMER
+    });
+
+    const response = await submitCheck(input);
+    if (response.kind !== "result") {
+      throw new Error("Expected a result response.");
+    }
+
+    expect(response.sequencingTip).toBeNull();
+    expect(response.postMealAction).toBeNull();
+  });
 });
