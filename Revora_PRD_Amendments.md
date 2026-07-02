@@ -532,7 +532,7 @@ Additionally, GlucoSnap carries two secondary risks:
 
 > *"Prediabetes is the only metabolic condition with a clinically documented
 > reversal rate above 58% through lifestyle change alone — and the majority
-> of the 96 million prediabetics in the US have never been told that. They've
+> of the 115.2 million prediabetics in the US have never been told that. They've <!-- corrected 2026-07-02; was 96M -->
 > been given a warning and a pamphlet. Nobody told them the diagnosis is
 > reversible. Revora names that possibility in the first syllable. 'Re' is
 > reversal — this is going backwards from the edge of disease. 'Vora' is

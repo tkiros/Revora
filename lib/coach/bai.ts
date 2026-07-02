@@ -30,8 +30,9 @@ export type BaiResult = {
   consistency: number;
   action: number;
   band: BaiBand;
-  // Not persisted — lets the UI say "no post-meal actions this week" instead
-  // of rendering a misleading 0% bar when the action dimension had no data.
+  // Persisted by the BAI cron (bai_weekly.prompted, lib/server/bai-cron.ts)
+  // so the UI can say "no post-meal actions this week" instead of rendering
+  // a misleading 0% bar when the action dimension had no data.
   promptedCount: number;
 };
 

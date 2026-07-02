@@ -35,7 +35,8 @@ test("premium user with a computed week sees the band and qualitative bars", asy
           score: 72,
           adherence: 71,
           consistency: 60,
-          action: 100
+          action: 100,
+          prompted: 5
         }
       })
     });
@@ -48,8 +49,52 @@ test("premium user with a computed week sees the band and qualitative bars", asy
   await expect(page.getByText("Check-in days")).toBeVisible();
   await expect(page.getByText("Check-in rhythm")).toBeVisible();
   await expect(page.getByText("Follow-through")).toBeVisible();
+  await expect(page.getByTestId("bai-no-prompts")).toHaveCount(0);
 
   // claims boundary: no banned words rendered on the page
+  const text = await page.locator("main").innerText();
+  expect(text).not.toMatch(/revers|cure|treat|prevent|guarantee|FDA/i);
+
+  await expectNoSeriousViolations(page);
+});
+
+test("premium user with zero risky checks this week sees calm no-prompts copy, not a misleading 0% bar", async ({
+  page
+}) => {
+  await page.route("**/api/coach", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        streak: 5,
+        weekView: [],
+        insight: null,
+        tier: "premium",
+        latestBai: {
+          weekStart: "2026-06-29",
+          score: 88,
+          adherence: 100,
+          consistency: 90,
+          action: 0,
+          prompted: 0
+        }
+      })
+    });
+  });
+
+  await page.goto("/progress");
+
+  await expect(page.getByTestId("progress-bands")).toBeVisible();
+  await expect(page.getByTestId("bai-no-prompts")).toBeVisible();
+  await expect(page.getByTestId("bai-no-prompts")).toContainText(
+    "No follow-up prompts this week"
+  );
+  // The old misleading "Just starting" 0% qualitative label must not appear
+  // for the Follow-through row when there was nothing to follow through on.
+  await expect(page.getByTestId("bai-no-prompts")).not.toContainText(
+    "Just starting"
+  );
+
   const text = await page.locator("main").innerText();
   expect(text).not.toMatch(/revers|cure|treat|prevent|guarantee|FDA/i);
 

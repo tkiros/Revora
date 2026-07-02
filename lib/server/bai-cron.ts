@@ -110,6 +110,7 @@ export async function runBaiWeeklyCron(
         adherence: result.adherence,
         consistency: result.consistency,
         action: result.action,
+        prompted: result.promptedCount,
         computedAt: now
       })
       .onConflictDoUpdate({
@@ -119,6 +120,7 @@ export async function runBaiWeeklyCron(
           adherence: result.adherence,
           consistency: result.consistency,
           action: result.action,
+          prompted: result.promptedCount,
           computedAt: now
         }
       });

@@ -113,6 +113,31 @@ describe("runBaiWeeklyCron", () => {
     // weight redistributes.
     expect(rows[0].adherence).toBe(43);
     expect(rows[0].action).toBe(0);
+    // Nobody was prompted this week — persisted so the UI can render "no
+    // post-meal actions this week" instead of a misleading 0% bar.
+    expect(rows[0].prompted).toBe(0);
+  });
+
+  it("persists the prompted count from checks that carried a post-meal action", async () => {
+    await seedUser({
+      email: "prompted@test.dev",
+      timezone: "America/New_York",
+      checks: [
+        { createdAt: new Date("2026-06-29T12:00:00.000Z"), risk: "SAFE" }, // not prompted
+        {
+          createdAt: new Date("2026-06-30T12:00:00.000Z"),
+          risk: "MODERATE",
+          actionDoneAt: new Date("2026-06-30T13:00:00.000Z")
+        }, // prompted + acknowledged
+        { createdAt: new Date("2026-07-01T12:00:00.000Z"), risk: "HIGH" } // prompted, not acknowledged
+      ]
+    });
+
+    await runBaiWeeklyCron(testDb.db, { now: () => NOW });
+
+    const [row] = await testDb.db.select().from(schema.baiWeekly);
+    expect(row.prompted).toBe(2);
+    expect(row.action).toBe(50);
   });
 
   it("skips free-tier users", async () => {
@@ -154,6 +179,7 @@ describe("runBaiWeeklyCron", () => {
     const [row] = await testDb.db.select().from(schema.baiWeekly);
     expect(row.score).toBe(0);
     expect(row.weekStart).toBe("2026-06-29");
+    expect(row.prompted).toBe(0);
   });
 
   it("computes per-user in the user's own profile timezone", async () => {

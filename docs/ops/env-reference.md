@@ -28,6 +28,8 @@ Every variable, per phase. Provision in Vercel for **preview + production**
 | `NEXT_PUBLIC_APP_URL` | 4D/P7 | canonical origin, e.g. `https://revora.app` |
 | ⚙ `REVIEWER_TEST_SECRET` | P9 | shared secret for the Play-reviewer test-login bypass (`app/api/auth/reviewer-signin/route.ts`). Set in **preview only** — the route hard-404s in production regardless of this value (`VERCEL_ENV`/`NODE_ENV` check), so leaving it unset in production is a second, redundant lock, not the only one |
 | `NEXT_PUBLIC_REVIEWER_MODE` | P9 | set to `1` in **preview only** to show the "Reviewer access" form on `/signin`. **Never set in production** — this is a build-time constant, so leaving it unset makes the form permanently inert (`false`) in the production bundle |
+| `SUPPORT_EMAIL` | P5/P9 | optional — falls back to `support@revora.app` when unset. Used by the nudge email footer (`app/api/cron/nudge/route.ts`) and `/terms` (`app/terms/page.tsx`) |
+| `REVORA_LAUNCH_MODE_OVERRIDE` | dev/test only | set to `paused` to simulate a launch-controls incident (`lib/revora/launch-controls.ts`) in unit/smoke tests without touching live Edge Config. **Never set in production** — it is ignored whenever `NODE_ENV` or `VERCEL_ENV` is `production`, so this is a dev/test-only override, not a production kill switch (use `EDGE_CONFIG`'s `launch_mode` key for that) |
 
 Local dev bootstrap:
 

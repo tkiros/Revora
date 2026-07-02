@@ -40,6 +40,7 @@ const COPY_FILES = [
   "app/terms/page.tsx",
   "app/history/page.tsx",
   "components/food-check-form.tsx",
+  "components/nudge-opt-in.tsx",
   "components/result-card.tsx",
   "components/request-status.tsx",
   "components/daily-loop.tsx",

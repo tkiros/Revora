@@ -70,7 +70,8 @@ export function createCoachRouteHandler(deps: CoachRouteDeps = {}) {
           score: row.score,
           adherence: row.adherence,
           consistency: row.consistency,
-          action: row.action
+          action: row.action,
+          prompted: row.prompted
         };
       }
     }

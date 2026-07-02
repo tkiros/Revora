@@ -88,6 +88,10 @@ describe("computeBai — component math", () => {
 
     // 1 of 2 prompted checks acknowledged
     expect(result.action).toBe(50);
+    // promptedCount is exposed so callers (the BAI cron) can persist it —
+    // lets the UI distinguish "nothing to follow through on" from "ignored
+    // every prompt" instead of rendering the same 0%/misleading bar for both.
+    expect(result.promptedCount).toBe(2);
   });
 });
 
@@ -105,6 +109,7 @@ describe("computeBai — zero-prompt redistribution", () => {
     // score = round(100 * (.625*1 + .375*(1/3))) = round(100 * 0.75) = 75
     expect(result.score).toBe(75);
     expect(result.band).toBe("on_track");
+    expect(result.promptedCount).toBe(0);
   });
 
   it("a fully idle week with zero prompts still scores 0, not skewed by the missing dimension", () => {

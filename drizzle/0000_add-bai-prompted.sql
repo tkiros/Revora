@@ -20,6 +20,7 @@ CREATE TABLE "bai_weekly" (
 	"adherence" smallint NOT NULL,
 	"consistency" smallint NOT NULL,
 	"action" smallint NOT NULL,
+	"prompted" smallint DEFAULT 0 NOT NULL,
 	"computed_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "bai_weekly_user_id_week_start_pk" PRIMARY KEY("user_id","week_start")
 );

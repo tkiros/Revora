@@ -671,3 +671,14 @@ textarea.text-input {
   color: var(--text-muted);
   white-space: nowrap;
 }
+
+/* Zero-prompt week: no track/fill to show, just calm copy in the space the
+   bar would otherwise occupy. */
+.bai-bar-row-note {
+  grid-template-columns: 1fr 2fr;
+}
+
+.bai-bar-note {
+  font-size: 13px;
+  color: var(--text-muted);
+}

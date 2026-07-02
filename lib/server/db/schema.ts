@@ -183,6 +183,11 @@ export const baiWeekly = pgTable(
     adherence: smallint("adherence").notNull(),
     consistency: smallint("consistency").notNull(),
     action: smallint("action").notNull(),
+    // How many checks this week carried a post-meal action (risk !== SAFE),
+    // i.e. computeBai's promptedCount (lib/coach/bai.ts). Lets the UI say
+    // "no post-meal actions this week" instead of rendering a misleading 0%
+    // Follow-through bar when nobody was prompted.
+    prompted: smallint("prompted").notNull().default(0),
     computedAt: timestamp("computed_at", { withTimezone: true })
       .notNull()
       .defaultNow()

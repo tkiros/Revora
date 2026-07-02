@@ -83,6 +83,14 @@ sale/share stance, `docs/handoff/human-actions-required.md` §0).
 
 ## 4. Billing / entitlement mismatch ("I paid but the app still shows free")
 
+**Tier reminder (support-internal):** free is five checks a day plus the
+today view; premium adds unlimited checks, history, insights, progress, and
+the nudge (consistent with the in-app copy — `components/paywall-card.tsx`,
+`components/result-card.tsx`, `docs/ops/play-listing.md`). Worth confirming
+which limit the user actually hit before treating it as a mismatch — some
+"still shows free" reports are really "I hit the five-checks-a-day limit,"
+not an entitlement bug.
+
 **Verify-on-read note (support-internal, not user-facing):** Revora heals
 most of these automatically. `lib/server/entitlement.ts`'s `getEntitlement`
 re-checks the Play Developer API on every read of a stale row — a missed

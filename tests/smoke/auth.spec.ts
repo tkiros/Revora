@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
 /**
@@ -63,6 +64,19 @@ test("magic-link round trip: email → link → session → consent → profile"
   // Landed signed-in on /welcome: consent gate blocks until checked.
   await page.goto("/welcome");
   await expect(page.getByTestId("welcome-save")).toBeDisabled();
+
+  // a11y gate on the real, signed-in /welcome page (same AxeBuilder pattern
+  // as tests/smoke/a11y.spec.ts). Signed-out /welcome redirects/shows a
+  // different state, so this is the only place the real page is reachable
+  // without a DB — hence it lives in this env-gated auth flow, not a11y.spec.ts.
+  const welcomeViolations = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+    .analyze();
+  expect(
+    welcomeViolations.violations
+      .filter((v) => v.impact === "critical" || v.impact === "serious")
+      .map((v) => `${v.id} (${v.impact}): ${v.nodes.length} node(s)`)
+  ).toEqual([]);
 
   await page.getByLabel("Latest A1C").fill("6.1");
   await page.getByLabel(/I consent to Revora storing/).check();

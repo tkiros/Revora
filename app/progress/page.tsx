@@ -23,6 +23,7 @@ type LatestBai = {
   adherence: number;
   consistency: number;
   action: number;
+  prompted: number;
 };
 
 type CoachResponse = {
@@ -180,7 +181,20 @@ export default function ProgressPage() {
             <div className="bai-bar-list">
               <BaiBar label="Check-in days" percent={latestBai.adherence} />
               <BaiBar label="Check-in rhythm" percent={latestBai.consistency} />
-              <BaiBar label="Follow-through" percent={latestBai.action} />
+              {latestBai.prompted > 0 ? (
+                <BaiBar label="Follow-through" percent={latestBai.action} />
+              ) : (
+                <div
+                  className="bai-bar-row bai-bar-row-note"
+                  data-testid="bai-no-prompts"
+                >
+                  <span className="bai-bar-label">Follow-through</span>
+                  <span className="bai-bar-note">
+                    No follow-up prompts this week — nothing you needed to
+                    act on.
+                  </span>
+                </div>
+              )}
             </div>
           </section>
         ) : null}

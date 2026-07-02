@@ -1,5 +1,5 @@
 {
-  "id": "f29e728e-bccb-41c2-a066-2813af18a616",
+  "id": "6975cd26-c728-4582-8495-103b30367e3b",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -144,6 +144,13 @@
           "type": "smallint",
           "primaryKey": false,
           "notNull": true
+        },
+        "prompted": {
+          "name": "prompted",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
         },
         "computed_at": {
           "name": "computed_at",
