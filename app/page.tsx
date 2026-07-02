@@ -27,6 +27,7 @@ export default function HomePage() {
           <Link href="/history">Your week</Link>
           <Link href="/progress">Progress</Link>
           <Link href="/privacy">Privacy</Link>
+          <Link href="/terms">Terms</Link>
         </footer>
       </div>
     </main>

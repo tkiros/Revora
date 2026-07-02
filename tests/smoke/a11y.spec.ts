@@ -32,6 +32,17 @@ test("privacy page has no critical or serious a11y violations", async ({
   expect(await blockingViolations(page)).toEqual([]);
 });
 
+test("terms page has no critical or serious a11y violations", async ({
+  page
+}) => {
+  await page.goto("/terms");
+  await expect(
+    page.getByRole("heading", { name: /terms of service/i })
+  ).toBeVisible();
+
+  expect(await blockingViolations(page)).toEqual([]);
+});
+
 test("result state has no critical or serious a11y violations", async ({
   page
 }) => {

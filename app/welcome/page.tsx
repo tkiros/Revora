@@ -205,6 +205,7 @@ export default function WelcomePage() {
 
         <footer className="page-footer">
           <Link href="/privacy">Privacy</Link>
+          <Link href="/terms">Terms</Link>
         </footer>
       </div>
     </main>

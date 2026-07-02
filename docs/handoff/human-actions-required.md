@@ -5,7 +5,7 @@ Source inventory: `docs/production-implementation-plan-2026-07-01.md` §10. Stat
 
 ## ⚠ Longest-lead items — start these today
 
-1. ⏳ **Counsel engagement** (Track B B1). Questions: the four in `docs/legal/counsel-brief.md` **plus** Q5 insights-SaMD, Q6 Art. 9 consent wording, Q7 refund adequacy, Q8 the 3 "reversal" lines (Brand Positioning L240/287/295), Q9 forward-looking imaging-SaMD (D5 gate). Sign-off must be on file before Play submission (P9).
+1. ⏳ **Counsel engagement** (Track B B1). Questions: the four in `docs/legal/counsel-brief.md` **plus** Q5 insights-SaMD, Q6 Art. 9 consent wording, Q7 refund adequacy, Q8 the 3 "reversal" lines (Brand Positioning L240/287/295), Q9 forward-looking imaging-SaMD (D5 gate), Q10 review of the `app/terms/page.tsx` draft (P9 — subscription/refund/liability/governing-law language and the two bracketed placeholders it still carries). Sign-off must be on file before Play submission (P9).
 2. ⏳ **Google Play Developer account ($25)** — ID verification takes days. Decide **account type** (individual vs business) first.
 3. ⏳ **Trademark clearance "Revora"** (2–4 weeks).
 4. ⏳ **Domain decision + purchase** — everything in P7–P9 (DNS, Resend deliverability, assetlinks, deletion URL, listing URLs) hangs off the final domain.
@@ -39,7 +39,7 @@ Source inventory: `docs/production-implementation-plan-2026-07-01.md` §10. Stat
 
 ## §2 Secrets to provision in Vercel (preview + prod; ⚙ = session generates, human stores)
 
-`OPENAI_API_KEY` · `UPSTASH_REDIS_REST_URL`/`_TOKEN` · `SENTRY_DSN` · Edge Config · `DATABASE_URL` (Railway Postgres) · ⚙`AUTH_SECRET` · ⚙`HEALTH_DATA_KEY` · ⚙`VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` · `RESEND_API_KEY` · `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` + `PLAY_PACKAGE_NAME` + `RTDN_SHARED_TOKEN` · `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`/price IDs · `NEXT_PUBLIC_UMAMI_SRC`/`NEXT_PUBLIC_UMAMI_WEBSITE_ID` · `CRON_SECRET` · `NEXT_PUBLIC_APP_URL`
+`OPENAI_API_KEY` · `UPSTASH_REDIS_REST_URL`/`_TOKEN` · `SENTRY_DSN` · Edge Config · `DATABASE_URL` (Railway Postgres) · ⚙`AUTH_SECRET` · ⚙`HEALTH_DATA_KEY` · ⚙`VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` · `RESEND_API_KEY` · `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` + `PLAY_PACKAGE_NAME` + `RTDN_SHARED_TOKEN` · `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`/price IDs · `NEXT_PUBLIC_UMAMI_SRC`/`NEXT_PUBLIC_UMAMI_WEBSITE_ID` · `CRON_SECRET` · `NEXT_PUBLIC_APP_URL` · ⚙`REVIEWER_TEST_SECRET` (**preview only**) · `NEXT_PUBLIC_REVIEWER_MODE` (**preview only, never production**)
 
 ## §3 Money
 
@@ -68,7 +68,7 @@ Play $25 · Vercel Pro ~$20/mo · domain ~$12/yr · OpenAI usage · Railway/Rese
 - ☐ Create app · internal-testing track + testers
 - ☐ Subscription products/base plans/prices (after §0 SKU confirmation)
 - ☐ License testers
-- ☐ Forms: Data Safety, content rating, target audience (adults), health declarations, ads=none, export compliance, account-deletion URL, app-access reviewer login (seeded test account)
+- ☐ Forms: Data Safety, content rating, target audience (adults), health declarations, ads=none, export compliance, account-deletion URL, app-access reviewer login — code is in place (`app/api/auth/reviewer-signin/route.ts`, `/signin`'s "Reviewer access" form); enter `reviewer@revora.test` + the `REVIEWER_TEST_SECRET` value in the Play Console "App access" form (see the P9 entry below for the setup steps)
 - ☐ Store listing assets (title/descriptions/feature graphic/screenshots/icon/privacy URL)
 - ☐ Upload `.aab` · rollout internal → closed → production · respond to review
 
@@ -130,3 +130,28 @@ provisioning (`docs/adr/hosting-hybrid.md`, `docs/adr/analytics-umami.md`):
   exists, read send/prune/skip counts from cron logs, or from
   `/api/health`'s `crons.nudge` / `crons.baiWeekly` staleness probe
   (`ok`/`stale`/`never`) for a coarse liveness signal.
+
+### P9 — Terms of Service + reviewer test-login (2026-07-02)
+
+Both Play-submission-readiness artifacts are implemented and tested; three
+manual steps remain before Play review can use them:
+
+- ☐ **Counsel review of the `/terms` draft** — folded into item 1 (Q10)
+  above. The page is marked `COUNSEL-DRAFT` in-app and carries a visible
+  "Last updated" date; it has two bracketed placeholders (operating-entity
+  name, governing law/venue) that need a real answer before this is final.
+- ☐ **Run the reviewer-account seed script against the preview database**
+  once Railway Postgres is provisioned (§1):
+  `DATABASE_URL=<preview-url> HEALTH_DATA_KEY=<preview-key> node
+  scripts/seed-reviewer-account.mjs`. Idempotent — safe to re-run. Creates
+  `reviewer@revora.test`, fully onboarded/consented, Premium.
+- ☐ **Set `REVIEWER_TEST_SECRET` and `NEXT_PUBLIC_REVIEWER_MODE=1` in
+  Vercel — Preview environment only, never Production** (`docs/ops/env-reference.md`).
+  The bypass route (`app/api/auth/reviewer-signin/route.ts`) additionally
+  hard-404s whenever `VERCEL_ENV=production`, independent of these two
+  vars, so this is a belt-and-suspenders setting, not the only lock.
+- ☐ **Enter the reviewer credentials in the Play Console "App access"
+  form**: email `reviewer@revora.test`, and the `REVIEWER_TEST_SECRET`
+  value as the access code, plus a one-line note that the sign-in form is
+  the small "Reviewer access" disclosure at the bottom of `/signin` (only
+  visible on preview builds).

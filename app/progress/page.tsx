@@ -199,6 +199,7 @@ export default function ProgressPage() {
           <Link href="/">Home</Link>
           <Link href="/history">History</Link>
           <Link href="/privacy">Privacy</Link>
+          <Link href="/terms">Terms</Link>
         </footer>
       </div>
     </main>

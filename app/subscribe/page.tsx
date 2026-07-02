@@ -25,6 +25,7 @@ export default function SubscribePage() {
           <Link href="/">Home</Link>
           <Link href="/account">Account</Link>
           <Link href="/privacy">Privacy</Link>
+          <Link href="/terms">Terms</Link>
         </footer>
       </div>
     </main>

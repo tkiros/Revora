@@ -57,6 +57,7 @@ export default function DeleteAccountPage() {
         <footer className="page-footer">
           <Link href="/">Home</Link>
           <Link href="/privacy">Privacy</Link>
+          <Link href="/terms">Terms</Link>
         </footer>
       </div>
     </main>

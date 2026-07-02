@@ -37,6 +37,7 @@ function scan(text: string): string[] {
 const COPY_FILES = [
   "app/page.tsx",
   "app/privacy/page.tsx",
+  "app/terms/page.tsx",
   "app/history/page.tsx",
   "components/food-check-form.tsx",
   "components/result-card.tsx",
@@ -47,6 +48,7 @@ const COPY_FILES = [
   "components/insight-card.tsx",
   "components/voice-input-button.tsx",
   "components/paywall-card.tsx",
+  "components/reviewer-signin-form.tsx",
   "app/subscribe/page.tsx",
   "app/account/page.tsx",
   "app/account/delete/page.tsx",

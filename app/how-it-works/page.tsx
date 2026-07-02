@@ -103,6 +103,7 @@ export default function HowItWorksPage() {
           <Link href="/progress">Progress</Link>
           <Link href="/">Home</Link>
           <Link href="/privacy">Privacy</Link>
+          <Link href="/terms">Terms</Link>
         </footer>
       </div>
     </main>

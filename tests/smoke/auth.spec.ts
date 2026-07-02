@@ -23,6 +23,18 @@ test.skip(
   "auth E2E needs DATABASE_URL + AUTH_EMAIL_STUB_DIR (Railway dev database)"
 );
 
+// Runs unconditionally (no DB needed) — proves the P9 reviewer-access form
+// stays invisible whenever NEXT_PUBLIC_REVIEWER_MODE isn't "1", which is the
+// case for this webServer config (playwright.config.ts) and for every
+// production build (docs/ops/env-reference.md: never set in production).
+test("reviewer-access form is absent when NEXT_PUBLIC_REVIEWER_MODE is unset", async ({
+  page
+}) => {
+  await page.goto("/signin");
+  await expect(page.getByText("Reviewer access")).toHaveCount(0);
+  await expect(page.getByTestId("reviewer-signin-submit")).toHaveCount(0);
+});
+
 test("magic-link round trip: email → link → session → consent → profile", async ({
   page
 }) => {

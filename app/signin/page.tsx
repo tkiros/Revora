@@ -1,8 +1,14 @@
 import Link from "next/link";
 
 import { signIn } from "../../auth";
+import { ReviewerSigninForm } from "../../components/reviewer-signin-form";
 
 export const metadata = { title: "Sign in — Revora" };
+
+// Preview-only: unset in production (docs/ops/env-reference.md), so the
+// reviewer-access form never renders on prod. NEXT_PUBLIC_ vars are inlined
+// at build time, so this is a static `false` in the production bundle.
+const REVIEWER_MODE = process.env.NEXT_PUBLIC_REVIEWER_MODE === "1";
 
 export default function SignInPage() {
   return (
@@ -50,9 +56,12 @@ export default function SignInPage() {
           </form>
         </section>
 
+        {REVIEWER_MODE ? <ReviewerSigninForm /> : null}
+
         <footer className="page-footer">
           <Link href="/">Home</Link>
           <Link href="/privacy">Privacy</Link>
+          <Link href="/terms">Terms</Link>
         </footer>
       </div>
     </main>
