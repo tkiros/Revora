@@ -334,6 +334,49 @@ A `SAFE` classification for a genuinely high-risk food (per the threshold table
 4. Restore (§2.4) only after the reviewer signs off and one synthetic check
    passes.
 
+### 10.5 Stateful-layer incident scenarios (P10)
+
+Added once accounts, server history, billing, and push shipped (plan 4B+).
+These three scenarios are distinct from §10.1–10.4 above: none of them
+require pausing public checks, because the stateful layer is designed to
+fail soft around the stateless engine, not take it down with it.
+
+**DB down (Railway Postgres unreachable).** Guests are still answered — the
+check engine itself is stateless and never reads the database
+(`lib/revora/service.ts`). What breaks: history, coach insights, and
+progress all fail soft with calm, on-brand copy rather than a raw error
+(they depend on `lib/server/db`). `/api/health` reflects this precisely:
+`db:"error"` alongside `ok:true` — the overall health probe stays healthy
+because the public check path is unaffected. **Action:** check Railway
+status/incident page first; no engine pause is needed. Do not flip
+`launch_mode = "paused"` for a DB outage alone — that would needlessly take
+down the one path (public checks) that doesn't depend on the database.
+
+**Billing webhook gap (RTDN or Stripe webhook outage).** A missed or
+delayed Play RTDN / Stripe webhook does not strand a paying user: entitlement
+is verify-on-read (`lib/server/entitlement.ts` `getEntitlement`), so the next
+time the user's entitlement is read, a stale Play row is re-checked directly
+against the Play Developer API and healed in place. Stripe rows rely on the
+webhook more directly, but reconcile automatically once webhook delivery
+resumes (providers retry failed webhook deliveries for a window). **Action:**
+no manual entitlement edits, ever — a hand edit will simply be overwritten
+by the next verify-on-read pass and can mask the real state. Confirm the
+provider's webhook-delivery dashboard (Play Console / Stripe) shows the gap
+closing; escalate to the provider only if deliveries stay absent well past
+their normal retry window.
+
+**Push misfire (nudge cron gap or a burst of failures).** A single missed
+hourly run is acceptable and self-heals: the nudge cron
+(`app/api/cron/nudge/route.ts`, `lib/server/nudge.ts`) stamps
+`lastNudgeDate` per user, so it never double-sends — a user who didn't get
+their hour's nudge simply gets the next day's normally, and a user who *did*
+get it is skipped on every subsequent run that day even if the cron fires
+again. **Action:** check the cron heartbeat (`/api/health`'s `crons.nudge`
+staleness probe — `ok`/`stale`/`never`) and Vercel cron logs to confirm the
+job is actually running on schedule; never manually re-fire a nudge send for
+a user or cohort — the skip-if-already-notified design means a manual re-fire
+risks being the actual cause of a double-send, not the fix for a missed one.
+
 ---
 
 ## 11. Go-Live Sequence

@@ -90,6 +90,20 @@ Upload the `.aab` to Play, and **enable Play App Signing** (Google holds the upl
 signing key). After upload, copy the **app signing key SHA-256** from
 **Play Console → Setup → App integrity → App signing key certificate**.
 
+> **`twa-manifest.json` (repo root, P8).** A checked-in Bubblewrap config
+> template — `packageId app.revora.twa`, colors/icons/start URL mirrored from
+> `public/manifest.webmanifest`, `webManifestUrl` pointed at the same
+> `<domain>` placeholder used throughout this runbook. Human fills before
+> `bubblewrap build`: the `host` field, `webManifestUrl`/`iconUrl`/
+> `maskableIconUrl`/`fullScopeUrl` (`<domain>` → the real production domain),
+> and `signingKey.path`/`signingKey.alias` (never commit the actual keystore
+> or its password — this file is source-controlled). `appVersionCode`/
+> `appVersionName` bump on every re-submission. Either re-run
+> `bubblewrap init --manifest https://<domain>/manifest.webmanifest` to
+> regenerate it fresh, or hand-edit this template in place and run
+> `bubblewrap build` directly — the `_comment` key is documentation-only and
+> safe to delete if the CLI's validator complains about it.
+
 ### Host the asset links
 Create `public/.well-known/assetlinks.json` (Next serves `public/` verbatim, so it resolves
 at `https://<domain>/.well-known/assetlinks.json`). **Template — fill the two placeholders

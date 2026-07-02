@@ -155,3 +155,81 @@ manual steps remain before Play review can use them:
   value as the access code, plus a one-line note that the sign-in form is
   the small "Reviewer access" disclosure at the bottom of `/signin` (only
   visible on preview builds).
+
+### P8 — TWA packaging + physical-device QA (2026-07-02)
+
+Autonomous artifacts landed: `twa-manifest.json` (repo root, Bubblewrap
+config template), `docs/ops/device-qa-checklist.md` (13-section physical-
+device QA script), and a §9.3 note in `docs/ops/play-twa-runbook.md`
+pointing at the manifest file. Everything below needs hands, hardware, or a
+Play Console session:
+
+- ☐ **Generate the Play App Signing keystore** and safeguard the signing
+  key + passwords (§7 above) — needed before `bubblewrap build` can produce
+  a real, submittable `.aab`.
+- ☐ **Fill `twa-manifest.json`'s human-fill fields** once the domain is
+  final: `host`, `webManifestUrl`/`iconUrl`/`maskableIconUrl`/
+  `fullScopeUrl` (`<domain>` → the real production domain), and
+  `signingKey.path`/`signingKey.alias` (never commit the actual keystore or
+  its password).
+- ☐ **First internal-testing-track upload** of the signed `.aab` to Play
+  Console.
+- ☐ **Copy the Play App Signing SHA-256** (Play Console → Setup → App
+  integrity → App signing key certificate, available only after the first
+  upload) and use it to fill + commit + deploy
+  `public/.well-known/assetlinks.json` from the template in
+  `docs/ops/play-twa-runbook.md` §9.3 — this file must **not** be created
+  before the real fingerprint exists (placeholder fingerprints fail
+  validation or forge trust).
+- ☐ **Create a license-tester account** on the device's Google account
+  (§8 above) so Play Billing purchases in QA don't charge a real card.
+- ☐ **Run the full `docs/ops/device-qa-checklist.md`** on a physical
+  Android device against the internal-testing build — this is the Gate 2
+  evidence artifact for "Full device QA passed on hardware incl. real Play
+  purchase/restore" (`docs/production-implementation-plan-2026-07-01.md`
+  §11). Needs the keystore, the upload, assetlinks live on the production
+  domain, and the license-tester account above, in that order.
+- ⚠ **`public/manifest.webmanifest` gap found during this pass:** P8 asks
+  for a `screenshots` array and maskable icons on the web manifest. Maskable
+  icons are already present (`icon-maskable-512.png`), but there is **no
+  `screenshots` array** — this is a small code change (editing
+  `public/manifest.webmanifest`, which this docs/config-only task is not
+  scoped to touch), not a human/ops action. Flagging here so it isn't lost;
+  hand to an implementation pass before the P8 device-QA/Play-listing
+  screenshots work, since a manifest `screenshots` array also improves the
+  browser-native "install" UI richness independent of the Play listing's own
+  screenshot assets (`docs/ops/play-listing.md` §9).
+
+### P10 — Launch, support, incident response (2026-07-02)
+
+Autonomous artifacts landed: `docs/ops/support-playbook.md` (response
+macros + escalation ladder), `docs/ops/launch-checklist.md` (ordered go-live
+list), and three stateful incident scenarios appended to
+`docs/ops/launch-controls.md` §10.5 (DB down, billing-webhook gap, push
+misfire). Everything below needs hands, a Play Console session, or a
+business decision:
+
+- ☐ **Paste the store listing into Play Console** from
+  `docs/ops/play-listing.md` (title, descriptions, tags, content-rating
+  answers, health-apps declaration, Data Safety form per
+  `docs/ops/play-twa-runbook.md` §9.2) once the domain, `<...>` placeholders,
+  and counsel sign-off (next item) are resolved.
+- ☐ **Capture the screenshots** per `docs/ops/play-listing.md` §9's
+  shot-list, signed in as the seeded `reviewer@revora.test` account so no
+  real user's data appears in a public store asset.
+- ⏳ **Counsel sign-offs Q1–Q10** (`docs/legal/counsel-brief.md`) —
+  including Q10 (the `/terms` draft) and Q8 specifically (the three
+  "reversal" lines in `Revora_Brand_Positioning_v2.md` — now softened
+  toward the user-as-agent North-Star framing and marked inline
+  `<!-- counsel Q8: pending confirmation -->` at the App Store subtitle
+  tagline row (§11) and both Screen 1/Screen 3 onboarding lines (§13); still
+  needs an actual counsel answer, not just the softened wording). Must be
+  on file before Play submission and before any benefit-implying marketing
+  (Gate 2, `docs/production-implementation-plan-2026-07-01.md` §11).
+- ☐ **Create the `support@<domain>` inbox** and route it to whoever owns
+  Tier 1/2 in `docs/ops/support-playbook.md`'s escalation ladder.
+- ☐ **Stand up an uptime monitor** against `https://<domain>/api/health`
+  (`docs/ops/launch-checklist.md` §7) — alert on non-200 or `ok:false`.
+- ☐ **Assign on-call/refund ownership** as a named person or rotation
+  (`docs/ops/support-playbook.md` §1 escalation ladder; §10 of the earlier
+  running list already flags this as open).

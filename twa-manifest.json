@@ -1,0 +1,39 @@
+{
+  "_comment": "Bubblewrap config (P8 — docs/ops/play-twa-runbook.md §9.3 'Generate the .aab'). Generated fields mirror public/manifest.webmanifest (name/colors/icons) so the TWA shell matches the live PWA. Fields wrapped in <...> are human-fill placeholders — replace them, then `bubblewrap init --manifest https://<domain>/manifest.webmanifest` to regenerate/validate, or edit this file in place and run `bubblewrap build` directly. Do NOT commit real signing-key paths or passwords here — this file is source-controlled.",
+  "packageId": "app.revora.twa",
+  "host": "<domain>",
+  "name": "Revora",
+  "launcherName": "Revora",
+  "display": "standalone",
+  "orientation": "portrait",
+  "themeColor": "#0f172a",
+  "navigationColor": "#0f172a",
+  "navigationColorDark": "#0f172a",
+  "backgroundColor": "#f3f7fb",
+  "backgroundColorDark": "#0f172a",
+  "startUrl": "/",
+  "iconUrl": "https://<domain>/icon-512.png",
+  "maskableIconUrl": "https://<domain>/icon-maskable-512.png",
+  "webManifestUrl": "https://<domain>/manifest.webmanifest",
+  "fullScopeUrl": "https://<domain>/",
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "<path/to/android.keystore>",
+    "alias": "<key-alias>"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "minSdkVersion": 21,
+  "enableNotifications": true,
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fallbackType": "customtabs",
+  "features": {
+    "playBilling": {
+      "enabled": true
+    }
+  }
+}

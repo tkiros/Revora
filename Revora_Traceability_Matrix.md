@@ -1,5 +1,17 @@
 > **STATUS: AMENDED — superseded on positioning (2026-06-30).** Revora's locked direction is now an **honest, prediabetes-only daily coach**; the camera/photo-scan, CGM, and reversal-score (BAI) features below are **deferred to later/optional**, not hero features. Source of truth for positioning is `docs/product-marketing.md`; every conflict + resolution is logged in `docs/audit/Revora_Alignment_Audit_CoachPivot_20260630.md`. The pre-pivot original is preserved at `docs/archive/Revora_Traceability_Matrix-pre-coach-pivot-20260630.md`. Wrong facts, where present, were corrected inline (115.2M prevalence; "first-mover" removed; unverifiable TAM removed; Cal AI figure corrected). Body below is otherwise unchanged.
 
+> **NOTE (2026-07-02, Track B5 correction):** this matrix's PP-15 row
+> ("I'm worried about my health data privacy" → GDPR/CCPA compliance; trust
+> score → GDPR Export/Deletion, Disclaimers, Consent Flow) encodes an older
+> privacy-taxonomy variant than the one actually shipped. The PRD's own
+> §3.2 (User Research and Pain Points) is **canonical** for pain-point →
+> requirement mapping; the shipped privacy posture is documented in
+> `docs/privacy/data-flow.md` + `/privacy` + `docs/ops/play-twa-runbook.md`
+> §9.2 (kept in lockstep by the project's "lockstep rule"). Where the two
+> taxonomies disagree, treat this matrix's variant as **historical record,
+> not current spec** — do not implement or cite it as a requirements source
+> without cross-checking the PRD and the live privacy docs first.
+
 <!-- Updated: Revora Amendment Set 1.2 + Brand Positioning v2.0 — April 2026 -->
 # Revora — Traceability Matrix v1.0
 

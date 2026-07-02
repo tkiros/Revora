@@ -593,6 +593,18 @@ Packaged food scanning via Open Food Facts (3M+ products). Toggle on camera scre
 
 ### 7.8 AI Accuracy and Limitations
 
+> **ANNOTATION (2026-07-02, Track B5 correction):** the accuracy/MAPE figures
+> below (74%/59%/85%, 15–20% carb MAPE, etc.) are from an early internal
+> baseline study, are **unverified/aspirational**, and predate the coach
+> pivot's shipped, text/voice-only, non-numeric engine
+> (`docs/product-marketing.md`; `docs/audit/Revora_Alignment_Audit_CoachPivot_20260630.md`).
+> They **must not be used in any external material** — Play listing, ToS,
+> marketing site, investor deck, or support copy — citing an accuracy
+> percentage is exactly the "no accuracy percentages" claims-boundary
+> violation (`docs/safety/claims-boundary.md` Banned Claim Families;
+> enforced in shipped copy by `tests/unit/revora/claims-boundary-copy.test.ts`).
+> Kept below for historical/internal reference only.
+
 **Baseline (Diabot-GPT-4o Study, 714 images, 57 users):**
 
 | Configuration | Accuracy |

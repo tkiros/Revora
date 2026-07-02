@@ -1,5 +1,15 @@
 > **STATUS: AMENDED — superseded on positioning (2026-06-30).** Revora's locked direction is now an **honest, prediabetes-only daily coach**; the camera/photo-scan, CGM, and reversal-score (BAI) features below are **deferred to later/optional**, not hero features. Source of truth for positioning is `docs/product-marketing.md`; every conflict + resolution is logged in `docs/audit/Revora_Alignment_Audit_CoachPivot_20260630.md`. The pre-pivot original is preserved at `docs/archive/Revora_Brand_Positioning_v2-pre-coach-pivot-20260630.md`. Wrong facts, where present, were corrected inline (115.2M prevalence; "first-mover" removed; unverifiable TAM removed; Cal AI figure corrected). Body below is otherwise unchanged.
 > NOTE: Marketing uses of the word 'reversal' (e.g. 'One photo. One step. One reversal.'; CTA 'Start my reversal') conflict with PRD §10 and `docs/safety/claims-boundary.md` — FLAGGED FOR COUNSEL, not yet rewritten.
+> NOTE (2026-07-02, Track B5 / counsel Q8): the three most clearly app-as-agent
+> "reversal" lines (§11 App Store subtitle row, §13 Screen 1 subtext, §13
+> Screen 3 headline) have been softened toward the approved user-as-agent
+> North-Star framing ("Reversal is achieved through your dietary choices —
+> Revora gives you the clarity to make them.") and each is marked inline
+> `<!-- counsel Q8: pending confirmation -->`. This is a correction/
+> annotation pass, not a full rewrite — every other "reversal" usage in this
+> document (including the pedagogical ❌/⚠️/✅ comparison table in §6) is left
+> as historical record pending the actual counsel answer to Q8
+> (`docs/legal/counsel-brief.md`).
 
 # Revora — Brand Positioning Document
 **Based on:** GlucoSnap PRD v2.0 + Amendment Set 1.1  
@@ -238,7 +248,7 @@ These phrases must appear consistently across the product:
 
 | Context | Tagline Variant |
 |---|---|
-| App Store subtitle (30 chars) | "Know what to eat. Reverse it." |
+| App Store subtitle (30 chars) | "Know what to eat. You reverse it." <!-- counsel Q8: pending confirmation --> |
 | Social ads — newly diagnosed | "Your next meal is the start." |
 | Video ads | "One photo. One step. One reversal." |
 | Investor deck | "Clarity at every meal. Normal at every test." |
@@ -286,7 +296,7 @@ These phrases must appear consistently across the product:
 
 **Screen 1 — Welcome**
 - Headline: *"Clarity at every meal. Normal at every test."*
-- Subtext: *"Revora gives you everything you need to reverse your prediabetes — one clear meal at a time."*
+- Subtext: *"Revora gives you everything you need — you're the one who reverses your prediabetes, one clear meal at a time."* <!-- counsel Q8: pending confirmation -->
 - CTA: *"Start my reversal"*
 
 **Screen 2 — A1C Entry**
@@ -295,7 +305,7 @@ These phrases must appear consistently across the product:
 - Skip: *"I don't have my number yet"*
 
 **Screen 3 — Goal Setting (Per Amendment 2)**
-- Headline: *"Most people reverse prediabetes in under a year. Here's your 90-day starting point."*
+- Headline: *"Most people who stay consistent reverse their own prediabetes within a year — here's your 90-day starting point."* <!-- counsel Q8: pending confirmation -->
 - Supporting copy: *"In the CDC's Diabetes Prevention Program — the gold-standard clinical trial — participants who consistently managed diet and activity reduced A1C by 0.3–0.5 points and cut their diabetes risk by 58%. Revora is built on those same principles."*
 - Legal line: *"Individual results vary. Revora tracks your behavior — your doctor measures your A1C."*
 
@@ -316,7 +326,7 @@ These phrases must appear consistently across the product:
 
 ## 14. Investor Narrative (90-Second Pitch)
 
-> "96 million Americans have prediabetes. 80% don't know it. The ones who do were told 'eat better' by a doctor with 12 minutes to spare. No tool. No clarity. No direction.
+> "115.2 million Americans have prediabetes <!-- corrected 2026-07-02; was 96M -->. 80% don't know it. The ones who do were told 'eat better' by a doctor with 12 minutes to spare. No tool. No clarity. No direction.
 >
 > The research is unambiguous: the CDC's Diabetes Prevention Program showed that consistent dietary management lets people reverse prediabetes in 58% of cases. The word reversal almost never reaches patients. Nobody built the product that delivers the clarity to make it possible.
 >
