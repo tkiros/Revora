@@ -1,0 +1,110 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "How this works · Revora",
+  description:
+    "What the weekly progress view measures, the evidence behind it, and its honest limits."
+};
+
+/**
+ * BAI methodology disclosure (plan P6, PRD Amendment 1 Acceptance Criteria:
+ * "BAI methodology is disclosed in the app's 'How this works' section").
+ * Citations are evidence for the approach, never a promise of this user's
+ * own outcome — Amendment 1's fabricated "on track to reach X by day Y"
+ * formula stays removed. This page is scanned by the claims-boundary audit
+ * (tests/unit/revora/claims-boundary-copy.test.ts), so its copy — including
+ * the citations below — must itself stay inside the boundary.
+ */
+export default function HowItWorksPage() {
+  return (
+    <main className="page-shell">
+      <div className="page-frame">
+        <section className="surface-card hero-card">
+          <p className="hero-eyebrow">How this works</p>
+          <h1 className="page-title">What the progress view measures</h1>
+          <p className="page-copy">
+            The weekly progress score is entirely behavioral — it counts what
+            you did, never what a future lab result will be. Here is exactly
+            what goes into it, the research it is grounded in, and its
+            honest limits.
+          </p>
+        </section>
+
+        <section className="surface-card legal-card">
+          <h2>What&apos;s measured</h2>
+          <ul>
+            <li>
+              <strong>Check-in days</strong> — how many of the last seven
+              days had at least one check.
+            </li>
+            <li>
+              <strong>Check-in rhythm</strong> — how many checks you logged
+              per day, toward a target of three.
+            </li>
+            <li>
+              <strong>Follow-through</strong> — when a check suggested a
+              short after-meal action, how often you marked it done.
+            </li>
+          </ul>
+          <p>
+            These three combine into a single weekly score with four
+            plain-language bands — Getting started, Building, On track, and
+            Excellent. The score is computed once a week, early Monday,
+            from the seven days before.
+          </p>
+        </section>
+
+        <section className="surface-card legal-card">
+          <h2>The research this is grounded in</h2>
+          <p>
+            Revora doesn&apos;t invent behavior science — it points at
+            published research and asks you to build the habit yourself.
+            None of the following describes Revora&apos;s own users or
+            promises what will happen to your own numbers; each is a
+            citation for why checking in and following through are the
+            behaviors worth building.
+          </p>
+          <ul>
+            <li>
+              <strong>CDC DPP</strong> — a large randomized trial (NEJM,
+              2002) found a 58% reduction in progression to type 2 diabetes
+              among participants who made sustained diet and activity
+              changes, compared with placebo.
+            </li>
+            <li>
+              <strong>Jenkins et al., 2008</strong> (American Journal of
+              Clinical Nutrition) — a dietary intervention study associated
+              with meaningful average A1C change over 24 weeks among its
+              participants.
+            </li>
+            <li>
+              <strong>Imai et al., 2023</strong> (Nutrients) — vegetable- or
+              protein-first meal sequencing was associated with a 29%
+              reduction in post-meal glucose spikes among study
+              participants, the basis for Revora&apos;s sequencing tip.
+            </li>
+          </ul>
+        </section>
+
+        <section className="surface-card legal-card">
+          <h2>An honest limit</h2>
+          <p>
+            Individual results vary, and Revora has no way to know yours.
+            The progress score tracks behavior you can see and control —
+            checking in, and following through. Only a blood test ordered
+            by a clinician measures your actual A1C. Please talk with your
+            clinician about your own numbers and any changes to your care.
+          </p>
+          <p className="result-disclaimer">Not medical advice.</p>
+        </section>
+
+        <footer className="page-footer">
+          <Link href="/progress">Progress</Link>
+          <Link href="/">Home</Link>
+          <Link href="/privacy">Privacy</Link>
+        </footer>
+      </div>
+    </main>
+  );
+}

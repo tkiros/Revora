@@ -53,9 +53,12 @@ const COPY_FILES = [
   "app/signin/page.tsx",
   "app/signin/check-email/page.tsx",
   "app/welcome/page.tsx",
+  "app/progress/page.tsx",
+  "app/how-it-works/page.tsx",
   "lib/revora/fallback.ts",
   "lib/revora/coach-outputs.ts",
   "lib/coach/insights.ts",
+  "lib/coach/bai.ts",
   "lib/client/ui-state.ts"
 ];
 
