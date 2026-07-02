@@ -107,12 +107,17 @@ export function FoodCheckForm() {
     }, 5_000);
 
     try {
-      const response = await submitCheck(result.data);
+      // One id shared by the on-device copy and the server row (4B) so the
+      // sign-in migration dedupes instead of duplicating.
+      const clientId = crypto.randomUUID();
+      const response = await submitCheck(result.data, {
+        clientId,
+        inputMethod
+      });
 
       // Meal memory (P3): persist successful verdicts on-device. Non-result
       // kinds (clarify/not_food/out_of_scope/retry) are moments, not meals.
       if (response.kind === "result") {
-        const clientId = crypto.randomUUID();
         historyStore.add({
           clientId,
           food: result.data.food,
@@ -252,6 +257,13 @@ export function FoodCheckForm() {
               ? () => {
                   historyStore.markActionDone(lastCheckId);
                   setActionDone(true);
+                  // Signed-in: mirror the ack server-side (guests get 401 —
+                  // fire-and-forget either way).
+                  void fetch("/api/history/action", {
+                    method: "POST",
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify({ clientId: lastCheckId })
+                  }).catch(() => undefined);
                 }
               : undefined
           }

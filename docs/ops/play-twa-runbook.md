@@ -1,4 +1,7 @@
-> **Forward note (2026-06-30, coach pivot):** The "no account / no server database / no saved history" stance remains TRUE for the current app and through coach Steps 1–3 (history is on-device localStorage only). It changes ONLY at coach Step 4 (Pay → backend + identity + server-side history). When Step 4 lands, THIS document, the in-app privacy copy, and the Play Data Safety form MUST be updated in lockstep. See `docs/implementation-plan-to-play.md` Phase 5.
+> **Status note (2026-07-01, full build 4B):** the Step-4 posture change has
+> landed — accounts, server history, billing, push. This document, `/privacy`,
+> `docs/privacy/data-flow.md`, and `docs/legal/counsel-brief.md` were updated
+> in the same PR (the lockstep rule). §9.2 below is the current mapping.
 
 # Revora — Google Play (TWA) Runbook
 
@@ -50,15 +53,22 @@ production domain.**
 The Data Safety form must be **consistent with `/privacy` and `docs/privacy/data-flow.md`**
 (same facts, different artifact). Source of truth → form mapping:
 
+> **Updated 2026-07-01 (plan 4B lockstep):** the app now has optional
+> accounts, server-side history, billing, and push. Answers below reflect the
+> stateful posture; the previous "transferred, not stored" table is obsolete.
+
 | Data Safety question | Answer (from data-flow.md / `/privacy`) |
 |---|---|
-| Is data collected/transferred? | **Transferred, not stored.** Meal text + A1C are sent off-device to process the check. |
-| Data types | "Health info" (A1C value) + the free-text meal description. No name, email, account, or device IDs (there is no login / no DB). |
-| Shared with third parties? | **Yes — OpenAI**, the model provider, to generate the check. |
-| Stored/retained by Revora? | **No.** Every model call uses `store:false`; Revora has no auth, no database, no history, no raw request logging. |
-| Provider retention | Note that the **provider may keep abuse-monitoring logs** on its side (outside Revora's control) — same caveat as `/privacy`. |
-| Encrypted in transit? | Yes (HTTPS). |
-| Can users request deletion? | N/A — nothing is stored to delete. |
+| Is data collected? | **Yes — collected AND stored** (for signed-in, consented users): health info (A1C), free-text meal descriptions, email address. Guests: transferred to process the check, not stored. |
+| Data types | **Health info** (A1C value; meal text) · **Personal info** (email address, accounts only) · **App activity** = none beyond the above · **Device IDs** = none · Payments handled by Google Play / Stripe (Revora never receives card data). |
+| Purpose | App functionality (the check, history, insights, progress, one opt-in daily reminder). No ads, no marketing, no sale/share of personal data. |
+| Shared with third parties? | **OpenAI** (meal text + A1C, per-request, `store:false`, to generate the check) · **Resend** (email address, to deliver sign-in links) · **Stripe** (web subscribers' billing, handled by Stripe) · voice audio is processed by the device/browser vendor's speech service — Revora servers never receive audio. |
+| Stored/retained by Revora? | Signed-in + consented only: A1C and meal text **encrypted at rest (AES-256-GCM)**; coarse fields (risk class, band, timestamps) plaintext; email for sign-in. Guests: nothing. |
+| Provider retention | The model **provider may keep abuse-monitoring logs** on its side (outside Revora's control) — same caveat as `/privacy`. |
+| Encrypted in transit? | Yes (HTTPS everywhere). |
+| Encrypted at rest? | Yes for the sensitive fields (A1C, meal text) — column-level AES-256-GCM. |
+| Can users request deletion? | **Yes — in-app and via the public URL** `https://<domain>/account/delete` (declare this in the Data-deletion section). Deletion removes profile, history, push registrations, and subscription rows; provider subscriptions are cancelled best-effort. |
+| Data collection optional? | Yes — the full check flow works as a guest; storage happens only after explicit consent at account setup. |
 
 **Acceptance:** form submitted; every answer traces to a line in `docs/privacy/data-flow.md`.
 

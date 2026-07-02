@@ -44,7 +44,13 @@ class CheckRequestError extends Error {
 
 export async function submitCheck(
   input: CheckRequest,
-  init?: { signal?: AbortSignal }
+  init?: {
+    signal?: AbortSignal;
+    // 4B: server-side meal memory metadata — never part of the engine request
+    // body, so the engine contract stays untouched.
+    clientId?: string;
+    inputMethod?: "text" | "voice";
+  }
 ): Promise<RevoraUserResponse> {
   let response: Response;
 
@@ -52,7 +58,11 @@ export async function submitCheck(
     response = await fetch("/api/check", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        ...(init?.clientId ? { "x-revora-client-id": init.clientId } : {}),
+        ...(init?.inputMethod
+          ? { "x-revora-input-method": init.inputMethod }
+          : {})
       },
       body: JSON.stringify(input),
       signal: getRequestSignal(init?.signal)

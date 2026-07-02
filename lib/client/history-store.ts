@@ -1,3 +1,4 @@
+import { computeStreak, dayKeyLocal } from "../coach/days";
 import type { RevoraRisk } from "./ui-state";
 
 /**
@@ -29,9 +30,7 @@ const STORAGE_KEY = "revora.history.v1";
 // long-term memory.
 const MAX_STORED_CHECKS = 500;
 
-function localDayKey(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
+const localDayKey = dayKeyLocal;
 
 export function createHistoryStore(storage: StorageLike | null) {
   function read(): StoredCheck[] {
@@ -106,23 +105,11 @@ export function createHistoryStore(storage: StorageLike | null) {
     },
 
     streak(now: Date = new Date()): number {
-      const dayKeys = new Set(
-        read().map((check) => localDayKey(new Date(check.createdAt)))
+      return computeStreak(
+        read().map((check) => check.createdAt),
+        localDayKey,
+        now
       );
-
-      // Start today if checked today, else yesterday (today isn't over yet).
-      const cursor = new Date(now);
-      if (!dayKeys.has(localDayKey(cursor))) {
-        cursor.setDate(cursor.getDate() - 1);
-      }
-
-      let streak = 0;
-      while (dayKeys.has(localDayKey(cursor))) {
-        streak += 1;
-        cursor.setDate(cursor.getDate() - 1);
-      }
-
-      return streak;
     },
 
     markActionDone(clientId: string, now: Date = new Date()): void {

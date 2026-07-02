@@ -26,7 +26,7 @@ test("privacy page has no critical or serious a11y violations", async ({
 }) => {
   await page.goto("/privacy");
   await expect(
-    page.getByRole("heading", { name: /how revora handles your input/i })
+    page.getByRole("heading", { name: /how revora handles your data/i })
   ).toBeVisible();
 
   expect(await blockingViolations(page)).toEqual([]);

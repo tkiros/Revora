@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { historyStore, type StoredCheck } from "../../lib/client/history-store";
+import type { StoredCheck } from "../../lib/client/history-store";
+import { loadHistory } from "../../lib/client/remote-history";
+import { dayKeyLocal as localDayKey } from "../../lib/coach/days";
 
 const RISK_LABELS = {
   SAFE: "Clear",
@@ -14,18 +16,23 @@ const RISK_LABELS = {
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-function localDayKey(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
-
 export default function HistoryPage() {
   const router = useRouter();
   const [recent, setRecent] = useState<StoredCheck[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    setRecent(historyStore.recent(7));
-    setHydrated(true);
+    let cancelled = false;
+    (async () => {
+      const { checks } = await loadHistory(7);
+      if (!cancelled) {
+        setRecent(checks);
+        setHydrated(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const checkedDays = new Set(
