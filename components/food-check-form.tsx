@@ -15,6 +15,7 @@ import {
 } from "../lib/client/validation";
 import { RequestStatus } from "./request-status";
 import { ResultCard } from "./result-card";
+import { VoiceInputButton } from "./voice-input-button";
 
 type FieldErrors = Partial<Record<"food" | "a1c", string>>;
 
@@ -23,6 +24,7 @@ export function FoodCheckForm() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [uiState, setUiState] = useState<CheckUiState>({ kind: "idle" });
   const [isHydrated, setIsHydrated] = useState(false);
+  const [inputMethod, setInputMethod] = useState<"text" | "voice">("text");
 
   useEffect(() => {
     setIsHydrated(true);
@@ -97,6 +99,22 @@ export function FoodCheckForm() {
     }
   }
 
+  function handleVoiceTranscript(transcript: string) {
+    // The transcript lands in the same textarea; the user reviews, edits, and
+    // submits their own words — the identical text path and engine (§6.2).
+    handleChange("food", transcript);
+    setInputMethod("voice");
+  }
+
+  function handleTypedFoodChange(value: string) {
+    handleChange("food", value);
+    // ponytail: an emptied field restarts as typed input; small edits after a
+    // dictation keep counting as voice — good enough for the method signal.
+    if (value.trim().length === 0) {
+      setInputMethod("text");
+    }
+  }
+
   if (!isHydrated) {
     return (
       <section aria-live="polite" className="placeholder-card">
@@ -109,7 +127,12 @@ export function FoodCheckForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="form-grid" noValidate>
+    <form
+      onSubmit={handleSubmit}
+      className="form-grid"
+      data-input-method={inputMethod}
+      noValidate
+    >
       <div className="field-stack">
         <label htmlFor="food" className="field-label">
           What are you thinking about eating?
@@ -120,7 +143,7 @@ export function FoodCheckForm() {
           rows={3}
           value={input.food}
           onChange={(event) => {
-            handleChange("food", event.target.value);
+            handleTypedFoodChange(event.target.value);
           }}
           enterKeyHint="go"
           placeholder="Example: grilled chicken with rice and salad"
@@ -133,6 +156,10 @@ export function FoodCheckForm() {
             {errors.food}
           </p>
         ) : null}
+        <VoiceInputButton
+          onTranscript={handleVoiceTranscript}
+          disabled={isSubmitting}
+        />
       </div>
 
       <div className="field-stack">

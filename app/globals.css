@@ -199,6 +199,42 @@ textarea.text-input {
   cursor: progress;
 }
 
+.voice-input {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.voice-input-button {
+  min-height: 44px;
+  border: 2px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 8px 16px;
+  background: var(--surface-muted);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.voice-input-button[data-listening] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.voice-input-button:focus-visible {
+  outline: 3px solid rgba(15, 23, 42, 0.18);
+  outline-offset: 2px;
+}
+
+.voice-input-status {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
 .status-card,
 .result-card,
 .placeholder-card {
