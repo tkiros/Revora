@@ -21,7 +21,7 @@ Every variable, per phase. Provision in Vercel for **preview + production**
 | ⚙ `RTDN_SHARED_TOKEN` | 4D | shared token on the Pub/Sub push endpoint URL |
 | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | 4D | web-fallback billing |
 | `STRIPE_PRICE_MONTHLY` / `STRIPE_PRICE_ANNUAL` | 4D | Stripe price IDs for the two SKUs |
-| ⚙ `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | P5 | `npx web-push generate-vapid-keys` |
+| ⚙ `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | P5 | `npx web-push generate-vapid-keys`; also expose the public key as `NEXT_PUBLIC_VAPID_PUBLIC_KEY` |
 | ⚙ `CRON_SECRET` | P5 | bearer token Vercel sends to cron routes |
 | `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` | P7 | analytics site domain |
 | `NEXT_PUBLIC_APP_URL` | 4D/P7 | canonical origin, e.g. `https://revora.app` |

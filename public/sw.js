@@ -17,6 +17,36 @@ self.addEventListener("activate", (event) => {
   // navigation the already-active SW controls without claiming.
 });
 
+// Daily nudge (P5): render the push payload and open the app on tap. One
+// gentle reminder a day — the server enforces the cadence; the SW only
+// displays what it's sent.
+self.addEventListener("push", (event) => {
+  let payload = { title: "Revora", body: "Ready for today? Check your first meal." };
+  try {
+    if (event.data) payload = { ...payload, ...event.data.json() };
+  } catch {
+    // keep the default copy on a malformed payload
+  }
+  event.waitUntil(
+    self.registration.showNotification(payload.title, {
+      body: payload.body,
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      tag: "revora-daily-nudge" // same tag: never stacks duplicates
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((wins) => {
+      const existing = wins.find((w) => "focus" in w);
+      return existing ? existing.focus() : clients.openWindow("/");
+    })
+  );
+});
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return; // never intercept POST /api/check

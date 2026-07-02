@@ -22,6 +22,10 @@ export default function AccountPage() {
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nudge, setNudge] = useState<{ optIn: boolean; hour: number } | null>(
+    null
+  );
+  const [nudgeSaved, setNudgeSaved] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -38,6 +42,23 @@ export default function AccountPage() {
         }
         setEntitlement((await response.json()) as EntitlementInfo);
         setState("ready");
+
+        const profileResponse = await fetch("/api/profile", {
+          cache: "no-store"
+        });
+        if (!cancelled && profileResponse.ok) {
+          const profile = (await profileResponse.json()) as {
+            hasProfile: boolean;
+            nudgeOptIn?: boolean;
+            nudgeHour?: number;
+          };
+          if (profile.hasProfile) {
+            setNudge({
+              optIn: Boolean(profile.nudgeOptIn),
+              hour: profile.nudgeHour ?? 11
+            });
+          }
+        }
       } catch {
         if (!cancelled) {
           setState("signed_out");
@@ -145,6 +166,55 @@ export default function AccountPage() {
                   </>
                 )}
               </div>
+
+              {nudge ? (
+                <div className="account-section" data-testid="nudge-settings">
+                  <h2 className="section-title">Daily reminder</h2>
+                  <p className="page-copy">
+                    {nudge.optIn
+                      ? "One gentle reminder a day, at the hour you pick."
+                      : "The reminder is off. Turn it on from the home page after your next check-in."}
+                  </p>
+                  {nudge.optIn ? (
+                    <div className="field-stack">
+                      <label htmlFor="nudge-hour" className="field-label">
+                        Remind me around
+                      </label>
+                      <select
+                        id="nudge-hour"
+                        className="text-input"
+                        value={nudge.hour}
+                        onChange={async (event) => {
+                          const hour = Number(event.target.value);
+                          setNudge({ ...nudge, hour });
+                          setNudgeSaved(false);
+                          const response = await fetch("/api/profile", {
+                            method: "PATCH",
+                            headers: { "content-type": "application/json" },
+                            body: JSON.stringify({ nudgeHour: hour })
+                          });
+                          setNudgeSaved(response.ok);
+                        }}
+                      >
+                        {Array.from({ length: 17 }, (_, i) => i + 5).map(
+                          (hour) => (
+                            <option key={hour} value={hour}>
+                              {hour === 12
+                                ? "12:00 pm"
+                                : hour < 12
+                                  ? `${hour}:00 am`
+                                  : `${hour - 12}:00 pm`}
+                            </option>
+                          )
+                        )}
+                      </select>
+                      {nudgeSaved ? (
+                        <p className="field-hint">Saved.</p>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
 
               <div className="account-section">
                 <h2 className="section-title">Session</h2>

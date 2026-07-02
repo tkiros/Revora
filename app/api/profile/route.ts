@@ -129,6 +129,45 @@ export function createProfileRouteHandlers(deps: ProfileRouteDeps = {}) {
   };
 }
 
+const NudgePrefsSchema = z
+  .object({
+    nudgeHour: z.number().int().min(0).max(23).optional(),
+    nudgeOptIn: z.boolean().optional()
+  })
+  .strict();
+
+export function createProfilePatchHandler(deps: ProfileRouteDeps = {}) {
+  const db = deps.db ?? getDb;
+  const getSession = deps.getSession ?? getSessionInfo;
+
+  return async function PATCH(request: Request) {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Sign in first." }, { status: 401 });
+    }
+
+    let body: unknown = null;
+    try {
+      body = await request.json();
+    } catch {
+      body = null;
+    }
+
+    const parsed = NudgePrefsSchema.safeParse(body);
+    if (!parsed.success || Object.keys(parsed.data).length === 0) {
+      return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+    }
+
+    await db()
+      .update(schema.profiles)
+      .set(parsed.data)
+      .where(eq(schema.profiles.userId, session.userId));
+
+    return NextResponse.json({ ok: true });
+  };
+}
+
 const handlers = createProfileRouteHandlers();
 export const GET = handlers.GET;
 export const POST = handlers.POST;
+export const PATCH = createProfilePatchHandler();

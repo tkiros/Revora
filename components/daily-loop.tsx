@@ -8,6 +8,7 @@ import { loadHistory, syncLocalHistory } from "../lib/client/remote-history";
 import { computeStreak, dayKeyLocal } from "../lib/coach/days";
 import { deriveInsight, type CoachInsight } from "../lib/coach/insights";
 import { InsightCard } from "./insight-card";
+import { NudgeOptIn } from "./nudge-opt-in";
 import { StreakChip } from "./streak-chip";
 import { TodayList } from "./today-list";
 
@@ -90,6 +91,7 @@ export function DailyLoop() {
       </div>
       <TodayList checks={today} />
       {insight ? <InsightCard insight={insight} /> : null}
+      <NudgeOptIn />
       <p className="page-copy">
         <Link href="/history" className="inline-link">
           See your week
