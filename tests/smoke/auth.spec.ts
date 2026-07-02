@@ -6,13 +6,13 @@ import { expect, test } from "@playwright/test";
 /**
  * Magic-link auth E2E (plan 4A). Needs a real database and the email stub:
  *
- *   DATABASE_URL=<neon dev branch> \
+ *   DATABASE_URL=<railway dev database> \
  *   AUTH_SECRET=<any> HEALTH_DATA_KEY=<32B base64> \
  *   AUTH_EMAIL_STUB_DIR=/tmp/revora-mailbox \
  *   npx playwright test tests/smoke/auth.spec.ts
  *
  * Skipped automatically when the environment isn't provisioned (see
- * docs/handoff/human-actions-required.md §1 — Neon account).
+ * docs/handoff/human-actions-required.md §1 — Railway Postgres).
  */
 
 const STUB_DIR = process.env.AUTH_EMAIL_STUB_DIR;
@@ -20,7 +20,7 @@ const ENABLED = Boolean(process.env.DATABASE_URL && STUB_DIR);
 
 test.skip(
   !ENABLED,
-  "auth E2E needs DATABASE_URL + AUTH_EMAIL_STUB_DIR (Neon dev branch)"
+  "auth E2E needs DATABASE_URL + AUTH_EMAIL_STUB_DIR (Railway dev database)"
 );
 
 test("magic-link round trip: email → link → session → consent → profile", async ({

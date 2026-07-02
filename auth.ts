@@ -5,14 +5,14 @@ import Resend from "next-auth/providers/resend";
 import { getDb, schema } from "./lib/server/db";
 
 /**
- * Auth.js v5 — email magic-link via Resend, database sessions in Neon
- * (docs/adr/stack.md). DB sessions make sign-out-everywhere and account
- * deletion trivially correct.
+ * Auth.js v5 — email magic-link via Resend, database sessions in Railway
+ * Postgres (docs/adr/hosting-hybrid.md). DB sessions make sign-out-everywhere
+ * and account deletion trivially correct.
  *
  * The adapter is only constructed when DATABASE_URL is present: it is always
- * present at runtime on Vercel (preview/prod) and in dev once Neon is
- * provisioned (§10); without it, importing this module stays safe (builds,
- * tests) and auth simply isn't available.
+ * present at runtime on Vercel (preview/prod) and in dev once Railway
+ * Postgres is provisioned (§10); without it, importing this module stays
+ * safe (builds, tests) and auth simply isn't available.
  */
 
 const EMAIL_FROM = process.env.AUTH_EMAIL_FROM ?? "Revora <signin@revora.app>";

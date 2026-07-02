@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.2",
-    "@neondatabase/serverless": "^1.1.0",
     "@sentry/node": "^10.60.0",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.0",
@@ -21,6 +20,7 @@
     "next": "16.2.4",
     "next-auth": "^5.0.0-beta.31",
     "openai": "6.36.0",
+    "pg": "^8.22.0",
     "react": "19.2.5",
     "react-dom": "19.2.5",
     "stripe": "^22.3.0",
@@ -32,6 +32,7 @@
     "@electric-sql/pglite": "^0.5.3",
     "@playwright/test": "^1.60.0",
     "@types/node": "^24.10.1",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "@types/web-push": "^3.6.4",

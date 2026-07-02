@@ -6,7 +6,7 @@ import {
   runNudgeCron
 } from "../../../lib/server/nudge";
 import { encryptField } from "../../../lib/server/crypto";
-import { schema } from "../../../lib/server/db";
+import { schema, type Db } from "../../../lib/server/db";
 import { createTestDb } from "../../helpers/test-db";
 
 const TEST_KEY = Buffer.alloc(32, 11).toString("base64");
@@ -27,6 +27,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testDb.db.delete(schema.users); // cascades everything
+  await testDb.db.delete(schema.cronHeartbeat); // P7: not user-scoped, cleared separately
 });
 
 async function seedUser(options: {
@@ -177,6 +178,78 @@ describe("runNudgeCron", () => {
     // last_nudge_date was still stamped so the next hourly tick won't retry
     const [row] = await testDb.db.select().from(schema.pushSubscriptions);
     expect(row.lastNudgeDate).toBe("2026-07-03");
+  });
+});
+
+describe("runNudgeCron — heartbeat (P7)", () => {
+  it("upserts a 'nudge' heartbeat row stamped with the run's `now` on a successful run", async () => {
+    await seedUser({ email: "hb@test.dev", timezone: "America/New_York" });
+
+    const { run } = runWith();
+    await run();
+
+    const rows = await testDb.db.select().from(schema.cronHeartbeat);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].name).toBe("nudge");
+    expect(rows[0].lastRunAt).toEqual(NOW);
+  });
+
+  it("upserts (not duplicates) on repeated runs, always the latest run time", async () => {
+    await seedUser({ email: "hb2@test.dev", timezone: "America/New_York" });
+
+    const { run } = runWith();
+    await run();
+    const later = new Date(NOW.getTime() + 60 * 60 * 1000);
+    await runNudgeCron(testDb.db, {
+      now: () => later,
+      send: vi.fn().mockResolvedValue("ok" as const)
+    });
+
+    const rows = await testDb.db.select().from(schema.cronHeartbeat);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].lastRunAt).toEqual(later);
+  });
+
+  it("stamps the heartbeat even when there are no eligible candidates (still a successful run)", async () => {
+    const { run } = runWith();
+    const result = await run();
+
+    expect(result.sent).toBe(0);
+    const rows = await testDb.db.select().from(schema.cronHeartbeat);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].name).toBe("nudge");
+  });
+
+  it("fail-soft: a heartbeat write error never fails the cron run or its result", async () => {
+    await seedUser({ email: "hbfail@test.dev", timezone: "America/New_York" });
+
+    // Every op delegates to the real test db except inserting into
+    // cron_heartbeat, which throws — simulating a write failure on the
+    // heartbeat table specifically without breaking the rest of the run.
+    const brokenHeartbeatDb: Db = {
+      select: testDb.db.select.bind(testDb.db),
+      insert: ((table: unknown) => {
+        if (table === schema.cronHeartbeat) {
+          throw new Error("simulated heartbeat write failure");
+        }
+        return testDb.db.insert(table as never);
+      }) as Db["insert"],
+      update: testDb.db.update.bind(testDb.db),
+      delete: testDb.db.delete.bind(testDb.db),
+      query: testDb.db.query
+    };
+
+    await expect(
+      runNudgeCron(brokenHeartbeatDb, {
+        now: () => NOW,
+        send: vi.fn().mockResolvedValue("ok" as const)
+      })
+    ).resolves.toEqual({ sent: 1, pruned: 0, skipped: 0 });
+
+    // No row was written (the insert threw), and that's fine — the response
+    // above already proves the run itself didn't fail.
+    const rows = await testDb.db.select().from(schema.cronHeartbeat);
+    expect(rows).toHaveLength(0);
   });
 });
 

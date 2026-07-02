@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { signOut } from "next-auth/react";
 
+import { track } from "../../lib/client/analytics";
 import { historyStore } from "../../lib/client/history-store";
 import { profileStore } from "../../lib/client/profile-store";
 
@@ -26,6 +27,17 @@ export default function AccountPage() {
     null
   );
   const [nudgeSaved, setNudgeSaved] = useState(false);
+
+  useEffect(() => {
+    // Landing point after both checkout paths (Stripe's success_url and the
+    // Play Billing verify redirect both point here with ?subscribed=1) —
+    // this is the only client-side moment that knows checkout completed.
+    if (new URLSearchParams(window.location.search).get("subscribed") === "1") {
+      track({ name: "subscribe_completed" });
+      // Strip the param so a refresh doesn't re-fire the event.
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,6 +111,7 @@ export default function AccountPage() {
       // Local copies go too — deletion means deletion.
       historyStore.clear();
       profileStore.clear();
+      track({ name: "deletion_completed" });
       window.location.assign("/?deleted=1");
     } catch {
       setError("Deletion didn't complete — please try again.");

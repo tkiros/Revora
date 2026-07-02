@@ -24,9 +24,12 @@ Source inventory: `docs/production-implementation-plan-2026-07-01.md` §10. Stat
 
 ## §1 Accounts to create
 
-- ☐ Neon (dev/preview/prod branches; backups on)
+- ☐ Railway (Postgres database; backups on — supersedes the earlier Neon
+  plan, `docs/adr/hosting-hybrid.md`)
 - ☐ Resend (+ verified sending domain)
-- ☐ Upstash prod · ☐ Sentry prod · ☐ Vercel Edge Config · ☐ Plausible
+- ☐ Upstash prod · ☐ Sentry prod · ☐ Vercel Edge Config · ☐ Umami
+  (self-hosted on Railway — supersedes the earlier Plausible plan,
+  `docs/adr/analytics-umami.md`)
 - ⏳ Google Play Developer ($25)
 - ☐ Google Cloud project (Play Developer API enabled, service-account JSON, RTDN Pub/Sub topic)
 - ☐ Vercel Pro (hourly crons + function limits)
@@ -36,11 +39,11 @@ Source inventory: `docs/production-implementation-plan-2026-07-01.md` §10. Stat
 
 ## §2 Secrets to provision in Vercel (preview + prod; ⚙ = session generates, human stores)
 
-`OPENAI_API_KEY` · `UPSTASH_REDIS_REST_URL`/`_TOKEN` · `SENTRY_DSN` · Edge Config · `DATABASE_URL` (pooled + direct) · ⚙`AUTH_SECRET` · ⚙`HEALTH_DATA_KEY` · ⚙`VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` · `RESEND_API_KEY` · `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` + `PLAY_PACKAGE_NAME` + `RTDN_SHARED_TOKEN` · `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`/price IDs · `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` · `CRON_SECRET` · `NEXT_PUBLIC_APP_URL`
+`OPENAI_API_KEY` · `UPSTASH_REDIS_REST_URL`/`_TOKEN` · `SENTRY_DSN` · Edge Config · `DATABASE_URL` (Railway Postgres) · ⚙`AUTH_SECRET` · ⚙`HEALTH_DATA_KEY` · ⚙`VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` · `RESEND_API_KEY` · `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` + `PLAY_PACKAGE_NAME` + `RTDN_SHARED_TOKEN` · `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`/price IDs · `NEXT_PUBLIC_UMAMI_SRC`/`NEXT_PUBLIC_UMAMI_WEBSITE_ID` · `CRON_SECRET` · `NEXT_PUBLIC_APP_URL`
 
 ## §3 Money
 
-Play $25 · Vercel Pro ~$20/mo · domain ~$12/yr · OpenAI usage · Neon/Resend/Plausible/Upstash tiers · Stripe fees · counsel fees
+Play $25 · Vercel Pro ~$20/mo · domain ~$12/yr · OpenAI usage · Railway/Resend/Umami-hosting/Upstash tiers · Stripe fees · counsel fees
 
 ## §4 Legal / counsel / compliance
 
@@ -94,3 +97,36 @@ Play $25 · Vercel Pro ~$20/mo · domain ~$12/yr · OpenAI usage · Neon/Resend/
 ## Appended during the build
 
 *(phase-stamped additions land here)*
+
+### P7 — Production hardening + observability (2026-07-02)
+
+Two owner infra decisions are implemented in code and waiting on
+provisioning (`docs/adr/hosting-hybrid.md`, `docs/adr/analytics-umami.md`):
+
+- ☐ **Provision Railway Postgres** and set `DATABASE_URL` in Vercel
+  (preview + production). The app already speaks plain Postgres over TCP
+  (`pg` / `drizzle-orm/node-postgres`, `lib/server/db/index.ts`) — no code
+  change needed once the URL is set. Run `npx drizzle-kit migrate` against
+  it once provisioned (`docs/ops/env-reference.md`).
+- ☐ **Deploy/self-host Umami** (on Railway, per the ADR) and set
+  `NEXT_PUBLIC_UMAMI_SRC` + `NEXT_PUBLIC_UMAMI_WEBSITE_ID` in Vercel
+  (preview + production). Analytics stays fully inert (no script tag, no
+  tracking calls) until both are set.
+- ☐ **Sentry canary verification** — trigger one real error on a deployed
+  preview and confirm it lands in Sentry (`SENTRY_DSN` is already wired
+  through `captureServerError`; this task only verifies live delivery,
+  which can't be done from this environment).
+- ☐ **Run `scripts/consistency-check.mjs` N=50 against a real preview
+  deploy** and record the flip rate in `docs/ops/launch-controls.md` —
+  target **≥95% modal class**. Needs a deployed preview URL + live
+  `OPENAI_API_KEY` traffic, neither available in this build environment.
+- ☐ **Human skim of the P6 BAI band strings + `/how-it-works` citations**
+  (compliance surface) — `lib/coach/bai.ts`'s `BAI_BAND_COPY` and the CDC
+  DPP citation on `/how-it-works` are claims-boundary-tested (no predicted
+  A1C, no "reverse," calm tone) but haven't had a human compliance read.
+- ☐ **`nudge_sent` send-counts**: Umami is client-script-based, so the
+  server-side send event isn't tracked there by design (see
+  `docs/adr/analytics-umami.md`). Until a server-side metrics pipeline
+  exists, read send/prune/skip counts from cron logs, or from
+  `/api/health`'s `crons.nudge` / `crons.baiWeekly` staleness probe
+  (`ok`/`stale`/`never`) for a coarse liveness signal.

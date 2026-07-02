@@ -9,8 +9,8 @@ import type { Db } from "../../lib/server/db";
 
 /**
  * In-memory Postgres (PGlite) with the real generated migrations applied —
- * the same SQL that runs against Neon. Data-access code receives this
- * through the Db type and cannot tell the difference.
+ * the same SQL that runs against Railway Postgres in prod. Data-access code
+ * receives this through the Db type and cannot tell the difference.
  */
 export async function createTestDb(): Promise<{
   db: Db;

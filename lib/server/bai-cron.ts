@@ -4,6 +4,7 @@ import { computeBai } from "../coach/bai";
 import { dayKeyInTimezone } from "../coach/days";
 import { getEntitlement } from "./entitlement";
 import { schema, type Db } from "./db";
+import { recordHeartbeat } from "./heartbeat";
 
 /**
  * Weekly BAI compute (plan P6). Monday cron (vercel.json "30 4 * * 1"):
@@ -124,6 +125,8 @@ export async function runBaiWeeklyCron(
 
     computed += 1;
   }
+
+  await recordHeartbeat(db, "bai-weekly", now);
 
   return { computed, skipped };
 }

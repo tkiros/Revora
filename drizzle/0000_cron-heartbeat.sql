@@ -39,6 +39,11 @@ CREATE TABLE "checks" (
 	CONSTRAINT "checks_input_method_check" CHECK ("checks"."input_method" IN ('text','voice','photo'))
 );
 --> statement-breakpoint
+CREATE TABLE "cron_heartbeat" (
+	"name" text PRIMARY KEY NOT NULL,
+	"last_run_at" timestamp with time zone NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "deletion_log" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id_hash" text NOT NULL,

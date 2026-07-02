@@ -198,3 +198,12 @@ export const deletionLog = pgTable("deletion_log", {
   completedAt: timestamp("completed_at", { withTimezone: true }).notNull()
 });
 
+// P7 observability: one row per cron job, upserted at the end of a
+// successful run. /api/health reads staleness off `lastRunAt` — no counts,
+// no user data, just a liveness timestamp per job name ("nudge",
+// "bai-weekly").
+export const cronHeartbeat = pgTable("cron_heartbeat", {
+  name: text("name").primaryKey(),
+  lastRunAt: timestamp("last_run_at", { withTimezone: true }).notNull()
+});
+

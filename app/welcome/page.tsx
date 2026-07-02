@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { track } from "../../lib/client/analytics";
 import { historyStore } from "../../lib/client/history-store";
 import { profileStore } from "../../lib/client/profile-store";
 
@@ -104,6 +105,7 @@ export default function WelcomePage() {
       }
 
       setState("done");
+      track({ name: "signin_completed" });
       router.push("/");
     } catch {
       setError("Something went wrong — please try again.");

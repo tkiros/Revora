@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { priorWeekRange, runBaiWeeklyCron } from "../../../lib/server/bai-cron";
 import { encryptField } from "../../../lib/server/crypto";
-import { schema } from "../../../lib/server/db";
+import { schema, type Db } from "../../../lib/server/db";
 import { createTestDb } from "../../helpers/test-db";
 
 const TEST_KEY = Buffer.alloc(32, 7).toString("base64");
@@ -23,6 +23,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testDb.db.delete(schema.users); // cascades everything
+  await testDb.db.delete(schema.cronHeartbeat); // P7: not user-scoped, cleared separately
 });
 
 async function seedUser(options: {
@@ -186,5 +187,67 @@ describe("runBaiWeeklyCron", () => {
 
     const rows = await testDb.db.select().from(schema.baiWeekly);
     expect(rows).toHaveLength(2);
+  });
+});
+
+describe("runBaiWeeklyCron — heartbeat (P7)", () => {
+  it("upserts a 'bai-weekly' heartbeat row stamped with the run's `now` on a successful run", async () => {
+    await seedUser({ email: "hb@test.dev", timezone: "America/New_York" });
+
+    await runBaiWeeklyCron(testDb.db, { now: () => NOW });
+
+    const rows = await testDb.db.select().from(schema.cronHeartbeat);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].name).toBe("bai-weekly");
+    expect(rows[0].lastRunAt).toEqual(NOW);
+  });
+
+  it("upserts (not duplicates) on repeated runs, always the latest run time", async () => {
+    await seedUser({ email: "hb2@test.dev", timezone: "America/New_York" });
+
+    await runBaiWeeklyCron(testDb.db, { now: () => NOW });
+    const later = new Date(NOW.getTime() + 7 * 24 * 60 * 60 * 1000);
+    await runBaiWeeklyCron(testDb.db, { now: () => later });
+
+    const rows = await testDb.db.select().from(schema.cronHeartbeat);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].lastRunAt).toEqual(later);
+  });
+
+  it("stamps the heartbeat even with zero premium users (still a successful run)", async () => {
+    const result = await runBaiWeeklyCron(testDb.db, { now: () => NOW });
+
+    expect(result.computed).toBe(0);
+    const rows = await testDb.db.select().from(schema.cronHeartbeat);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].name).toBe("bai-weekly");
+  });
+
+  it("fail-soft: a heartbeat write error never fails the cron run or its result", async () => {
+    await seedUser({
+      email: "hbfail@test.dev",
+      timezone: "America/New_York",
+      checks: [{ createdAt: new Date("2026-06-29T12:00:00.000Z"), risk: "SAFE" }]
+    });
+
+    const brokenHeartbeatDb: Db = {
+      select: testDb.db.select.bind(testDb.db),
+      insert: ((table: unknown) => {
+        if (table === schema.cronHeartbeat) {
+          throw new Error("simulated heartbeat write failure");
+        }
+        return testDb.db.insert(table as never);
+      }) as Db["insert"],
+      update: testDb.db.update.bind(testDb.db),
+      delete: testDb.db.delete.bind(testDb.db),
+      query: testDb.db.query
+    };
+
+    await expect(
+      runBaiWeeklyCron(brokenHeartbeatDb, { now: () => NOW })
+    ).resolves.toEqual({ computed: 1, skipped: 0 });
+
+    const rows = await testDb.db.select().from(schema.cronHeartbeat);
+    expect(rows).toHaveLength(0);
   });
 });

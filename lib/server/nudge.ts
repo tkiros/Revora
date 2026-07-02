@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { dayKeyInTimezone, hourInTimezone } from "../coach/days";
 import { getEntitlement } from "./entitlement";
 import { schema, type Db } from "./db";
+import { recordHeartbeat } from "./heartbeat";
 
 /**
  * The daily nudge (plan P5): one gentle push per user per local day, only
@@ -122,6 +123,8 @@ export async function runNudgeCron(
       }
     }
   }
+
+  await recordHeartbeat(db, "nudge", now);
 
   return { sent, pruned, skipped };
 }

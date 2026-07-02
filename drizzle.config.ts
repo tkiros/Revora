@@ -5,7 +5,8 @@ export default defineConfig({
   out: "./drizzle",
   dialect: "postgresql",
   dbCredentials: {
-    // Human action (§10): DATABASE_URL for dev/preview/prod Neon branches.
+    // Human action (§10): DATABASE_URL for dev/preview/prod Railway Postgres
+    // instances (docs/adr/hosting-hybrid.md).
     url: process.env.DATABASE_URL ?? "postgres://localhost:5432/revora"
   }
 });

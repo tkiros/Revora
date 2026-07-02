@@ -3,6 +3,7 @@
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 
+import { track } from "../lib/client/analytics";
 import { submitCheck } from "../lib/client/check";
 import { historyStore } from "../lib/client/history-store";
 import { profileStore } from "../lib/client/profile-store";
@@ -128,6 +129,10 @@ export function FoodCheckForm() {
         });
         setLastCheckId(clientId);
         setActionDone(false);
+        track({
+          name: "check_completed",
+          props: { risk: response.risk, kind: response.kind, input_method: inputMethod }
+        });
       }
 
       setUiState({ kind: "done", response });

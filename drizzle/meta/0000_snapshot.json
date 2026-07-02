@@ -1,5 +1,5 @@
 {
-  "id": "3d985287-9571-49d3-af1c-54fb7a2d82b3",
+  "id": "f29e728e-bccb-41c2-a066-2813af18a616",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -325,6 +325,31 @@
           "value": "\"checks\".\"input_method\" IN ('text','voice','photo')"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.cron_heartbeat": {
+      "name": "cron_heartbeat",
+      "schema": "",
+      "columns": {
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "last_run_at": {
+          "name": "last_run_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.deletion_log": {

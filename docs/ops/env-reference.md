@@ -10,7 +10,7 @@ Every variable, per phase. Provision in Vercel for **preview + production**
 | `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | existing | rate limit; prod instance |
 | `SENTRY_DSN` | existing/P7 | server-only capture |
 | `EDGE_CONFIG` | existing | launch-controls kill switch |
-| `DATABASE_URL` | 4A | Neon **pooled** URL; use the direct URL for `npx drizzle-kit migrate` |
+| `DATABASE_URL` | 4A | **Railway Postgres** URL (`docs/adr/hosting-hybrid.md`) — plain TCP, human-provisioned; the app connects via `pg`/`drizzle-orm/node-postgres` with a small per-instance pool (`max: 3`) |
 | ⚙ `AUTH_SECRET` | 4A | Auth.js session/token signing |
 | ⚙ `HEALTH_DATA_KEY` | 4A | **exactly 32 bytes base64** — AES-256-GCM key for A1C + food text. Losing it orphans all ciphertext; store it like a root credential |
 | `RESEND_API_KEY` | 4A | magic-link email |
@@ -23,7 +23,8 @@ Every variable, per phase. Provision in Vercel for **preview + production**
 | `STRIPE_PRICE_MONTHLY` / `STRIPE_PRICE_ANNUAL` | 4D | Stripe price IDs for the two SKUs |
 | ⚙ `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | P5 | `npx web-push generate-vapid-keys`; also expose the public key as `NEXT_PUBLIC_VAPID_PUBLIC_KEY` |
 | ⚙ `CRON_SECRET` | P5 | bearer token Vercel sends to cron routes |
-| `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` | P7 | analytics site domain |
+| `NEXT_PUBLIC_UMAMI_SRC` | P7 | Umami tracker script URL (self-hosted on Railway — `docs/adr/analytics-umami.md`); analytics is fully disabled (no `<script>` rendered, `track()` no-ops) when unset |
+| `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | P7 | Umami website ID; both this and `NEXT_PUBLIC_UMAMI_SRC` must be set for analytics to activate |
 | `NEXT_PUBLIC_APP_URL` | 4D/P7 | canonical origin, e.g. `https://revora.app` |
 
 Local dev bootstrap:
@@ -35,5 +36,5 @@ openssl rand -base64 32   # → HEALTH_DATA_KEY
 npx web-push generate-vapid-keys   # → VAPID_*
 ```
 
-Migrations: `DATABASE_URL=<direct-url> npx drizzle-kit migrate` (run per Neon
-branch: dev → preview → prod).
+Migrations: `DATABASE_URL=<railway-url> npx drizzle-kit migrate` (run per
+Railway Postgres environment: dev → preview → prod).

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { track } from "../lib/client/analytics";
 import {
   isPlayBillingAvailable,
   listPlaySkus,
@@ -21,6 +22,8 @@ export function PaywallCard() {
   const [usesPlay, setUsesPlay] = useState(false);
 
   useEffect(() => {
+    track({ name: "paywall_viewed" });
+
     if (isPlayBillingAvailable()) {
       setUsesPlay(true);
       listPlaySkus()
@@ -36,6 +39,7 @@ export function PaywallCard() {
   }, []);
 
   async function subscribe(plan: "monthly" | "annual") {
+    track({ name: "subscribe_started" });
     setBusy(plan);
     setError(null);
 

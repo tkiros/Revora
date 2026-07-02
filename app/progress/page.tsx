@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { BAI_BAND_COPY, type BaiBand } from "../../lib/coach/bai";
+import { BAI_BAND_COPY, bandOf, type BaiBand } from "../../lib/coach/bai";
 
 /**
  * Progress / BAI view (plan P6). Fetches the already-premium-gated
@@ -114,16 +114,7 @@ export default function ProgressPage() {
     };
   }, []);
 
-  const band: BaiBand | null =
-    latestBai && latestBai.score >= 80
-      ? "excellent"
-      : latestBai && latestBai.score >= 60
-        ? "on_track"
-        : latestBai && latestBai.score >= 40
-          ? "building"
-          : latestBai
-            ? "getting_started"
-            : null;
+  const band: BaiBand | null = latestBai ? bandOf(latestBai.score) : null;
   const bandCopy = band ? BAI_BAND_COPY[band] : null;
 
   return (

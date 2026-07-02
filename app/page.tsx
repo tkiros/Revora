@@ -25,6 +25,7 @@ export default function HomePage() {
 
         <footer className="page-footer">
           <Link href="/history">Your week</Link>
+          <Link href="/progress">Progress</Link>
           <Link href="/privacy">Privacy</Link>
         </footer>
       </div>

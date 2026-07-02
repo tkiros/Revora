@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { routeA1C } from "../../lib/revora/a1c";
+import { track } from "../../lib/client/analytics";
 import { profileStore } from "../../lib/client/profile-store";
 
 const DISCLAIMER =
@@ -56,6 +57,7 @@ export default function OnboardingPage() {
     if (a1cValue !== null) {
       profileStore.set({ a1c: a1cValue, onboardedAt: new Date().toISOString() });
     }
+    track({ name: "onboarding_completed" });
     router.push("/");
   }
 

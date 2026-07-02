@@ -3,47 +3,149 @@ import { NextResponse } from "next/server";
 import { getLaunchControls } from "../../../lib/revora/launch-controls";
 import { getRevoraEnv } from "../../../lib/revora/env";
 import { isRateLimitConfigured } from "../../../lib/revora/rate-limit";
+import { captureServerError } from "../../../lib/revora/sentry-capture";
+import { getDb, schema, type Db } from "../../../lib/server/db";
 
 export const runtime = "nodejs";
 
-export async function GET() {
-  let environment: "preview" | "production" | "development" | "test";
+// Staleness windows mirror each cron's own cadence with slack: nudge runs
+// hourly (vercel.json "0 * * * *"), bai-weekly runs Mondays (vercel.json
+// "30 4 * * 1").
+const NUDGE_STALE_MS = 2 * 60 * 60 * 1000; // 2 hours
+const BAI_WEEKLY_STALE_MS = 8 * 24 * 60 * 60 * 1000; // 8 days
+
+type DbProbeStatus = "ok" | "error" | "unconfigured";
+type CronProbeStatus = "ok" | "stale" | "never" | "unknown";
+type CronsProbe = { nudge: CronProbeStatus; baiWeekly: CronProbeStatus };
+
+const UNKNOWN_CRONS: CronsProbe = { nudge: "unknown", baiWeekly: "unknown" };
+
+export type HealthDeps = {
+  db?: () => Db;
+  now?: () => Date;
+};
+
+/**
+ * Handler-factory pattern (matches createNudgeCronHandler /
+ * createBaiCronHandler): real defaults, PGlite-injectable for tests.
+ */
+export function createHealthHandler(deps: HealthDeps = {}) {
+  const dbAccessor = deps.db ?? getDb;
+  const now = deps.now ?? (() => new Date());
+
+  return async function GET() {
+    const { db, crons } = await probeDbAndCrons(dbAccessor, now());
+
+    let environment: "preview" | "production" | "development" | "test";
+
+    try {
+      const env = getRevoraEnv();
+      environment = env.environment;
+    } catch {
+      // OPENAI_API_KEY missing — still report env/launch state from what we know
+      environment = detectEnvironment(process.env);
+
+      return NextResponse.json(
+        {
+          ok: false,
+          environment,
+          launch: "missing_config",
+          launchMode: "normal",
+          upstash: isRateLimitConfigured() ? "configured" : "unconfigured",
+          db,
+          crons
+        },
+        { status: 503 }
+      );
+    }
+
+    // Read launch state from the shared seam (same state the middleware uses)
+    const controls = await getLaunchControls();
+    const launchMode = controls.launchMode;
+    const isPaused = !controls.publicChecksEnabled || launchMode === "paused";
+
+    return NextResponse.json({
+      ok: true,
+      environment,
+      launch: isPaused ? "paused" : "ready",
+      launchMode,
+      // Surfaces the merge-gate dependency: middleware fails CLOSED (503) on a
+      // public deploy when Upstash env is absent. ponytail: presence only, no live
+      // ping and no client construction — the limiter fails open on reachability, so
+      // a ping failure isn't app-fatal and doesn't belong in a frequently-hit probe.
+      upstash: isRateLimitConfigured() ? "configured" : "unconfigured",
+      // db/crons are visibility-only (P7): a db error or stale/never cron
+      // never flips `ok` false — guests are still served without a DB, and a
+      // missed cron tick isn't an outage. Never secrets, URLs, or counts.
+      db,
+      crons
+    });
+  };
+}
+
+export const GET = createHealthHandler();
+
+/**
+ * db: "unconfigured" is detected from getDb()'s own "DATABASE_URL is not
+ * set." throw rather than reading process.env.DATABASE_URL directly — tests
+ * inject a PGlite `db` accessor that never consults that env var, so this
+ * keeps the three states (ok/error/unconfigured) correct under injection
+ * instead of only under the real singleton.
+ *
+ * crons stays "unknown"/"unknown" whenever db isn't "ok" (chosen over
+ * omitting the key — see task report — so consumers always get a stable
+ * response shape to parse).
+ */
+async function probeDbAndCrons(
+  dbAccessor: () => Db,
+  now: Date
+): Promise<{ db: DbProbeStatus; crons: CronsProbe }> {
+  let db: Db;
 
   try {
-    const env = getRevoraEnv();
-    environment = env.environment;
-  } catch {
-    // OPENAI_API_KEY missing — still report env/launch state from what we know
-    environment = detectEnvironment(process.env);
-
-    return NextResponse.json(
-      {
-        ok: false,
-        environment,
-        launch: "missing_config",
-        launchMode: "normal",
-        upstash: isRateLimitConfigured() ? "configured" : "unconfigured"
-      },
-      { status: 503 }
-    );
+    db = dbAccessor();
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === "DATABASE_URL is not set."
+    ) {
+      return { db: "unconfigured", crons: UNKNOWN_CRONS };
+    }
+    await captureServerError(error, "route");
+    return { db: "error", crons: UNKNOWN_CRONS };
   }
 
-  // Read launch state from the shared seam (same state the middleware uses)
-  const controls = await getLaunchControls();
-  const launchMode = controls.launchMode;
-  const isPaused = !controls.publicChecksEnabled || launchMode === "paused";
+  try {
+    const heartbeats = await db.select().from(schema.cronHeartbeat);
+    const nudgeAt = heartbeats.find((row) => row.name === "nudge")?.lastRunAt;
+    const baiAt = heartbeats.find(
+      (row) => row.name === "bai-weekly"
+    )?.lastRunAt;
 
-  return NextResponse.json({
-    ok: true,
-    environment,
-    launch: isPaused ? "paused" : "ready",
-    launchMode,
-    // Surfaces the merge-gate dependency: middleware fails CLOSED (503) on a
-    // public deploy when Upstash env is absent. ponytail: presence only, no live
-    // ping and no client construction — the limiter fails open on reachability, so
-    // a ping failure isn't app-fatal and doesn't belong in a frequently-hit probe.
-    upstash: isRateLimitConfigured() ? "configured" : "unconfigured"
-  });
+    return {
+      db: "ok",
+      crons: {
+        nudge: cronStatus(nudgeAt, now, NUDGE_STALE_MS),
+        baiWeekly: cronStatus(baiAt, now, BAI_WEEKLY_STALE_MS)
+      }
+    };
+  } catch (error) {
+    await captureServerError(error, "route");
+    return { db: "error", crons: UNKNOWN_CRONS };
+  }
+}
+
+function cronStatus(
+  lastRunAt: Date | undefined,
+  now: Date,
+  staleMs: number
+): CronProbeStatus {
+  if (!lastRunAt) {
+    return "never";
+  }
+  return new Date(lastRunAt).getTime() < now.getTime() - staleMs
+    ? "stale"
+    : "ok";
 }
 
 function detectEnvironment(
