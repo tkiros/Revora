@@ -1,4 +1,11 @@
-> **Forward note (2026-06-30, coach pivot):** The "no account / no server database / no saved history" stance remains TRUE for the current app and through coach Steps 1–3 (history is on-device localStorage only). It changes ONLY at coach Step 4 (Pay → backend + identity + server-side history). When Step 4 lands, THIS document, the in-app privacy copy, and the Play Data Safety form MUST be updated in lockstep. See `docs/implementation-plan-to-play.md` Phase 5.
+> **Status note (2026-07-01, full build 4B):** the posture change has landed —
+> accounts (email magic-link), server-side history, subscription billing, and
+> an opt-in daily push now ship. A1C + meal text are stored **encrypted at
+> rest (AES-256-GCM)** only after an explicit consent checkbox; deletion is
+> in-app plus a public URL. `/privacy`, `docs/privacy/data-flow.md`, and the
+> Play Data Safety mapping were updated in the same PR (the lockstep rule).
+> Questions 5–9 below are NEW and arise from this change and from the launch
+> plan (`docs/production-implementation-plan-2026-07-01.md` §7 B1).
 
 # Revora — Legal Counsel Brief (Phase 4 · Task 4.4)
 
@@ -39,6 +46,41 @@ though the product is positioned as informational-only.
 4. **Parallel-launch risk.** Confirm the residual regulatory risk of launching
    informational-only while review is ongoing is understood and acceptable, and
    flag any condition that should hard-block launch.
+5. **Longitudinal insights & SaMD (NEW).** The app now derives rule-based
+   patterns from a user's tracked meal history ("Most of your 'be careful'
+   meals are breakfast — that's where one swap helps most this week"). An
+   adversarial internal review rated this closer to the device line than the
+   one-shot check. Does personalized longitudinal insight over stored health
+   data change the SaMD analysis? (If flagged, the insight surface is
+   feature-flagged via launch-controls without touching the rest.)
+6. **GDPR Art. 9 consent wording (NEW).** A1C is special-category health
+   data. Review/approve the explicit-consent checkbox wording used at account
+   setup (marked `COUNSEL-DRAFT` in `app/welcome/page.tsx`): storage purpose,
+   encryption, revocability via deletion. US-only launch is the default, but
+   the consent structure is built to GDPR standard.
+7. **Refund-policy adequacy (NEW).** Subscriptions via Google Play Billing
+   (primary) + Stripe web fallback. Review the refund stance in
+   `docs/ops/support-playbook.md` for FTC/negative-option and Play-policy
+   adequacy, including the frictionless-cancellation path.
+8. **The three "reversal" lines (NEW).** `Revora_Brand_Positioning_v2.md`
+   L240/287/295 contain app-as-agent "reversal" phrasings. Product copy uses
+   only the user-as-agent line ("Reversal is achieved through your dietary
+   choices — Revora gives you the clarity to make them."). Rewrite or kill the
+   three flagged lines; confirm the user-as-agent line is the ceiling.
+9. **Imaging input & SaMD (forward-looking only — NEW).** A photo-assist
+   input (vision model drafts a meal description; the user must confirm every
+   class-critical detail before the unchanged text engine judges) is fully
+   specified but NOT built. What would push an imaging input across the SaMD
+   line? This answer gates any future build (plan §6.3); nothing ships now.
+10. **Terms of Service review (NEW, P9).** `app/terms/page.tsx` is a
+    plain-language ToS draft (marked `COUNSEL-DRAFT` in-app, visible
+    "Last updated" date) covering eligibility, accounts, subscriptions/
+    billing/refunds, free-tier limits, health-data consent (cross-references
+    `/privacy`), IP/license, termination, availability, and liability. Two
+    items are left as placeholders pending counsel: the operating-entity
+    name in the ownership/license clause, and the governing law/venue
+    clause. Please also confirm the liability-limitation and no-warranty
+    wording is adequate given the refund stance from Q7.
 
 ## Homework already done (provide to counsel)
 
@@ -61,8 +103,12 @@ though the product is positioned as informational-only.
   locks the single contract disclaimer onto every response kind.
 - **Informational-only, qualitative** — no numeric glucose/GI/GL/future-A1C
   output (safety-contract fixture + eval tests).
-- **Privacy-minimal** — no accounts, no DB, no history, no raw logging;
-  `store: false` on every model call.
+- **Privacy, stateful posture (updated 4B)** — guests: nothing stored;
+  accounts: A1C + meal text encrypted at rest (AES-256-GCM), consent-gated,
+  owner-scoped reads (cross-user 401/403 tested), cascade deletion with a
+  public URL; raw food/A1C/email excluded from logs, Sentry, and analytics by
+  automated tests (`privacy-stateful.test.ts`, `sentry-scrub.test.ts`);
+  `store: false` still on every model call.
 
 ## Acceptance
 

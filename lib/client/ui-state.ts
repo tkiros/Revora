@@ -7,6 +7,8 @@ export type RevoraUserResponse =
       reason: string;
       adjustment: string | null;
       swap: string | null;
+      sequencingTip: string | null;
+      postMealAction: string | null;
       disclaimer: string;
     }
   | {
@@ -26,6 +28,12 @@ export type RevoraUserResponse =
     }
   | {
       kind: "retry";
+      message: string;
+      disclaimer: string;
+    }
+  | {
+      // 4D free-tier limit reached — calm upsell, rendered like a card
+      kind: "upsell";
       message: string;
       disclaimer: string;
     };

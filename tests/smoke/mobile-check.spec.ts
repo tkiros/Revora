@@ -2,6 +2,7 @@ import { expect, test, type Page, type Route } from "@playwright/test";
 
 type StubScenario =
   | { kind: "result" }
+  | { kind: "moderate" }
   | { kind: "clarify" }
   | { kind: "retry" }
   | { kind: "not_food" }
@@ -34,6 +35,20 @@ async function fulfillCheckRoute(route: Route, scenario: StubScenario) {
       reason: "This looks balanced enough for your usual plan.",
       adjustment: "Keep the rice portion moderate.",
       swap: null,
+      sequencingTip: null,
+      postMealAction: null,
+      disclaimer: "Not medical advice."
+    },
+    moderate: {
+      kind: "result",
+      risk: "MODERATE",
+      reason: "This leans heavily on refined carbs.",
+      adjustment: "If practical, add protein or nonstarchy vegetables.",
+      swap: "If you have the option, swap to a less refined version.",
+      sequencingTip:
+        "If practical, start with the vegetables or protein on your plate and save the carb-heavy part for last.",
+      postMealAction:
+        "A short 10–15 minute walk after this meal is a calm next step.",
       disclaimer: "Not medical advice."
     },
     clarify: {
@@ -158,6 +173,31 @@ test("single screen flow", async ({ page }) => {
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
+test("decision card v2 blocks render for MODERATE and not for SAFE", async ({
+  page
+}) => {
+  await stubCheckRoute(page, { kind: "moderate" });
+  await page.goto("/");
+  await fillValidForm(page);
+  await page.getByRole("button", { name: "Should I eat this?" }).click();
+
+  await expect(page.getByTestId("sequencing-tip")).toContainText(
+    "Eat it in this order:"
+  );
+  await expect(page.getByTestId("post-meal-action")).toContainText(
+    "After this meal:"
+  );
+
+  await page.unrouteAll();
+  await stubCheckRoute(page, { kind: "result" });
+  await fillValidForm(page, { food: "egg scramble with spinach" });
+  await page.getByRole("button", { name: "Should I eat this?" }).click();
+
+  await expect(page.getByTestId("result-card")).toBeVisible();
+  await expect(page.getByTestId("sequencing-tip")).toHaveCount(0);
+  await expect(page.getByTestId("post-meal-action")).toHaveCount(0);
+});
+
 test("loading state", async ({ page }) => {
   await stubCheckRoute(page, { kind: "slow" });
   await page.goto("/");
@@ -229,7 +269,7 @@ test("offline submit short-circuits before any network call", async ({
   await page.getByRole("button", { name: "Should I eat this?" }).click();
 
   await expect(page.getByText(/check your connection/i)).toBeVisible();
-  await expect(page.getByText("SAFE")).toHaveCount(0);
+  await expect(page.getByText("Clear", { exact: true })).toHaveCount(0);
   expect(apiCalls).toBe(0);
 });
 
@@ -240,7 +280,7 @@ test("normal response before five seconds", async ({ page }) => {
 
   await page.getByRole("button", { name: "Should I eat this?" }).click();
 
-  await expect(page.getByText("SAFE")).toBeVisible();
+  await expect(page.getByText("Clear", { exact: true })).toBeVisible();
   await expect(
     page.getByText("This looks balanced enough for your usual plan.")
   ).toBeVisible();

@@ -3,7 +3,11 @@
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 
+import { track } from "../lib/client/analytics";
 import { submitCheck } from "../lib/client/check";
+import { historyStore } from "../lib/client/history-store";
+import { profileStore } from "../lib/client/profile-store";
+import { routeA1C } from "../lib/revora/a1c";
 import {
   type CheckUiState,
   isSlowThresholdReached,
@@ -15,6 +19,7 @@ import {
 } from "../lib/client/validation";
 import { RequestStatus } from "./request-status";
 import { ResultCard } from "./result-card";
+import { VoiceInputButton } from "./voice-input-button";
 
 type FieldErrors = Partial<Record<"food" | "a1c", string>>;
 
@@ -23,9 +28,33 @@ export function FoodCheckForm() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [uiState, setUiState] = useState<CheckUiState>({ kind: "idle" });
   const [isHydrated, setIsHydrated] = useState(false);
+  const [inputMethod, setInputMethod] = useState<"text" | "voice">("text");
+  const [lastCheckId, setLastCheckId] = useState<string | null>(null);
+  const [actionDone, setActionDone] = useState(false);
 
   useEffect(() => {
     setIsHydrated(true);
+
+    // Daily-loop conveniences (P3): remember the onboarding A1C, and honor a
+    // one-tap re-check handoff from the history page. Storage reads stay
+    // outside the setState updater — updaters must be pure (StrictMode
+    // double-invokes them).
+    const profile = profileStore.get();
+    let recheck: string | null = null;
+    try {
+      recheck = window.sessionStorage.getItem("revora.recheck");
+      if (recheck) {
+        window.sessionStorage.removeItem("revora.recheck");
+      }
+    } catch {
+      // best-effort prefill only
+    }
+
+    setInput((current) => ({
+      food: current.food === "" && recheck ? recheck : current.food,
+      a1c:
+        current.a1c === "" && profile ? profile.a1c.toFixed(1) : current.a1c
+    }));
   }, []);
 
   const isSubmitting =
@@ -79,7 +108,33 @@ export function FoodCheckForm() {
     }, 5_000);
 
     try {
-      const response = await submitCheck(result.data);
+      // One id shared by the on-device copy and the server row (4B) so the
+      // sign-in migration dedupes instead of duplicating.
+      const clientId = crypto.randomUUID();
+      const response = await submitCheck(result.data, {
+        clientId,
+        inputMethod
+      });
+
+      // Meal memory (P3): persist successful verdicts on-device. Non-result
+      // kinds (clarify/not_food/out_of_scope/retry) are moments, not meals.
+      if (response.kind === "result") {
+        historyStore.add({
+          clientId,
+          food: result.data.food,
+          risk: response.risk,
+          a1cBand: routeA1C(result.data.a1c).band,
+          inputMethod,
+          createdAt: new Date().toISOString()
+        });
+        setLastCheckId(clientId);
+        setActionDone(false);
+        track({
+          name: "check_completed",
+          props: { risk: response.risk, kind: response.kind, input_method: inputMethod }
+        });
+      }
+
       setUiState({ kind: "done", response });
     } catch (error) {
       setUiState({ kind: "error", message: mapCheckFailure(error) });
@@ -97,6 +152,22 @@ export function FoodCheckForm() {
     }
   }
 
+  function handleVoiceTranscript(transcript: string) {
+    // The transcript lands in the same textarea; the user reviews, edits, and
+    // submits their own words — the identical text path and engine (§6.2).
+    handleChange("food", transcript);
+    setInputMethod("voice");
+  }
+
+  function handleTypedFoodChange(value: string) {
+    handleChange("food", value);
+    // ponytail: an emptied field restarts as typed input; small edits after a
+    // dictation keep counting as voice — good enough for the method signal.
+    if (value.trim().length === 0) {
+      setInputMethod("text");
+    }
+  }
+
   if (!isHydrated) {
     return (
       <section aria-live="polite" className="placeholder-card">
@@ -109,7 +180,12 @@ export function FoodCheckForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="form-grid" noValidate>
+    <form
+      onSubmit={handleSubmit}
+      className="form-grid"
+      data-input-method={inputMethod}
+      noValidate
+    >
       <div className="field-stack">
         <label htmlFor="food" className="field-label">
           What are you thinking about eating?
@@ -120,7 +196,7 @@ export function FoodCheckForm() {
           rows={3}
           value={input.food}
           onChange={(event) => {
-            handleChange("food", event.target.value);
+            handleTypedFoodChange(event.target.value);
           }}
           enterKeyHint="go"
           placeholder="Example: grilled chicken with rice and salad"
@@ -133,6 +209,10 @@ export function FoodCheckForm() {
             {errors.food}
           </p>
         ) : null}
+        <VoiceInputButton
+          onTranscript={handleVoiceTranscript}
+          disabled={isSubmitting}
+        />
       </div>
 
       <div className="field-stack">
@@ -174,7 +254,25 @@ export function FoodCheckForm() {
       uiState.kind === "error" ? (
         <RequestStatus state={uiState} />
       ) : uiState.kind === "done" ? (
-        <ResultCard response={uiState.response} />
+        <ResultCard
+          response={uiState.response}
+          actionDone={actionDone}
+          onActionDone={
+            lastCheckId
+              ? () => {
+                  historyStore.markActionDone(lastCheckId);
+                  setActionDone(true);
+                  // Signed-in: mirror the ack server-side (guests get 401 —
+                  // fire-and-forget either way).
+                  void fetch("/api/history/action", {
+                    method: "POST",
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify({ clientId: lastCheckId })
+                  }).catch(() => undefined);
+                }
+              : undefined
+          }
+        />
       ) : (
         <section aria-live="polite" className="placeholder-card">
           <p className="placeholder-title">Response area</p>

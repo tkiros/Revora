@@ -92,7 +92,9 @@ describe("GET /api/health", () => {
       environment: "preview",
       launch: "ready",
       launchMode: "normal",
-      upstash: "unconfigured"
+      upstash: "unconfigured",
+      db: "unconfigured",
+      crons: { nudge: "unknown", baiWeekly: "unknown" }
     });
     expect(JSON.stringify(payload)).not.toContain("sk-preview");
     expect(JSON.stringify(payload)).not.toContain("ecfg_connection_string");
@@ -118,7 +120,9 @@ describe("GET /api/health", () => {
       environment: "development",
       launch: "missing_config",
       launchMode: "normal",
-      upstash: "unconfigured"
+      upstash: "unconfigured",
+      db: "unconfigured",
+      crons: { nudge: "unknown", baiWeekly: "unknown" }
     });
   });
 });

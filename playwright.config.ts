@@ -21,7 +21,13 @@ export default defineConfig({
     reuseExistingServer: false,
     stdout: "pipe",
     stderr: "pipe",
-    timeout: 120000
+    timeout: 120000,
+    env: {
+      // A syntactically-valid VAPID public key so the nudge opt-in flow can
+      // run end-to-end against mocked push APIs (never used to send).
+      NEXT_PUBLIC_VAPID_PUBLIC_KEY:
+        "BDd3_hVL9fZi9Ybo2UUmA0mNzLFmwEsuJdyxdCLVQV-XFotN0jkNqp7GQ96_2enX0mUeXBIvBqXAiCveKuMhGJ0"
+    }
   },
   projects: [
     {

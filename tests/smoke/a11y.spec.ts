@@ -26,7 +26,42 @@ test("privacy page has no critical or serious a11y violations", async ({
 }) => {
   await page.goto("/privacy");
   await expect(
-    page.getByRole("heading", { name: /how revora handles your input/i })
+    page.getByRole("heading", { name: /how revora handles your data/i })
+  ).toBeVisible();
+
+  expect(await blockingViolations(page)).toEqual([]);
+});
+
+test("terms page has no critical or serious a11y violations", async ({
+  page
+}) => {
+  await page.goto("/terms");
+  await expect(
+    page.getByRole("heading", { name: /terms of service/i })
+  ).toBeVisible();
+
+  expect(await blockingViolations(page)).toEqual([]);
+});
+
+test("signin page has no critical or serious a11y violations", async ({
+  page
+}) => {
+  // Default env (no NEXT_PUBLIC_REVIEWER_MODE) — the reviewer-access form is
+  // absent, same as production.
+  await page.goto("/signin");
+  await expect(
+    page.getByRole("heading", { name: /sign in with your email/i })
+  ).toBeVisible();
+
+  expect(await blockingViolations(page)).toEqual([]);
+});
+
+test("check-email page has no critical or serious a11y violations", async ({
+  page
+}) => {
+  await page.goto("/signin/check-email");
+  await expect(
+    page.getByRole("heading", { name: /check your email/i })
   ).toBeVisible();
 
   expect(await blockingViolations(page)).toEqual([]);
