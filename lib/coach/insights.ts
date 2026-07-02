@@ -18,8 +18,15 @@ const MIN_REPEATS_FOR_MEAL = 3;
 
 type Daypart = "breakfast" | "lunch" | "dinner";
 
-function daypartOf(createdAt: string): Daypart {
-  const hour = new Date(createdAt).getHours();
+export type InsightOptions = {
+  // Hour extractor — defaults to the device-local hour; the server passes a
+  // profile-timezone extractor (lib/coach/days.ts hourInTimezone) so dayparts
+  // match what the user experienced.
+  hourOf?: (createdAt: string) => number;
+};
+
+function daypartOf(createdAt: string, hourOf?: InsightOptions["hourOf"]): Daypart {
+  const hour = hourOf ? hourOf(createdAt) : new Date(createdAt).getHours();
   if (hour < 11) {
     return "breakfast";
   }
@@ -29,12 +36,15 @@ function daypartOf(createdAt: string): Daypart {
   return "dinner";
 }
 
-export function deriveInsight(checks: StoredCheck[]): CoachInsight | null {
+export function deriveInsight(
+  checks: StoredCheck[],
+  options: InsightOptions = {}
+): CoachInsight | null {
   if (checks.length < MIN_CHECKS_FOR_INSIGHT) {
     return null;
   }
 
-  const daypart = deriveDaypartInsight(checks);
+  const daypart = deriveDaypartInsight(checks, options);
   if (daypart) {
     return daypart;
   }
@@ -42,7 +52,10 @@ export function deriveInsight(checks: StoredCheck[]): CoachInsight | null {
   return deriveRepeatMealInsight(checks);
 }
 
-function deriveDaypartInsight(checks: StoredCheck[]): CoachInsight | null {
+function deriveDaypartInsight(
+  checks: StoredCheck[],
+  options: InsightOptions
+): CoachInsight | null {
   const careful = checks.filter(
     (check) => check.risk === "MODERATE" || check.risk === "HIGH"
   );
@@ -53,7 +66,7 @@ function deriveDaypartInsight(checks: StoredCheck[]): CoachInsight | null {
 
   const counts = new Map<Daypart, number>();
   for (const check of careful) {
-    const part = daypartOf(check.createdAt);
+    const part = daypartOf(check.createdAt, options.hourOf);
     counts.set(part, (counts.get(part) ?? 0) + 1);
   }
 
@@ -76,6 +89,9 @@ function deriveRepeatMealInsight(checks: StoredCheck[]): CoachInsight | null {
   const counts = new Map<string, number>();
   for (const check of checks) {
     const key = check.food.trim().toLowerCase();
+    if (key.length === 0) {
+      continue; // server rows carry no plaintext food — rule stays client-side
+    }
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
 

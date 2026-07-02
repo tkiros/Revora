@@ -47,6 +47,15 @@ export function computeStreak(
   return streak;
 }
 
+export function hourInTimezone(timezone: string): (date: Date) => number {
+  const format = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    hour: "numeric",
+    hour12: false
+  });
+  return (date: Date) => Number(format.format(date)) % 24;
+}
+
 export type WeekDay = { key: string; checked: boolean };
 
 /** Last seven calendar days, oldest first. */

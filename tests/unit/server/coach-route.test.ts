@@ -1,0 +1,101 @@
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import { createCoachRouteHandler } from "../../../app/api/coach/route";
+import { encryptField } from "../../../lib/server/crypto";
+import { schema } from "../../../lib/server/db";
+import { createTestDb } from "../../helpers/test-db";
+
+const TEST_KEY = Buffer.alloc(32, 2).toString("base64");
+const NOW = new Date("2026-07-03T15:00:00.000Z");
+
+let testDb: Awaited<ReturnType<typeof createTestDb>>;
+let userId: string;
+
+beforeAll(async () => {
+  process.env.HEALTH_DATA_KEY = TEST_KEY;
+  testDb = await createTestDb();
+
+  const [user] = await testDb.db
+    .insert(schema.users)
+    .values({ email: "coach@test.dev" })
+    .returning();
+  userId = user.id;
+
+  await testDb.db.insert(schema.profiles).values({
+    userId,
+    a1cCiphertext: encryptField("6.1"),
+    a1cBand: "prediabetes_60_62",
+    timezone: "UTC",
+    consentedAt: NOW
+  });
+
+  const day = (offset: number, hourUtc: number) =>
+    new Date(Date.UTC(2026, 6, 3 - offset, hourUtc, 0, 0));
+
+  await testDb.db.insert(schema.checks).values(
+    (
+      [
+        [0, 8, "MODERATE"],
+        [1, 8, "HIGH"],
+        [2, 9, "MODERATE"],
+        [1, 13, "SAFE"],
+        [2, 19, "SAFE"]
+      ] as const
+    ).map(([offset, hour, risk]) => ({
+      userId,
+      foodCiphertext: encryptField("secret salmon plate"),
+      risk,
+      a1cBand: "prediabetes_60_62",
+      createdAt: day(offset, hour)
+    }))
+  );
+
+  await testDb.db.insert(schema.baiWeekly).values({
+    userId,
+    weekStart: "2026-06-29",
+    score: 72,
+    adherence: 71,
+    consistency: 66,
+    action: 90
+  });
+});
+
+afterAll(async () => {
+  delete process.env.HEALTH_DATA_KEY;
+  await testDb.close();
+});
+
+describe("GET /api/coach", () => {
+  it("401s signed-out requests", async () => {
+    const GET = createCoachRouteHandler({
+      db: () => testDb.db,
+      getSession: async () => null,
+      now: () => NOW
+    });
+
+    expect((await GET()).status).toBe(401);
+  });
+
+  it("returns streak, week view, daypart insight, and the latest BAI — no food, no exact a1c", async () => {
+    const GET = createCoachRouteHandler({
+      db: () => testDb.db,
+      getSession: async () => ({ userId, email: "coach@test.dev" }),
+      now: () => NOW
+    });
+
+    const response = await GET();
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.streak).toBe(3);
+    expect(body.weekView).toHaveLength(7);
+    expect(body.insight.id).toBe("daypart");
+    expect(body.insight.text).toContain("breakfast");
+    expect(body.latestBai).toMatchObject({ score: 72, adherence: 71 });
+
+    const serialized = JSON.stringify(body);
+    expect(serialized).not.toContain("salmon");
+    expect(serialized).not.toContain("6.1");
+    expect(serialized).not.toContain("coach@test.dev");
+  });
+});
