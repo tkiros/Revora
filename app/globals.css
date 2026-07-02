@@ -549,3 +549,23 @@ textarea.text-input {
     padding: 24px;
   }
 }
+
+/* Account / consent (P4) */
+
+.consent-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.consent-row input[type="checkbox"] {
+  margin-top: 4px;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.consent-label {
+  font-size: 14px;
+  line-height: 1.55;
+}
