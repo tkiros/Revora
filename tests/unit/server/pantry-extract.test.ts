@@ -73,10 +73,16 @@ describe("pantry vision extraction", () => {
   it("stub seam is refused in production", async () => {
     process.env.PANTRY_EXTRACT_STUB = "1";
     process.env.VERCEL_ENV = "production";
-    const client = createPantryVisionClient();
-    // Without a transport or api key the live path must throw — proving the
-    // stub did NOT activate in production.
-    await expect(client.extractFromPhoto("ignored")).rejects.toThrow();
+    // Inject a transport whose create rejects. If the stub were (wrongly)
+    // active it would return STUB_ITEMS without ever touching the transport;
+    // because the call rejects, we prove the live path ran and the stub did
+    // NOT activate — independent of any ambient OPENAI_API_KEY.
+    const create = vi.fn().mockRejectedValue(new Error("live path reached"));
+    const client = createPantryVisionClient({ client: { responses: { create } } });
+    await expect(client.extractFromPhoto("ignored")).rejects.toThrow(
+      "live path reached"
+    );
+    expect(create).toHaveBeenCalledTimes(1);
   });
 
   it("normalizeItemName lowercases, trims, and collapses spaces", () => {
