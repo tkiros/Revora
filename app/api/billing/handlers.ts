@@ -15,6 +15,7 @@ import {
   type SessionInfo
 } from "../../../lib/server/session";
 import { generateClaimToken } from "../../../lib/server/pantry/claims";
+import { intakeEmailText } from "../../../lib/server/pantry/emails";
 import { sendEmail, type SendEmailResult } from "../../../lib/server/email";
 
 /**
@@ -495,18 +496,7 @@ async function applyPantryCheckout(
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const result = await (email?.send ?? sendEmail)({
     to: buyerEmail,
-    subject: "Your Pantry Review is paid for — let's set it up",
-    text: [
-      "Thanks — your Pantry Review is paid for.",
-      "",
-      "Set it up here (sign-in takes one tap, no password):",
-      `${appUrl}/pantry/claim?token=${token}`,
-      "",
-      "You'll add photos of your pantry or typical meals, confirm what we",
-      "saw, and get your report by email within 7 days.",
-      "",
-      `Questions? Reply to this email or write to ${process.env.SUPPORT_EMAIL ?? "support@revora.app"}.`
-    ].join("\n")
+    ...intakeEmailText(appUrl, token)
   });
 
   if (result.ok) {
