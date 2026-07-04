@@ -682,3 +682,21 @@ textarea.text-input {
   font-size: 13px;
   color: var(--text-muted);
 }
+
+/* Pantry intake: thumbnail row + consent label. Tokens/radius from DESIGN.md,
+   no new colors/shadows. */
+.pantry-thumb-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+}
+.pantry-thumb-row img {
+  border-radius: 14px;
+  object-fit: cover;
+}
+.pantry-consent {
+  font-weight: 400;
+  line-height: 1.5;
+}
