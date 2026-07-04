@@ -10,7 +10,18 @@ export const metadata = { title: "Sign in — Revora" };
 // at build time, so this is a static `false` in the production bundle.
 const REVIEWER_MODE = process.env.NEXT_PUBLIC_REVIEWER_MODE === "1";
 
-export default function SignInPage() {
+export default async function SignInPage({
+  searchParams
+}: {
+  searchParams: Promise<{ callbackUrl?: string }>;
+}) {
+  const { callbackUrl } = await searchParams;
+  // Relative, single-slash paths only — never an open redirect.
+  const redirectTo =
+    callbackUrl?.startsWith("/") && !callbackUrl.startsWith("//")
+      ? callbackUrl
+      : "/welcome";
+
   return (
     <main className="page-shell">
       <div className="page-frame">
@@ -26,12 +37,18 @@ export default function SignInPage() {
             className="form-grid"
             action={async (formData: FormData) => {
               "use server";
+              // Re-validate: the hidden input is client-tamperable, so an
+              // absolute or protocol-relative value must never reach signIn.
+              const raw = String(formData.get("callbackUrl") ?? "");
+              const target =
+                raw.startsWith("/") && !raw.startsWith("//") ? raw : "/welcome";
               await signIn("resend", {
                 email: String(formData.get("email") ?? ""),
-                redirectTo: "/welcome"
+                redirectTo: target
               });
             }}
           >
+            <input type="hidden" name="callbackUrl" value={redirectTo} />
             <div className="field-stack">
               <label htmlFor="email" className="field-label">
                 Email address
