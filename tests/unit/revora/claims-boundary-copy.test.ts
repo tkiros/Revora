@@ -50,6 +50,8 @@ const COPY_FILES = [
   "components/voice-input-button.tsx",
   "components/paywall-card.tsx",
   "components/reviewer-signin-form.tsx",
+  "components/print-button.tsx",
+  "app/report/[id]/page.tsx",
   "app/subscribe/page.tsx",
   "app/account/page.tsx",
   "app/account/delete/page.tsx",

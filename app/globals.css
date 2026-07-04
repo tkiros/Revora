@@ -721,3 +721,34 @@ textarea.text-input {
   background: var(--surface-muted);
   color: var(--text-strong);
 }
+
+.report-summary-strip {
+  font-weight: 700;
+  color: var(--text-strong);
+}
+.report-item { margin-top: 12px; }
+.report-item--safe { border-left: 4px solid var(--safe-border); }
+.report-item--moderate { border-left: 4px solid var(--moderate-border); }
+.report-item--high { border-left: 4px solid var(--high-border); }
+.report-item-name { font-weight: 700; color: var(--text-strong); }
+.report-item-portion { font-weight: 400; color: var(--text-muted); }
+
+@media print {
+  .report-actions,
+  .paywall-card,
+  nav,
+  footer {
+    display: none !important;
+  }
+  body,
+  .page-shell {
+    background: #fff !important;
+  }
+  .surface-card {
+    box-shadow: none !important;
+    border: none !important;
+  }
+  .report-item {
+    break-inside: avoid;
+  }
+}
