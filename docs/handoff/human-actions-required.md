@@ -24,10 +24,16 @@ Source inventory: `docs/production-implementation-plan-2026-07-01.md` §10. Stat
 
 ## §1 Accounts to create
 
-- ☐ Railway (Postgres database; backups on — supersedes the earlier Neon
+- ☐ Railway (Postgres database; backups on — supersedes the earlier Neon - Installed CLI and logged in
   plan, `docs/adr/hosting-hybrid.md`)
-- ☐ Resend (+ verified sending domain)
-- ☐ Upstash prod · ☐ Sentry prod · ☐ Vercel Edge Config · ☐ Umami
+- ☐ Resend (+ verified sending domain) - Signed up and the api is the enviroment file - CLI installed and authonticated
+- ☐ Upstash prod  - Signed up and API key setu in environment file - CLI installed and authoniticated - 
+  ☐ Sentry prod - Signed up - installed and authonticated CLI 
+  ☐ Vercel Edge Config · 
+  ☐ Umami - created cloude account - 
+  tried to install git clone https://github.com/umami-software/umami.git
+ cd umami
+ pnpm install but I keep getting errors 
   (self-hosted on Railway — supersedes the earlier Plausible plan,
   `docs/adr/analytics-umami.md`)
 - ⏳ Google Play Developer ($25)
@@ -35,15 +41,34 @@ Source inventory: `docs/production-implementation-plan-2026-07-01.md` §10. Stat
 - ☐ Vercel Pro (hourly crons + function limits)
 - ☐ OpenAI prod key/quota (exists — confirm limits)
 - ☐ Domain registrar
-- ☐ Stripe (account, verification, bank)
+- ☐ Stripe (account, verification, bank) - logged in, setup and authonticated the MCP
 
 ## §2 Secrets to provision in Vercel (preview + prod; ⚙ = session generates, human stores)
 
-`OPENAI_API_KEY` · `UPSTASH_REDIS_REST_URL`/`_TOKEN` · `SENTRY_DSN` · Edge Config · `DATABASE_URL` (Railway Postgres) · ⚙`AUTH_SECRET` · ⚙`HEALTH_DATA_KEY` · ⚙`VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` · `RESEND_API_KEY` · `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` + `PLAY_PACKAGE_NAME` + `RTDN_SHARED_TOKEN` · `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`/price IDs · `NEXT_PUBLIC_UMAMI_SRC`/`NEXT_PUBLIC_UMAMI_WEBSITE_ID` · `CRON_SECRET` · `NEXT_PUBLIC_APP_URL` · ⚙`REVIEWER_TEST_SECRET` (**preview only**) · `NEXT_PUBLIC_REVIEWER_MODE` (**preview only, never production**)
+`OPENAI_API_KEY` 
+· `UPSTASH_REDIS_REST_URL`/`_TOKEN` 
+· `SENTRY_DSN` · Edge Config 
+· `DATABASE_URL` (Railway Postgres) 
+· ⚙`AUTH_SECRET` · ⚙`HEALTH_DATA_KEY` 
+· ⚙`VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` 
+· `RESEND_API_KEY` 
+· `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` + `PLAY_PACKAGE_NAME` + `RTDN_SHARED_TOKEN` 
+· `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`/price IDs 
+· `NEXT_PUBLIC_UMAMI_SRC`/`NEXT_PUBLIC_UMAMI_WEBSITE_ID` 
+· `CRON_SECRET` 
+· `NEXT_PUBLIC_APP_URL` 
+· ⚙`REVIEWER_TEST_SECRET` (**preview only**) 
+· `NEXT_PUBLIC_REVIEWER_MODE` (**preview only, never production**)
 
 ## §3 Money
 
-Play $25 · Vercel Pro ~$20/mo · domain ~$12/yr · OpenAI usage · Railway/Resend/Umami-hosting/Upstash tiers · Stripe fees · counsel fees
+. Play $25 
+· Vercel Pro ~$20/mo 
+· domain ~$12/yr 
+· OpenAI usage 
+· Railway/Resend/Umami-hosting/Upstash tiers 
+· Stripe fees 
+· counsel fees
 
 ## §4 Legal / counsel / compliance
 

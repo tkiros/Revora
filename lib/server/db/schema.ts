@@ -212,3 +212,151 @@ export const cronHeartbeat = pgTable("cron_heartbeat", {
   lastRunAt: timestamp("last_run_at", { withTimezone: true }).notNull()
 });
 
+// ── Pantry Review pipeline (design doc 2026-07-04, eng review same day) ─────
+//
+// One-time paid report product, fully separate from `subscriptions` and
+// `checks` (report items must NEVER land in `checks` — they would corrupt
+// streaks/BAI/insights). Food names, portions, notes, and the report payload
+// are health-adjacent → AES-256-GCM ciphertext, same standard as `checks`.
+//
+// Order state machine (one direction, sweep can re-enter processing):
+//
+//   paid ──▶ claimed ──▶ submitted ──▶ extracting ──▶ awaiting_confirm
+//                                          │                 │
+//                                          ▼                 ▼
+//                                    needs_manual ◀──── processing ──▶ ready
+//   (canceled reachable from any state via charge.refunded)
+//
+// `userId` is null until the buyer clicks the claim link and signs in —
+// binding is by possession of `claimToken` (same trust model as magic-link
+// auth), NOT by email equality (aliases/relays/typos break equality).
+
+export const pantryOrders = pgTable(
+  "pantry_orders",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+    email: text("email").notNull(), // Stripe customer_details at purchase
+    stripeSessionId: text("stripe_session_id").notNull().unique(), // webhook idempotency
+    stripePaymentIntent: text("stripe_payment_intent"), // refund matching
+    claimToken: text("claim_token").notNull().unique(),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    status: text("status", {
+      enum: [
+        "paid",
+        "claimed",
+        "submitted",
+        "extracting",
+        "awaiting_confirm",
+        "processing",
+        "ready",
+        "needs_manual",
+        "canceled"
+      ]
+    })
+      .notNull()
+      .default("paid"),
+    // Buyer provides at intake (no profile requirement) — same bands as profiles.
+    a1cBand: text("a1c_band", {
+      enum: ["prediabetes_57_59", "prediabetes_60_62", "prediabetes_63_64"]
+    }),
+    a1cCiphertext: text("a1c_ciphertext"),
+    consentedAt: timestamp("consented_at", { withTimezone: true }), // Art. 9, at intake
+    notesCiphertext: text("notes_ciphertext"),
+    reportCiphertext: text("report_ciphertext"),
+    // Processing lease: sweep may resume only after lease expiry; the
+    // processor extends it while alive. Prevents double-runs (browser retry
+    // vs cron overlap) without a queue.
+    processingLeaseUntil: timestamp("processing_lease_until", {
+      withTimezone: true
+    }),
+    intakeEmailSentAt: timestamp("intake_email_sent_at", { withTimezone: true }),
+    deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (table) => [
+    index("pantry_orders_user").on(table.userId),
+    // Sweep scans non-terminal orders by age.
+    index("pantry_orders_sweep").on(table.status, table.updatedAt),
+    check(
+      "pantry_orders_status_check",
+      sql`${table.status} IN ('paid','claimed','submitted','extracting','awaiting_confirm','processing','ready','needs_manual','canceled')`
+    )
+  ]
+);
+
+export const pantryPhotos = pgTable(
+  "pantry_photos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => pantryOrders.id, { onDelete: "cascade" }),
+    blobUrl: text("blob_url").notNull(),
+    status: text("status", {
+      enum: ["uploaded", "extracted", "failed", "deleted"]
+    })
+      .notNull()
+      .default("uploaded"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (table) => [
+    index("pantry_photos_order").on(table.orderId),
+    check(
+      "pantry_photos_status_check",
+      sql`${table.status} IN ('uploaded','extracted','failed','deleted')`
+    )
+  ]
+);
+
+export const pantryItems = pgTable(
+  "pantry_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => pantryOrders.id, { onDelete: "cascade" }),
+    position: smallint("position").notNull().default(0),
+    nameCiphertext: text("name_ciphertext").notNull(),
+    portionCiphertext: text("portion_ciphertext"),
+    source: text("source", { enum: ["vision", "buyer"] })
+      .notNull()
+      .default("vision"),
+    status: text("status", {
+      enum: ["draft", "confirmed", "judged", "failed"]
+    })
+      .notNull()
+      .default("draft"),
+    // Plaintext like checks.risk so the report summary strip aggregates
+    // without decrypting; the full judged output stays ciphertext.
+    risk: text("risk", { enum: ["SAFE", "MODERATE", "HIGH"] }),
+    resultCiphertext: text("result_ciphertext"),
+    attempts: smallint("attempts").notNull().default(0),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (table) => [
+    index("pantry_items_order").on(table.orderId, table.position),
+    check(
+      "pantry_items_source_check",
+      sql`${table.source} IN ('vision','buyer')`
+    ),
+    check(
+      "pantry_items_status_check",
+      sql`${table.status} IN ('draft','confirmed','judged','failed')`
+    ),
+    check(
+      "pantry_items_risk_check",
+      sql`${table.risk} IS NULL OR ${table.risk} IN ('SAFE','MODERATE','HIGH')`
+    )
+  ]
+);
+
