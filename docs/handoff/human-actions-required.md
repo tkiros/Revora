@@ -34,10 +34,10 @@ Reconciled 2026-07-04 against docs/handoff/2026-07-04-unified-completion-plan.md
   unconfirmed**
 - ✅ done — Upstash prod: signed up, API key set in environment file, CLI
   installed and authenticated
-  ☐ open — Sentry prod: signed up, CLI installed and authenticated;
+- ☐ open — Sentry prod: signed up, CLI installed and authenticated;
   **`SENTRY_DSN` in Vercel unconfirmed**
-  ☐ open — Vercel Edge Config
-  ☐ open — Umami: cloud account created; self-host on Railway **failing**
+- ☐ open — Vercel Edge Config
+- ☐ open — Umami: cloud account created; self-host on Railway **failing**
   (`git clone` + `pnpm install` erroring) — decide cloud-vs-self-host, see
   Appendix A H8 (`docs/handoff/2026-07-04-unified-completion-plan.md`)
   (self-hosted on Railway — supersedes the earlier Plausible plan,
