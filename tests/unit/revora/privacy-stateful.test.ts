@@ -123,4 +123,13 @@ describe("stateful privacy allowlist", () => {
     expect(counselBrief).toMatch(/Longitudinal insights/i);
     expect(counselBrief).toMatch(/Imaging input/i);
   });
+
+  it("privacy page discloses pantry photos, vision extraction, and deletion-on-delivery", () => {
+    const source = read("app/privacy/page.tsx");
+    expect(source).toMatch(/Pantry Review/);
+    expect(source).toMatch(/photos/i);
+    expect(source).toMatch(/OpenAI/);
+    expect(source).toMatch(/deleted/i);
+    expect(source).toMatch(/encrypted/i);
+  });
 });

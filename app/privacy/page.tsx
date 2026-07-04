@@ -91,6 +91,19 @@ export default function PrivacyPage() {
             Revora&apos;s servers.
           </p>
 
+          <h2>Pantry Review photos</h2>
+          <p>
+            If you buy a Pantry Review, the photos you upload are stored
+            privately while your report is prepared and are deleted when it
+            is delivered. A vision model (via OpenAI&apos;s API, with{" "}
+            <code>store: false</code>) is used only to read the food items in
+            your photos into a list — you review and correct that list
+            yourself before anything is assessed. The item names, any notes
+            you add, your A1C range, and the finished report are stored
+            encrypted, the same way as your checks, and are removed if you
+            delete your account.
+          </p>
+
           <h2>What Revora records about usage</h2>
           <p>
             Only coarse, non-identifying operational signals — for example
