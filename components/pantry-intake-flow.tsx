@@ -4,6 +4,7 @@ import { upload } from "@vercel/blob/client";
 import { useState } from "react";
 
 import { downscaleToJpeg } from "../lib/client/downscale";
+import { PantryConfirmList } from "./pantry-confirm-list";
 
 type Item = { id: string; name: string; portion: string | null };
 type Phase =
@@ -267,8 +268,39 @@ export function PantryIntakeFlow({
                 be read — everything below came from the rest.
               </p>
             ) : null}
-            {/* Task 2.10 replaces this block with the editable confirm list. */}
-            <p className="page-copy">{items.length} items found.</p>
+            <p className="page-copy">
+              Here&apos;s what we saw — fix anything we got wrong.
+            </p>
+            <PantryConfirmList
+              initialItems={items.map((item) => ({
+                name: item.name,
+                portion: item.portion ?? ""
+              }))}
+              onConfirm={async (confirmed) => {
+                const response = await fetch("/api/pantry/confirm", {
+                  method: "POST",
+                  headers: { "content-type": "application/json" },
+                  body: JSON.stringify({
+                    orderId,
+                    items: confirmed.map((item) => ({
+                      name: item.name.trim(),
+                      portion: item.portion.trim() || null
+                    }))
+                  })
+                });
+                if (!response.ok && response.status !== 409) {
+                  throw new Error("confirm failed");
+                }
+                // Kick processing; the order also self-heals via the sweep if
+                // this request dies with the tab (Task 2.12).
+                void fetch("/api/pantry/process", {
+                  method: "POST",
+                  headers: { "content-type": "application/json" },
+                  body: JSON.stringify({ orderId })
+                });
+                setPhase("processing");
+              }}
+            />
           </section>
         ) : null}
 
