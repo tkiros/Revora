@@ -42,6 +42,22 @@ describe("Phase 7 — web manifest", () => {
       expect(bytes.subarray(0, 8).equals(PNG_MAGIC)).toBe(true);
     }
   });
+
+  it("manifest declares narrow screenshots that exist on disk", () => {
+    const screenshots = manifest.screenshots as
+      | { src: string; sizes: string; type: string; form_factor: string }[]
+      | undefined;
+
+    expect(screenshots?.length).toBeGreaterThanOrEqual(2);
+    for (const shot of screenshots ?? []) {
+      expect(shot.form_factor).toBe("narrow");
+      expect(shot.type).toBe("image/png");
+      expect(/^\d+x\d+$/.test(shot.sizes)).toBe(true);
+      const bytes = readFileSync(`public${shot.src}`);
+      expect(bytes.length).toBeGreaterThan(0);
+      expect(bytes.subarray(0, 8).equals(PNG_MAGIC)).toBe(true);
+    }
+  });
 });
 
 describe("Phase 7 — offline page", () => {
