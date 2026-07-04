@@ -5,6 +5,36 @@ import path from "node:path";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
+// Next dev compiles each route on first hit; under parallel load that first
+// compile can take 15–40s and abort the navigation (`net::ERR_ABORTED; maybe
+// frame was detached`). Warm every route the always-on tests visit once, up
+// front, with a generous timeout so the compile cost is paid here rather than
+// mid-test. Bump retries as a backstop for the residual cold-compile race.
+test.describe.configure({ retries: 2 });
+
+const WARMUP_ROUTES = [
+  "/",
+  "/privacy",
+  "/terms",
+  "/signin",
+  "/signin/check-email",
+  "/pantry/intake"
+];
+
+test.beforeAll(async ({ playwright }) => {
+  const request = await playwright.request.newContext({
+    baseURL: "http://127.0.0.1:3100"
+  });
+  try {
+    for (const route of WARMUP_ROUTES) {
+      // Serial + generous timeout: pay each route's first-compile cost here.
+      await request.get(route, { timeout: 90_000 }).catch(() => {});
+    }
+  } finally {
+    await request.dispose();
+  }
+});
+
 // Gate: zero critical/serious WCAG A/AA violations on the real rendered pages.
 async function blockingViolations(page: Page) {
   const results = await new AxeBuilder({ page })
