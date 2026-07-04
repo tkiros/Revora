@@ -1,0 +1,2413 @@
+{
+ "date": "2026-07-01",
+ "method": "See docs/direction-validation-2026-07-01.md \u00a77.1. Blind per-meal vision agents (Claude Fable 5 family), forced-schema output; text arm given true ingredients as ceiling. Ground truth: source-published carbs/fiber, Atkinson-2021 GI, GL bands <10/10-19.9/>=20.",
+ "manifest": [
+  {
+   "dish": "Whole Wheat Pancakes with Banana and Syrup",
+   "bucket": "D",
+   "source_url": "https://cookieandkate.com/whole-wheat-pancakes-recipe/",
+   "image_url": "https://cookieandkate.com/images/2017/12/whole-wheat-pancakes-recipe-2.jpg",
+   "serving_desc": "2 pancakes = 1 serving (photo shows stack of 4 + toppings)",
+   "ingredients_per_serving": "1/3 cup whole wheat flour, milk+vinegar, 1/3 egg, butter, 2 tsp maple syrup/honey (toppings extra)",
+   "carbs_g": 42,
+   "fiber_g": 4.5,
+   "single": false,
+   "carb_truth_reliable": false,
+   "id": "meal-01",
+   "avail_carbs_g": 37.5,
+   "gi_meal": 67,
+   "gi_note": "whole-wheat pancakes GI~67; photo shows 2 servings + banana/syrup toppings (uncounted)",
+   "gl_true": 25.1,
+   "risk_true": "HIGH",
+   "boundary": false
+  },
+  {
+   "dish": "Classic Baked Ziti (plated with garlic bread)",
+   "bucket": "B",
+   "source_url": "https://www.budgetbytes.com/classic-baked-ziti/",
+   "image_url": "https://www.budgetbytes.com/wp-content/uploads/2019/10/Baked-Ziti-plate-1200.jpg",
+   "serving_desc": "1/8 casserole (~1.5-2 cups); pictured garlic bread NOT in nutrition",
+   "ingredients_per_serving": "2 oz sausage, onion, tomato paste, crushed tomatoes, 2 oz dry ziti, ricotta, mozzarella",
+   "carbs_g": 56,
+   "fiber_g": 5,
+   "single": true,
+   "carb_truth_reliable": false,
+   "id": "meal-02",
+   "avail_carbs_g": 51,
+   "gi_meal": 55,
+   "gi_note": "baked pasta GI~55; pictured garlic bread uncounted",
+   "gl_true": 28.1,
+   "risk_true": "HIGH",
+   "boundary": false
+  },
+  {
+   "dish": "Asparagus Frittata",
+   "bucket": "A",
+   "source_url": "https://diabetesfoodhub.org/recipes/asparagus-frittata",
+   "image_url": "https://diabetesfoodhub.org/sites/foodhub/files/050-diabetic-asparagus-frittata_iStock874474148_022118.jpg",
+   "serving_desc": "1 slice (1/6 of frittata; photo shows whole skillet)",
+   "ingredients_per_serving": "1/6 of: 12 oz asparagus, 2 cups egg substitute, 2 tbsp skim milk, 1 tbsp olive oil, seasoning",
+   "carbs_g": 5,
+   "fiber_g": 1,
+   "single": false,
+   "carb_truth_reliable": true,
+   "id": "meal-03",
+   "avail_carbs_g": 4,
+   "gi_meal": 15,
+   "gi_note": "egg+asparagus, negligible glycemic carbs",
+   "gl_true": 0.6,
+   "risk_true": "SAFE",
+   "boundary": false
+  },
+  {
+   "dish": "Creamy Mushroom Soup",
+   "bucket": "C",
+   "source_url": "https://www.budgetbytes.com/creamy-mushroom-soup/",
+   "image_url": "https://www.budgetbytes.com/wp-content/uploads/2024/02/Mushroom-Soup-Overhead-Macro.jpg",
+   "serving_desc": "1 cup (serves 4)",
+   "ingredients_per_serving": "4 oz mushrooms, garlic, olive oil, 1 tbsp butter, 1 tbsp flour, broth, soy sauce, 2 tbsp heavy cream",
+   "carbs_g": 15,
+   "fiber_g": 1,
+   "single": false,
+   "carb_truth_reliable": true,
+   "id": "meal-04",
+   "avail_carbs_g": 14,
+   "gi_meal": 50,
+   "gi_note": "flour roux + mushrooms; small flour dose",
+   "gl_true": 7.0,
+   "risk_true": "SAFE",
+   "boundary": true
+  },
+  {
+   "dish": "Fluffy Homemade Waffles",
+   "bucket": "B",
+   "source_url": "https://www.spendwithpennies.com/fluffy-homemade-waffle-recipe/",
+   "image_url": "https://www.spendwithpennies.com/wp-content/uploads/2025/05/1200-Homemade-Waffles-SpendWithPennies.jpg",
+   "serving_desc": "1/6 of batter; photo shows stack of 3-4 waffles (likely >1 serving)",
+   "ingredients_per_serving": "1/3 cup flour, baking powder, 1 tsp sugar, 1/3 egg, 4.4 tbsp milk, 0.9 tbsp butter",
+   "carbs_g": 40,
+   "fiber_g": 1,
+   "single": false,
+   "carb_truth_reliable": false,
+   "id": "meal-05",
+   "avail_carbs_g": 39,
+   "gi_meal": 76,
+   "gi_note": "waffle GI 76; photo likely >1 serving",
+   "gl_true": 29.6,
+   "risk_true": "HIGH",
+   "boundary": false
+  },
+  {
+   "dish": "Oatmeal with Strawberries, Fruit-Spread Drizzle and Almonds",
+   "bucket": "C",
+   "source_url": "https://diabetesfoodhub.org/recipes/ok-oatmeal-strawberries-and-almonds",
+   "image_url": "https://diabetesfoodhub.org/sites/foodhub/files/383-OatmealStrawberriesDiabetic_155758846_041018.jpg",
+   "serving_desc": "1/2 cup cooked oatmeal + 1 tbsp raspberry fruit spread + 1/2 cup strawberries + 1 tbsp almonds",
+   "ingredients_per_serving": "1/2 cup cooked rolled oats, 1 tbsp raspberry fruit spread, 1/2 cup strawberries, 1 tbsp slivered almonds",
+   "carbs_g": 28,
+   "fiber_g": 4,
+   "single": true,
+   "carb_truth_reliable": true,
+   "id": "meal-06",
+   "avail_carbs_g": 24,
+   "gi_meal": 55,
+   "gi_note": "rolled oats 55 + fruit spread ~60 + strawberries 41, weighted",
+   "gl_true": 13.2,
+   "risk_true": "MODERATE",
+   "boundary": false
+  },
+  {
+   "dish": "Cauliflower Fried Rice",
+   "bucket": "D",
+   "source_url": "https://diabetesfoodhub.org/recipes/cauliflower-fried-rice",
+   "image_url": "https://diabetesfoodhub.org/sites/foodhub/files/012-diabetic-Cauliflower-Fried-Rice-MG-PNCImages_03012018.jpg",
+   "serving_desc": "1/2 cup (serves 4)",
+   "ingredients_per_serving": "1/4 of: oils, green onion, soy sauce, broth, ginger, 2 carrots, 3 cups riced cauliflower",
+   "carbs_g": 9,
+   "fiber_g": 3,
+   "single": false,
+   "carb_truth_reliable": true,
+   "id": "meal-07",
+   "avail_carbs_g": 6,
+   "gi_meal": 25,
+   "gi_note": "cauliflower + carrots; near-zero load",
+   "gl_true": 1.5,
+   "risk_true": "SAFE",
+   "boundary": false
+  },
+  {
+   "dish": "Cauliflower Pizza Crust Slice (pepperoni)",
+   "bucket": "D",
+   "source_url": "https://www.wholesomeyum.com/easy-low-carb-cauliflower-pizza-crust-recipe/",
+   "image_url": "https://www.wholesomeyum.com/wp-content/uploads/2023/05/wholesomeyum-Cauliflower-Pizza-Crust-50.jpg",
+   "serving_desc": "1 slice (1/8 of pizza)",
+   "ingredients_per_serving": "3 oz cauliflower, 3 tbsp parmesan, 0.4 egg, seasoning (+pictured toppings)",
+   "carbs_g": 5.1,
+   "fiber_g": 1.7,
+   "single": true,
+   "carb_truth_reliable": true,
+   "id": "meal-08",
+   "avail_carbs_g": 3.4,
+   "gi_meal": 30,
+   "gi_note": "cauliflower/parmesan/egg crust",
+   "gl_true": 1.0,
+   "risk_true": "SAFE",
+   "boundary": false
+  },
+  {
+   "dish": "Coconut Chicken Rice Bowl",
+   "bucket": "B",
+   "source_url": "https://www.skinnytaste.com/coconut-chicken-rice-bowl/",
+   "image_url": "https://www.skinnytaste.com/wp-content/uploads/2024/05/Coconut-Chicken-Rice-Bowls-10.jpg",
+   "serving_desc": "1 bowl = 3/4 cup cooked rice + 1 cup coconut-curry chicken",
+   "ingredients_per_serving": "6 oz chicken breast, spices, onion, garlic, ginger, light coconut milk, tomato paste, 3/4 cup cooked jasmine rice",
+   "carbs_g": 40,
+   "fiber_g": 1.5,
+   "single": true,
+   "carb_truth_reliable": true,
+   "id": "meal-09",
+   "avail_carbs_g": 38.5,
+   "gi_meal": 73,
+   "gi_note": "jasmine rice dominant",
+   "gl_true": 28.1,
+   "risk_true": "HIGH",
+   "boundary": false
+  },
+  {
+   "dish": "Teriyaki Salmon Rice Bowl",
+   "bucket": "C",
+   "source_url": "https://www.skinnytaste.com/teriyaki-salmon-bowl-air-fryer-or-oven/",
+   "image_url": "https://www.skinnytaste.com/wp-content/uploads/2025/08/Air-Fryer-Teriyaki-Salmon-Bowls-6.jpg",
+   "serving_desc": "1 bowl (4 oz glazed salmon over 3/4 cup jasmine rice + edamame/cucumber)",
+   "ingredients_per_serving": "4 oz salmon in soy/mirin/sake/honey glaze, 3/4 cup jasmine rice, 1/4 cup edamame, cucumber, sesame",
+   "carbs_g": 62.5,
+   "fiber_g": 3,
+   "single": true,
+   "carb_truth_reliable": true,
+   "id": "meal-10",
+   "avail_carbs_g": 59.5,
+   "gi_meal": 72,
+   "gi_note": "white rice dominant + honey glaze",
+   "gl_true": 42.8,
+   "risk_true": "HIGH",
+   "boundary": false
+  },
+  {
+   "dish": "Spaghetti Squash Crust Pizza",
+   "bucket": "D",
+   "source_url": "https://www.skinnytaste.com/spaghetti-squash-crust-pizza/",
+   "image_url": "https://www.skinnytaste.com/wp-content/uploads/2022/01/Spaghetti-Squash-Pizza-Crust-9.jpg",
+   "serving_desc": "2 mini pizzas = 1 serving (photo shows 1 mini pizza = half serving)",
+   "ingredients_per_serving": "1 cup cooked spaghetti squash, 1/2 egg, mozzarella, parmesan, marinara",
+   "carbs_g": 18,
+   "fiber_g": 5.5,
+   "single": false,
+   "carb_truth_reliable": true,
+   "id": "meal-11",
+   "avail_carbs_g": 12.5,
+   "gi_meal": 30,
+   "gi_note": "spaghetti squash + marinara",
+   "gl_true": 3.8,
+   "risk_true": "SAFE",
+   "boundary": false
+  },
+  {
+   "dish": "Creamy Lentil Vegetable Soup",
+   "bucket": "C",
+   "source_url": "https://www.budgetbytes.com/creamy-lentil-vegetable-soup/",
+   "image_url": "https://www.budgetbytes.com/wp-content/uploads/2022/10/Creamy-Lentil-Vegetable-Soup-side.jpg",
+   "serving_desc": "1.5 cups (serves 4); bread visible on side not in nutrition",
+   "ingredients_per_serving": "mushrooms, oil, carrot, celery, onion, 1/4 cup brown lentils, broth, full-fat coconut milk",
+   "carbs_g": 49,
+   "fiber_g": 20,
+   "single": false,
+   "carb_truth_reliable": false,
+   "id": "meal-12",
+   "avail_carbs_g": 29,
+   "gi_meal": 32,
+   "gi_note": "brown lentils GI 32; huge fiber share",
+   "gl_true": 9.3,
+   "risk_true": "SAFE",
+   "boundary": true
+  },
+  {
+   "dish": "Superfood Smoothie (blueberry spinach banana)",
+   "bucket": "C",
+   "source_url": "https://diabetesfoodhub.org/recipes/superfood-smoothie",
+   "image_url": "https://diabetesfoodhub.org/sites/foodhub/files/533-diabetic-super-food-smoothie_diabetes-cookbook_081618_1021x779.jpg",
+   "serving_desc": "1 cup (recipe makes 2)",
+   "ingredients_per_serving": "1/2 cup unsweetened almond milk, 1/2 cup frozen blueberries, 1 cup baby spinach, 1/2 medium banana",
+   "carbs_g": 28,
+   "fiber_g": 4,
+   "single": false,
+   "carb_truth_reliable": true,
+   "id": "meal-13",
+   "avail_carbs_g": 24,
+   "gi_meal": 52,
+   "gi_note": "banana 51 + blueberries 53, liquid form",
+   "gl_true": 12.5,
+   "risk_true": "MODERATE",
+   "boundary": true
+  },
+  {
+   "dish": "Grilled Balsamic Steak with Tomatoes and Arugula",
+   "bucket": "A",
+   "source_url": "https://www.skinnytaste.com/grilled-balsamic-steak-with-tomatoes-and-arugula/",
+   "image_url": "https://www.skinnytaste.com/wp-content/uploads/2016/04/Grilled-Balsamic-Steak-with-Tomatoes_.jpg",
+   "serving_desc": "3 oz cooked steak + arugula/tomato salad (serves 6; photo shows whole batch)",
+   "ingredients_per_serving": "~4 oz raw flank steak; balsamic-herb marinade; 1/4 cup cherry tomatoes; 1 cup baby arugula; balsamic-olive oil dressing",
+   "carbs_g": 3,
+   "fiber_g": 1,
+   "single": false,
+   "carb_truth_reliable": true,
+   "id": "meal-14",
+   "avail_carbs_g": 2,
+   "gi_meal": 30,
+   "gi_note": "steak + greens + balsamic, trivial carbs",
+   "gl_true": 0.6,
+   "risk_true": "SAFE",
+   "boundary": false
+  },
+  {
+   "dish": "Blueberry Lemon Yogurt Parfait",
+   "bucket": "C",
+   "source_url": "https://diabetesfoodhub.org/recipes/blueberry-lemon-yogurt-parfait",
+   "image_url": "https://diabetesfoodhub.org/sites/foodhub/files/RecId_92_BlueberryLemonYogurtParfait_iStock16784262_021618.jpg",
+   "serving_desc": "1 parfait (3/4 cup plain Greek yogurt + 1/2 cup blueberries + almonds)",
+   "ingredients_per_serving": "3/4 cup plain nonfat Greek yogurt w/ lemon + zero-cal sweetener, 1/2 cup blueberries, 1 tbsp sliced almonds",
+   "carbs_g": 21,
+   "fiber_g": 2,
+   "single": false,
+   "carb_truth_reliable": true,
+   "id": "meal-15",
+   "avail_carbs_g": 19,
+   "gi_meal": 35,
+   "gi_note": "plain Greek yogurt ~15 + blueberries 53, weighted",
+   "gl_true": 6.7,
+   "risk_true": "SAFE",
+   "boundary": false
+  },
+  {
+   "dish": "Antipasto Salad",
+   "bucket": "A",
+   "source_url": "https://diabetesfoodhub.org/recipes/antipasto-salad",
+   "image_url": "https://diabetesfoodhub.org/sites/foodhub/files/Recid_40_Antipasto_Salad_%20PNC_022318_MG_2179-%28ZF-5661-35964-1-110%29.jpg_022318.jpg",
+   "serving_desc": "2 cups (serves 4)",
+   "ingredients_per_serving": "1/4 of: romaine, 8 oz deli turkey, provolone, Parmesan, green olives, sun-dried tomatoes, roasted red peppers, vinaigrette",
+   "carbs_g": 9,
+   "fiber_g": 3,
+   "single": true,
+   "carb_truth_reliable": true,
+   "id": "meal-16",
+   "avail_carbs_g": 6,
+   "gi_meal": 30,
+   "gi_note": "olives/sun-dried tomato/peppers only",
+   "gl_true": 1.8,
+   "risk_true": "SAFE",
+   "boundary": false
+  },
+  {
+   "dish": "Zucchini Noodles with Pesto and Tomatoes",
+   "bucket": "D",
+   "source_url": "https://www.skinnytaste.com/raw-spiralized-zucchini-noodles-with/",
+   "image_url": "https://www.skinnytaste.com/wp-content/uploads/2014/08/zucchini-noodles-with-pesto-and-tomatoes-550x776.jpg",
+   "serving_desc": "1 1/4 cups (photo shows whole 4-serving bowl)",
+   "ingredients_per_serving": "pesto (basil, garlic, parmesan, olive oil), 5.25 oz spiralized zucchini, 1/4 cup tomatoes",
+   "carbs_g": 9,
+   "fiber_g": 3,
+   "single": false,
+   "carb_truth_reliable": true,
+   "id": "meal-17",
+   "avail_carbs_g": 6,
+   "gi_meal": 20,
+   "gi_note": "raw zucchini + pesto",
+   "gl_true": 1.2,
+   "risk_true": "SAFE",
+   "boundary": false
+  },
+  {
+   "dish": "Oven Roasted Potatoes",
+   "bucket": "B",
+   "source_url": "https://www.budgetbytes.com/oven-roasted-potatoes/",
+   "image_url": "https://www.budgetbytes.com/wp-content/uploads/2026/03/2-Roasted-Potatoes-Front-in-Pan.jpg",
+   "serving_desc": "1/4 recipe (~8 oz potatoes); photo shows full sheet pan",
+   "ingredients_per_serving": "8 oz russet potatoes, 3/4 tbsp olive oil, salt, pepper, garlic powder",
+   "carbs_g": 41,
+   "fiber_g": 3,
+   "single": false,
+   "carb_truth_reliable": false,
+   "id": "meal-18",
+   "avail_carbs_g": 38,
+   "gi_meal": 80,
+   "gi_note": "roasted russet potatoes",
+   "gl_true": 30.4,
+   "risk_true": "HIGH",
+   "boundary": false
+  },
+  {
+   "dish": "Air Fryer Meatball Sub",
+   "bucket": "B",
+   "source_url": "https://www.skinnytaste.com/air-fryer-meatball-subs/",
+   "image_url": "https://www.skinnytaste.com/wp-content/uploads/2025/09/Air-Fryer-Meatball-Subs-7.jpg",
+   "serving_desc": "1 sub (small Portuguese roll, chicken meatballs, marinara, cheese)",
+   "ingredients_per_serving": "1 small roll (~2 oz), ~5 oz chicken meatball mix (incl breadcrumbs), 1/4 cup marinara, 1 slice mozzarella",
+   "carbs_g": 39,
+   "fiber_g": 1.5,
+   "single": true,
+   "carb_truth_reliable": true,
+   "id": "meal-19",
+   "avail_carbs_g": 37.5,
+   "gi_meal": 70,
+   "gi_note": "white roll 75 dominant + breadcrumbs + marinara",
+   "gl_true": 26.2,
+   "risk_true": "HIGH",
+   "boundary": false
+  },
+  {
+   "dish": "Grilled Tuna over Arugula with Lemon Vinaigrette",
+   "bucket": "A",
+   "source_url": "https://www.skinnytaste.com/grilled-tuna-over-arugula-with-lemon/",
+   "image_url": "https://www.skinnytaste.com/wp-content/uploads/2011/06/Grilled-Tuna_-5.jpg",
+   "serving_desc": "1 salad (whole recipe yields 1 serving)",
+   "ingredients_per_serving": "5 oz sashimi-grade tuna; 1 tsp extra virgin olive oil; 1 tsp fresh lemon juice; 2 cups baby arugula; 1 tsp capers; salt and pepper",
+   "carbs_g": 4,
+   "fiber_g": 1.6,
+   "single": true,
+   "carb_truth_reliable": true,
+   "id": "meal-20",
+   "avail_carbs_g": 2.4,
+   "gi_meal": 30,
+   "gi_note": "tuna + arugula, trivial carbs",
+   "gl_true": 0.7,
+   "risk_true": "SAFE",
+   "boundary": false
+  },
+  {
+   "dish": "Asparagus and Swiss Cheese Frittata",
+   "bucket": "A",
+   "source_url": "https://www.skinnytaste.com/asparagus-and-swiss-cheese-frittata/",
+   "image_url": "https://www.skinnytaste.com/wp-content/uploads/2013/05/Asparagus-and-Swiss-Cheese-Frittata-7.jpg",
+   "serving_desc": "1/4 of frittata, plated wedge + side greens (greens not in nutrition)",
+   "ingredients_per_serving": "1/4 of: 1/2 lb asparagus, 1/2 cup shallots, 2 tsp butter, 5 eggs, 4 egg whites, 2 tbsp Pecorino, 3 oz Swiss",
+   "carbs_g": 9,
+   "fiber_g": 1,
+   "single": true,
+   "carb_truth_reliable": true,
+   "id": "meal-21",
+   "avail_carbs_g": 8,
+   "gi_meal": 30,
+   "gi_note": "eggs/cheese/shallots",
+   "gl_true": 2.4,
+   "risk_true": "SAFE",
+   "boundary": false
+  },
+  {
+   "dish": "Shirataki Noodles in Garlic Parmesan Cream Sauce",
+   "bucket": "D",
+   "source_url": "https://www.wholesomeyum.com/shirataki-noodles/",
+   "image_url": "https://www.wholesomeyum.com/wp-content/uploads/2023/05/wholesomeyum-Shirataki-Noodles-6.jpg",
+   "serving_desc": "~1 cup (serves 4)",
+   "ingredients_per_serving": "7 oz shirataki noodles, olive oil, garlic, bone broth, heavy cream, 2 tbsp parmesan",
+   "carbs_g": 5.5,
+   "fiber_g": 2.1,
+   "single": true,
+   "carb_truth_reliable": true,
+   "id": "meal-22",
+   "avail_carbs_g": 3.4,
+   "gi_meal": 15,
+   "gi_note": "konjac glucomannan, virtually no available carbs",
+   "gl_true": 0.5,
+   "risk_true": "SAFE",
+   "boundary": false
+  },
+  {
+   "id": "meal-23",
+   "dish": "Chipotle Chicken Burrito Bowl (white rice, black beans, chicken, cheese, salsa, romaine)",
+   "bucket": "CHAIN",
+   "source_url": "https://www.chipotle.com/content/dam/chipotle/menu/nutrition/US-Nutrition-Facts-Paper-Menu-3-2025.pdf",
+   "image_url": "https://upload.wikimedia.org/wikipedia/commons/5/58/2019-05-04_20_10_55_A_burrito_bowl_from_Chipotle_in_the_Franklin_Farm_section_of_Oak_Hill%2C_Fairfax_County%2C_Virginia.jpg",
+   "serving_desc": "1 burrito bowl",
+   "carbs_g": 68,
+   "fiber_g": 10,
+   "single": true,
+   "carb_truth_reliable": true,
+   "text": "Chipotle chicken burrito bowl: 4 oz cilantro-lime white rice, 4 oz black beans, 4 oz grilled chicken, fresh tomato salsa, 1 oz cheese, romaine lettuce",
+   "ingredients_per_serving": "white rice 4oz, black beans 4oz, chicken 4oz, tomato salsa, cheese 1oz, romaine",
+   "gi_note": "white rice 73 (39g avail) + black beans 30 (15g) + salsa/veg 40, carb-weighted",
+   "avail_carbs_g": 58,
+   "gi_meal": 60,
+   "gl_true": 34.8,
+   "risk_true": "HIGH",
+   "boundary": false
+  },
+  {
+   "id": "meal-24",
+   "dish": "Starbucks Classic Oatmeal, plain (packaged cup, label visible)",
+   "bucket": "CHAIN",
+   "source_url": "https://www.starbucks.com/menu/product/301/single/nutrition",
+   "image_url": "https://images.openfoodfacts.org/images/products/076/211/122/6457/front_en.8.400.jpg",
+   "serving_desc": "1 serving prepared oatmeal, no toppings",
+   "carbs_g": 28,
+   "fiber_g": 4,
+   "single": true,
+   "carb_truth_reliable": true,
+   "text": "Starbucks Classic Oatmeal made with hot water, no toppings (42 g dry whole-grain rolled and steel-cut oat blend)",
+   "ingredients_per_serving": "whole-grain rolled + steel-cut oats, hot water",
+   "gi_note": "rolled/steel-cut oat blend",
+   "avail_carbs_g": 24,
+   "gi_meal": 55,
+   "gl_true": 13.2,
+   "risk_true": "MODERATE",
+   "boundary": false
+  },
+  {
+   "id": "meal-25",
+   "dish": "McDonald's Big Mac Meal (medium fries, medium Coca-Cola)",
+   "bucket": "CHAIN",
+   "source_url": "https://fastfoodnutrition.org/mcdonalds/big-mac",
+   "image_url": "https://upload.wikimedia.org/wikipedia/commons/e/ef/Big_Mac_combo_meal.jpg",
+   "serving_desc": "Big Mac + medium fries + medium Coke",
+   "carbs_g": 148,
+   "fiber_g": 7,
+   "single": true,
+   "carb_truth_reliable": true,
+   "text": "McDonald's Big Mac meal: Big Mac, medium fries, medium (22 oz) regular Coca-Cola",
+   "ingredients_per_serving": "Big Mac 46g carb, medium fries 44g, medium Coke ~58g",
+   "gi_note": "bun 70 + fries 63 + cola 63, carb-weighted; soda invisible in opaque cup",
+   "avail_carbs_g": 141,
+   "gi_meal": 65,
+   "gl_true": 91.7,
+   "risk_true": "HIGH",
+   "boundary": false
+  },
+  {
+   "id": "meal-26",
+   "dish": "Panera Broccoli Cheddar Soup in Sourdough Bread Bowl",
+   "bucket": "CHAIN",
+   "source_url": "https://fastfoodnutrition.org/panera-bread/broccoli-cheddar-soup/bread-bowl",
+   "image_url": "https://upload.wikimedia.org/wikipedia/commons/4/47/Broccoli_cheddar_breadbowl.jpg",
+   "serving_desc": "1 whole bread bowl + soup (bread eaten)",
+   "carbs_g": 149,
+   "fiber_g": 8,
+   "single": true,
+   "carb_truth_reliable": true,
+   "text": "Panera broccoli cheddar soup served in a whole sourdough bread bowl (eating the bread bowl too)",
+   "ingredients_per_serving": "broccoli cheddar soup (cream, cheddar, roux) + whole sourdough loaf bowl",
+   "gi_note": "sourdough 53 dominant",
+   "avail_carbs_g": 141,
+   "gi_meal": 53,
+   "gl_true": 74.7,
+   "risk_true": "HIGH",
+   "boundary": false
+  },
+  {
+   "id": "meal-27",
+   "dish": "Subway 6-inch Oven Roasted Turkey on 9-Grain Wheat",
+   "bucket": "CHAIN",
+   "source_url": "https://fastfoodnutrition.org/subway/turkey-breast/6",
+   "image_url": "https://upload.wikimedia.org/wikipedia/commons/d/dc/6_inch_Subway_turkey_sandwich_-_September_2022_-_Sarah_Stierch.jpg",
+   "serving_desc": "1 six-inch sub",
+   "carbs_g": 39,
+   "fiber_g": 4,
+   "single": true,
+   "carb_truth_reliable": true,
+   "text": "Subway 6-inch oven roasted turkey sandwich on 9-grain wheat with lettuce, tomato, onion, green pepper, cucumber",
+   "ingredients_per_serving": "9-grain wheat bread, turkey, standard veggies",
+   "gi_note": "9-grain wheat bread ~60",
+   "avail_carbs_g": 35,
+   "gi_meal": 60,
+   "gl_true": 21.0,
+   "risk_true": "HIGH",
+   "boundary": true
+  },
+  {
+   "id": "meal-28",
+   "dish": "Cauliflower Fried Rice (Skinnytaste) \u2014 lookalike pair low",
+   "bucket": "TRAP",
+   "source_url": "https://www.skinnytaste.com/cauliflower-fried-rice/",
+   "image_url": "https://www.skinnytaste.com/wp-content/uploads/2014/03/Cauliflower-Fried-Rice-8.jpg",
+   "serving_desc": "1 1/3 cup",
+   "carbs_g": 14,
+   "fiber_g": 6,
+   "single": true,
+   "carb_truth_reliable": true,
+   "text": "1 1/3 cups cauliflower fried rice: riced cauliflower, egg, frozen peas and carrots, scallions, garlic, soy sauce, sesame oil",
+   "ingredients_per_serving": "riced cauliflower, egg, peas & carrots, scallion, soy, sesame oil",
+   "gi_note": "peas/carrots/cauliflower",
+   "avail_carbs_g": 8,
+   "gi_meal": 35,
+   "gl_true": 2.8,
+   "risk_true": "SAFE",
+   "boundary": false
+  },
+  {
+   "id": "meal-29",
+   "dish": "Fried Brown Rice (Skinnytaste) \u2014 lookalike pair high",
+   "bucket": "TRAP",
+   "source_url": "https://www.skinnytaste.com/fried-brown-rice/",
+   "image_url": "https://www.skinnytaste.com/wp-content/uploads/2024/08/Brown-Fried-Rice-9.jpg",
+   "serving_desc": "1 cup",
+   "carbs_g": 44,
+   "fiber_g": 5,
+   "single": true,
+   "carb_truth_reliable": true,
+   "text": "1 cup fried brown rice: cooked brown rice, egg, mixed vegetables, scallion, soy sauce, sesame oil",
+   "ingredients_per_serving": "brown rice, egg, mixed veg, scallion, soy, sesame oil",
+   "gi_note": "brown rice 68",
+   "avail_carbs_g": 39,
+   "gi_meal": 68,
+   "gl_true": 26.5,
+   "risk_true": "HIGH",
+   "boundary": false
+  },
+  {
+   "id": "meal-30",
+   "dish": "Zoodles and Turkey Meatballs (Skinnytaste) \u2014 lookalike pair low",
+   "bucket": "TRAP",
+   "source_url": "https://www.skinnytaste.com/zoodles-and-meatballs-zucchini-noodles/",
+   "image_url": "https://www.skinnytaste.com/wp-content/uploads/2013/08/Zoodles-and-Meatballs-Zucchini-noodles-with-slow-cooker-turkey-meatballs-1-6.jpg",
+   "serving_desc": "1 cup zoodles + 4 meatballs",
+   "carbs_g": 25,
+   "fiber_g": 7,
+   "single": true,
+   "carb_truth_reliable": true,
+   "text": "1 cup spiralized zucchini noodles with 4 turkey meatballs in marinara sauce",
+   "ingredients_per_serving": "zucchini noodles, turkey meatballs, marinara",
+   "gi_note": "zucchini low + marinara 40 + breadcrumb in meatballs",
+   "avail_carbs_g": 18,
+   "gi_meal": 35,
+   "gl_true": 6.3,
+   "risk_true": "SAFE",
+   "boundary": false
+  },
+  {
+   "id": "meal-31",
+   "dish": "Whole Wheat Spaghetti and Turkey Meatballs (Skinnytaste) \u2014 lookalike pair high",
+   "bucket": "TRAP",
+   "source_url": "https://www.skinnytaste.com/instant-pot-spaghetti-and-turkey-meatballs/",
+   "image_url": "https://www.skinnytaste.com/wp-content/uploads/2020/03/Whole-Wheat-Spaghetti-9.jpg",
+   "serving_desc": "1 3/4 cups",
+   "carbs_g": 55,
+   "fiber_g": 6.5,
+   "single": true,
+   "carb_truth_reliable": true,
+   "text": "1 3/4 cups whole wheat spaghetti with turkey meatballs and tomato sauce",
+   "ingredients_per_serving": "whole wheat spaghetti, turkey meatballs, marinara",
+   "gi_note": "whole-wheat pasta 44",
+   "avail_carbs_g": 48.5,
+   "gi_meal": 44,
+   "gl_true": 21.3,
+   "risk_true": "HIGH",
+   "boundary": true
+  }
+ ],
+ "photo_estimates": {
+  "meal-01": {
+   "ingredients": [
+    "Stacked pancakes (wheat/whole-wheat flour batter, egg, milk, baking powder, possibly mashed banana mixed into batter)",
+    "Sliced fresh banana (about 1 medium banana) as topping",
+    "Maple syrup, drizzled and pooled on plate",
+    "Possibly a small amount of butter (not clearly visible)"
+   ],
+   "portion": "One plated serving: a stack of 4 medium (~10cm/4in) pancakes topped with 1 sliced banana and roughly 2-3 tablespoons of maple syrup (visible pour plus pooling on the plate)",
+   "carbs_g_est": 105,
+   "gl_est": 62,
+   "risk": "HIGH",
+   "confidence": 78,
+   "would_clarify": false,
+   "clarify_question": null,
+   "doubt_reasons": [
+    "Cannot confirm flour type (white vs whole-wheat vs oat/protein pancake mix), which affects fiber content and GI",
+    "Cannot confirm whether the syrup is real maple syrup, corn-syrup-based pancake syrup, or a sugar-free/low-carb substitute \u2014 a major carb swing",
+    "Cannot determine exact syrup volume actually consumed since the photo shows an in-progress pour",
+    "Cannot tell if additional sugar/sweetener is mixed into the pancake batter itself",
+    "Banana ripeness (affects glycemic index) is not precisely determinable from the image",
+    "Cannot verify portion actually eaten vs. what is plated, though instructions direct treating the pictured stack as the meal"
+   ]
+  },
+  "meal-02": {
+   "ingredients": [
+    "Baked ziti/rigatoni pasta",
+    "Tomato-based meat sauce (ground beef or Italian sausage)",
+    "Melted mozzarella cheese",
+    "Likely ricotta cheese (baked pasta binder)",
+    "Garlic bread (baguette slices with garlic butter/herbs)",
+    "Fresh parsley garnish",
+    "Olive oil (likely in sauce/bread)"
+   ],
+   "portion": "One full dinner plate: roughly 1.5-2 cups (~330-380g) of baked ziti with meat sauce and cheese, plus 2 slices of garlic bread (~60g total) \u2014 a generous single-person serving as photographed",
+   "carbs_g_est": 85,
+   "gl_est": 50,
+   "risk": "HIGH",
+   "confidence": 82,
+   "would_clarify": false,
+   "clarify_question": null,
+   "doubt_reasons": [
+    "Cannot confirm exact weight/volume of pasta portion vs. plate perspective",
+    "Cannot tell if pasta is refined durum wheat or whole-wheat/higher-fiber variety, which shifts GI and fiber",
+    "Cannot verify whether the tomato sauce has added sugar or is a simple/low-sugar marinara",
+    "Cannot confirm presence/amount of ricotta or cream, which affects fat content and thus effective glycemic response (though not carbs directly)",
+    "Cannot measure exact size/thickness of the garlic bread slices or whether it's a smaller baguette vs. a larger Italian loaf",
+    "Photo doesn't reveal any hidden sugar in the meat sauce (common in jarred sauces) or butter/sugar glaze on the bread"
+   ]
+  },
+  "meal-03": {
+   "ingredients": [
+    "eggs (whisked/baked, frittata style)",
+    "fresh spinach",
+    "asparagus spears",
+    "shredded cheese (looks like mozzarella or parmesan/pecorino blend)",
+    "scallions or leeks (thin green stalks mixed through)",
+    "herbs/seasoning (visible flecks, likely thyme, salt, pepper)",
+    "cooking oil or butter (sheen on eggs)"
+   ],
+   "portion": "One wedge/slice of the frittata, roughly 1/6 of the 10-inch skillet shown (~150g), served straight from the pan with a fork",
+   "carbs_g_est": 4,
+   "gl_est": 1.5,
+   "risk": "SAFE",
+   "confidence": 85,
+   "would_clarify": false,
+   "clarify_question": null,
+   "doubt_reasons": [
+    "Cannot confirm whether there's a hidden starchy layer (e.g., potato/hash-brown base) under the egg, which some frittatas include but isn't visible here",
+    "Exact portion the person will eat is unclear \u2014 could be one wedge or a much larger share of the pan",
+    "Cheese type/quantity affects fat and slightly carbs but not enough to change class",
+    "No visible bread, rice, or sauce, but can't rule out an off-frame side dish accompanying this pan"
+   ]
+  },
+  "meal-04": {
+   "ingredients": [
+    "Cremini/button mushrooms (diced, some pan-browned)",
+    "Heavy cream or cream base",
+    "Butter (browned, visible flecks)",
+    "Stock/broth (chicken or vegetable)",
+    "Likely flour or other thickener (roux-style creamy consistency)",
+    "Fresh thyme (garnish)",
+    "Cracked black pepper / chili flakes",
+    "Crusty artisan bread (partial piece, top-left corner, likely a side)"
+   ],
+   "portion": "One bowl (~350-400 mL / 1.5 cups) of creamy mushroom soup, with a small piece of crusty bread visible on the side",
+   "carbs_g_est": 20,
+   "gl_est": 11,
+   "risk": "MODERATE",
+   "confidence": 45,
+   "would_clarify": true,
+   "clarify_question": "How much of that crusty bread in the corner will you actually eat alongside the soup (a full slice, a couple bites, or none), and is the soup thickened with flour/roux or purely cream-reduced?",
+   "doubt_reasons": [
+    "Exact soup portion volume is inferred from bowl fill level, not measured",
+    "Bread quantity actually consumed is unclear \u2014 it's only partially in frame and could be a garnish/prop or a full side slice, which alone could swing carbs by 10-15g",
+    "Cannot tell if the creamy texture comes from a flour/roux thickener, cornstarch, pureed potato, or just reduced heavy cream \u2014 significantly affects both carb count and GI",
+    "Cannot verify dairy fat content (heavy cream vs. milk vs. non-dairy alternative), which affects the glycemic response",
+    "Cannot see if wine, sherry, or added sugar was used in the soup base",
+    "Bread type (white vs. whole grain) is not identifiable from the visible crust, and this changes GI substantially",
+    "No visibility into whether this is a single serving or a larger shared pot portioned into this bowl"
+   ]
+  },
+  "meal-05": {
+   "ingredients": [
+    "Waffle (wheat-flour batter, likely with egg, milk/buttermilk, sugar, baking powder, butter/oil)",
+    "Butter pats on top",
+    "Maple or pancake syrup, generously drizzled"
+   ],
+   "portion": "A stacked serving of roughly 2 medium Belgian-style waffles (cut into quarters and restacked for the photo), topped with 1-2 pats of butter (~1-2 tbsp) and a generous drizzle of syrup (~3-4 tbsp), roughly 250-300g on the plate",
+   "carbs_g_est": 65,
+   "gl_est": 44,
+   "risk": "HIGH",
+   "confidence": 72,
+   "would_clarify": true,
+   "clarify_question": "How many of these waffle pieces will you actually eat, and how much syrup (and what type \u2014 real maple, pancake syrup, or a sugar-free version) are you adding?",
+   "doubt_reasons": [
+    "Cannot tell how many whole waffles the stacked/quartered pieces represent, or how much of the stack is one person's actual serving",
+    "Syrup type is unknown (real maple ~GI 54 vs. high-fructose pancake syrup vs. sugar-free syrup with near-zero carbs) which drastically changes carb load",
+    "Amount of syrup actually consumed vs. pooled on the plate/photo styling is unclear",
+    "Waffle recipe unknown \u2014 white flour vs. whole wheat, added sugar content, and fiber level all affect net carbs and GI",
+    "Butter quantity and whether it's real butter (no carbs) or a spread with added sugar is not fully certain",
+    "No visibility into other possible additions (fruit, whipped cream, powdered sugar) that might be off-frame"
+   ]
+  },
+  "meal-06": {
+   "ingredients": [
+    "Cooked oatmeal/porridge (rolled or steel-cut oats)",
+    "Fresh strawberries, halved/sliced",
+    "Red strawberry syrup or sauce drizzled on top (could be macerated berry juice, coulis, or sweetened jam)",
+    "Possibly milk or water used to cook the oats (not visible)"
+   ],
+   "portion": "Single breakfast bowl, roughly 1 to 1.25 cups (about 220-260g) of cooked oatmeal topped with 4-5 strawberries (~80-100g) and a light drizzle of red syrup/sauce (~1-2 tbsp)",
+   "carbs_g_est": 32,
+   "gl_est": 18,
+   "risk": "MODERATE",
+   "confidence": 45,
+   "would_clarify": true,
+   "clarify_question": "Is the red topping just crushed fresh strawberries/their natural juice, or is it a sweetened strawberry syrup, coulis, or jam, and is the oatmeal plain (cooked in water/milk with no added sugar) or a flavored/sweetened instant mix?",
+   "doubt_reasons": [
+    "Cannot tell if the red drizzle is unsweetened strawberry juice or a sugar-added syrup/jam, which materially changes both carbs and GI",
+    "Cannot tell if the oatmeal is plain oats or a flavored/pre-sweetened instant oatmeal packet",
+    "Cannot see whether milk, cream, honey, or sugar was stirred into the porridge itself",
+    "Exact bowl volume/portion weight is hard to judge from a single angled photo",
+    "Oat type (steel-cut vs rolled vs instant) affects glycemic index and is not visually distinguishable once cooked"
+   ]
+  },
+  "meal-07": {
+   "ingredients": [
+    "Riced cauliflower (finely processed, crumbly texture) \u2014 most likely base, though could be a fine grain like couscous or rice",
+    "Diced carrots",
+    "Chopped fresh herbs (parsley or scallion/green onion)",
+    "Olive oil or butter",
+    "Salt and pepper",
+    "Possibly garlic or onion"
+   ],
+   "portion": "One small wooden bowl, roughly 180-220g as served (a single plated portion; two more similar bowls visible in background, batch-prepped)",
+   "carbs_g_est": 9,
+   "gl_est": 3,
+   "risk": "SAFE",
+   "confidence": 50,
+   "would_clarify": true,
+   "clarify_question": "Is the base of this dish riced cauliflower, or is it an actual grain like rice, couscous, or quinoa?",
+   "doubt_reasons": [
+    "The matte, crumbly, irregular texture and small uniform particle size strongly suggests riced cauliflower rather than cooked grain rice, but couscous or a very finely chopped grain pilaf could look similar \u2014 this is a classic lookalike-swap case with a huge risk-class impact (cauliflower rice ~SAFE vs. rice/couscous pilaf could be HIGH GL)",
+    "Cannot see or confirm the exact weight/volume of the portion",
+    "Cannot detect added sugar, sweetened dressing, or glaze that might be mixed in",
+    "Cannot determine amount of added fat (oil/butter) affecting overall meal composition",
+    "Cannot verify whether this is a side dish accompanying a larger unseen meal or the entire meal",
+    "Cannot confirm specific herb/seasoning identity which is not carb-relevant but affects ingredient completeness"
+   ]
+  },
+  "meal-08": {
+   "ingredients": [
+    "Wheat pizza dough/crust (thick-cut)",
+    "Tomato pizza sauce",
+    "Mozzarella cheese",
+    "Cheddar/Colby cheese blend (based on orange color)",
+    "Pepperoni (cured, spiced pork/beef)"
+   ],
+   "portion": "1 slice (~140-160g) cut from a full thick-crust pepperoni pizza, being lifted with a server; rest of the pie visible behind it",
+   "carbs_g_est": 32,
+   "gl_est": 20.8,
+   "risk": "HIGH",
+   "confidence": 45,
+   "would_clarify": true,
+   "clarify_question": "What is the crust made of (regular wheat/thick crust, thin crust, or a low-carb/keto-style crust like almond or fathead dough), and how many slices are you actually eating?",
+   "doubt_reasons": [
+    "Crust composition can't be confirmed visually \u2014 a low-carb/keto 'fathead' or almond-flour crust can look nearly identical to regular wheat dough but has a fraction of the carbs, which would flip the risk class",
+    "Only one slice is pictured, but pizza is very commonly eaten as 2-3 slices, which would push a MODERATE single-slice estimate into HIGH territory",
+    "Exact slice size/weight can't be measured from a close-up crop \u2014 thickness and diameter of the source pie are unclear",
+    "Sauce composition (added sugar vs. no-sugar-added tomato sauce) isn't visible and affects both carbs and GI",
+    "Cheese blend and fat content affect the meal's effective glycemic response but can't be quantified from appearance alone",
+    "GI estimate for pizza varies widely (roughly 50-80) in published tables depending on crust thickness and toppings, adding uncertainty to the GL calculation independent of portion"
+   ]
+  },
+  "meal-09": {
+   "ingredients": [
+    "Boneless chicken pieces (breast or thigh)",
+    "Tomato-based cream sauce (likely butter chicken / tikka masala style: tomato, butter, cream, garlic, ginger, garam masala/spices)",
+    "White rice (steamed, appears to be jasmine or basmati)",
+    "Fresh cilantro (garnish, also visible as a side bunch)"
+   ],
+   "portion": "One full plated bowl (~400-450g) with roughly 1 to 1.25 cups cooked white rice and ~1 to 1.25 cups chicken in cream-tomato sauce",
+   "carbs_g_est": 55,
+   "gl_est": 38,
+   "risk": "HIGH",
+   "confidence": 65,
+   "would_clarify": true,
+   "clarify_question": "How much rice is in the bowl (roughly in cups), and is it regular white rice or a lower-carb substitute like cauliflower rice?",
+   "doubt_reasons": [
+    "Exact rice volume is unclear from a top-down photo (bowl depth and rice-to-curry ratio are estimated)",
+    "Rice variety/GI is unknown (jasmine ~89 vs basmati ~58 GI is a large swing)",
+    "Cannot rule out a low-carb rice substitute (e.g., cauliflower rice) that would look similar in a photo",
+    "Sauce sweetness is unknown -- some butter chicken/tikka masala recipes add sugar, honey, or ketchup which raises carbs",
+    "Cream/coconut milk vs. yogurt base affects fat content and thus glycemic impact, but is not visually distinguishable",
+    "Actual portion the diner eats could differ from the full bowl shown (e.g., shared serving or leftovers)"
+   ]
+  },
+  "meal-10": {
+   "ingredients": [
+    "Salmon, cut into bite-size pieces, glazed (teriyaki/soy-garlic style sauce)",
+    "White steamed rice (short-grain, likely sushi rice) as the bowl base",
+    "Edamame (shelled, steamed)",
+    "Sliced cucumber tossed with black sesame seeds",
+    "Chopped scallions/green onion (garnish)",
+    "Chili flakes in oil (side condiment, likely for drizzling)",
+    "Black sesame seeds (side condiment)",
+    "Dark sauce, likely additional soy-based/teriyaki sauce (side bowl)"
+   ],
+   "portion": "One plated rice bowl (~1 serving): approx. 150-180g salmon, ~1 cup (150-180g) cooked rice, ~1/2 cup edamame, ~1/2 cup sliced cucumber, plus glaze and optional side sauce",
+   "carbs_g_est": 55,
+   "gl_est": 36,
+   "risk": "HIGH",
+   "confidence": 72,
+   "would_clarify": true,
+   "clarify_question": "How much rice is actually under the toppings (roughly how many cups), and is it regular white/sushi rice or a lower-carb substitute like cauliflower rice?",
+   "doubt_reasons": [
+    "Cannot see or measure the actual volume of rice hidden beneath the salmon, edamame, and cucumber",
+    "Cannot confirm rice is real white rice vs. a lookalike swap (e.g., cauliflower rice) purely from a partial visible edge",
+    "Sugar content of the glaze on the salmon is unknown (could be a light coating or a heavily reduced sweet sauce)",
+    "Unclear whether the dark side sauce is meant to be poured over the whole bowl (adding more sugar/carbs) or used sparingly as a dip",
+    "Exact salmon and edamame portion weights are estimated from visual proportions only, not measured",
+    "No information on whether rice is white, brown, or a rice blend, which affects the glycemic index used in the GL calculation"
+   ]
+  },
+  "meal-11": {
+   "ingredients": [
+    "cauliflower (riced, forming the crust)",
+    "egg (crust binder)",
+    "parmesan or mozzarella baked into crust",
+    "mozzarella cheese topping (melted)",
+    "tomato/marinara sauce",
+    "fresh basil leaves",
+    "olive oil",
+    "garlic and Italian herbs/oregano",
+    "salt"
+   ],
+   "portion": "Personal-sized (~8-9 inch) thin pizza cut into 6 slices; assuming about half is eaten as one serving, roughly 3 slices (~150-180g)",
+   "carbs_g_est": 9,
+   "gl_est": 4,
+   "risk": "SAFE",
+   "confidence": 50,
+   "would_clarify": true,
+   "clarify_question": "Is this crust made from cauliflower/another low-carb base or from wheat flour dough, and how many slices (out of the whole pizza) are you actually going to eat?",
+   "doubt_reasons": [
+    "The pale-yellow, mottled, thin crust strongly resembles a cauliflower-and-egg crust, but a thin blonde wheat-flour crust could look similar in a photo, and this single distinction swings the estimate from SAFE (GL~4) to HIGH (GL~20+)",
+    "Portion actually consumed (number of slices) is unknown; photo shows the whole cut pizza, not a plated single serving",
+    "Sauce could be a sweetened commercial marinara with added sugar vs. a low-sugar homemade version",
+    "Cheese type/quantity and any added binder (flour, almond flour, breadcrumbs) in the crust are not visually confirmable",
+    "No information on additional carb sides possibly served with this off-camera"
+   ]
+  },
+  "meal-12": {
+   "ingredients": [
+    "Brown or green lentils",
+    "Cremini/button mushrooms",
+    "Diced carrots",
+    "Celery",
+    "Onion",
+    "Garlic",
+    "Vegetable or chicken broth",
+    "Cream or coconut milk (soup has a creamy sheen)",
+    "Black pepper / herbs (thyme-like)",
+    "Toasted rustic bread or baguette slices",
+    "Olive oil (for toasting bread)"
+   ],
+   "portion": "One full bowl (~400-450 ml) of lentil-mushroom-vegetable stew/soup, served with an estimated 1-2 slices of toasted rustic bread/baguette",
+   "carbs_g_est": 45,
+   "gl_est": 23,
+   "risk": "HIGH",
+   "confidence": 45,
+   "would_clarify": true,
+   "clarify_question": "How many slices of that toasted bread will you actually eat alongside the soup \u2014 just the one piece shown, or two or more?",
+   "doubt_reasons": [
+    "Bread quantity is the single biggest swing factor: eating 1 slice vs 2+ slices can shift the glycemic load from the MODERATE range (~17) into the HIGH range (~25+), and the photo only shows partial slices with more out of focus in the background",
+    "Can't confirm whether the broth is thickened with flour/cornstarch or contains added cream/coconut milk, which would add carbs and could raise the estimate",
+    "Exact lentil-to-vegetable ratio and total bowl volume are visual estimates only, not measured portions",
+    "Bread type (white baguette vs whole-grain/sourdough) strongly affects glycemic index but is only inferable from crust color/texture, not confirmed",
+    "No way to detect hidden added sugar (e.g., in the broth or a glaze) from a photo alone"
+   ]
+  },
+  "meal-13": {
+   "ingredients": [
+    "Dark leafy greens (spinach and/or kale) - primary base giving the deep green/black-green color",
+    "Blueberries (fresh, both blended in and used as garnish on top)",
+    "Banana (likely, for creaminess/body/sweetness typical of thick green smoothies)",
+    "Liquid base - unknown type (water, almond milk, dairy milk, or fruit juice)",
+    "Possible ice / frozen fruit for thickness"
+   ],
+   "portion": "One 8-10 oz (~250-300 ml) glass of smoothie, garnished with about 8-10 whole blueberries (a second identical glass is visible but assumed to be a separate serving, not part of this portion)",
+   "carbs_g_est": 24,
+   "gl_est": 13,
+   "risk": "MODERATE",
+   "confidence": 50,
+   "would_clarify": true,
+   "clarify_question": "What's the liquid base (water/almond milk/dairy milk/juice) and is there any added sweetener or extra fruit (like banana, mango, or juice) blended in beyond the greens and blueberries?",
+   "doubt_reasons": [
+    "Cannot identify the liquid base - plain water/unsweetened almond milk vs. fruit juice would swing carbs substantially",
+    "Cannot confirm or rule out added sweeteners (honey, agave, dates, sugar)",
+    "Cannot tell how much high-carb fruit (e.g., banana, mango) is blended in versus just the visible blueberry garnish",
+    "Blending breaks down fiber structure, which can raise effective GI beyond typical whole-fruit estimates, adding uncertainty to the GL calculation",
+    "Actual portion the person will drink is unclear - could be the full glass or shared/partial",
+    "Cannot rule out protein powder, nut butter, or avocado additions that would change the carb/fat profile"
+   ]
+  },
+  "meal-14": {
+   "ingredients": [
+    "Flank steak (grilled/seared, sliced, medium-rare)",
+    "Arugula",
+    "Cherry/grape tomatoes, halved",
+    "Likely olive oil and/or balsamic vinegar drizzle",
+    "Salt and pepper (and possible marinade seasoning on steak crust)"
+   ],
+   "portion": "One plated serving cut from the sliced flank steak platter: roughly 150-180g (5-6 oz) cooked steak, a handful (~1 cup) of arugula, and 6-8 cherry tomato halves.",
+   "carbs_g_est": 6,
+   "gl_est": 1.2,
+   "risk": "SAFE",
+   "confidence": 88,
+   "would_clarify": false,
+   "clarify_question": null,
+   "doubt_reasons": [
+    "Exact cooked-weight portion per person isn't visible (this is a whole sliced flank steak, could be split into different serving sizes)",
+    "The dark, glossy crust on the steak could indicate a sugar-containing marinade or balsamic glaze rather than a plain dry rub/char, which isn't determinable from the photo",
+    "Amount and composition of any dressing on the arugula/tomatoes (olive oil vs. something sweeter) is unknown",
+    "No starchy side is visible, but it's possible one exists off-frame (e.g., bread or rice) that isn't part of this shot"
+   ]
+  },
+  "meal-15": {
+   "ingredients": [
+    "White dairy base (likely plain Greek yogurt or whipped cream)",
+    "Fresh blueberries",
+    "Mint leaf garnish",
+    "Possible light sweetener (honey/sugar) - not visually confirmed"
+   ],
+   "portion": "One individual stemless glass parfait cup (~180g total): roughly 90-100g dairy base + 70-90g fresh blueberries, mint sprig garnish",
+   "carbs_g_est": 14,
+   "gl_est": 7,
+   "risk": "SAFE",
+   "confidence": 55,
+   "would_clarify": true,
+   "clarify_question": "Is the white base plain/unsweetened yogurt (or cream), or is it sweetened with sugar, honey, or flavored (e.g., vanilla) yogurt?",
+   "doubt_reasons": [
+    "Cannot tell if the white base is plain yogurt, sweetened yogurt, whipped cream, or cr\u00e8me fra\u00eeche - carb content differs greatly (near 0g vs 15-20g/100g)",
+    "No way to detect a hidden sweetener (honey drizzle, sugar) mixed into the base or on the berries",
+    "Exact glass volume and fill depth are hard to judge precisely, so total gram weight of both dairy and berries is an estimate",
+    "Blueberry quantity/weight estimated by visual count, which has notable margin of error",
+    "Cannot rule out a flavored/fruit-bottom yogurt variant that would raise sugar content",
+    "Mint leaf is purely a garnish with negligible carbs but confirms nothing about sweetness of the base"
+   ]
+  },
+  "meal-16": {
+   "ingredients": [
+    "Romaine lettuce (chopped)",
+    "Kalamata/green olives",
+    "Sun-dried tomatoes",
+    "Roasted red peppers",
+    "Shaved/shredded parmesan or similar hard cheese",
+    "Sliced turkey or chicken breast (white strips visible)",
+    "Vinaigrette-style dressing served on the side in a small jar (not yet added)"
+   ],
+   "portion": "One plated dinner-salad bowl, roughly 2.5-3 cups (~180-220g) of greens and toppings, with dressing separate and only partially used (~1-2 tbsp assumed)",
+   "carbs_g_est": 10,
+   "gl_est": 4,
+   "risk": "SAFE",
+   "confidence": 58,
+   "would_clarify": true,
+   "clarify_question": "What kind of dressing is in the jar and roughly how much of it will you pour on \u2014 is it a low-sugar oil/vinegar vinaigrette, or a sweetened dressing (e.g., honey mustard, raspberry, catalina, balsamic glaze)?",
+   "doubt_reasons": [
+    "Dressing is pictured separately and not yet applied, so its sugar content and the amount actually used are unknown",
+    "Cannot confirm the dressing is oil-based vinaigrette vs. a sweetened/creamy dressing that would add meaningful sugar",
+    "Exact portion size (bowl fill vs. actual serving eaten) is an estimate from a 2D photo",
+    "Protein identity (turkey vs. chicken vs. ham) is inferred from color/texture, not certain",
+    "Cannot rule out small hidden carb sources (e.g., croutons, beans, corn) buried under the lettuce",
+    "Cheese type and quantity are estimated visually, affecting minor carb/fat assumptions"
+   ]
+  },
+  "meal-17": {
+   "ingredients": [
+    "Spiralized zucchini (\"zoodles\")",
+    "Basil pesto sauce (basil, olive oil, pine nuts, garlic, parmesan)",
+    "Cherry/grape tomatoes (mixed red, yellow, and dark heirloom varieties), halved",
+    "Likely salt and black pepper",
+    "Possible light grated parmesan"
+   ],
+   "portion": "Photo shows a full serving bowl (appears to be a multi-serving batch, ~4 servings). Estimating one typical plated serving: roughly 1.5-2 cups zucchini noodles (~180-200g raw zucchini) with ~30-40g halved cherry tomatoes and ~1-2 tbsp pesto (~20-25g).",
+   "carbs_g_est": 7,
+   "gl_est": 2,
+   "risk": "SAFE",
+   "confidence": 90,
+   "would_clarify": false,
+   "clarify_question": null,
+   "doubt_reasons": [
+    "Exact portion size taken from the shared serving bowl is unknown (could be more or less than one typical serving)",
+    "Whether the pesto is homemade or a store-bought variety that may contain added sugar or starch thickeners is not visible",
+    "Whether any parmesan or other cheese/nuts were added beyond what's visible, affecting overall composition slightly",
+    "Cannot confirm there is no small amount of wheat pasta mixed in, though visually all noodles appear to be zucchini ribbons"
+   ]
+  },
+  "meal-18": {
+   "ingredients": [
+    "Potatoes (yellow/Yukon-gold type, cut into chunks and roasted)",
+    "Cooking oil or melted butter (for roasting/crisping)",
+    "Salt (coarse/flaky salt visible)",
+    "Black pepper",
+    "Fresh chopped parsley (herb garnish)",
+    "Possibly garlic or seasoning blend (small dark specks visible)"
+   ],
+   "portion": "This is a full sheet-pan batch of roasted potato chunks (multi-serving), not a single plated meal. Estimating one typical side-dish serving: about 1 cup / 150g cooked weight, roughly 8-10 medium chunks.",
+   "carbs_g_est": 26,
+   "gl_est": 21,
+   "risk": "HIGH",
+   "confidence": 50,
+   "would_clarify": true,
+   "clarify_question": "Roughly how much of this potato tray are you actually serving yourself \u2014 how many pieces or cups (e.g., a small side scoop vs. a full plate)?",
+   "doubt_reasons": [
+    "Photo shows a full baking sheet (multi-serving batch), not a plated portion, so actual serving size eaten is unknown and this is the single biggest swing factor on GL",
+    "Potatoes are one of the highest-GI common foods (roughly 70-95+ depending on variety/cooking method), so small portion changes shift risk class easily (e.g., ~100g lands MODERATE, ~150-200g lands HIGH)",
+    "Exact potato variety (waxy vs. starchy) not confirmable from image, and it affects GI meaningfully",
+    "Cannot confirm whether butter, oil, or a sugar-containing glaze/coating was used (no visible glaze, but can't fully rule out a light sugar/honey finish some recipes use)",
+    "This appears to be a side dish only; unknown what else (protein, vegetables) is on the actual plate, which would affect overall meal GL",
+    "Fiber/skin content assumption (peeled vs. skin-on) affects carb math slightly and isn't fully certain from the image"
+   ]
+  },
+  "meal-19": {
+   "ingredients": [
+    "Crusty sub/hoagie roll (white, refined wheat)",
+    "Meatballs (ground beef and/or pork with breadcrumb/egg binder)",
+    "Marinara/tomato sauce",
+    "Melted mozzarella cheese",
+    "Chopped parsley garnish",
+    "Parmesan (likely, in meatball mix or topping)"
+   ],
+   "portion": "One meatball sub sandwich as pictured (~220-260 g: one crusty roll + 3-4 meatballs, sauce, and melted cheese)",
+   "carbs_g_est": 52,
+   "gl_est": 30,
+   "risk": "HIGH",
+   "confidence": 65,
+   "would_clarify": true,
+   "clarify_question": "What size/type is the roll (e.g., a 4-inch slider-style bun vs. a 6-8 inch hoagie roll), and are you eating this whole sandwich as shown or a smaller portion of it?",
+   "doubt_reasons": [
+    "Exact roll size and flour type (white vs. whole-grain) can't be confirmed from the photo, and it drives most of the carb load",
+    "Marinara sauce sugar/sweetener content is invisible (jarred sauces vary widely in added sugar)",
+    "Can't confirm whether the full pictured sandwich or a partial portion (e.g., half) is the actual serving being eaten",
+    "Meatball composition (breadcrumb filler amount, any pasta/rice filler) is not visible",
+    "Cheese quantity/type only estimable by sight, affecting fat/GI-lowering effect on the meal"
+   ]
+  },
+  "meal-20": {
+   "ingredients": [
+    "Seared ahi tuna steak (rare/blackened, peppercorn-crusted)",
+    "Arugula (rocket) salad greens",
+    "Capers",
+    "Lemon wedges (garnish)",
+    "Olive oil-based vinaigrette or dipping sauce",
+    "Salt and cracked black pepper"
+   ],
+   "portion": "One plated entree salad: roughly 5-6oz (140-170g) seared tuna sliced over ~2 cups arugula with capers, plus ~2 tbsp vinaigrette",
+   "carbs_g_est": 5,
+   "gl_est": 2,
+   "risk": "SAFE",
+   "confidence": 78,
+   "would_clarify": true,
+   "clarify_question": "Does the vinaigrette/dressing in the small side dish contain added sugar or honey, and roughly how much of it will be used on the salad?",
+   "doubt_reasons": [
+    "Cannot taste or chemically verify the dressing in the small ramekin \u2014 could be a simple olive oil/lemon vinaigrette (near-zero carb) or a sweetened honey-mustard/teriyaki-style dressing (higher sugar)",
+    "Exact quantity of dressing actually consumed vs. left in the dish is unknown",
+    "No visible starch, grain, or bread component, but can't rule out an off-frame side (e.g., bread, rice) not captured in the shot",
+    "Portion size of tuna is estimated visually from slice thickness/count, not weighed",
+    "Can't confirm if any hidden sweetener (e.g., in a marinade for the tuna) was used before searing"
+   ]
+  },
+  "meal-21": {
+   "ingredients": [
+    "eggs",
+    "asparagus",
+    "green onion/scallions",
+    "parmesan (or similar hard) cheese",
+    "black pepper",
+    "mixed baby greens salad (spinach, arugula, lettuces)",
+    "light oil/dressing on salad"
+   ],
+   "portion": "One wedge/slice of a baked egg frittata (~1/6-1/8 of a 9-10in frittata, roughly 120g) plus a small side salad of mixed greens (~1 cup, ~30g)",
+   "carbs_g_est": 7,
+   "gl_est": 2,
+   "risk": "SAFE",
+   "confidence": 90,
+   "would_clarify": false,
+   "clarify_question": null,
+   "doubt_reasons": [
+    "Cannot confirm whether the frittata contains a hidden starchy layer (e.g., potato) beneath the visible egg/veg surface",
+    "Exact frittata slice size/thickness and thus egg-to-vegetable ratio is uncertain",
+    "Salad dressing type and amount (could contain added sugar, e.g., balsamic vinaigrette) is not visible",
+    "Cheese type and quantity are inferred from appearance only",
+    "Even with reasonable variation in these unknowns, the carbohydrate content is low enough (no grains, starches, or fruit visible) that the GL margin to the SAFE/MODERATE threshold (10) is large, so these unknowns are unlikely to flip the risk class"
+   ]
+  },
+  "meal-22": {
+   "ingredients": [
+    "Long noodle strands (visually ambiguous \u2014 could be wheat spaghetti or spiralized/roasted spaghetti squash)",
+    "Egg-based cream sauce (carbonara-style, likely egg yolk + butter/cream)",
+    "Shredded/grated parmesan or hard cheese (visible on top and mixed in)",
+    "Chopped fresh parsley (garnish)",
+    "Cracked black pepper",
+    "Likely garlic (common in this sauce style, not directly visible)"
+   ],
+   "portion": "Single bowl serving as plated, roughly 1.5-2 cups (~230-300g) of sauced noodles/strands \u2014 a close-up shot so exact bowl volume is only approximated",
+   "carbs_g_est": 18,
+   "gl_est": 7,
+   "risk": "SAFE",
+   "confidence": 45,
+   "would_clarify": true,
+   "clarify_question": "Is the base wheat spaghetti pasta, or a low-carb substitute like spaghetti squash?",
+   "doubt_reasons": [
+    "The visible 'WHOLESOME YUM' watermark is a brand strongly associated with keto/low-carb recipes (their signature dish 'spaghetti squash carbonara' matches this exact plating/photo style), which pushes my guess toward spaghetti squash rather than wheat pasta \u2014 but this is an inference from a brand mark, not something I can confirm from the food's texture alone",
+    "The twirled, glossy strands on the fork are visually consistent with either cooked wheat spaghetti or well-roasted spaghetti squash; I cannot definitively distinguish the two from appearance",
+    "If this is actually regular wheat pasta rather than squash, carbs would jump roughly 3-4x (to ~60-80g net) and glycemic load would move into the HIGH band instead of SAFE \u2014 the risk class is not robust to this single ingredient assumption",
+    "Exact portion size is hard to gauge from a tight close-up crop; the bowl's true depth/diameter and total fill volume are inferred, not measured",
+    "Sauce composition (how much butter/cream/egg yolk vs. any added starch or hidden sugar) is not visible and could shift both effective GI and calorie/fat content",
+    "Cheese type and quantity are estimated from visual coverage, not measured"
+   ]
+  },
+  "meal-23": {
+   "ingredients": [
+    "Chopped romaine lettuce",
+    "Guacamole (avocado, onion, cilantro, lime)",
+    "Pico de gallo / diced tomato with onion and cilantro",
+    "Shredded white cheese (Monterey Jack/cheddar blend)",
+    "Corn kernels (possible corn salsa)",
+    "White rice (likely base layer, partially visible)",
+    "Possible beans (black or pinto, not clearly visible)",
+    "Possible protein (chicken/beef/tofu, not clearly visible under toppings)"
+   ],
+   "portion": "One full fast-casual style burrito bowl in a compostable oval takeout container (~650-750g total), as pictured \u2014 a single typical serving",
+   "carbs_g_est": 48,
+   "gl_est": 28,
+   "risk": "HIGH",
+   "confidence": 50,
+   "would_clarify": true,
+   "clarify_question": "Does the bottom of the bowl contain rice and/or beans/corn (visible carb base), or is this mainly lettuce plus protein and toppings with no grain base?",
+   "doubt_reasons": [
+    "The entire base of the bowl is hidden under a thick layer of lettuce and guacamole, so I cannot confirm whether rice, beans, or corn are present, which are the dominant carb/GL drivers",
+    "Cannot identify the protein (or confirm if vegetarian), which affects overall composition but not carbs directly",
+    "Cannot see or estimate any dressing, crema, or sauce that could add sugar/carbs",
+    "Exact rice/bean portion size (if present) is unknown, and portion size strongly affects GL classification",
+    "Cannot rule out a low-carb swap (e.g., extra lettuce/fajita veggies instead of rice) which would shift risk down to MODERATE or SAFE",
+    "Corn kernels are inferred from small yellow specks partially obscured by lettuce, not clearly confirmed"
+   ]
+  },
+  "meal-24": {
+   "ingredients": [
+    "steel-cut oats",
+    "whole milk (per label; water may be substituted)",
+    "salt",
+    "possible added sugar/creamer packet",
+    "unknown/unseen topping ('your choice of topping' - not visible in photo)"
+   ],
+   "portion": "One single-serve Starbucks Classic Oatmeal cup, prepared (~12 oz / ~300-340g cooked porridge from a ~50-60g dry oat mix)",
+   "carbs_g_est": 30,
+   "gl_est": 16,
+   "risk": "MODERATE",
+   "confidence": 35,
+   "would_clarify": true,
+   "clarify_question": "Did you add any topping (brown sugar, dried fruit, nuts, or plain), and was it prepared with water or whole milk as shown on the label?",
+   "doubt_reasons": [
+    "Photo shows only the empty/unfilled packaging cup, not the actual prepared food, so portion and doneness can't be visually confirmed",
+    "Label explicitly says 'finished with your choice of topping' - topping type and quantity (which could add significant sugar, e.g. brown sugar or dried fruit) is completely unknown and unseen",
+    "Unclear whether prepared with whole milk (as base recipe states) or water, which changes carb/calorie load",
+    "Exact dry oat serving size/prepared volume not visible or confirmed",
+    "Possible inclusion of a sugar/sweetener packet that ships with retail multipacks is unknown",
+    "Steel-cut oats' effective GI in this specific cooked/creamy preparation could vary, shifting GL estimate"
+   ]
+  },
+  "meal-25": {
+   "ingredients": [
+    "Double-patty burger on a sesame-seed bun (appears to be a Big Mac-style sandwich with cheese, lettuce, pickles, onion, special sauce)",
+    "French fries (fried potato, salted)",
+    "Soft drink in a McDonald's cup with straw (likely cola; regular vs. diet not visually distinguishable)",
+    "Fry/burger cardboard packaging (McDonald's branded tray, box, and fry sleeve)"
+   ],
+   "portion": "One full fast-food value meal: 1 double burger (~200-220g), 1 medium-to-large order of fries (~115-150g), and 1 medium-to-large fountain soft drink (~500-700ml)",
+   "carbs_g_est": 120,
+   "gl_est": 82,
+   "risk": "HIGH",
+   "confidence": 90,
+   "would_clarify": false,
+   "clarify_question": null,
+   "doubt_reasons": [
+    "Cannot tell if the soft drink is regular (sugared) cola or a diet/zero-sugar version, which changes total carbs by 40-60g",
+    "Exact fry portion size (small/medium/large) isn't clearly discernible from the angle/lighting",
+    "Exact bun/patty composition and sauce quantity (special sauce sugar content) can't be confirmed",
+    "Cannot rule out a side salad or other unseen items off-frame",
+    "Even accounting for a diet drink, the burger+fries combination alone is high-GI/high-carb enough that the risk class would very likely remain HIGH, so this uncertainty is unlikely to change the classification"
+   ]
+  },
+  "meal-26": {
+   "ingredients": [
+    "Sourdough bread bowl (hollowed boule)",
+    "Cream-based chowder (likely clam or potato/corn chowder)",
+    "Butter/cream/dairy base",
+    "Herbs (parsley or dill flecks)",
+    "Possible bacon bits or diced ham",
+    "Extra sourdough bread slices (torn core pieces from the bowl)"
+   ],
+   "portion": "One restaurant combo serving: a full sourdough bread bowl (~300-350g bread) filled with roughly 1.5 cups (~350ml) of creamy chowder, plus 2 extra torn slices/pieces of sourdough bread (~60-80g) on the plate for dipping",
+   "carbs_g_est": 125,
+   "gl_est": 68,
+   "risk": "HIGH",
+   "confidence": 90,
+   "would_clarify": false,
+   "clarify_question": null,
+   "doubt_reasons": [
+    "Cannot know if the diner eats the entire bread bowl or leaves most of it (common with bread bowls)",
+    "Exact chowder recipe and any added sugar/flour thickener/cornstarch amount is unknown",
+    "Precise bread bowl weight (varies by bakery, often 300-450g) can't be measured from the photo",
+    "Whether soup contains corn, potato, or extra starch fillers affecting total carbs is unclear",
+    "Fat/dairy content suggests low glycemic index for the soup itself, but combined with large bread mass this has limited effect on the overall classification"
+   ]
+  },
+  "meal-27": {
+   "ingredients": [
+    "White Italian-style sub roll (baked/toasted)",
+    "Sliced turkey or chicken breast (light-colored deli meat)",
+    "Lettuce",
+    "Sliced tomato",
+    "Cracked black pepper",
+    "Possible light condiment/mayo (not clearly visible)"
+   ],
+   "portion": "One 6-inch Subway-style sub sandwich (white bread roll, deli meat, lettuce, tomato) as pictured, unwrapped and ready to eat",
+   "carbs_g_est": 42,
+   "gl_est": 29,
+   "risk": "HIGH",
+   "confidence": 58,
+   "would_clarify": true,
+   "clarify_question": "Is this a 6-inch, footlong, or smaller/mini sub roll, and is there any sauce (e.g., sweet onion, honey mustard, mayo) on it?",
+   "doubt_reasons": [
+    "Cannot confirm actual sub length (6-inch vs footlong vs mini) from framing/angle, which roughly doubles or halves the carb load",
+    "Bread type/recipe (white Italian vs wheat vs specialty) not fully certain, affecting GI",
+    "Cannot see if a sugary sauce or dressing (e.g., sweet onion, honey mustard, BBQ) is present, which would raise carbs and GI",
+    "Cannot verify cheese presence/type, which doesn't add much carb but confirms full recipe",
+    "Exact protein (turkey vs chicken vs ham) unclear, though it doesn't change carbs materially",
+    "The chip bag in the background is not confirmed to be part of this eaten portion, so total meal carbs could be higher if chips are included"
+   ]
+  },
+  "meal-28": {
+   "ingredients": [
+    "riced cauliflower (rice-like base, likely cauliflower rather than grain rice)",
+    "scrambled egg pieces",
+    "diced carrots",
+    "green peas",
+    "sliced scallions/green onion (garnish and mixed in)",
+    "garlic (inferred)",
+    "soy sauce or similar savory sauce (inferred from color/sheen)",
+    "sesame or cooking oil (inferred)",
+    "possible small shrimp or additional protein flecks (uncertain)"
+   ],
+   "portion": "Single plated bowl, roughly 1.5 cups / ~300g as a typical one-person serving of this fried-rice-style dish",
+   "carbs_g_est": 12,
+   "gl_est": 6,
+   "risk": "SAFE",
+   "confidence": 50,
+   "would_clarify": true,
+   "clarify_question": "Is the rice-textured base in this bowl riced cauliflower or actual cooked rice (and roughly how much), since that single fact would swing the carb/GL estimate from low to potentially high?",
+   "doubt_reasons": [
+    "Cannot definitively distinguish riced cauliflower from finely chopped/fried white rice purely from texture and color in a photo \u2014 this is the single biggest swing factor (could shift carbs from ~12g to 45-60g)",
+    "Sauce composition is unknown \u2014 soy sauce, oyster sauce, or a sweetened stir-fry sauce would each contribute different amounts of sugar/carbs",
+    "Exact portion weight/volume can't be measured precisely from a photo, only estimated visually",
+    "Unclear whether the small pink/orange flecks are shrimp, more carrot, or another ingredient, affecting protein/GI balance",
+    "Amount of added oil or butter (affects calories but not carbs) is not visible",
+    "No way to confirm if any hidden starches (e.g., cornstarch slurry, a bit of real rice mixed in) were used in preparation"
+   ]
+  },
+  "meal-29": {
+   "ingredients": [
+    "Cooked rice (white or brown \u2014 appearance suggests possible brown/short-grain rice, but color could just be soy sauce staining white rice)",
+    "Scrambled/diced egg",
+    "Green peas",
+    "Diced carrots",
+    "Scallions/green onion (garnish and mixed in)",
+    "Soy sauce (likely, given the browned color and glossy sheen)",
+    "Garlic (visible whole bulb in background, likely used)",
+    "Cooking oil (vegetable or sesame oil, typical for fried rice)"
+   ],
+   "portion": "One generous single-serving bowl of fried rice as plated, roughly 1.5\u20132 cups (~280\u2013320 g total dish weight, majority being rice)",
+   "carbs_g_est": 58,
+   "gl_est": 35,
+   "risk": "HIGH",
+   "confidence": 60,
+   "would_clarify": true,
+   "clarify_question": "Is this made with white rice or brown rice, and about how many cups of it are you actually going to eat in one sitting?",
+   "doubt_reasons": [
+    "Cannot confirm rice type (white vs. brown/short-grain) from color alone \u2014 soy sauce browns white rice too, but the two have meaningfully different GI (~70 vs ~50-55) and fiber content, which alone could shift GL from HIGH to MODERATE",
+    "Cannot see or measure the actual amount of oil, soy sauce, or any added sugar in the seasoning \u2014 some fried rice sauces include sugar or oyster sauce which raise glycemic impact",
+    "Photo shows a styled, generously filled bowl (food-blog presentation); the real eaten portion could be smaller or larger, and carbs scale linearly with portion size",
+    "Cannot rule out rice substitutes (e.g., cauliflower rice) though texture/color here look like a genuine grain",
+    "No visibility into protein/fat content beyond egg (e.g., added meat/tofu) which could slow glycemic response and modestly lower effective GI",
+    "Exact ratio of rice to vegetables/egg by weight is a visual estimate, affecting total available carbs"
+   ]
+  },
+  "meal-30": {
+   "ingredients": [
+    "Meatballs (likely turkey or beef, with breadcrumb/egg binder and herbs)",
+    "Marinara/tomato sauce",
+    "Zucchini noodles (zoodles) - or possibly green/spinach pasta, ambiguous",
+    "Fresh basil garnish",
+    "Grated and shaved parmesan cheese"
+   ],
+   "portion": "One bowl serving: roughly 4 meatballs (~1 oz each), ~1.5 cups zucchini noodles (or pasta), ~1/2 cup tomato sauce, with parmesan garnish",
+   "carbs_g_est": 18,
+   "gl_est": 7,
+   "risk": "SAFE",
+   "confidence": 48,
+   "would_clarify": true,
+   "clarify_question": "Are the noodles in the bowl zucchini noodles (zoodles) or actual pasta (e.g., spinach/green pasta), and roughly how much is under the sauce?",
+   "doubt_reasons": [
+    "The green spiral strands could be zucchini noodles (very low carb) or green/spinach pasta (high carb) - this single distinction could swing the risk class from SAFE to HIGH",
+    "Depth/volume of noodles hidden under sauce and meatballs is not fully visible",
+    "Sauce could contain added sugar affecting both carbs and effective GI",
+    "Meatball binder (breadcrumb vs almond flour/none) affects carb count but is not visible",
+    "Exact serving size/weight cannot be measured from a photo"
+   ]
+  },
+  "meal-31": {
+   "ingredients": [
+    "Spaghetti (wheat pasta)",
+    "Meatballs (ground beef/pork, likely with breadcrumbs and egg binder)",
+    "Tomato/marinara sauce",
+    "Parmesan cheese (grated, garnish)",
+    "Fresh parsley (garnish)",
+    "Garlic/onion (likely in sauce, not directly visible)",
+    "Olive oil (likely in sauce)"
+   ],
+   "portion": "One generously plated bowl of spaghetti and meatballs, roughly 300g cooked pasta (~2 cups) coated in sauce with 3-4 meatballs (~40-50g each) plus a light dusting of parmesan; treating the bowl as the single serving (not dividing further, as it's already individually plated rather than a shared batch dish)",
+   "carbs_g_est": 72,
+   "gl_est": 37,
+   "risk": "HIGH",
+   "confidence": 78,
+   "would_clarify": false,
+   "clarify_question": null,
+   "doubt_reasons": [
+    "Exact pasta volume/weight in the bowl is a visual estimate and could be off by \u00b125-30%",
+    "Cannot tell if pasta is whole wheat/high-fiber vs refined white, which affects net carbs and GI",
+    "Sauce could be homemade (lower sugar) or jarred (often has added sugar), unknown exact sugar load",
+    "Cannot confirm if the extra meatball on the side plate is part of this portion or a styling extra",
+    "Meatball breading/filler carb content is not precisely knowable from appearance alone"
+   ]
+  }
+ },
+ "text_estimates": {
+  "meal-01": {
+   "ingredients": [
+    "Whole wheat flour (1/3 cup, ~40g)",
+    "Milk + splash of vinegar (1/3 cup, ~80g, acts as a quick buttermilk)",
+    "Egg (1/3 of a large egg, ~17g)",
+    "Melted butter (2 tsp, ~9g)",
+    "Maple syrup (2 tsp, ~9g)"
+   ],
+   "portion": "1 serving = 2 whole-wheat pancakes made from the listed batter (flour+milk+egg+butter+syrup as given, assumed to already be the full per-serving/2-pancake amount, not per single pancake)",
+   "carbs_g_est": 38,
+   "gl_est": 21,
+   "risk": "HIGH",
+   "confidence": 50,
+   "would_clarify": true,
+   "clarify_question": "Is this batter amount everything you'll eat for this serving (no extra butter or syrup added on top at the table), and is the maple syrup pure maple syrup rather than a corn-syrup-based pancake/table syrup?",
+   "doubt_reasons": [
+    "Unclear whether the listed 'per serving' batter already covers both pancakes or needs scaling, which directly changes total carbs",
+    "Whole wheat flour cup-to-gram weight and fiber content vary by brand (~10-13g fiber/100g), shifting net carbs by several grams",
+    "Maple syrup vs. pancake/table syrup (often corn-syrup based) have different GI and sometimes different carb concentration",
+    "Whether additional butter/syrup is added on top after cooking, beyond what's mixed into the batter description",
+    "Type of milk (whole/2%/skim) has a minor but nonzero effect on carbs and GI",
+    "No standardized GI value exists specifically for homemade whole-wheat pancakes; estimate (~55-65) is inferred from bread and packaged pancake-mix GI data, and true value could plausibly be lower (GI ~45-50) or higher, which would move the meal between MODERATE and HIGH glycemic load bands",
+    "No information on pancake cooking method/size or any other accompaniments (e.g., fruit, extra toppings) that could add or offset carbs"
+   ]
+  },
+  "meal-02": {
+   "ingredients": [
+    "Italian sausage (2 oz)",
+    "onion (saut\u00e9ed)",
+    "tomato paste",
+    "crushed tomatoes",
+    "ziti pasta (2 oz dry weight)",
+    "ricotta cheese (part-skim, assumed)",
+    "mozzarella cheese"
+   ],
+   "portion": "1/8 of a baked ziti casserole, approx. 1.5-2 cups",
+   "carbs_g_est": 50,
+   "gl_est": 23,
+   "risk": "HIGH",
+   "confidence": 55,
+   "would_clarify": true,
+   "clarify_question": "Is the ziti made with regular durum wheat pasta or a lower-carb/higher-fiber alternative (whole-wheat, chickpea, lentil, etc.), and is this slice closer to the 1.5-cup or fuller 2-cup end of your range?",
+   "doubt_reasons": [
+    "Portion given as a range (1.5-2 cups), a ~33% swing in quantity that directly scales carbs and GL",
+    "Pasta type/brand not specified \u2014 regular wheat vs. whole-wheat/legume pasta changes both net carbs and GI meaningfully",
+    "Amounts of tomato paste and crushed tomatoes not quantified (estimated from typical recipe proportions)",
+    "Amounts of ricotta and mozzarella not quantified, and fat content (whole vs part-skim) unknown, which affects meal GI via fat/protein blunting",
+    "Baking time/doneness of pasta not known \u2014 longer-cooked pasta tends toward higher GI",
+    "Unclear whether '2 oz dry pasta' reflects this specific slice or an average recipe portion, given estimate is right at the MODERATE/HIGH GL boundary"
+   ]
+  },
+  "meal-03": {
+   "ingredients": [
+    "Asparagus, ~2 oz (56 g)",
+    "Liquid egg substitute (e.g., Egg Beaters), 1/3 cup (~80 g)",
+    "Skim milk, a splash (~1 tbsp / 15 mL)",
+    "Olive oil, 1/2 tsp"
+   ],
+   "portion": "1 slice = 1/6 of a baked asparagus frittata; ingredient amounts given are for that single slice",
+   "carbs_g_est": 4,
+   "gl_est": 1.2,
+   "risk": "SAFE",
+   "confidence": 93,
+   "would_clarify": false,
+   "clarify_question": null,
+   "doubt_reasons": [
+    "Exact volume of the 'splash' of skim milk is undefined (assumed ~1 tbsp; even 2-3x that only adds ~1-2 g carb)",
+    "Egg substitute brand/formulation not specified; some contain trace added starch, but variance is under 1-2 g carb",
+    "No mention of added cheese, breadcrumbs, potato, onion, or seasoning that could add carbs beyond what's listed",
+    "Cooking method (pan greased with more oil, non-stick spray, etc.) not detailed, but has negligible carb impact"
+   ]
+  },
+  "meal-04": {
+   "ingredients": [
+    "4 oz baby bella (cremini) mushrooms",
+    "garlic (amount unspecified)",
+    "olive oil",
+    "1 tbsp butter",
+    "1 tbsp all-purpose flour (roux/thickener)",
+    "vegetable broth (amount unspecified)",
+    "soy sauce",
+    "2 tbsp heavy cream"
+   ],
+   "portion": "1 cup prepared creamy mushroom soup",
+   "carbs_g_est": 12,
+   "gl_est": 7,
+   "risk": "SAFE",
+   "confidence": 60,
+   "would_clarify": true,
+   "clarify_question": "Does this ingredient list describe just this one cup, or is it the whole pot (multiple servings) that you're then measuring out 1 cup from?",
+   "doubt_reasons": [
+    "Ingredient list reads like a full recipe (broth, butter, flour, cream, mushrooms) that could plausibly yield 2-3 cups; if so, carbs/GL in the actual 1-cup portion eaten would be lower than if the whole list is scaled to exactly 1 cup",
+    "Quantity of garlic is unspecified (assumed ~2 cloves)",
+    "Volume and brand of vegetable broth is unspecified \u2014 broth carb content varies widely (roughly 1-8g carb per cup depending on added sugars/starches), and it's the largest swing factor in this estimate",
+    "Soy sauce quantity/type (regular vs low-sodium vs low-carb) not given, affects small amount of carb/sugar",
+    "Flour is used as a roux (cooked in fat), which may lower its effective glycemic impact versus raw flour GI values used in the calculation",
+    "Fiber content of mushrooms/garlic is an approximation, not from a verified label"
+   ]
+  },
+  "meal-05": {
+   "ingredients": [
+    "All-purpose flour (1/3 cup, ~40g)",
+    "Baking powder (amount unspecified, small)",
+    "Granulated sugar (1 tsp)",
+    "Egg (1/3 of one large egg)",
+    "Milk (4.4 tbsp, ~0.27 cup)",
+    "Melted butter (1 tbsp)"
+   ],
+   "portion": "One serving of waffle batter as listed (1/3 cup flour, baking powder, 1 tsp sugar, 1/3 egg, 4.4 tbsp milk, ~1 tbsp melted butter) \u2014 roughly one medium waffle's worth of batter, eaten plain (no syrup/toppings mentioned)",
+   "carbs_g_est": 38,
+   "gl_est": 27,
+   "risk": "HIGH",
+   "confidence": 60,
+   "would_clarify": true,
+   "clarify_question": "Will you be adding syrup, fruit, whipped cream, or other toppings, and is this waffle the whole meal or paired with a protein/fat source \u2014 any of that would meaningfully shift the total carb load and risk class?",
+   "doubt_reasons": [
+    "No toppings mentioned (syrup, fruit, whipped cream) which are typical with waffles and would sharply raise carbs/GL beyond the batter-only estimate",
+    "Baking powder quantity not given (minor carb contributor, mostly starch filler)",
+    "Homemade-waffle GI can plausibly range ~55-85 depending on batter consistency, cook time/browning, and exact flour milling, which shifts GL roughly 21-34 (border of MODERATE/HIGH at the low end)",
+    "Egg given as an odd fraction (1/3), suggesting a scaled-down recipe with imprecise real-world measurement",
+    "Not stated whether this batter is the entire meal or accompanied by other carb or protein items"
+   ]
+  },
+  "meal-06": {
+   "ingredients": [
+    "1/2 cup cooked rolled oats (oatmeal)",
+    "1 tbsp raspberry fruit spread (jam/preserves)",
+    "1/2 cup quartered fresh strawberries",
+    "1 tbsp slivered almonds"
+   ],
+   "portion": "1 bowl: 1/2 cup cooked oats + 1 tbsp raspberry fruit spread + 1/2 cup strawberries + 1 tbsp slivered almonds (~150g total)",
+   "carbs_g_est": 28,
+   "gl_est": 14.2,
+   "risk": "MODERATE",
+   "confidence": 75,
+   "would_clarify": false,
+   "clarify_question": null,
+   "doubt_reasons": [
+    "\"Fruit spread\" could be regular sugar-sweetened jam (~13-15g carb/tbsp, GI ~55-65) or a lower-sugar 'all-fruit' spread (~9-10g carb/tbsp, GI ~45-50) \u2014 this swings available carbs by roughly \u00b13-4g but does not change the risk class in either direction (recomputed range ~12-18 GL, still MODERATE)",
+    "Weight of '1 tbsp slivered almonds' varies (loosely packed vs. pressed, ~5-8g) \u2014 minor effect since almonds contribute little available carb",
+    "No stated milk/liquid or added sweetener beyond the fruit spread, assumed none",
+    "Cooked oats water ratio not specified, assumed standard 1:2 oats:water yielding typical cooked density (~234g/cup)"
+   ]
+  },
+  "meal-07": {
+   "ingredients": [
+    "riced cauliflower",
+    "diced carrots",
+    "green onion (scallion)",
+    "soy sauce",
+    "sesame oil",
+    "ginger"
+   ],
+   "portion": "1/2 cup of prepared cauliflower fried rice",
+   "carbs_g_est": 4,
+   "gl_est": 1.6,
+   "risk": "SAFE",
+   "confidence": 88,
+   "would_clarify": false,
+   "clarify_question": null,
+   "doubt_reasons": [
+    "Exact ratio of cauliflower to carrots within the mix isn't specified",
+    "Amount/type of soy sauce affects sodium but not carbs materially, so left approximate",
+    "Recipe may include unlisted low-carb additions (garlic, egg, scallion greens) that wouldn't change carb count much",
+    "Unclear whether 1/2 cup is the entire meal or a side alongside a protein/other dish not described",
+    "No peas, corn, or other higher-carb vegetables were mentioned, but some fried-rice recipes add them \u2014 none stated here so excluded"
+   ]
+  },
+  "meal-08": {
+   "ingredients": [
+    "Cauliflower (crust base, ~3 oz)",
+    "Parmesan cheese (crust binder, ~3 tbsp)",
+    "Egg (crust binder, unspecified amount)",
+    "Mozzarella/other cheese (topping)",
+    "Pepperoni (topping)",
+    "No tomato sauce mentioned"
+   ],
+   "portion": "1 slice of a cauliflower-crust pizza (crust described as ~3 oz cauliflower + 3 tbsp parmesan + some egg), topped with cheese and pepperoni; no sauce mentioned",
+   "carbs_g_est": 6,
+   "gl_est": 1.5,
+   "risk": "SAFE",
+   "confidence": 85,
+   "would_clarify": false,
+   "clarify_question": null,
+   "doubt_reasons": [
+    "Exact slice size/fraction of the whole crust is unclear (a personal cauliflower crust vs a large pie slice)",
+    "No tomato sauce mentioned; if present, could add a few extra grams of carbs",
+    "\"Some egg\" quantity is unspecified",
+    "Type and quantity of the topping cheese (e.g., mozzarella) is unspecified",
+    "No grain/starch binder (flour, tapioca, breadcrumbs) mentioned in the crust, but presence of a small amount can't be fully ruled out",
+    "Amount of pepperoni not specified"
+   ]
+  },
+  "meal-09": {
+   "ingredients": [
+    "Cooked jasmine rice (white, long-grain aromatic)",
+    "Chicken breast, diced, cooked",
+    "Onion",
+    "Garlic",
+    "Ginger",
+    "Light (reduced-fat) coconut milk",
+    "Tomato paste"
+   ],
+   "portion": "1 bowl: 3/4 cup cooked jasmine rice + 6 oz diced chicken breast in light coconut-curry sauce",
+   "carbs_g_est": 44,
+   "gl_est": 28,
+   "risk": "HIGH",
+   "confidence": 65,
+   "would_clarify": false,
+   "clarify_question": null,
+   "doubt_reasons": [
+    "Jasmine rice GI varies widely across sources (roughly 60-109 depending on variety, cooking method, and cooling), which shifts the GL estimate but not enough to cross out of HIGH in most plausible cases",
+    "Exact quantity of onion, tomato paste, and coconut milk in the sauce is not given, only inferred from a typical light curry sauce",
+    "No mention of whether the curry sauce contains any added sugar, honey, or curry paste with sugar, which is common in some recipes and would push carbs/GL higher",
+    "Whether the 3/4 cup rice measurement is packed or loosely measured slightly affects carb weight",
+    "Fat and protein content (chicken, coconut milk) can blunt real-world postprandial glucose response relative to a pure carb-weighted GI calculation, which classic GL math does not capture"
+   ]
+  },
+  "meal-10": {
+   "ingredients": [
+    "4 oz salmon fillet",
+    "teriyaki glaze (soy sauce, mirin, sake, honey)",
+    "3/4 cup cooked jasmine rice",
+    "1/4 cup edamame (shelled, cooked)",
+    "sliced cucumber"
+   ],
+   "portion": "1 bowl: 4 oz salmon + teriyaki glaze, 3/4 cup cooked jasmine rice, 1/4 cup edamame, sliced cucumber",
+   "carbs_g_est": 46,
+   "gl_est": 30,
+   "risk": "HIGH",
+   "confidence": 65,
+   "would_clarify": true,
+   "clarify_question": "About how much teriyaki glaze is actually on the dish (e.g., a light brushing/1 tsp vs. 2+ tablespoons pooling in the bowl), and is it a sweeter honey/mirin-forward glaze or a lighter, more soy-forward one?",
+   "doubt_reasons": [
+    "Quantity of teriyaki glaze that actually coats the fish/rice is unstated \u2014 sugar from honey and mirin can swing carbs by 5-15g",
+    "Jasmine rice glycemic index is reported very inconsistently in the literature (roughly 58-109), which materially shifts the GL calculation",
+    "Ratio of soy sauce (low-carb, savory) to honey/mirin (high-sugar) in the teriyaki sauce is unknown",
+    "Unclear if any extra sauce is pooled in the bowl beyond what glazes the salmon",
+    "Rice measured as cooked (assumed) rather than dry, but not explicitly confirmed",
+    "No information on other add-ins (sesame seeds, scallions, extra oil) that could shift fat/carb balance and effective glycemic response"
+   ]
+  },
+  "meal-11": {
+   "ingredients": [
+    "Spaghetti squash (cooked, crust base)",
+    "Egg (crust binder)",
+    "Mozzarella cheese",
+    "Parmesan cheese",
+    "Marinara sauce (tomato-based)"
+   ],
+   "portion": "2 mini pizzas, described as one serving: 1 cup cooked spaghetti squash, 1/2 egg, mozzarella, parmesan, ~3 tbsp marinara sauce",
+   "carbs_g_est": 12,
+   "gl_est": 4.8,
+   "risk": "SAFE",
+   "confidence": 60,
+   "would_clarify": true,
+   "clarify_question": "Does the ingredient list (1 cup spaghetti squash, 1/2 egg, ~3 tbsp marinara) describe just ONE of the two mini pizzas \u2014 meaning you'd double everything for the full serving \u2014 or does it already cover both mini pizzas you're about to eat?",
+   "doubt_reasons": [
+    "Ambiguous whether the 'per serving' ingredient amounts are for one mini pizza (doubled since 2 are eaten) or already cover both mini pizzas as a single serving \u2014 this alone can swing GL from ~5 to ~9-10, near the SAFE/MODERATE boundary",
+    "Mozzarella and parmesan quantities are not specified (assumed modest, roughly 2-3 tbsp combined)",
+    "Marinara sauce sugar/carb content varies widely by brand (jarred sauces range from ~2g to ~9g carbs per 3 tbsp depending on added sugar)",
+    "Spaghetti squash's glycemic index is not well standardized in GI databases; assumed low-moderate (~40) based on similar low-starch winter squash"
+   ]
+  },
+  "meal-12": {
+   "ingredients": [
+    "brown lentils (~1/4 cup, dry/raw quantity as listed)",
+    "mushrooms (unspecified amount)",
+    "carrot (unspecified amount)",
+    "celery (unspecified amount)",
+    "onion (unspecified amount)",
+    "vegetable broth (base liquid)",
+    "full-fat coconut milk (~1/3 cup)"
+   ],
+   "portion": "1.5 cups (creamy lentil vegetable soup)",
+   "carbs_g_est": 34,
+   "gl_est": 12.6,
+   "risk": "MODERATE",
+   "confidence": 50,
+   "would_clarify": true,
+   "clarify_question": "Is the 1/4 cup brown lentils measured dry/before cooking, or already-cooked lentils as served \u2014 and are the full 1/4 cup lentils and 1/3 cup coconut milk contained in just this one 1.5-cup bowl, or spread across a larger batch/multiple servings?",
+   "doubt_reasons": [
+    "Dry vs. cooked lentil measurement changes available carbs roughly 4x (dry ~25g net carbs vs. cooked-in-bowl ~6g net carbs for that quantity), which alone can flip risk from MODERATE to SAFE.",
+    "Unclear whether the stated ingredient quantities (1/4 cup lentils, 1/3 cup coconut milk) describe this single 1.5-cup serving or a larger pot/recipe batch that gets divided into multiple servings, which would dilute carbs per portion.",
+    "Mushroom, carrot, celery, and onion amounts are not quantified, so their combined carb/fiber contribution (~5-9g net carbs) is a rough estimate.",
+    "\"Creamy\" suggests the soup may be partially or fully pureed/blended, which can modestly raise the effective glycemic response of the lentils vs. whole cooked lentils.",
+    "No information on added starches, thickeners, or sugar (e.g., flour, cornstarch, or sweetened broth) that some 'creamy' soup recipes include."
+   ]
+  },
+  "meal-13": {
+   "ingredients": [
+    "Unsweetened almond milk, 1/2 cup",
+    "Frozen blueberries, 1/2 cup",
+    "Baby spinach, 1 cup (raw, blended)",
+    "Banana, 1/2 medium"
+   ],
+   "portion": "1 cup finished smoothie (as described; assumed to be the entire recipe listed, consumed as one serving)",
+   "carbs_g_est": 20,
+   "gl_est": 11,
+   "risk": "MODERATE",
+   "confidence": 55,
+   "would_clarify": true,
+   "clarify_question": "How ripe is the banana (still green-tipped/firm vs. fully yellow vs. very ripe/spotted), and is it a smaller or larger-than-average banana? Riper/larger bananas carry more sugar and a higher glycemic index, which is enough by itself to push this from a safe to a moderate glycemic load.",
+   "doubt_reasons": [
+    "Banana ripeness not specified \u2014 GI for banana can range roughly 42 (greener) to 62 (very ripe), which alone shifts estimated GL from ~8 (SAFE) to ~13 (MODERATE) in sensitivity checks",
+    "Banana size not specified beyond 'medium' \u2014 actual weight can vary ~100-125g, changing carb contribution",
+    "No mention of any add-ins (protein powder, nut butter, chia/flax, yogurt) that could add fat/protein/fiber and blunt the glycemic response",
+    "Blending intensity/particle size not known \u2014 finer blending can raise effective GI versus a chunkier smoothie",
+    "Unclear if '1 cup' is the true finished/consumed volume or if more than 1 cup is actually produced and drunk from these ingredients",
+    "Exact almond milk brand/carb content not specified (most unsweetened brands are near 0-1g carbs, but some vary slightly)",
+    "No context on what else is eaten with/around this smoothie or timing relative to other meals, which affects real-world glycemic impact for a prediabetic individual"
+   ]
+  },
+  "meal-14": {
+   "ingredients": [
+    "Flank steak (grilled, marinated in balsamic vinegar), 3 oz",
+    "Cherry tomatoes, 1/4 cup",
+    "Baby arugula, 1 cup",
+    "Balsamic-olive oil dressing (oil + balsamic vinegar), unspecified quantity, assumed ~1-1.5 tbsp"
+   ],
+   "portion": "3 oz steak + 1/4 cup cherry tomatoes + 1 cup baby arugula + light balsamic-olive oil dressing (one dinner-salad-with-protein serving)",
+   "carbs_g_est": 4,
+   "gl_est": 1,
+   "risk": "SAFE",
+   "confidence": 90,
+   "would_clarify": false,
+   "clarify_question": null,
+   "doubt_reasons": [
+    "Exact quantity of dressing not specified (assumed a modest 1-1.5 tbsp)",
+    "Whether the balsamic marinade/dressing is homemade (mostly oil+vinegar) or a store-bought version with added sugar is unknown",
+    "How much of the marinade liquid is actually consumed vs. discarded after grilling is unclear",
+    "No bread, grains, or starchy sides mentioned, but description doesn't explicitly rule out an unlisted side"
+   ]
+  },
+  "meal-15": {
+   "ingredients": [
+    "Plain nonfat Greek yogurt (3/4 cup)",
+    "Lemon (juice/zest, small amount)",
+    "Zero-calorie sweetener (e.g., stevia/monk fruit/sucralose)",
+    "Fresh blueberries (1/2 cup)",
+    "Sliced almonds (1 tbsp)"
+   ],
+   "portion": "1 parfait: 3/4 cup plain nonfat Greek yogurt + 1/2 cup fresh blueberries + 1 tbsp sliced almonds",
+   "carbs_g_est": 15,
+   "gl_est": 6.5,
+   "risk": "SAFE",
+   "confidence": 85,
+   "would_clarify": false,
+   "clarify_question": null,
+   "doubt_reasons": [
+    "Exact carb content of the yogurt varies by brand (typically 4-9g carbs per 3/4 cup for plain nonfat Greek yogurt)",
+    "Blueberry sugar content varies modestly with ripeness/variety, and 'fresh' cup measure can vary slightly by berry size",
+    "No added sugar assumed since a zero-calorie sweetener is specified (not honey/sugar)",
+    "Assumed standard US cup/tbsp measures and no other unlisted mix-ins (e.g., granola, honey drizzle)"
+   ]
+  },
+  "meal-16": {
+   "ingredients": [
+    "Romaine lettuce (chopped, ~2 cups base)",
+    "Deli turkey, 2 oz",
+    "Provolone cheese, 1/2 slice",
+    "Parmesan (small amount, shaved/grated)",
+    "Green olives, 1 tbsp",
+    "Sun-dried tomatoes, 1 tbsp",
+    "Roasted red pepper (amount unspecified, assumed ~2-3 tbsp)",
+    "Red-wine vinaigrette (amount unspecified, assumed ~1-2 tbsp)"
+   ],
+   "portion": "2 cups antipasto salad (~300-350 g total), single serving as described",
+   "carbs_g_est": 11,
+   "gl_est": 3.3,
+   "risk": "SAFE",
+   "confidence": 80,
+   "would_clarify": false,
+   "clarify_question": null,
+   "doubt_reasons": [
+    "Vinaigrette serving size and sugar content not specified (could range from a light drizzle to a heavier pour)",
+    "Amount of roasted red pepper and parmesan not quantified",
+    "Sun-dried tomatoes could be oil-packed (less concentrated) or dry-packed (more concentrated carbs) \u2014 not specified",
+    "Deli turkey brand/added sugars or glazes unknown",
+    "No grain, legume, or starchy component present, so even under generous assumptions the carb/GL ceiling stays well within SAFE range"
+   ]
+  },
+  "meal-17": {
+   "ingredients": [
+    "Raw spiralized zucchini noodles",
+    "Basil pesto (fresh basil, garlic, parmesan cheese, olive oil)",
+    "Cherry tomatoes, halved"
+   ],
+   "portion": "1 1/4 cups zucchini noodles tossed with pesto (basil, garlic, 1 tbsp parmesan, 2 tsp olive oil) and 1/4 cup halved cherry tomatoes",
+   "carbs_g_est": 5.5,
+   "gl_est": 1.2,
+   "risk": "SAFE",
+   "confidence": 93,
+   "would_clarify": false,
+   "clarify_question": null,
+   "doubt_reasons": [
+    "Basil quantity in the pesto is not specified",
+    "Pesto could be store-bought with added sugar, pine nuts, or other fillers not mentioned",
+    "Exact packing/measurement of the spiralized zucchini cup can vary carb count slightly",
+    "Garlic amount (number of cloves) is unstated",
+    "None of these unknowns are large enough to move the meal out of the SAFE class given the wide margin below the GL 10 threshold"
+   ]
+  },
+  "meal-18": {
+   "ingredients": [
+    "Russet potatoes (~8 oz / 227g, skin-on, oven-roasted)",
+    "Olive oil (3/4 tbsp, ~10g)",
+    "Salt",
+    "Black pepper",
+    "Garlic powder (~1/4-1/2 tsp)"
+   ],
+   "portion": "8 oz (about 227g) of oven-roasted russet potato pieces tossed in 3/4 tbsp olive oil with salt, pepper, and garlic powder \u2014 appears to be the entire described meal/serving",
+   "carbs_g_est": 37,
+   "gl_est": 28,
+   "risk": "HIGH",
+   "confidence": 62,
+   "would_clarify": true,
+   "clarify_question": "Is the 8 oz measured as raw potato weight before roasting, or as the weight after roasting (post-roast weight is more carb-concentrated due to moisture loss)?",
+   "doubt_reasons": [
+    "Unclear if 8 oz is pre-roast (raw) or post-roast (cooked/concentrated) weight \u2014 shifts available carbs by roughly 15-20%",
+    "Potato glycemic index is highly variable in the literature (commonly cited anywhere from ~56 to ~110+) depending on cooking method, doneness, and whether eaten hot or cooled (resistant starch effect)",
+    "No indication whether skin is eaten or discarded, which slightly affects fiber/available-carb math",
+    "No other meal components mentioned (protein/veg) that could blunt the glycemic response even though they wouldn't change the raw GL math",
+    "Exact potato size/variety density assumed from USDA averages rather than the actual potatoes used"
+   ]
+  },
+  "meal-19": {
+   "ingredients": [
+    "Portuguese roll, small (2 oz, white/enriched bread)",
+    "chicken meatballs with breadcrumb filler (~5 oz)",
+    "marinara sauce (1/4 cup)",
+    "part-skim mozzarella cheese (1 slice)"
+   ],
+   "portion": "1 sandwich as described: 2-oz roll, ~5 oz chicken meatballs, 1/4 cup marinara, 1 slice mozzarella (roughly 10-11 oz total assembled sandwich)",
+   "carbs_g_est": 45,
+   "gl_est": 28,
+   "risk": "HIGH",
+   "confidence": 65,
+   "would_clarify": true,
+   "clarify_question": "Is the Portuguese roll a standard white/enriched roll (typical) or a whole-grain/lower-carb version, and is the marinara a regular jarred sauce with added sugar or a no-sugar-added/homemade style?",
+   "doubt_reasons": [
+    "Exact carb density of a \"Portuguese roll\" isn't fixed \u2014 these are often semi-sweet, egg-enriched white rolls (high GI), but could vary by bakery/brand",
+    "Breadcrumb-to-meat ratio in the chicken meatballs is unknown (homemade vs. commercial product changes carb load meaningfully)",
+    "Marinara sauce added-sugar content varies widely by brand (some jarred sauces add 4-6g sugar per 1/4 cup, others none)",
+    "Fiber content of the roll not specified, which affects available (net) carbs",
+    "No stated cooking method or additional toppings (oil, extra cheese, etc.) that could shift fat/GI-dampening effect",
+    "GI values used are estimates from food-category averages, not lab-measured for this specific meal combination"
+   ]
+  },
+  "meal-20": {
+   "ingredients": [
+    "Seared tuna (ahi), 5 oz",
+    "Baby arugula, 2 cups",
+    "Olive oil, 1 tsp",
+    "Lemon juice, 1 tsp",
+    "Capers, 1 tsp"
+   ],
+   "portion": "1 salad as described: 5 oz seared tuna over 2 cups baby arugula, dressed with 1 tsp olive oil, 1 tsp lemon juice, 1 tsp capers",
+   "carbs_g_est": 3,
+   "gl_est": 1,
+   "risk": "SAFE",
+   "confidence": 96,
+   "would_clarify": false,
+   "clarify_question": null,
+   "doubt_reasons": [
+    "Exact gram weight of '2 cups' loosely packed arugula can vary with packing density, though the carb swing is trivial (arugula is nearly carb-free)",
+    "No mention of whether the tuna has any marinade, glaze, sesame-sugar crust, or soy-based sauce beyond the listed olive oil/lemon/capers dressing",
+    "Unclear if this salad is the entire meal or accompanied by bread, crackers, or a starch on the side not mentioned in the description",
+    "No fiber/sugar breakdown given, so all values are inferred from typical USDA composition for these raw ingredients"
+   ]
+  },
+  "meal-21": {
+   "ingredients": [
+    "asparagus",
+    "shallots",
+    "butter",
+    "~1.25 whole eggs + 1 egg white",
+    "1/2 tbsp pecorino cheese",
+    "3/4 oz Swiss cheese"
+   ],
+   "portion": "1/4 of an asparagus and Swiss cheese frittata (one quarter-wedge serving of a 4-serving frittata)",
+   "carbs_g_est": 4,
+   "gl_est": 1,
+   "risk": "SAFE",
+   "confidence": 92,
+   "would_clarify": false,
+   "clarify_question": null,
+   "doubt_reasons": [
+    "Exact weight of asparagus and shallots per serving is not given, only that this is 1/4 of the total frittata",
+    "Cooking method/oil beyond butter (e.g., pan-searing oil, any splash of cream or milk in the egg mix) is not specified",
+    "Whether any starchy add-ins (potato, toast, etc.) accompany the frittata off-description is unknown"
+   ]
+  },
+  "meal-22": {
+   "ingredients": [
+    "Shirataki (konjac) noodles",
+    "Olive oil",
+    "Garlic (quantity unspecified)",
+    "Bone broth (quantity unspecified, 'about')",
+    "Heavy cream (~3 tbsp)",
+    "Parmesan cheese (~2 tbsp grated)"
+   ],
+   "portion": "1 cup shirataki noodles with sauce (olive oil, garlic, a splash of bone broth, 3 tbsp heavy cream, 2 tbsp parmesan) \u2014 roughly a single-serving entr\u00e9e",
+   "carbs_g_est": 5,
+   "gl_est": 2,
+   "risk": "SAFE",
+   "confidence": 88,
+   "would_clarify": false,
+   "clarify_question": null,
+   "doubt_reasons": [
+    "Exact quantity of garlic not given (assumed 1-3 cloves, ~1-3g carb)",
+    "Exact amount of bone broth used in the sauce not specified ('about' language)",
+    "Brand variance in shirataki noodle net-carb content (typically 0-2g net carb per cup regardless)",
+    "No info on any hidden thickeners/starches in the cream sauce (e.g., cornstarch, flour) that could add carbs",
+    "Even under generous worst-case assumptions for garlic/broth, total available carbs stay well under ~10g and GI is low, so this doesn't change the SAFE classification"
+   ]
+  },
+  "meal-23": {
+   "ingredients": [
+    "cilantro-lime white rice (4 oz)",
+    "black beans (4 oz)",
+    "grilled chicken (4 oz)",
+    "fresh tomato salsa (amount unspecified)",
+    "shredded cheese (1 oz)",
+    "romaine lettuce (amount unspecified)"
+   ],
+   "portion": "1 burrito bowl (no tortilla): 4 oz rice, 4 oz beans, 4 oz chicken, 1 oz cheese, plus salsa and lettuce in unstated (assumed standard/light) amounts",
+   "carbs_g_est": 58,
+   "gl_est": 32,
+   "risk": "HIGH",
+   "confidence": 85,
+   "would_clarify": false,
+   "clarify_question": null,
+   "doubt_reasons": [
+    "Salsa quantity not stated; assumed a standard ~3.5 oz serving (minor carb contributor, ~4g carb)",
+    "Lettuce quantity not stated; assumed a light garnish (negligible carb contribution)",
+    "Assumed rice is cooked weight (as served), not dry/uncooked weight \u2014 if dry, carbs and GL would be even higher, not lower",
+    "No dressing, guacamole, sour cream, or tortilla mentioned; assumed none are included (a tortilla or added guac would push GL further into HIGH)",
+    "Glycemic index for the specific cilantro-lime rice preparation is approximated; fat and lime acidity may modestly lower effective GI versus plain white rice, but even conservative GI assumptions keep GL above the HIGH threshold because rice (4 oz) and beans (4 oz) alone already yield GL > 20"
+   ]
+  },
+  "meal-24": {
+   "ingredients": [
+    "Whole-grain rolled oats and steel-cut oats blend (dry, 42 g) - Starbucks Classic Oatmeal base",
+    "Hot water (preparation liquid, no calories/carbs)",
+    "No toppings added (no brown sugar, dried fruit, or nut medley)"
+   ],
+   "portion": "1 serving prepared from 42 g dry whole-grain rolled + steel-cut oat blend with hot water (~8 oz / 227 g prepared, no toppings) - matches Starbucks' standard 'Classic Oatmeal' base",
+   "carbs_g_est": 23,
+   "gl_est": 12.7,
+   "risk": "MODERATE",
+   "confidence": 72,
+   "would_clarify": false,
+   "clarify_question": null,
+   "doubt_reasons": [
+    "Glycemic index of the specific rolled+steel-cut oat blend is not lab-measured here; plain cooked oats GI estimates commonly range ~50-60, which shifts GL roughly 11.5-13.8 (still mostly MODERATE but close to the SAFE boundary at the low end)",
+    "Relying on memorized/typical Starbucks nutrition-facts figures (total carb ~27g, fiber ~4g) rather than a verified current label, since no web/tool lookup was permitted",
+    "No information on any salt or optional add-in packet that baristas sometimes include even under a 'no toppings' order",
+    "Cooking time/water temperature at point of sale could affect starch gelatinization and thus effective GI slightly"
+   ]
+  },
+  "meal-25": {
+   "ingredients": [
+    "Big Mac: two beef patties, Big Mac special sauce, iceberg lettuce, American cheese, pickles, onions, three-part sesame seed bun",
+    "Medium french fries (salted, fried in vegetable oil blend)",
+    "Medium (22 oz) regular Coca-Cola (sucrose/HFCS sweetened cola)"
+   ],
+   "portion": "1 Big Mac Meal: 1 Big Mac + 1 medium fries + 1 medium (22 oz) regular Coca-Cola",
+   "carbs_g_est": 140,
+   "gl_est": 84,
+   "risk": "HIGH",
+   "confidence": 95,
+   "would_clarify": false,
+   "clarify_question": null,
+   "doubt_reasons": [
+    "Exact liquid/sugar content of the 'medium' Coke depends on ice ratio and regional cup sizing",
+    "No mention of extra sauces, cheese, or customizations to the Big Mac that could add/remove a few carb grams",
+    "Regional McDonald's menu variations (bun size, fry portion weight) could shift carbs by roughly 5-15g",
+    "No GI lab measurement specific to this exact combined meal \u2014 used component GI estimates (burger ~47, fries ~70, cola ~63) rather than a directly measured composite value",
+    "Assumed 'medium' fries corresponds to standard ~43g-carb serving; some markets/portions differ slightly"
+   ]
+  },
+  "meal-26": {
+   "ingredients": [
+    "Sourdough bread bowl (wheat flour, water, salt, sourdough starter/yeast \u2014 a whole ~1 lb hollowed bread loaf)",
+    "Broccoli",
+    "Cheddar cheese",
+    "Cream/milk",
+    "Butter",
+    "Flour (roux thickener)",
+    "Onion, carrot (mirepoix)",
+    "Chicken or vegetable stock",
+    "Seasoning"
+   ],
+   "portion": "1 Panera-size broccoli cheddar soup (standard soup-in-bread-bowl serving, roughly 12-16 oz of soup) served in and eaten with a whole sourdough bread bowl (~1 lb / ~450-500g loaf, entirely consumed)",
+   "carbs_g_est": 180,
+   "gl_est": 104,
+   "risk": "HIGH",
+   "confidence": 94,
+   "would_clarify": false,
+   "clarify_question": null,
+   "doubt_reasons": [
+    "Exact weight of the bread bowl loaf consumed (Panera's bread bowl is roughly 450-500g but varies by location/batch)",
+    "Whether the soup portion was the smaller cup-size or full bowl-size fill",
+    "Precise glycemic index of sourdough bread (fermentation can lower it somewhat, range ~53-70 in studies)",
+    "Effective GI of the roux/cheese/dairy-thickened soup, which is not well-characterized and fat/protein content will blunt but not eliminate glycemic response",
+    "Any extras eaten (crackers, side, drink) not mentioned in the description"
+   ]
+  },
+  "meal-27": {
+   "ingredients": [
+    "Oven roasted turkey breast",
+    "9-grain wheat bread (6-inch sub roll)",
+    "lettuce",
+    "tomato",
+    "onion",
+    "green pepper",
+    "cucumber",
+    "no cheese or sauce mentioned/assumed"
+   ],
+   "portion": "One 6-inch Subway sandwich as described (single sandwich only; no stated cheese, sauce, chips, or drink)",
+   "carbs_g_est": 41,
+   "gl_est": 23,
+   "risk": "HIGH",
+   "confidence": 50,
+   "would_clarify": true,
+   "clarify_question": "Are you adding any sauce/dressing, mayo, oil, or cheese to the sandwich, and is this the whole meal (no chips, cookie, or sweetened drink alongside it)?",
+   "doubt_reasons": [
+    "The glycemic index of Subway's 9-grain wheat bread isn't precisely known; commercial multigrain breads range widely (GI ~45-70 depending on how much whole/intact grain vs refined flour is used), and the bread supplies nearly all the carbs in this meal, so the GL estimate swings between roughly MODERATE (~18-19) and clearly HIGH (~25-28) depending on that single assumption.",
+    "No sauce, dressing, oil, or cheese was mentioned; assumed none, but if mayo/oil or a sweet sauce and/or cheese were added, carbs and GL would rise further.",
+    "Only the sandwich itself was described as 'this meal' - unclear whether chips, a cookie, or a soda/sweetened drink typically bundled with a sub order are part of what's actually being eaten, which would substantially raise total GL if included.",
+    "Exact total-carb/fiber figures for the specific 9-grain wheat roll are based on recalled published averages, not a verified current nutrition label, so there's some numeric uncertainty in the 41g carb estimate itself.",
+    "Standard/default vegetable portion sizes were assumed since no quantities were given; actual servings could vary the carb count slightly."
+   ]
+  },
+  "meal-28": {
+   "ingredients": [
+    "riced cauliflower",
+    "egg",
+    "frozen peas and carrots",
+    "scallions",
+    "garlic",
+    "soy sauce",
+    "sesame oil"
+   ],
+   "portion": "1 1/3 cups (~320 g) prepared cauliflower fried rice",
+   "carbs_g_est": 10,
+   "gl_est": 2.2,
+   "risk": "SAFE",
+   "confidence": 85,
+   "would_clarify": false,
+   "clarify_question": null,
+   "doubt_reasons": [
+    "Exact ratio of riced cauliflower to frozen peas/carrots isn't given, so the vegetable-carb share is an estimate",
+    "Amount and type of soy sauce (regular vs. low-sodium, or a sweetened variant) not specified, though it contributes little carb either way",
+    "No mention of added sugar, cornstarch slurry, or sweet sauces (e.g., oyster/hoisin) sometimes found in fried-rice recipes, which could add carbs if present but weren't listed",
+    "Cooking oil amount for frying is unspecified (affects fat/calories, not carbs)",
+    "No regular rice appears to be blended in, but some 'cauliflower fried rice' recipes cut it with real rice; ingredient list implies pure cauliflower base"
+   ]
+  },
+  "meal-29": {
+   "ingredients": [
+    "cooked brown rice",
+    "egg",
+    "mixed vegetables (type/amount unspecified, e.g., carrot/peas/corn)",
+    "scallion",
+    "soy sauce",
+    "sesame oil"
+   ],
+   "portion": "1 cup fried brown rice (~200g finished dish; estimated ~0.7-0.75 cup cooked rice equivalent once egg/vegetables are accounted for)",
+   "carbs_g_est": 34,
+   "gl_est": 17.7,
+   "risk": "MODERATE",
+   "confidence": 55,
+   "would_clarify": true,
+   "clarify_question": "Is that a level measuring cup of the finished fried rice, and is it mostly rice or closer to half vegetables/egg by volume?",
+   "doubt_reasons": [
+    "Ratio of rice to egg/vegetables in the 'cup' is unspecified and directly scales total carbs (~\u00b110g)",
+    "Type of 'mixed vegetables' unknown \u2014 starchy (corn, peas, carrots) vs mostly non-starchy (broccoli, bell pepper) shifts carbs a few grams",
+    "Brown rice GI itself varies widely across studies (~50-68), so carb-weighted meal GI is uncertain",
+    "Whether rice was freshly cooked or day-old/cooled (common for fried rice) matters \u2014 retrograded starch in cooled rice lowers GI meaningfully",
+    "Portion measured with a cup vs. eyeballed/heaping serving from a plate",
+    "Quantity of soy sauce and sesame oil not specified (minor effect on GI via fat/sodium, and soy sauce carbs)",
+    "Egg quantity not specified (affects fat/protein blunting of glycemic response)"
+   ]
+  },
+  "meal-30": {
+   "ingredients": [
+    "Zucchini, spiralized (raw, \"zoodles\")",
+    "Turkey meatballs (ground turkey, likely with breadcrumb/egg/parmesan binder)",
+    "Marinara sauce (tomato-based, jarred or homemade, quantity unspecified)"
+   ],
+   "portion": "1 cup zucchini noodles + 4 turkey meatballs (~3-4 oz total) + marinara sauce, amount not specified (assumed ~1/2-2/3 cup to coat)",
+   "carbs_g_est": 22,
+   "gl_est": 8.4,
+   "risk": "SAFE",
+   "confidence": 62,
+   "would_clarify": true,
+   "clarify_question": "About how much marinara sauce is on this dish (a light coating like 1/3 cup, or fully sauced like 1+ cup), and is it a standard jarred sauce (often has added sugar) or a low-sugar/homemade version?",
+   "doubt_reasons": [
+    "Marinara sauce quantity is not stated \u2014 could range from a light drizzle (~1/3 cup) to a generous ladle (1+ cup), which alone could shift net carbs by 10-15g and push GL from SAFE into MODERATE",
+    "Jarred marinara brands vary widely in added sugar (some have 4-6g sugar per 1/2 cup, others 10g+), affecting both carb count and effective GI",
+    "Meatball size and composition unknown \u2014 could be small/lean (~1 oz each, light binder) or larger/breaded (2 oz each), roughly doubling the carb contribution",
+    "No info on added ingredients like parmesan cheese topping, olive oil, or bread-based filler ratio in the meatballs",
+    "Zucchini noodle portion is measured raw by volume, which has some inherent imprecision but a minor overall impact given its low carb density"
+   ]
+  },
+  "meal-31": {
+   "ingredients": [
+    "Whole wheat spaghetti (cooked)",
+    "Turkey meatballs (ground turkey, breadcrumbs, egg, parmesan, seasoning)",
+    "Tomato / marinara sauce"
+   ],
+   "portion": "1 3/4 cups (~245g) cooked whole wheat spaghetti, topped with an unspecified but typical serving of turkey meatballs (assumed ~3-4 small meatballs) and tomato sauce (assumed ~3/4 cup)",
+   "carbs_g_est": 68,
+   "gl_est": 31,
+   "risk": "HIGH",
+   "confidence": 65,
+   "would_clarify": true,
+   "clarify_question": "How many meatballs and roughly how much tomato sauce (e.g., in cups or tablespoons) are on top of the 1 3/4 cups of spaghetti \u2014 and does that 1 3/4 cups measure just the pasta, or the whole plated dish?",
+   "doubt_reasons": [
+    "Number of meatballs not specified",
+    "Amount/type of tomato sauce not specified (jarred sauces vary widely in added sugar)",
+    "Unclear whether '1 3/4 cups' measures the pasta alone or the combined plate (pasta+meatballs+sauce), which materially changes actual pasta grams",
+    "Meatball recipe (breadcrumb ratio, size) unknown, affecting their carb contribution",
+    "No information on any side items (bread, cheese, vegetables) that might accompany the meal"
+   ]
+  }
+ },
+ "photo_retests": {
+  "meal-02": {
+   "ingredients": [
+    "Baked ziti/rigatoni pasta",
+    "Tomato-based marinara/meat sauce",
+    "Ground meat (beef or Italian sausage)",
+    "Mozzarella cheese (melted, browned)",
+    "Possible ricotta cheese in the bake",
+    "Fresh parsley garnish",
+    "Garlic bread (baguette slices with garlic-herb butter)"
+   ],
+   "portion": "One dinner-plate serving: roughly 1.5-2 cups (about 300-350g) of baked ziti/pasta bake plus 2 slices of garlic bread",
+   "carbs_g_est": 92,
+   "gl_est": 55,
+   "risk": "HIGH",
+   "confidence": 80,
+   "would_clarify": false,
+   "clarify_question": null,
+   "doubt_reasons": [
+    "Cannot confirm exact pasta portion weight/volume actually eaten vs. what remains off-plate",
+    "Sauce sugar content (some jarred marinara sauces add significant sugar) is not visible",
+    "Exact GI of the pasta depends on cook time/doneness (al dente vs. soft-baked) which affects glycemic response",
+    "Amount and type of cheese/ricotta filling not fully visible, could add some carbs",
+    "Garlic bread size/thickness and whether butter or oil-based spread is used affects carb and fat content",
+    "Whether portion shown is the complete meal or a partial serving on someone's plate is assumed"
+   ]
+  },
+  "meal-05": {
+   "ingredients": [
+    "Wheat-flour waffles (egg, milk, butter/oil, sugar, baking powder batter)",
+    "Butter pats melting on top",
+    "Maple or pancake syrup drizzled generously"
+   ],
+   "portion": "A stack of roughly 2 medium Belgian-style waffles (~150g total) with 1-2 pats of butter and about 2-3 tablespoons of syrup drizzled over",
+   "carbs_g_est": 85,
+   "gl_est": 58,
+   "risk": "HIGH",
+   "confidence": 82,
+   "would_clarify": true,
+   "clarify_question": "Is the syrup regular maple/pancake syrup (not a sugar-free substitute), and how many waffle pieces make up the actual serving you're about to eat?",
+   "doubt_reasons": [
+    "Cannot confirm whether the syrup is regular high-sugar syrup or a sugar-free/reduced-sugar substitute, which would sharply lower carbs and GI",
+    "Cannot verify exact flour type (white, whole wheat, gluten-free) which affects GI",
+    "The stack shown may be styled for photography (multiple waffles/pieces) rather than a single realistic serving, so true portion size is uncertain",
+    "Total volume of syrup actually consumed vs. what's visible dripping is hard to gauge precisely",
+    "Cannot see if any fruit or other lower-carb topping is also included off-frame"
+   ]
+  },
+  "meal-06": {
+   "ingredients": [
+    "Rolled oats / oatmeal (cooked porridge base)",
+    "Milk or water used to cook the oats",
+    "Fresh strawberries, sliced",
+    "Red syrup or sauce drizzled on top (could be strawberry syrup, jam, or macerated berry juice)"
+   ],
+   "portion": "One bowl, roughly 300-350g total: about 180-200g cooked oatmeal, ~60-80g sliced strawberries, plus a 1-2 tbsp drizzle of red syrup/sauce",
+   "carbs_g_est": 36,
+   "gl_est": 20,
+   "risk": "HIGH",
+   "confidence": 42,
+   "would_clarify": true,
+   "clarify_question": "Is that glossy red drizzle a sugar-based syrup/jam or just the strawberries' own juice with no added sugar, and roughly how many cups of oatmeal are in the bowl?",
+   "doubt_reasons": [
+    "Cannot tell if the red topping is a sugared syrup/jam (high-GI, adds carbs) or plain unsweetened strawberry juice",
+    "Cannot tell if the oatmeal itself has added sugar, honey, or brown sugar stirred in (not visible)",
+    "Cannot tell if it's cooked with milk, cream, or water, which changes total carbs slightly",
+    "Portion size is a visual estimate only \u2014 bowl fill level and depth are ambiguous from a single angle",
+    "Cannot distinguish instant oats (higher GI) from steel-cut or rolled oats (lower GI)",
+    "GL point estimate (~20) sits right at the MODERATE/HIGH boundary, so small errors in any of the above could flip the class"
+   ]
+  },
+  "meal-09": {
+   "ingredients": [
+    "Chicken chunks (breast or thigh)",
+    "Tomato-based cream sauce (butter chicken / tikka masala style: tomato, cream or yogurt, butter, garam masala, ginger-garlic, chili)",
+    "White rice (steamed, basmati or jasmine)",
+    "Fresh cilantro garnish"
+   ],
+   "portion": "Single dinner bowl, roughly half filled with steamed white rice (~1.25-1.5 cups / ~220-250g cooked) and half with chicken in creamy tomato curry sauce (~280-320g including sauce)",
+   "carbs_g_est": 70,
+   "gl_est": 44,
+   "risk": "HIGH",
+   "confidence": 78,
+   "would_clarify": true,
+   "clarify_question": "Roughly how many cups of rice are in the bowl, and does the curry sauce include added sugar or honey (common in butter chicken recipes)?",
+   "doubt_reasons": [
+    "Exact rice volume/weight can't be measured from a photo, only estimated visually",
+    "Sauce may contain added sugar/honey (common in butter chicken) which raises carbs and GI beyond what's visible",
+    "Can't confirm whether sauce base is cream, coconut milk, or yogurt, which affects fat/carb ratio",
+    "Rice variety (basmati vs. jasmine vs. parboiled) affects GI and isn't distinguishable by sight",
+    "Cannot rule out this being a larger shared/family-style portion rather than a single serving",
+    "Portion could plausibly be smaller (e.g. ~0.75 cup rice) which would lower GL toward the moderate range, though still likely high given the visible fill"
+   ]
+  },
+  "meal-12": {
+   "ingredients": [
+    "Brown or green lentils",
+    "Cremini/baby bella mushrooms",
+    "Diced carrots",
+    "Diced celery",
+    "Onion",
+    "Savory broth (creamy-looking, possibly with cream, coconut milk, or a flour/roux thickener)",
+    "Black pepper",
+    "Toasted rustic/sourdough bread, likely brushed with oil or butter"
+   ],
+   "portion": "One bowl (~350-400 mL) of lentil-vegetable soup with one large slice of toasted bread on the side",
+   "carbs_g_est": 34,
+   "gl_est": 19,
+   "risk": "MODERATE",
+   "confidence": 40,
+   "would_clarify": true,
+   "clarify_question": "How much toasted bread will you actually eat (none, one slice, or two+), and roughly how large/dense is the bowl of soup (a light cup or a hearty full bowl)?",
+   "doubt_reasons": [
+    "Bread portion is the single biggest swing factor \u2014 a second slice (visible in the background) or a larger/denser slice could push GL from MODERATE into HIGH",
+    "Cannot tell if the soup's creaminess comes from actual cream/coconut milk (low-carb) or a flour/roux thickener (adds carbs)",
+    "Exact volume/density of lentils per serving is uncertain \u2014 could be a lighter broth-forward soup or a thick, lentil-packed stew",
+    "Cannot rule out added sugar (e.g., balsamic reduction, sweetened broth) common in some lentil soup recipes",
+    "Bread type/GI is uncertain (dense sourdough vs. white baguette vs. whole grain), which meaningfully shifts the weighted GI",
+    "Portion shown may reflect a styled/generous serving rather than what one person eats in practice"
+   ]
+  },
+  "meal-13": {
+   "ingredients": [
+    "Spinach or kale (base for dark green color)",
+    "Blueberries (garnish visible on top and scattered around, likely also blended in)",
+    "Banana or similar creamy fruit (likely, for texture/sweetness \u2014 not directly visible)",
+    "Liquid base: almond milk, water, or dairy milk (not directly visible)",
+    "Possible avocado or yogurt for creaminess (inferred from thick, smooth texture)"
+   ],
+   "portion": "One glass (~300ml / 10oz) of green smoothie, the front in-focus glass; a second glass is visible but not the portion being eaten",
+   "carbs_g_est": 28,
+   "gl_est": 17,
+   "risk": "MODERATE",
+   "confidence": 42,
+   "would_clarify": true,
+   "clarify_question": "Does this smoothie include banana, mango, added juice, or sweetener blended in, or is it primarily spinach/greens with an unsweetened liquid base and blueberries used mostly as a light garnish?",
+   "doubt_reasons": [
+    "Cannot identify the liquid base (water, almond milk, dairy milk, or fruit juice) which drives sugar content",
+    "Cannot confirm whether a high-carb fruit like banana or mango is blended in versus this being a low-carb, mostly-greens smoothie",
+    "Cannot tell how many blueberries are blended into the drink itself versus just garnish on top/around the glass",
+    "Blending can raise effective glycemic response versus whole fruit, but exact recipe and any added sweetener (honey, dates, protein powder) are unknown",
+    "Exact serving volume is estimated visually, not measured",
+    "Cannot rule out added protein powder or yogurt that would change the carb and GI profile"
+   ]
+  },
+  "meal-15": {
+   "ingredients": [
+    "Greek or regular yogurt (white, likely plain)",
+    "fresh blueberries",
+    "mint leaf garnish"
+   ],
+   "portion": "1 small dessert/parfait glass, roughly 150g total (~90g yogurt + ~60g blueberries, about 20-25 berries)",
+   "carbs_g_est": 11,
+   "gl_est": 5,
+   "risk": "SAFE",
+   "confidence": 62,
+   "would_clarify": true,
+   "clarify_question": "Is the yogurt plain/unsweetened, or is there added sugar, honey, or flavored yogurt involved, and roughly how large is the serving (in oz/cups)?",
+   "doubt_reasons": [
+    "Cannot tell if yogurt is plain or sweetened (sugar/honey/vanilla flavoring) which would raise carbs and GI significantly",
+    "Cannot confirm yogurt type (Greek vs regular vs low-fat vs full-fat) which affects carb content",
+    "Exact portion size/weight is uncertain from a single angled glass shot",
+    "Cannot see if there's granola, cereal, or other hidden layers beneath the yogurt surface",
+    "Berry count/weight is an approximation from visual density"
+   ]
+  },
+  "meal-18": {
+   "ingredients": [
+    "potatoes (yukon gold or russet, cut into large chunks)",
+    "oil or fat (likely olive oil, or possibly duck/beef fat) for roasting",
+    "salt",
+    "black pepper",
+    "chopped fresh parsley (garnish)",
+    "possible seasoning (garlic powder/paprika - crumbly browned bits visible)"
+   ],
+   "portion": "Photo shows a full sheet pan/batch of crispy roasted potatoes (recipe-style shot), not a single plated serving. Estimating one typical side-dish serving: ~6-8 pieces, roughly 180g cooked weight (~1.5 cups).",
+   "carbs_g_est": 32,
+   "gl_est": 25,
+   "risk": "HIGH",
+   "confidence": 55,
+   "would_clarify": true,
+   "clarify_question": "Is this the entire meal you're eating, or a side dish \u2014 and roughly how many pieces (or what volume, e.g. cups) will actually be on your plate?",
+   "doubt_reasons": [
+    "Photo is a batch/tray shot (with serving spatula), not a plated portion, so actual serving size is a guess and could range from a small side (~100g, pushing toward MODERATE) to a full-plate main (~300g+, pushing further into HIGH)",
+    "Roasted potato GI is high but variable (~75-90) depending on potato variety, cooking method, and cooling/resistant starch formation, which affects the GL calculation",
+    "Cannot confirm exact fat/oil type or whether a starch/flour coating (e.g., semolina) was used to enhance crispness, which could add carbs",
+    "Cannot see if any other components (protein, vegetables, sauce) accompany this dish off-frame, which would change overall meal composition and GI",
+    "No visibility into added sugar, glaze, or other seasoning beyond salt, pepper, and herbs"
+   ]
+  },
+  "meal-25": {
+   "ingredients": [
+    "Big Mac (sesame seed bun, two beef patties, processed cheese, iceberg lettuce, pickles, onions, Big Mac sauce)",
+    "french fries (fried, salted)",
+    "fountain soft drink (likely Coca-Cola, in McDonald's cup) or possibly diet/other flavor"
+   ],
+   "portion": "McDonald's value-meal tray: 1 Big Mac, 1 medium order of fries, 1 medium fountain drink",
+   "carbs_g_est": 135,
+   "gl_est": 80,
+   "risk": "HIGH",
+   "confidence": 90,
+   "would_clarify": false,
+   "clarify_question": null,
+   "doubt_reasons": [
+    "Cannot tell if the fountain drink is regular soda, diet/zero-sugar, or another beverage, which swings total carbs by ~40-65g",
+    "Cannot confirm exact fries size (small/medium/large) or exact drink size (small/medium/large)",
+    "Cannot verify sauce quantity or any extra condiments/ketchup packets not visible",
+    "Cannot confirm bun size or whether it's a standard vs. quarter-pounder-style bun",
+    "Even so, the burger and fries alone plausibly exceed GL 20, so these unknowns are unlikely to change the HIGH classification"
+   ]
+  },
+  "meal-28": {
+   "ingredients": [
+    "Riced cauliflower (fried-rice style base)",
+    "Scrambled egg pieces",
+    "Diced carrots",
+    "Green peas",
+    "Scallions/green onion (garnish and mixed in)",
+    "Cooking oil (likely sesame or vegetable oil)",
+    "Soy sauce or similar savory seasoning",
+    "Possibly garlic/ginger"
+   ],
+   "portion": "One bowl (~1.25-1.5 cups, roughly 250-300g) of cauliflower fried rice \u2014 a typical single plated serving",
+   "carbs_g_est": 13,
+   "gl_est": 4.5,
+   "risk": "SAFE",
+   "confidence": 55,
+   "would_clarify": true,
+   "clarify_question": "Is this dish made with riced cauliflower or with actual cooked rice?",
+   "doubt_reasons": [
+    "The single biggest uncertainty is a lookalike swap: the irregular, floret-shaped, matte-white granules look like riced cauliflower rather than elongated rice grains, but I cannot be 100% certain from a photo alone \u2014 if this is actually white/brown rice fried rice, available carbs and GL would be roughly 4x higher, flipping the risk class from SAFE to HIGH",
+    "Cannot assess sauce composition (soy sauce, oyster sauce, or any added sugar) which affects both carbs and effective GI",
+    "Cannot judge exact oil quantity used, which affects overall glycemic response but not carb count",
+    "Portion size is an estimate from a single overhead bowl shot; actual served amount could be smaller or larger",
+    "Cannot confirm whether peas/carrots are fresh, frozen, or in larger quantity than visible on the surface layer"
+   ]
+  },
+  "meal-29": {
+   "ingredients": [
+    "Rice (likely brown or a mix, stir-fried)",
+    "Scrambled egg",
+    "Green peas",
+    "Diced carrots",
+    "Scallions/green onions (garnish and mixed in)",
+    "Garlic (visible whole bulb nearby, likely used in cooking)",
+    "Soy sauce or similar seasoning sauce",
+    "Cooking oil"
+   ],
+   "portion": "One generous bowl of fried rice, roughly 1.5-2 cups cooked (~320-380g)",
+   "carbs_g_est": 52,
+   "gl_est": 31,
+   "risk": "HIGH",
+   "confidence": 62,
+   "would_clarify": true,
+   "clarify_question": "How many cups of rice are in this serving, and is it white or brown rice?",
+   "doubt_reasons": [
+    "Cannot confirm white vs. brown rice from color alone (soy sauce browns both) \u2014 this materially shifts the carb-weighted GI",
+    "Exact portion/weight of rice is a visual estimate, not measured",
+    "Amount of added sugar or high-GI sauce (e.g., sweetened soy/hoisin) in the seasoning is not visible",
+    "Oil/fat quantity used in frying can modestly blunt the glycemic response but can't be quantified from the photo",
+    "Fiber content depends on rice type and vegetable ratio, both uncertain",
+    "Unclear if this is the full individual serving or a larger shared batch photographed on one plate"
+   ]
+  },
+  "meal-30": {
+   "ingredients": [
+    "Meatballs (ground meat - likely turkey, beef, or pork - with breadcrumb/egg/parmesan binder and herbs)",
+    "Marinara/tomato sauce",
+    "Noodles under the sauce - visually consistent with zucchini noodles (zoodles), possibly regular wheat pasta",
+    "Grated parmesan cheese (garnish)",
+    "Fresh basil (garnish)"
+   ],
+   "portion": "One plated bowl serving: ~4 meatballs (~120g total), ~3/4 cup marinara sauce (~150g), ~1 cup noodles/zoodles (~120g), plus cheese and basil garnish",
+   "carbs_g_est": 21,
+   "gl_est": 9,
+   "risk": "SAFE",
+   "confidence": 40,
+   "would_clarify": true,
+   "clarify_question": "Are the noodles underneath the sauce zucchini noodles (zoodles) or regular wheat pasta like spaghetti?",
+   "doubt_reasons": [
+    "Cannot definitively confirm whether the noodle base is zucchini noodles (zoodles, ~4g carbs/cup) or wheat pasta (~40g carbs/cup) - the thin greenish strands visible suggest zoodles but this is a classic lookalike-swap ambiguity that would swing GL from SAFE to HIGH",
+    "Cannot know the sugar content or recipe of the tomato/marinara sauce (some jarred or restaurant sauces add significant sugar)",
+    "Cannot verify the meatball binder/filler (traditional breadcrumbs vs. low-carb almond flour or none)",
+    "Exact portion size/weight is visually estimated, not measured",
+    "Cannot rule out an off-frame side (e.g., bread) that would be part of the same meal"
+   ]
+  },
+  "meal-31": {
+   "ingredients": [
+    "spaghetti (wheat pasta)",
+    "meatballs (ground beef/pork with breadcrumb and egg binder)",
+    "marinara/tomato sauce",
+    "grated parmesan cheese",
+    "fresh parsley garnish"
+   ],
+   "portion": "Large single plated bowl, generously mounded spaghetti (~350-400g cooked, roughly 3 cups) topped with 4-5 meatballs (~80-100g each) in tomato sauce with parmesan and parsley",
+   "carbs_g_est": 78,
+   "gl_est": 37,
+   "risk": "HIGH",
+   "confidence": 68,
+   "would_clarify": true,
+   "clarify_question": "How much of this pictured bowl will you actually eat (the whole plate, or roughly half), and is the pasta regular white spaghetti or a whole-wheat/high-fiber variety?",
+   "doubt_reasons": [
+    "Cannot verify exact pasta weight/volume being consumed vs. what's styled for the photo",
+    "Cannot tell if pasta is regular refined wheat or whole-wheat/legume-based (would shift GI and fiber substantially)",
+    "Cannot assess sugar content of the tomato sauce (jarred sauces often add sugar, raising effective GI)",
+    "Cannot confirm cook doneness (al dente vs. soft) which affects starch digestibility and GI",
+    "Cannot weigh the meatballs or know their exact breadcrumb/filler ratio, which affects total carbs",
+    "Photo angle/mounding may exaggerate perceived portion size versus what is actually eaten"
+   ]
+  }
+ }
+}

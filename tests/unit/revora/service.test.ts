@@ -298,7 +298,7 @@ describe("checkFood", () => {
     );
   });
 
-  it("retries malformed SAFE contract output once and then fails closed", async () => {
+  it("fails closed to retry copy on malformed SAFE contract output after one attempt", async () => {
     const model = {
       generate: vi.fn().mockResolvedValue({
         kind: "result",
@@ -320,17 +320,15 @@ describe("checkFood", () => {
       { model }
     );
 
-    expect(model.generate).toHaveBeenCalledTimes(2);
+    // Single live attempt (≤ client 12s abort budget), then controlled retry copy.
+    expect(model.generate).toHaveBeenCalledTimes(1);
     expect(response.kind).toBe("retry");
     expect(response.disclaimer).toContain("registered dietitian");
   });
 
-  it("retries malformed model outputs once and then fails closed", async () => {
+  it("makes a single live attempt then falls back to retry copy when the model errors", async () => {
     const model = {
-      generate: vi
-        .fn()
-        .mockRejectedValueOnce(new Error("malformed output"))
-        .mockRejectedValueOnce(new Error("malformed output"))
+      generate: vi.fn().mockRejectedValue(new Error("malformed output"))
     };
 
     const response = await checkFood(
@@ -341,7 +339,7 @@ describe("checkFood", () => {
       { model }
     );
 
-    expect(model.generate).toHaveBeenCalledTimes(2);
+    expect(model.generate).toHaveBeenCalledTimes(1);
     expect(response.kind).toBe("retry");
     expect(response.disclaimer).toContain("registered dietitian");
   });

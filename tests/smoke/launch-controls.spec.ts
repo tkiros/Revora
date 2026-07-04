@@ -80,7 +80,7 @@ test("normal mode — public check completes successfully", async ({ page }) => 
   await page.getByRole("button", { name: "Should I eat this?" }).click();
 
   // Normal result should appear
-  await expect(page.getByText("SAFE")).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("Clear", { exact: true })).toBeVisible({ timeout: 10_000 });
   await expect(
     page.getByText("This meal looks well-balanced for your plan.")
   ).toBeVisible();
@@ -101,20 +101,29 @@ test("maintenance mode — friendly pause response before model spend", async ({
   await page.getByLabel(/latest a1c/i).fill("6.0");
   await page.getByRole("button", { name: "Should I eat this?" }).click();
 
-  // A 503 from the middleware (or stubbed here) is mapped to a "server" error
-  // in lib/client/check.ts, which renders RequestStatus with:
-  //   eyebrow: "Check paused" and title: "Try again on this page"
+  // A 503 carries the middleware's calm retry payload, which lib/client/check.ts
+  // surfaces as a retry response (ResultCard, kind="retry") — the user sees the
+  // pause copy, not a generic error.
   await expect(
-    page.getByText("Try again on this page")
+    page.getByText(/checks are paused right now/i)
   ).toBeVisible({ timeout: 10_000 });
 
-  // Must never leak raw provider errors, stack traces, food text, or prompt text
-  await expect(page.locator(".status-title, .status-copy, .status-note").filter({
-    hasText: /Error:|TypeError|node_modules|prompt|raw food/i
-  })).toHaveCount(0);
+  // Must never leak raw provider errors, stack traces, or prompt text
+  await expect(
+    page.getByText(/Error:|TypeError|node_modules|stack trace|prompt/i)
+  ).toHaveCount(0);
 
-  // No SAFE/MODERATE/HIGH classification leaked (maintenance mode must not classify)
-  await expect(page.getByTestId("result-card")).toHaveCount(0);
+  // Submitted food text must never be echoed back into the result surface.
+  await expect(page.getByTestId("result-card")).not.toContainText(/oatmeal/i);
+
+  // No SAFE/MODERATE/HIGH classification leaked — the pause renders as a retry,
+  // never a risk result.
+  await expect(
+    page.locator('[data-testid="result-card"][data-risk]')
+  ).toHaveCount(0);
+  await expect(
+    page.locator('[data-testid="result-card"][data-kind="retry"]')
+  ).toBeVisible();
 });
 
 test("rate limit — friendly retry response (WAF 429 behavior)", async ({

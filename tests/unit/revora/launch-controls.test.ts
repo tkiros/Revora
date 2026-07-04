@@ -312,6 +312,42 @@ describe("/api/health reports launchMode from launch-control seam", () => {
     expect(payload.launchMode).toBe("normal");
   });
 
+  it("reports upstash:unconfigured when Upstash env is absent (merge-gate signal)", async () => {
+    process.env = {
+      ...ORIGINAL_ENV,
+      NODE_ENV: "production",
+      VERCEL_ENV: "preview",
+      OPENAI_API_KEY: "sk-preview-test"
+    };
+    delete process.env.EDGE_CONFIG;
+    delete process.env.REVORA_LAUNCH_MODE_OVERRIDE;
+    delete process.env.UPSTASH_REDIS_REST_URL;
+    delete process.env.UPSTASH_REDIS_REST_TOKEN;
+
+    const { GET } = await import("../../../app/api/health/route");
+    const payload = await (await GET()).json();
+
+    expect(payload.upstash).toBe("unconfigured");
+  });
+
+  it("reports upstash:configured when Upstash env is present", async () => {
+    process.env = {
+      ...ORIGINAL_ENV,
+      NODE_ENV: "production",
+      VERCEL_ENV: "preview",
+      OPENAI_API_KEY: "sk-preview-test",
+      UPSTASH_REDIS_REST_URL: "https://fake.upstash.io",
+      UPSTASH_REDIS_REST_TOKEN: "fake-token"
+    };
+    delete process.env.EDGE_CONFIG;
+    delete process.env.REVORA_LAUNCH_MODE_OVERRIDE;
+
+    const { GET } = await import("../../../app/api/health/route");
+    const payload = await (await GET()).json();
+
+    expect(payload.upstash).toBe("configured");
+  });
+
   it("includes launchMode:paused when the override is active", async () => {
     process.env = {
       ...ORIGINAL_ENV,

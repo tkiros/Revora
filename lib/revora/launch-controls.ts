@@ -44,11 +44,12 @@ const PAUSE_COPY =
  * Returns true when any of the following conditions are met:
  *  - A harmful-guidance incident has been flagged (manual operator input)
  *  - A provider-failure spike has been detected (manual operator input)
- *  - Checks in the last 24 hours have reached or exceeded 2,000 (WAF cost gate)
+ *  - Checks in the last 24 hours have reached or exceeded 2,000 (manual
+ *    operator pause threshold)
  *
- * There is no durable counter. Operators supply the current `checksLast24h`
- * value from their own observability tooling (Vercel logs, Datadog, etc.).
- * Automated counting via Upstash/Redis is explicitly out of scope.
+ * The middleware enforces the automatic Upstash-backed daily cap before model
+ * spend. This helper remains for manual operator decisions, drills, and
+ * dashboards that need to decide whether to flip Edge Config pause controls.
  */
 export function shouldPauseForOps(input: {
   checksLast24h: number;

@@ -80,6 +80,8 @@ describe("GET /api/health", () => {
       OPENAI_API_KEY: "sk-preview",
       EDGE_CONFIG: "ecfg_connection_string"
     };
+    delete process.env.UPSTASH_REDIS_REST_URL;
+    delete process.env.UPSTASH_REDIS_REST_TOKEN;
 
     const response = await GET();
     const payload = await response.json();
@@ -89,7 +91,10 @@ describe("GET /api/health", () => {
       ok: true,
       environment: "preview",
       launch: "ready",
-      launchMode: "normal"
+      launchMode: "normal",
+      upstash: "unconfigured",
+      db: "unconfigured",
+      crons: { nudge: "unknown", baiWeekly: "unknown" }
     });
     expect(JSON.stringify(payload)).not.toContain("sk-preview");
     expect(JSON.stringify(payload)).not.toContain("ecfg_connection_string");
@@ -103,6 +108,8 @@ describe("GET /api/health", () => {
     };
     delete process.env.OPENAI_API_KEY;
     delete process.env.EDGE_CONFIG;
+    delete process.env.UPSTASH_REDIS_REST_URL;
+    delete process.env.UPSTASH_REDIS_REST_TOKEN;
 
     const response = await GET();
     const payload = await response.json();
@@ -112,7 +119,10 @@ describe("GET /api/health", () => {
       ok: false,
       environment: "development",
       launch: "missing_config",
-      launchMode: "normal"
+      launchMode: "normal",
+      upstash: "unconfigured",
+      db: "unconfigured",
+      crons: { nudge: "unknown", baiWeekly: "unknown" }
     });
   });
 });

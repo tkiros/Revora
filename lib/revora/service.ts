@@ -10,6 +10,7 @@ import { classifyInputBeforeModel } from "./input-precheck";
 import type { RevoraModelClient } from "./openai-client";
 import { postprocessModelOutput } from "./postprocess";
 import { buildRevoraPrompt } from "./prompt";
+import { captureServerError } from "./sentry-capture";
 import {
   CheckRequestSchema,
   RevoraUserClarifySchema,
@@ -22,7 +23,11 @@ import type {
 } from "./schemas";
 import { loadSafetyContract } from "./safety-contract";
 
-const MAX_MODEL_ATTEMPTS = 2;
+// One live attempt only. At ~10s per attempt a second would land after the
+// client's 12s abort — spending money on a response the browser has already
+// discarded. The bounded SDK timeout (openai-client) + this cap keep the
+// server budget under the client abort.
+const MAX_MODEL_ATTEMPTS = 1;
 
 export async function checkFood(
   rawRequest: unknown,
@@ -65,8 +70,12 @@ export async function checkFood(
     try {
       const modelOutput = await deps.model.generate(prompt);
       return mapModelOutput(modelOutput, contract, route, precheckFlags);
-    } catch {
-      // Retry once, then fail closed to controlled retry copy.
+    } catch (error) {
+      // Single attempt: fail closed to controlled retry copy. The provider error
+      // is otherwise invisible (we return retry, not check_failed) — surface it to
+      // Sentry. captureServerError never throws and awaits flush; PII is stripped
+      // at init + beforeSend; fully inert without SENTRY_DSN.
+      await captureServerError(error, "model");
     }
   }
 
