@@ -15,6 +15,7 @@
     "@sentry/node": "^10.60.0",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.0",
+    "@vercel/blob": "^2.5.0",
     "@vercel/edge-config": "^1.4.3",
     "drizzle-orm": "^0.45.2",
     "next": "16.2.4",
