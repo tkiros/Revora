@@ -14,6 +14,8 @@ import {
   getSessionInfo,
   type SessionInfo
 } from "../../../lib/server/session";
+import { generateClaimToken } from "../../../lib/server/pantry/claims";
+import { sendEmail, type SendEmailResult } from "../../../lib/server/email";
 
 /**
  * Billing (plan 4D / docs/adr/billing.md): Play Billing verified server-side
@@ -27,6 +29,15 @@ export type BillingDeps = {
   playLookup?: typeof fetchPlaySubscription;
   stripeClient?: () => Stripe;
   now?: () => Date;
+  email?: PantryEmailSender;
+};
+
+export type PantryEmailSender = {
+  send: (input: {
+    to: string;
+    subject: string;
+    text: string;
+  }) => Promise<SendEmailResult>;
 };
 
 const PlayVerifySchema = z
@@ -318,6 +329,7 @@ export function createStripeWebhookHandler(deps: BillingDeps = {}) {
   const db = deps.db ?? getDb;
   const stripe = deps.stripeClient ?? defaultStripe;
   const now = deps.now ?? (() => new Date());
+  const email = deps.email ?? { send: sendEmail };
 
   return async function POST(request: Request) {
     const payload = await request.text();
@@ -335,7 +347,7 @@ export function createStripeWebhookHandler(deps: BillingDeps = {}) {
       return NextResponse.json({ error: "Bad signature." }, { status: 400 });
     }
 
-    await applyStripeEvent(db(), event, now(), stripe);
+    await applyStripeEvent(db(), event, now(), stripe, email);
     return NextResponse.json({ received: true });
   };
 }
@@ -345,10 +357,19 @@ export async function applyStripeEvent(
   db: Db,
   event: Stripe.Event,
   now: Date,
-  stripe?: () => Stripe
+  stripe?: () => Stripe,
+  email?: PantryEmailSender
 ): Promise<void> {
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
+
+    if (session.mode === "payment") {
+      // Pantry Review Payment Link (one-time). Anything else in payment
+      // mode is not ours — verify the price before touching the DB.
+      await applyPantryCheckout(db, session, now, stripe, email);
+      return;
+    }
+
     const userId = session.client_reference_id;
     const subscriptionId =
       typeof session.subscription === "string"
@@ -406,6 +427,93 @@ export async function applyStripeEvent(
         updatedAt: now
       })
       .where(eq(schema.subscriptions.providerRef, subscription.id));
+    return;
+  }
+
+  if (event.type === "charge.refunded") {
+    const charge = event.data.object as Stripe.Charge;
+    const paymentIntent =
+      typeof charge.payment_intent === "string"
+        ? charge.payment_intent
+        : charge.payment_intent?.id;
+    if (!paymentIntent) {
+      return;
+    }
+    await db
+      .update(schema.pantryOrders)
+      .set({ status: "canceled", updatedAt: now })
+      .where(eq(schema.pantryOrders.stripePaymentIntent, paymentIntent));
+  }
+}
+
+async function applyPantryCheckout(
+  db: Db,
+  session: Stripe.Checkout.Session,
+  now: Date,
+  stripe?: () => Stripe,
+  email?: PantryEmailSender
+): Promise<void> {
+  const pantryPrice = process.env.STRIPE_PRICE_PANTRY;
+  if (!pantryPrice || !stripe) {
+    return;
+  }
+
+  const lineItems = await stripe().checkout.sessions.listLineItems(
+    session.id,
+    { limit: 10 }
+  );
+  if (!lineItems.data.some((item) => item.price?.id === pantryPrice)) {
+    return;
+  }
+
+  const buyerEmail =
+    session.customer_details?.email ?? session.customer_email;
+  if (!buyerEmail) {
+    return; // Payment Links always collect email; belt-and-suspenders.
+  }
+
+  const { token, tokenHash } = generateClaimToken();
+  const inserted = await db
+    .insert(schema.pantryOrders)
+    .values({
+      email: buyerEmail,
+      stripeSessionId: session.id,
+      stripePaymentIntent:
+        typeof session.payment_intent === "string"
+          ? session.payment_intent
+          : (session.payment_intent?.id ?? null),
+      claimToken: tokenHash,
+      updatedAt: now
+    })
+    .onConflictDoNothing({ target: schema.pantryOrders.stripeSessionId })
+    .returning();
+
+  if (inserted.length === 0) {
+    return; // Duplicate webhook delivery — the first one already emailed.
+  }
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const result = await (email?.send ?? sendEmail)({
+    to: buyerEmail,
+    subject: "Your Pantry Review is paid for — let's set it up",
+    text: [
+      "Thanks — your Pantry Review is paid for.",
+      "",
+      "Set it up here (sign-in takes one tap, no password):",
+      `${appUrl}/pantry/claim?token=${token}`,
+      "",
+      "You'll add photos of your pantry or typical meals, confirm what we",
+      "saw, and get your report by email within 7 days.",
+      "",
+      `Questions? Reply to this email or write to ${process.env.SUPPORT_EMAIL ?? "support@revora.app"}.`
+    ].join("\n")
+  });
+
+  if (result.ok) {
+    await db
+      .update(schema.pantryOrders)
+      .set({ intakeEmailSentAt: now, updatedAt: now })
+      .where(eq(schema.pantryOrders.id, inserted[0].id));
   }
 }
 
