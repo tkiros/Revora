@@ -1,3 +1,7 @@
+import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
@@ -67,6 +71,21 @@ test("check-email page has no critical or serious a11y violations", async ({
   expect(await blockingViolations(page)).toEqual([]);
 });
 
+test("signed-out /pantry/intake redirect target has no critical or serious a11y violations", async ({
+  page
+}) => {
+  // No session → the intake page redirects to the signin variant that carries a
+  // callbackUrl back to /pantry/intake. This runs on any box (the redirect fires
+  // before any DB access). The signed-in real page is covered below, env-gated.
+  await page.goto("/pantry/intake");
+  await expect(page).toHaveURL(/\/signin\?callbackUrl=/);
+  await expect(
+    page.getByRole("heading", { name: /sign in with your email/i })
+  ).toBeVisible();
+
+  expect(await blockingViolations(page)).toEqual([]);
+});
+
 test("result state has no critical or serious a11y violations", async ({
   page
 }) => {
@@ -118,4 +137,115 @@ test("error/status surface has no critical or serious a11y violations", async ({
   await expect(page.getByTestId("request-status")).toBeVisible();
 
   expect(await blockingViolations(page)).toEqual([]);
+});
+
+// ---------------------------------------------------------------------------
+// Signed-in pantry surfaces — same env gating as tests/smoke/pantry.spec.ts.
+// These render only for a signed-in user with a claimed order (intake) or a
+// ready report (report page), so they skip cleanly on unprovisioned boxes.
+// ---------------------------------------------------------------------------
+
+const STUB_DIR = process.env.AUTH_EMAIL_STUB_DIR;
+const PANTRY_ENABLED = Boolean(
+  process.env.DATABASE_URL &&
+    STUB_DIR &&
+    process.env.BLOB_READ_WRITE_TOKEN &&
+    process.env.PANTRY_EXTRACT_STUB === "1"
+);
+
+function seedOrder(email: string): { claimUrl: string } {
+  const out = execFileSync("node", ["scripts/seed-pantry-order.mjs", email], {
+    env: { ...process.env, NEXT_PUBLIC_APP_URL: "http://127.0.0.1:3100" }
+  });
+  return JSON.parse(out.toString());
+}
+
+async function signInVia(page: Page, email: string, url: string) {
+  await page.goto(url);
+  await expect(page).toHaveURL(/signin/);
+  await page.getByLabel("Email address").fill(email);
+  await page.getByRole("button", { name: /email me a sign-in link/i }).click();
+  const mailboxFile = path.join(
+    STUB_DIR!,
+    `${email.replace(/[^a-z0-9@.]/gi, "_")}.json`
+  );
+  await expect
+    .poll(() => fs.existsSync(mailboxFile), { timeout: 10_000 })
+    .toBe(true);
+  const { url: magicLink } = JSON.parse(fs.readFileSync(mailboxFile, "utf8"));
+  await page.goto(magicLink);
+}
+
+test.describe("signed-in pantry surfaces", () => {
+  test.skip(
+    !PANTRY_ENABLED,
+    "pantry a11y needs DATABASE_URL, AUTH_EMAIL_STUB_DIR, BLOB_READ_WRITE_TOKEN, PANTRY_EXTRACT_STUB=1"
+  );
+
+  test("pantry intake page has no critical or serious a11y violations", async ({
+    page
+  }) => {
+    const email = `a11y-intake-${Date.now()}@revora.test`;
+    const { claimUrl } = seedOrder(email);
+
+    await signInVia(page, email, claimUrl);
+    // The callback returns to the claim URL, which binds the order and lands on intake.
+    await page.goto(claimUrl);
+    await expect(page).toHaveURL(/pantry\/intake/);
+    await expect(page.getByText("Your Pantry Review")).toBeVisible();
+
+    expect(await blockingViolations(page)).toEqual([]);
+  });
+
+  test("report page has no critical or serious a11y violations", async ({
+    page
+  }) => {
+    test.skip(
+      !process.env.OPENAI_API_KEY,
+      "needs OPENAI_API_KEY — the report requires a real judged report (no stub)"
+    );
+    const email = `a11y-report-${Date.now()}@revora.test`;
+    const { claimUrl } = seedOrder(email);
+
+    await signInVia(page, email, claimUrl);
+    await page.goto(claimUrl);
+    const photoPath = path.join(STUB_DIR!, `a11y-report-${Date.now()}.jpg`);
+    await page.screenshot({ path: photoPath, type: "jpeg" });
+    await page.locator("#photos").setInputFiles(photoPath);
+    await expect(page.getByText(/1 of 10/)).toBeVisible({ timeout: 30_000 });
+    await page.locator("#band").selectOption("prediabetes_60_62");
+    await page.getByRole("checkbox").check();
+    await page.getByRole("button", { name: /send photos for review/i }).click();
+    await expect(page.getByText(/here's what we saw/i)).toBeVisible({
+      timeout: 60_000
+    });
+    await page.getByRole("button", { name: "Remove" }).last().click();
+    await page.getByRole("button", { name: /review 2 items/i }).click();
+
+    // The report email carries the /report/<orderId> link; open it once ready.
+    const reportEmail = () =>
+      fs
+        .readdirSync(STUB_DIR!)
+        .filter(
+          (file) =>
+            file.startsWith(email.replace(/[^a-z0-9@.]/gi, "_")) &&
+            file.includes("-")
+        )
+        .map((file) =>
+          JSON.parse(fs.readFileSync(path.join(STUB_DIR!, file), "utf8"))
+        )
+        .find((message) => /\/report\/[a-f0-9-]+/.test(message.text));
+    await expect
+      .poll(() => Boolean(reportEmail()), { timeout: 120_000 })
+      .toBe(true);
+
+    const link =
+      /https?:\/\/\S+\/report\/[a-f0-9-]+/.exec(reportEmail()!.text)?.[0] ?? "";
+    await page.goto(link.replace(/^https?:\/\/[^/]+/, "http://127.0.0.1:3100"));
+    await expect(
+      page.getByText(/enjoy freely|worth a tweak|handle with care/i).first()
+    ).toBeVisible();
+
+    expect(await blockingViolations(page)).toEqual([]);
+  });
 });
