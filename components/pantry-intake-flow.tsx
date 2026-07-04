@@ -226,6 +226,9 @@ export function PantryIntakeFlow({
               />
             </div>
             <div className="field-stack">
+              {/* COUNSEL-DRAFT (Track B Q6): Art. 9 explicit-consent wording
+                  pending counsel sign-off; structure (unchecked-by-default,
+                  blocking, revocable) is final. */}
               <label className="field-label pantry-consent">
                 <input
                   type="checkbox"
