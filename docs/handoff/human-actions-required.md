@@ -3,6 +3,8 @@
 **Started:** 2026-07-01 · **Maintained by:** the build session — appended as phases surface human-only steps.
 Source inventory: `docs/production-implementation-plan-2026-07-01.md` §10. Status legend: ☐ open · ⏳ long-lead, start NOW · ✅ done.
 
+Reconciled 2026-07-04 against docs/handoff/2026-07-04-unified-completion-plan.md Appendix A — that appendix is the deduplicated master list.
+
 ## ⚠ Longest-lead items — start these today
 
 1. ⏳ **Counsel engagement** (Track B B1). Questions: the four in `docs/legal/counsel-brief.md` **plus** Q5 insights-SaMD, Q6 Art. 9 consent wording, Q7 refund adequacy, Q8 the 3 "reversal" lines (Brand Positioning L240/287/295), Q9 forward-looking imaging-SaMD (D5 gate), Q10 review of the `app/terms/page.tsx` draft (P9 — subscription/refund/liability/governing-law language and the two bracketed placeholders it still carries). Sign-off must be on file before Play submission (P9).
@@ -24,16 +26,20 @@ Source inventory: `docs/production-implementation-plan-2026-07-01.md` §10. Stat
 
 ## §1 Accounts to create
 
-- ☐ Railway (Postgres database; backups on — supersedes the earlier Neon - Installed CLI and logged in
-  plan, `docs/adr/hosting-hybrid.md`)
-- ☐ Resend (+ verified sending domain) - Signed up and the api is the enviroment file - CLI installed and authonticated
-- ☐ Upstash prod  - Signed up and API key setu in environment file - CLI installed and authoniticated - 
-  ☐ Sentry prod - Signed up - installed and authonticated CLI 
-  ☐ Vercel Edge Config · 
-  ☐ Umami - created cloude account - 
-  tried to install git clone https://github.com/umami-software/umami.git
- cd umami
- pnpm install but I keep getting errors 
+- ☐ open — Railway (Postgres database; backups on — supersedes the earlier Neon
+  plan, `docs/adr/hosting-hybrid.md`): CLI installed and logged in; **DB not yet
+  provisioned — no `DATABASE_URL` exists**
+- ☐ open — Resend (+ verified sending domain): signed up, API key in the
+  environment file, CLI installed and authenticated; **domain verification
+  unconfirmed**
+- ✅ done — Upstash prod: signed up, API key set in environment file, CLI
+  installed and authenticated
+  ☐ open — Sentry prod: signed up, CLI installed and authenticated;
+  **`SENTRY_DSN` in Vercel unconfirmed**
+  ☐ open — Vercel Edge Config
+  ☐ open — Umami: cloud account created; self-host on Railway **failing**
+  (`git clone` + `pnpm install` erroring) — decide cloud-vs-self-host, see
+  Appendix A H8 (`docs/handoff/2026-07-04-unified-completion-plan.md`)
   (self-hosted on Railway — supersedes the earlier Plausible plan,
   `docs/adr/analytics-umami.md`)
 - ⏳ Google Play Developer ($25)
@@ -41,7 +47,8 @@ Source inventory: `docs/production-implementation-plan-2026-07-01.md` §10. Stat
 - ☐ Vercel Pro (hourly crons + function limits)
 - ☐ OpenAI prod key/quota (exists — confirm limits)
 - ☐ Domain registrar
-- ☐ Stripe (account, verification, bank) - logged in, setup and authonticated the MCP
+- ✅ done — Stripe (account, verification, bank): logged in, account live,
+  MCP authenticated
 
 ## §2 Secrets to provision in Vercel (preview + prod; ⚙ = session generates, human stores)
 
@@ -258,3 +265,17 @@ business decision:
 - ☐ **Assign on-call/refund ownership** as a named person or rotation
   (`docs/ops/support-playbook.md` §1 escalation ladder; §10 of the earlier
   running list already flags this as open).
+
+### WS2 — Pantry Review pipeline, urgent/gates-the-build items (2026-07-04)
+
+Copied verbatim from `docs/handoff/2026-07-04-unified-completion-plan.md`
+Appendix A, items H1–H6 (the deduplicated master list):
+
+| # | Action | Done when |
+|---|---|---|
+| H1 | **Rotate the Resend + Upstash keys** (they sat in `.env.example` and passed through AI transcripts) | New keys live in Resend/Upstash dashboards + updated in Vercel + local `.env`; old keys revoked |
+| H2 | **Create the $25 pre-order Stripe Payment Link** (dashboard, no code) for the day-2 ask; copy its **price ID** → `STRIPE_PRICE_PANTRY` env; point the Stripe webhook endpoint at the deploy and set `STRIPE_WEBHOOK_SECRET`; **write the day-45 fallback paragraph (design doc Q1)**; **post the day-2 ask** (community rules read first). Ongoing: **pause the Payment Link whenever open orders ≥10** (weekly cap guardrail — check `/admin/pantry`) | Payment Link public; a test purchase produces a `pantry_orders` row on preview; the post is live; the paragraph is written and signed |
+| H3 | **Enable Vercel Blob** on the project → `BLOB_READ_WRITE_TOKEN` (preview + prod + local for E2E) | Task 3.1 provisioned run passes |
+| H4 | Set `ADMIN_EMAIL` (founder's sign-in email) and `CRON_SECRET` in Vercel (preview + prod) | `/admin/pantry` loads for founder, 404s for others; crons authenticate |
+| H5 | **Verify Vercel Pro** is active (300s `maxDuration` + hourly crons need it) | Plan visible in Vercel dashboard settings |
+| H6 | **8–10 pantry/fridge photos of your own kitchen**, exhaustively labeled into `tests/fixtures/pantry-photos/labels.json`; provide `OPENAI_API_KEY` for the two live eval runs | Task 4.1 + 4.2 verdict doc has real numbers |
