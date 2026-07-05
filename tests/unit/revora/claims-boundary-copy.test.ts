@@ -49,6 +49,7 @@ const COPY_FILES = [
   "components/insight-card.tsx",
   "components/voice-input-button.tsx",
   "components/paywall-card.tsx",
+  "components/trial-wall.tsx",
   "components/reviewer-signin-form.tsx",
   "components/print-button.tsx",
   "app/report/[id]/page.tsx",
