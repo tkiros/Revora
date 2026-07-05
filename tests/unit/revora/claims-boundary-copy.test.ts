@@ -43,6 +43,7 @@ const COPY_FILES = [
   "components/food-check-form.tsx",
   "components/nudge-opt-in.tsx",
   "components/result-card.tsx",
+  "components/demo-check-card.tsx",
   "components/request-status.tsx",
   "components/daily-loop.tsx",
   "components/today-list.tsx",
