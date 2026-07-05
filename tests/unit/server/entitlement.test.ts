@@ -58,7 +58,7 @@ describe("getEntitlement", () => {
   it("free with no subscription rows", async () => {
     const result = await getEntitlement(testDb.db, userId, { now: () => NOW });
 
-    expect(result).toEqual({ tier: "free", source: null });
+    expect(result).toEqual({ tier: "free", source: null, status: "none" });
   });
 
   it.each([
@@ -91,7 +91,11 @@ describe("getEntitlement", () => {
 
     const result = await getEntitlement(testDb.db, userId, { now: () => NOW });
 
-    expect(result).toEqual({ tier: "premium", source: "stripe" });
+    expect(result).toEqual({
+      tier: "premium",
+      source: "stripe",
+      status: "premium"
+    });
   });
 
   it("verify-on-read: a stale active Play row triggers re-verification", async () => {
@@ -131,6 +135,49 @@ describe("getEntitlement", () => {
     });
 
     expect(result.tier).toBe("free");
+  });
+
+  it("returns status trialing (tier premium) for a valid trialing row", async () => {
+    const trialingEnd = new Date(NOW.getTime() + 5 * 24 * 60 * 60 * 1000);
+    await testDb.db.insert(schema.subscriptions).values({
+      userId,
+      provider: "stripe",
+      providerRef: `ref-trialing-${trialingEnd.getTime()}`,
+      productId: "premium_monthly",
+      status: "trialing",
+      currentPeriodEnd: trialingEnd
+    });
+
+    const e = await getEntitlement(testDb.db, userId, { now: () => NOW });
+
+    expect(e).toMatchObject({
+      tier: "premium",
+      status: "trialing",
+      source: "stripe"
+    });
+  });
+
+  it("returns status lapsed when rows exist but none valid", async () => {
+    await testDb.db
+      .insert(schema.subscriptions)
+      .values(subscription("expired", PAST, "stripe"));
+
+    const result = await getEntitlement(testDb.db, userId, { now: () => NOW });
+
+    expect(result.status).toBe("lapsed");
+  });
+
+  it("returns status none with no rows", async () => {
+    const [fresh] = await testDb.db
+      .insert(schema.users)
+      .values({ email: `fresh-${Date.now()}@test.dev` })
+      .returning();
+
+    const result = await getEntitlement(testDb.db, fresh.id, {
+      now: () => NOW
+    });
+
+    expect(result.status).toBe("none");
   });
 });
 

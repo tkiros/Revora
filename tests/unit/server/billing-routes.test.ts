@@ -76,7 +76,11 @@ describe("POST /api/billing/play/verify", () => {
     const body = await response.json();
 
     expect(playLookup).toHaveBeenCalledWith("tok-1");
-    expect(body).toEqual({ tier: "premium", source: "play" });
+    expect(body).toEqual({
+      tier: "premium",
+      source: "play",
+      status: "premium"
+    });
 
     const [row] = await testDb.db.select().from(schema.subscriptions);
     expect(row.providerRef).toBe("tok-1");
