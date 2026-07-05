@@ -534,6 +534,180 @@ describe("applyStripeEvent", () => {
       .where(eq(schema.subscriptions.providerRef, "sub_grace"));
     expect(row.status).toBe("grace");
   });
+
+  function emittedNamed(
+    info: ReturnType<typeof vi.spyOn>,
+    name: string
+  ): Array<{ name: string; priceVariant?: string }> {
+    return info.mock.calls
+      .map((c: unknown[]) => {
+        try {
+          return JSON.parse(String(c[0]));
+        } catch {
+          return null;
+        }
+      })
+      .filter(
+        (e: { name?: string } | null): e is { name: string; priceVariant?: string } =>
+          Boolean(e) && e!.name === name
+      );
+  }
+
+  const activeSubStripe = () =>
+    ({
+      subscriptions: {
+        retrieve: vi.fn().mockResolvedValue({
+          status: "active",
+          items: {
+            data: [{ current_period_end: Math.floor(FUTURE.getTime() / 1000) }]
+          }
+        })
+      }
+    }) as unknown as Stripe;
+
+  const invoicePaidEvent = (subscriptionId: string, billingReason?: string) =>
+    ({
+      type: "invoice.paid",
+      data: {
+        object: {
+          billing_reason: billingReason,
+          parent: { subscription_details: { subscription: subscriptionId } }
+        }
+      }
+    }) as unknown as Stripe.Event;
+
+  const trialToActiveUpdatedEvent = (subscriptionId: string) =>
+    ({
+      type: "customer.subscription.updated",
+      data: {
+        object: {
+          id: subscriptionId,
+          status: "active",
+          items: {
+            data: [{ current_period_end: Math.floor(FUTURE.getTime() / 1000) }]
+          }
+        },
+        previous_attributes: { status: "trialing" }
+      }
+    }) as unknown as Stripe.Event;
+
+  const seedTrialingRow = (providerRef: string) =>
+    testDb.db.insert(schema.subscriptions).values({
+      userId,
+      provider: "stripe",
+      providerRef,
+      productId: "premium_monthly",
+      status: "trialing",
+      priceVariant: "1299",
+      currentPeriodEnd: NOW
+    });
+
+  it("Order A: invoice.paid (subscription_cycle) then subscription.updated (trialing→active) → active, ONE trial_converted", async () => {
+    await seedTrialingRow("sub_orderA");
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    await applyStripeEvent(
+      testDb.db,
+      invoicePaidEvent("sub_orderA", "subscription_cycle"),
+      NOW,
+      () => activeSubStripe()
+    );
+    await applyStripeEvent(
+      testDb.db,
+      trialToActiveUpdatedEvent("sub_orderA"),
+      NOW
+    );
+
+    const [row] = await testDb.db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.providerRef, "sub_orderA"));
+    expect(row.status).toBe("active");
+
+    const converted = emittedNamed(info, "trial_converted");
+    expect(converted).toHaveLength(1);
+    expect(converted[0].priceVariant).toBe("1299");
+    info.mockRestore();
+  });
+
+  it("Order B: subscription.updated (trialing→active) then invoice.paid → active, ONE trial_converted", async () => {
+    await seedTrialingRow("sub_orderB");
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    await applyStripeEvent(
+      testDb.db,
+      trialToActiveUpdatedEvent("sub_orderB"),
+      NOW
+    );
+    await applyStripeEvent(
+      testDb.db,
+      invoicePaidEvent("sub_orderB", "subscription_cycle"),
+      NOW,
+      () => activeSubStripe()
+    );
+
+    const [row] = await testDb.db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.providerRef, "sub_orderB"));
+    expect(row.status).toBe("active");
+
+    const converted = emittedNamed(info, "trial_converted");
+    expect(converted).toHaveLength(1);
+    expect(converted[0].priceVariant).toBe("1299");
+    info.mockRestore();
+  });
+
+  it("invoice.paid with billing_reason subscription_create keeps the trial trialing and emits nothing", async () => {
+    await seedTrialingRow("sub_create");
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    await applyStripeEvent(
+      testDb.db,
+      invoicePaidEvent("sub_create", "subscription_create"),
+      NOW,
+      () => activeSubStripe()
+    );
+
+    const [row] = await testDb.db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.providerRef, "sub_create"));
+    expect(row.status).toBe("trialing");
+    expect(emittedNamed(info, "trial_converted")).toHaveLength(0);
+    info.mockRestore();
+  });
+
+  it("invoice.paid resolves subscriptionId from the legacy top-level field and still converts", async () => {
+    await seedTrialingRow("sub_legacy");
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    await applyStripeEvent(
+      testDb.db,
+      {
+        type: "invoice.paid",
+        data: {
+          object: {
+            billing_reason: "subscription_cycle",
+            subscription: "sub_legacy"
+          }
+        }
+      } as unknown as Stripe.Event,
+      NOW,
+      () => activeSubStripe()
+    );
+
+    const [row] = await testDb.db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.providerRef, "sub_legacy"));
+    expect(row.status).toBe("active");
+
+    const converted = emittedNamed(info, "trial_converted");
+    expect(converted).toHaveLength(1);
+    expect(converted[0].priceVariant).toBe("1299");
+    info.mockRestore();
+  });
 });
 
 describe("GET /api/entitlement", () => {

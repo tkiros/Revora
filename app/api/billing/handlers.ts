@@ -433,12 +433,18 @@ export async function applyStripeEvent(
 
   if (event.type === "invoice.paid") {
     const invoice = event.data.object as Stripe.Invoice;
-    // Stripe SDK 22 (basil API): the subscription lives under
-    // invoice.parent.subscription_details — there is no top-level
-    // invoice.subscription on the object anymore.
+    // Subscription id resolution across API versions. On 2025-03-31.basil+
+    // payloads it lives under invoice.parent.subscription_details; older
+    // account/endpoint versions send a top-level invoice.subscription that
+    // stripe@22's types no longer declare — resolve via a safe cast fallback.
     const subRef = invoice.parent?.subscription_details?.subscription;
-    const subscriptionId =
-      typeof subRef === "string" ? subRef : subRef?.id;
+    let subscriptionId = typeof subRef === "string" ? subRef : subRef?.id;
+    if (!subscriptionId) {
+      const legacy = (
+        invoice as unknown as { subscription?: string | { id: string } }
+      ).subscription;
+      subscriptionId = typeof legacy === "string" ? legacy : legacy?.id;
+    }
     if (!subscriptionId) {
       return;
     }
@@ -448,6 +454,13 @@ export async function applyStripeEvent(
       .from(schema.subscriptions)
       .where(eq(schema.subscriptions.providerRef, subscriptionId));
     if (!row) {
+      return;
+    }
+
+    // The $0 subscription-create invoice fires at trial START. It must not
+    // flip trialing→active or emit a conversion. Other billing reasons
+    // (subscription_cycle, …) or an absent reason proceed to conversion.
+    if (invoice.billing_reason === "subscription_create") {
       return;
     }
 
@@ -495,26 +508,45 @@ export async function applyStripeEvent(
     const item = subscription.items?.data[0];
     const status = mapStripeStatus(subscription.status, event.type);
 
+    // Read the stored row BEFORE the upsert — its pre-update status drives both
+    // the cancel and the conversion telemetry decisions below. (deleted events
+    // need no telemetry, so skip the read for them.)
+    const [existing] =
+      event.type === "customer.subscription.updated"
+        ? await db
+            .select()
+            .from(schema.subscriptions)
+            .where(eq(schema.subscriptions.providerRef, subscription.id))
+        : [undefined];
+
     // Trial cancellation telemetry: a trial flagged to cancel at period end
     // keeps status "trialing" (entitled until it lapses); we only surface the
     // signal. Telemetry duplicates on repeated updates are tolerable.
     if (
       event.type === "customer.subscription.updated" &&
-      subscription.cancel_at_period_end === true
+      subscription.cancel_at_period_end === true &&
+      existing?.status === "trialing"
     ) {
-      const [existing] = await db
-        .select()
-        .from(schema.subscriptions)
-        .where(eq(schema.subscriptions.providerRef, subscription.id));
-      if (existing?.status === "trialing") {
-        emitBillingEvent({
-          name: "trial_canceled",
-          priceVariant:
-            (existing.priceVariant as BillingTelemetryEvent["priceVariant"]) ??
-            undefined
-        });
-      }
+      emitBillingEvent({
+        name: "trial_canceled",
+        priceVariant:
+          (existing.priceVariant as BillingTelemetryEvent["priceVariant"]) ??
+          undefined
+      });
     }
+
+    // Conversion can arrive here instead of via invoice.paid when Stripe fires
+    // customer.subscription.updated (trialing→active) first. Emit exactly once:
+    // the stored row still being "trialing" is the dedupe — whichever handler
+    // runs first flips the row, so only one of the two emits.
+    const previousStatus = (
+      event.data.previous_attributes as { status?: string } | undefined
+    )?.status;
+    const isConversion =
+      event.type === "customer.subscription.updated" &&
+      previousStatus === "trialing" &&
+      status === "active" &&
+      existing?.status === "trialing";
 
     await db
       .update(schema.subscriptions)
@@ -526,6 +558,15 @@ export async function applyStripeEvent(
         updatedAt: now
       })
       .where(eq(schema.subscriptions.providerRef, subscription.id));
+
+    if (isConversion) {
+      emitBillingEvent({
+        name: "trial_converted",
+        priceVariant:
+          (existing?.priceVariant as BillingTelemetryEvent["priceVariant"]) ??
+          undefined
+      });
+    }
     return;
   }
 
