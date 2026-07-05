@@ -288,6 +288,30 @@ export function createStripeCheckoutHandler(deps: BillingDeps = {}) {
   };
 }
 
+// ── POST /api/billing/stripe/pantry-checkout ────────────────────────────────
+
+export function createPantryCheckoutSessionHandler(deps: BillingDeps = {}) {
+  const stripe = deps.stripeClient ?? defaultStripe;
+
+  return async function POST() {
+    const price = process.env.STRIPE_PRICE_PANTRY;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    if (!price) {
+      return NextResponse.json({ error: "The Pantry Review is not available right now." }, { status: 503 });
+    }
+    // No session gate: buyers may be anonymous. Checkout collects the email;
+    // order binding stays possession-of-claim-token, exactly like the
+    // Payment Link path (applyPantryCheckout is reused byte-identically).
+    const checkout = await stripe().checkout.sessions.create({
+      mode: "payment",
+      line_items: [{ price, quantity: 1 }],
+      success_url: `${appUrl}/pantry/thanks`,
+      cancel_url: `${appUrl}/pantry`
+    });
+    return NextResponse.json({ url: checkout.url });
+  };
+}
+
 // ── POST /api/billing/stripe/portal ─────────────────────────────────────────
 
 export function createStripePortalHandler(deps: BillingDeps = {}) {
@@ -719,6 +743,8 @@ async function applyPantryCheckout(
   if (inserted.length === 0) {
     return; // Duplicate webhook delivery — the first one already emailed.
   }
+
+  emitBillingEvent({ name: "pantry_purchased" });
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const result = await (email?.send ?? sendEmail)({

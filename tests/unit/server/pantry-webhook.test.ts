@@ -95,6 +95,27 @@ describe("applyStripeEvent — pantry branch", () => {
     expect(send).toHaveBeenCalledTimes(1);
   });
 
+  it("emits pantry_purchased exactly once across a duplicate webhook delivery", async () => {
+    const send = vi.fn().mockResolvedValue({ ok: true });
+    const stripe = stripeWithLineItems("price_pantry_25");
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    let lines: unknown[][];
+    try {
+      await applyStripeEvent(testDb.db, paymentSessionEvent(), NOW, stripe, { send });
+      await applyStripeEvent(testDb.db, paymentSessionEvent(), NOW, stripe, { send });
+      lines = [...info.mock.calls];
+    } finally {
+      info.mockRestore();
+    }
+
+    const purchased = lines.filter(
+      ([line]) =>
+        typeof line === "string" && line.includes('"name":"pantry_purchased"')
+    );
+    expect(purchased).toHaveLength(1);
+  });
+
   it("ignores payment-mode sessions for other products", async () => {
     const send = vi.fn();
 

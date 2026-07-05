@@ -66,6 +66,7 @@ const COPY_FILES = [
   "app/welcome/page.tsx",
   "app/progress/page.tsx",
   "app/how-it-works/page.tsx",
+  "app/pantry/thanks/page.tsx",
   "lib/revora/fallback.ts",
   "lib/revora/coach-outputs.ts",
   "lib/coach/insights.ts",

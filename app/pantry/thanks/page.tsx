@@ -1,0 +1,28 @@
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL ?? "support@revora.app";
+
+export const metadata = {
+  title: "Pantry Review — Revora",
+  robots: { index: false, follow: false }
+};
+
+export default function PantryThanksPage() {
+  return (
+    <main className="page-shell">
+      <div className="page-frame">
+        <section className="surface-card hero-card">
+          <p className="hero-eyebrow">Pantry Review</p>
+          <h1 className="page-title">Paid — check your email</h1>
+          <p className="page-copy">
+            Your setup link is on its way to the email you used at checkout. It
+            signs you in and walks you through the photo upload. Nothing else to
+            do here.
+          </p>
+          <p className="field-hint">
+            No email after a minute? Check spam, or write to {SUPPORT_EMAIL} and
+            we&apos;ll sort it out.
+          </p>
+        </section>
+      </div>
+    </main>
+  );
+}
