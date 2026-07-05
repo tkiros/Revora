@@ -53,6 +53,7 @@ const COPY_FILES = [
   "components/print-button.tsx",
   "app/report/[id]/page.tsx",
   "app/subscribe/page.tsx",
+  "app/trial/started/page.tsx",
   "app/account/page.tsx",
   "app/account/delete/page.tsx",
   "app/signin/page.tsx",
