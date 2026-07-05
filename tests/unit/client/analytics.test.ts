@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { track, type AnalyticsEvent } from "../../../lib/client/analytics";
 
@@ -13,7 +13,13 @@ const ALLOWED_NAMES = [
   "paywall_viewed",
   "subscribe_started",
   "subscribe_completed",
-  "deletion_completed"
+  "deletion_completed",
+  "taster_check",
+  "wall_viewed",
+  "trial_checkout_started",
+  "trial_started",
+  "pantry_viewed",
+  "pantry_checkout_started"
 ] as const;
 
 // (a) Compile-time exhaustiveness: this switch must handle every member of
@@ -30,6 +36,12 @@ function assertExhaustive(name: AnalyticsEvent["name"]): void {
     case "subscribe_started":
     case "subscribe_completed":
     case "deletion_completed":
+    case "taster_check":
+    case "wall_viewed":
+    case "trial_checkout_started":
+    case "trial_started":
+    case "pantry_viewed":
+    case "pantry_checkout_started":
       return;
     default: {
       const exhaustiveCheck: never = name;
@@ -55,7 +67,13 @@ describe("AnalyticsEvent allowlist", () => {
       { name: "paywall_viewed" },
       { name: "subscribe_started" },
       { name: "subscribe_completed" },
-      { name: "deletion_completed" }
+      { name: "deletion_completed" },
+      { name: "taster_check", props: { used: 3 } },
+      { name: "wall_viewed", props: { variant: "1299" } },
+      { name: "trial_checkout_started", props: { variant: "1299" } },
+      { name: "trial_started", props: { variant: "999" } },
+      { name: "pantry_viewed", props: { source: "wall_decline" } },
+      { name: "pantry_checkout_started" }
     ];
 
     expect(oneOfEach.map((event) => event.name).sort()).toEqual(
@@ -185,7 +203,7 @@ describe("AnalyticsEvent props stay closed unions (no free-text props)", () => {
     // The union's final variant/terminator — everything between the start
     // and this marker (inclusive) is the full AnalyticsEvent declaration,
     // spanning the nested check_completed props object.
-    const endMarker = '"deletion_completed" };';
+    const endMarker = '"pantry_checkout_started" };';
     const typeBlockEndIndex = SOURCE.indexOf(endMarker, typeBlockStart);
     expect(typeBlockStart).toBeGreaterThanOrEqual(0);
     expect(typeBlockEndIndex).toBeGreaterThan(typeBlockStart);
@@ -214,5 +232,20 @@ describe("AnalyticsEvent props stay closed unions (no free-text props)", () => {
     expect(Object.keys(sample.props).sort()).toEqual(
       ["input_method", "kind", "risk"].sort()
     );
+  });
+});
+
+describe("launch funnel events", () => {
+  it.each([
+    [{ name: "taster_check", props: { used: 3 } }],
+    [{ name: "wall_viewed", props: { variant: "1299" } }],
+    [{ name: "trial_checkout_started", props: { variant: "1299" } }],
+    [{ name: "trial_started", props: { variant: "999" } }],
+    [{ name: "pantry_viewed", props: { source: "wall_decline" } }],
+    [{ name: "pantry_checkout_started" }]
+  ] as const)("forwards %j to umami", (event) => {
+    const umami = { track: vi.fn() };
+    track(event as never, { umami });
+    expect(umami.track).toHaveBeenCalledWith(event.name, "props" in event ? event.props : undefined);
   });
 });

@@ -16,6 +16,11 @@ import type { RevoraRisk, RevoraUserResponse } from "./ui-state";
 // (lib/client/ui-state.ts — the same type check.ts normalizes onto).
 type CheckResponseKind = RevoraUserResponse["kind"];
 
+// Price points offered at the paywall/trial (cents-as-string, matching the
+// Stripe price-lookup keys). A closed enum so no arbitrary amount reaches
+// analytics — Task 2.7/4.2 import this same type for the checkout call sites.
+export type PriceVariant = "999" | "1299" | "1999";
+
 export type AnalyticsEvent =
   | {
       name: "check_completed";
@@ -31,7 +36,16 @@ export type AnalyticsEvent =
   | { name: "paywall_viewed" }
   | { name: "subscribe_started" }
   | { name: "subscribe_completed" }
-  | { name: "deletion_completed" };
+  | { name: "deletion_completed" }
+  | { name: "taster_check"; props: { used: number } }
+  | { name: "wall_viewed"; props: { variant: PriceVariant } }
+  | { name: "trial_checkout_started"; props: { variant: PriceVariant } }
+  | { name: "trial_started"; props: { variant: PriceVariant } }
+  | {
+      name: "pantry_viewed";
+      props: { source: "landing" | "wall_decline" | "result_card" };
+    }
+  | { name: "pantry_checkout_started" };
 
 // Runtime belt-over-type-belt guard: even if a caller bypasses the type
 // system (e.g. `track(untyped)`), only these names are ever forwarded.
@@ -43,7 +57,13 @@ const ALLOWED_EVENT_NAMES: ReadonlySet<AnalyticsEvent["name"]> = new Set([
   "paywall_viewed",
   "subscribe_started",
   "subscribe_completed",
-  "deletion_completed"
+  "deletion_completed",
+  "taster_check",
+  "wall_viewed",
+  "trial_checkout_started",
+  "trial_started",
+  "pantry_viewed",
+  "pantry_checkout_started"
 ]);
 
 type AnalyticsHost = {
