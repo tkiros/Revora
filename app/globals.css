@@ -368,6 +368,27 @@ textarea.text-input {
   color: inherit;
 }
 
+/* A button that reads as a text link (onboarding "Skip" affordances). */
+button.inline-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.onboarding-skip {
+  display: block;
+  margin: 12px auto 0;
+  color: var(--text-muted);
+}
+
+.onboarding-skip-tour {
+  display: block;
+  margin: 20px auto 0;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
 /* Week strip (history page) */
 
 .week-strip {

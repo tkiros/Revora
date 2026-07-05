@@ -11,7 +11,7 @@ async function expectNoSeriousViolations(page: Page) {
   expect(serious).toEqual([]);
 }
 
-test("a new user completes all four onboarding steps and lands on the home loop", async ({
+test("a new user walks welcome→segment→a1c→expectations→first_check into a guided check", async ({
   page
 }) => {
   await page.goto("/onboarding");
@@ -27,7 +27,18 @@ test("a new user completes all four onboarding steps and lands on the home loop"
   await expectNoSeriousViolations(page);
   await page.getByRole("button", { name: "Get started" }).click();
 
-  // Step 2: A1C entry
+  // Step 2: segmentation — one tap advances, stored nowhere
+  await expect(page.getByTestId("onboarding-step")).toHaveAttribute(
+    "data-step",
+    "segment"
+  );
+  await expect(
+    page.getByRole("heading", { name: "What brought you here?" })
+  ).toBeVisible();
+  await expectNoSeriousViolations(page);
+  await page.getByRole("button", { name: "New A1C result" }).click();
+
+  // Step 3: A1C entry (shown because no profile is seeded)
   await expect(page.getByTestId("onboarding-step")).toHaveAttribute(
     "data-step",
     "a1c"
@@ -36,36 +47,80 @@ test("a new user completes all four onboarding steps and lands on the home loop"
   await expectNoSeriousViolations(page);
   await page.getByRole("button", { name: "Continue" }).click();
 
-  // Step 3: expectations — honest framing + disclaimer
+  // Step 4: expectations — honesty line prepended + disclaimer
   await expect(page.getByTestId("onboarding-step")).toHaveAttribute(
     "data-step",
     "expectations"
   );
+  await expect(
+    page.getByText(/When we're unsure, we say so/)
+  ).toBeVisible();
   await expect(page.locator(".result-disclaimer")).toContainText(
     /not medical advice/i
   );
   await expectNoSeriousViolations(page);
   await page.getByRole("button", { name: "Continue" }).click();
 
-  // Step 4: daily loop — exactly two input methods, no photo
+  // Step 5: first check — three classics, no photo path
   await expect(page.getByTestId("onboarding-step")).toHaveAttribute(
     "data-step",
-    "daily_loop"
+    "first_check"
   );
-  await expect(page.getByText("Type your meal.")).toBeVisible();
-  await expect(page.getByText("Say your meal.")).toBeVisible();
+  await expect(
+    page.getByText(/These three surprise almost everyone/)
+  ).toBeVisible();
   await expect(page.getByText(/photo|snap|camera/i)).toHaveCount(0);
   await expectNoSeriousViolations(page);
-  await page.getByTestId("onboarding-finish").click();
+  await page.getByRole("button", { name: "oatmeal", exact: true }).click();
 
-  // Lands on home with the A1C remembered in the form
+  // Lands on home with the guided food prefilled and the A1C remembered
   await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByLabel(/eating/i)).toHaveValue("oatmeal");
   await expect(page.getByLabel(/latest a1c/i)).toHaveValue("6.1");
+});
+
+test("a returning guest with a saved A1C skips the A1C step", async ({
+  page
+}) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "revora.profile.v1",
+      JSON.stringify({ a1c: 6.1, onboardedAt: "2026-01-01T00:00:00.000Z" })
+    );
+  });
+
+  await page.goto("/onboarding");
+  await page.getByRole("button", { name: "Get started" }).click();
+
+  await expect(page.getByTestId("onboarding-step")).toHaveAttribute(
+    "data-step",
+    "segment"
+  );
+  await page.getByRole("button", { name: "Just checking" }).click();
+
+  // Single-source rule: the device already knows the A1C, so a1c is skipped.
+  await expect(page.getByTestId("onboarding-step")).toHaveAttribute(
+    "data-step",
+    "expectations"
+  );
+  await expect(page.getByLabel("Latest A1C")).toHaveCount(0);
+});
+
+test("skip the tour leaves for the escape hatch, never looping back", async ({
+  page
+}) => {
+  await page.goto("/onboarding");
+  await page.getByRole("button", { name: "Skip the tour" }).click();
+
+  // ?stay=1 is FirstRunGate's signal to stay on home instead of bouncing back.
+  await expect(page).toHaveURL(/\/\?stay=1$/);
+  await expect(page.getByTestId("onboarding-step")).toHaveCount(0);
 });
 
 test("invalid A1C shows a field error, not progress", async ({ page }) => {
   await page.goto("/onboarding");
   await page.getByRole("button", { name: "Get started" }).click();
+  await page.getByRole("button", { name: "New A1C result" }).click();
 
   // Empty submit (number inputs refuse non-numeric text entirely)
   await page.getByRole("button", { name: "Continue" }).click();
@@ -85,6 +140,7 @@ test.describe("out-of-range A1C ends at boundary guidance, never a verdict", () 
     test(`A1C ${value}`, async ({ page }) => {
       await page.goto("/onboarding");
       await page.getByRole("button", { name: "Get started" }).click();
+      await page.getByRole("button", { name: "New A1C result" }).click();
       await page.getByLabel("Latest A1C").fill(value);
       await page.getByRole("button", { name: "Continue" }).click();
 

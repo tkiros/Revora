@@ -18,7 +18,28 @@ const BELOW_RANGE_MESSAGE =
 const HIGH_RANGE_MESSAGE =
   "This A1C value falls in a range used for diabetes and is outside Revora's prediabetes-only MVP. For personalized next steps, talk with a doctor or registered dietitian.";
 
-type Step = "welcome" | "a1c" | "expectations" | "daily_loop" | "boundary";
+type Step = "welcome" | "segment" | "a1c" | "expectations" | "first_check" | "boundary";
+
+// Segmentation prompt — one tap, stored NOWHERE (no server write, no analytics
+// event). It exists only to make the tour feel like it's listening; each tap
+// (or "Skip") just advances. Segmentation analytics is a post-launch YAGNI.
+const SEGMENT_CHIPS = [
+  "New A1C result",
+  "Doctor's advice",
+  "Family history",
+  "Just checking"
+] as const;
+
+// The guided-first-check foods — three everyday items whose impact surprises
+// almost everyone, so the very first check earns an "oh, huh" moment.
+const FIRST_CHECK_CHIPS = ["oatmeal", "banana", "orange juice"] as const;
+
+// Single-source rule (P3): the tour never re-asks what the device already knows.
+// A guest who has an on-device A1C skips the A1C step entirely. Pure so the
+// branch is unit-testable in node without a component harness.
+export function nextStepAfterSegment(hasProfile: boolean): Step {
+  return hasProfile ? "expectations" : "a1c";
+}
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -27,6 +48,16 @@ export default function OnboardingPage() {
   const [a1cError, setA1cError] = useState<string | null>(null);
   const [boundaryMessage, setBoundaryMessage] = useState("");
   const [a1cValue, setA1cValue] = useState<number | null>(null);
+
+  function advanceFromSegment() {
+    setStep(nextStepAfterSegment(profileStore.get() !== null));
+  }
+
+  function skipTour() {
+    // 5.1's escape hatch: ?stay=1 tells FirstRunGate not to bounce the user
+    // straight back into the tour, so "skip" never loops.
+    router.push("/?stay=1");
+  }
 
   function handleA1cContinue() {
     const value = Number.parseFloat(a1cText);
@@ -53,7 +84,14 @@ export default function OnboardingPage() {
     setStep("expectations");
   }
 
-  function finish() {
+  function startGuidedCheck(food: string) {
+    // Hand the chosen food to the home form via the same prefill path a
+    // one-tap re-check uses (food-check-form.tsx reads + clears revora.recheck).
+    try {
+      window.sessionStorage.setItem("revora.recheck", food);
+    } catch {
+      // storage unavailable — land on the form without a prefill
+    }
     if (a1cValue !== null) {
       profileStore.set({ a1c: a1cValue, onboardedAt: new Date().toISOString() });
     }
@@ -88,9 +126,35 @@ export default function OnboardingPage() {
               <button
                 type="button"
                 className="primary-button"
-                onClick={() => setStep("a1c")}
+                onClick={() => setStep("segment")}
               >
                 Get started
+              </button>
+            </>
+          ) : null}
+
+          {step === "segment" ? (
+            <>
+              <p className="hero-eyebrow">One quick question</p>
+              <h1 className="page-title">What brought you here?</h1>
+              <div className="chip-row" role="group" aria-label="What brought you here?">
+                {SEGMENT_CHIPS.map((label) => (
+                  <button
+                    key={label}
+                    type="button"
+                    className="selectable-chip"
+                    onClick={advanceFromSegment}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                className="inline-link onboarding-skip"
+                onClick={advanceFromSegment}
+              >
+                Skip
               </button>
             </>
           ) : null}
@@ -164,6 +228,10 @@ export default function OnboardingPage() {
               <h1 className="page-title">What to expect</h1>
               <ul className="page-copy expectation-list">
                 <li>
+                  When we&apos;re unsure, we say so — you&apos;ll see it in the
+                  result.
+                </li>
+                <li>
                   Guidance is qualitative — plain words, not glucose numbers
                   or calorie math.
                 </li>
@@ -177,41 +245,49 @@ export default function OnboardingPage() {
               <button
                 type="button"
                 className="primary-button"
-                onClick={() => setStep("daily_loop")}
+                onClick={() => setStep("first_check")}
               >
                 Continue
               </button>
             </>
           ) : null}
 
-          {step === "daily_loop" ? (
+          {step === "first_check" ? (
             <>
-              <p className="hero-eyebrow">Step 4 of 4</p>
-              <h1 className="page-title">Your daily loop</h1>
+              <p className="hero-eyebrow">Your first check</p>
+              <h1 className="page-title">Try one of the classics</h1>
               <p className="page-copy">
-                Check a meal before you eat it — that&apos;s the whole habit.
-                Revora remembers your day, keeps your streak, and shows you
-                one useful pattern from your own meals.
+                These three surprise almost everyone. Tap one — the check runs
+                right on the home screen.
               </p>
-              <ul className="page-copy expectation-list">
-                <li>
-                  <strong>Type your meal.</strong> The fastest way for most
-                  meals.
-                </li>
-                <li>
-                  <strong>Say your meal.</strong> Tap the mic, speak, review
-                  the text, submit.
-                </li>
-              </ul>
-              <button
-                type="button"
-                className="primary-button"
-                data-testid="onboarding-finish"
-                onClick={finish}
+              <div
+                className="chip-row"
+                role="group"
+                aria-label="Try one of the classics"
               >
-                Check my first meal
-              </button>
+                {FIRST_CHECK_CHIPS.map((food) => (
+                  <button
+                    key={food}
+                    type="button"
+                    className="selectable-chip"
+                    data-testid={`first-check-${food.replace(/\s+/g, "-")}`}
+                    onClick={() => startGuidedCheck(food)}
+                  >
+                    {food}
+                  </button>
+                ))}
+              </div>
             </>
+          ) : null}
+
+          {step !== "boundary" ? (
+            <button
+              type="button"
+              className="inline-link onboarding-skip-tour"
+              onClick={skipTour}
+            >
+              Skip the tour
+            </button>
           ) : null}
         </section>
 
