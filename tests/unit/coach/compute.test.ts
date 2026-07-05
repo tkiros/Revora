@@ -4,6 +4,7 @@ import {
   computeStreak,
   dayKeyInTimezone,
   dayKeyLocal,
+  showFirstWin,
   weekView
 } from "../../../lib/coach/days";
 import { computeCoachView } from "../../../lib/coach/compute";
@@ -61,6 +62,26 @@ describe("timezone-correct day math", () => {
     expect(days[6]).toEqual({ key: "2026-07-03", checked: true });
     expect(days[4]).toEqual({ key: "2026-07-01", checked: true });
     expect(days[5]).toEqual({ key: "2026-07-02", checked: false });
+  });
+});
+
+describe("showFirstWin (Day-1 first-win gate)", () => {
+  it("shows on the first day once there is a check today", () => {
+    // streak === 1 means the streak is exactly one day long (the first day),
+    // and today has at least one check.
+    expect(showFirstWin(1, 1)).toBe(true);
+    expect(showFirstWin(1, 3)).toBe(true);
+  });
+
+  it("does not show past the first day", () => {
+    expect(showFirstWin(2, 1)).toBe(false);
+    expect(showFirstWin(7, 5)).toBe(false);
+  });
+
+  it("does not show on the first day with no check today", () => {
+    // streak can be 1 counting yesterday when today is still empty.
+    expect(showFirstWin(1, 0)).toBe(false);
+    expect(showFirstWin(0, 0)).toBe(false);
   });
 });
 

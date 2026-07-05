@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 
 import { historyStore, type StoredCheck } from "../lib/client/history-store";
 import { loadHistory, syncLocalHistory } from "../lib/client/remote-history";
-import { computeStreak, dayKeyLocal } from "../lib/coach/days";
+import { computeStreak, dayKeyLocal, showFirstWin } from "../lib/coach/days";
 import { deriveInsight, type CoachInsight } from "../lib/coach/insights";
 import { InsightCard } from "./insight-card";
 import { NudgeOptIn } from "./nudge-opt-in";
@@ -89,6 +89,14 @@ export function DailyLoop() {
         <h2 className="section-title">Today</h2>
         <StreakChip streak={streak} />
       </div>
+      {showFirstWin(streak, today.length) ? (
+        <div className="first-win" data-testid="first-win">
+          <p className="status-eyebrow">Day 1</p>
+          <p className="page-copy">
+            That&apos;s Day 1. One honest check a day is the whole habit.
+          </p>
+        </div>
+      ) : null}
       <TodayList checks={today} />
       {insight ? <InsightCard insight={insight} /> : null}
       <NudgeOptIn />
