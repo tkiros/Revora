@@ -1,0 +1,104 @@
+import { PantryBuyButton } from "../../components/pantry-buy-button";
+
+// Indexable on purpose: this is the cold-traffic front door for the one-time
+// Pantry Review, so no `robots: { index: false }` here (unlike the in-app
+// /report and /pantry/thanks surfaces).
+export const metadata = {
+  title: "Pantry Review — Revora"
+};
+
+// Verbatim `result-footer` disclaimer from docs/safety/copy-ledger.md.
+const DISCLAIMER =
+  "Revora is informational only and is not medical advice. Talk with a doctor or registered dietitian for guidance that is specific to you.";
+
+// Sample rows reuse the LIVE report row markup from app/report/[id]/page.tsx
+// (~:24-36) verbatim — same `result-card report-item report-item--{tone}`
+// classes and the same report-item-name / report-item-reason / report-item-tip
+// structure — so the fictional excerpt is pixel-true to a real report.
+function SampleRow({
+  name,
+  tone,
+  reason,
+  swap
+}: {
+  name: string;
+  tone: "safe" | "moderate" | "high";
+  reason: string;
+  swap?: string;
+}) {
+  return (
+    <div className={`result-card report-item report-item--${tone}`}>
+      <p className="report-item-name">{name}</p>
+      <p className="report-item-reason">{reason}</p>
+      {swap ? <p className="report-item-tip">Swap idea: {swap}</p> : null}
+    </div>
+  );
+}
+
+export default function PantryLandingPage() {
+  return (
+    <main className="page-shell">
+      <div className="page-frame report-frame">
+        <section className="surface-card hero-card">
+          <p className="hero-eyebrow">Pantry Review</p>
+          <h1 className="page-title">Your whole kitchen, sorted in one report</h1>
+          <p className="page-copy">
+            Send us photos of your pantry and fridge. You confirm the item list,
+            and the same careful engine behind Revora&apos;s meal check groups
+            everything into a calm, printable report. One payment. Nothing
+            renews.
+          </p>
+        </section>
+
+        <section className="surface-card">
+          <p className="hero-eyebrow">A sample, from a fictional kitchen</p>
+
+          <h2>Enjoy freely</h2>
+          <SampleRow
+            name="Plain Greek yogurt"
+            tone="safe"
+            reason="Plain Greek yogurt fits as it is — it leans on protein rather than fast carbs, so it looks like a steady pick with no change needed."
+          />
+
+          <h2>Worth a tweak</h2>
+          <SampleRow
+            name="Instant oatmeal packets"
+            tone="moderate"
+            reason="Instant oatmeal packets lean heavily on refined, quick-cooking carbs, so they can have a higher blood-sugar impact than their healthy reputation suggests."
+            swap="steel-cut oats hold up steadier than instant packets."
+          />
+
+          <h2>Handle with care</h2>
+          <SampleRow
+            name="Sweetened juice"
+            tone="high"
+            reason="Sweetened juice is likely a higher-impact choice in its current form because it is mostly sugar with little to slow it down."
+            swap="whole fruit, with the fiber left in, is a steadier fit than the juice."
+          />
+        </section>
+
+        <section className="surface-card">
+          <h2>How it works</h2>
+          <p className="page-copy">
+            Send photos of your pantry and fridge. You confirm the item list.
+            Your report arrives by email.
+          </p>
+          <p className="page-copy">
+            Photos are deleted after your report is delivered.
+          </p>
+          <p className="result-disclaimer">{DISCLAIMER}</p>
+        </section>
+
+        <section className="surface-card">
+          <PantryBuyButton source="landing" />
+          {/*
+            ponytail: the pantry price display is a build-time constant "$49"
+            here — there is no pantry price-variant test yet, so this stays
+            hardcoded rather than wiring up an env/analytics variant.
+          */}
+          <p className="field-hint">$49, one payment. Nothing renews.</p>
+        </section>
+      </div>
+    </main>
+  );
+}
