@@ -137,6 +137,25 @@ describe("getEntitlement", () => {
     expect(result.tier).toBe("free");
   });
 
+  it("verify-on-read: an expired Play row does NOT trigger re-verification (status-gated)", async () => {
+    await testDb.db
+      .insert(schema.subscriptions)
+      .values(subscription("expired", PAST, "play"));
+
+    const refresh = vi.fn().mockResolvedValue({
+      status: "active" as const,
+      currentPeriodEnd: FUTURE
+    });
+
+    const result = await getEntitlement(testDb.db, userId, {
+      now: () => NOW,
+      refreshPlaySubscription: refresh
+    });
+
+    expect(refresh).not.toHaveBeenCalled();
+    expect(result.status).toBe("lapsed");
+  });
+
   it("returns status trialing (tier premium) for a valid trialing row", async () => {
     const trialingEnd = new Date(NOW.getTime() + 5 * 24 * 60 * 60 * 1000);
     await testDb.db.insert(schema.subscriptions).values({

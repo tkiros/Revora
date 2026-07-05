@@ -66,7 +66,14 @@ export async function getEntitlement(
     }
 
     // Stale Play row: RTDN may have been missed — verify on read and heal.
-    if (row.provider === "play" && deps.refreshPlaySubscription) {
+    // Gate on status membership so we only touch the Play API for rows the
+    // pre-change status-filtered query would have selected (never for
+    // expired/refunded rows the old inArray filter excluded).
+    if (
+      row.provider === "play" &&
+      (PREMIUM_STATUSES as readonly string[]).includes(row.status) &&
+      deps.refreshPlaySubscription
+    ) {
       try {
         const fresh = await deps.refreshPlaySubscription(row.providerRef);
         await db
