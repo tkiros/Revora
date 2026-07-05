@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { upsellVariant } from "../../../components/result-card";
+import { showPantryEntry, upsellVariant } from "../../../components/result-card";
 
 // The upsell branch renders the server's `message` verbatim; it only branches
 // its own eyebrow/CTA/data-wall on whether that message mentions "free week"
@@ -38,5 +38,35 @@ describe("upsellVariant", () => {
     // "free checks" (legacy) must NOT read as the trial wall.
     expect(upsellVariant("free checks left today").wall).toBeNull();
     expect(upsellVariant("start your free week today").wall).toBe("trial");
+  });
+});
+
+// §6.3 post-verdict pantry entry. The line attaches ONLY to non-SAFE results
+// ("Be careful" / "Hold off") — SAFE never piles on, and non-result kinds
+// (upsell/clarify/not_food/out_of_scope/retry) never render it. The pure
+// predicate is the single gate the result branch reads; the JSX renders one
+// fixed line + `/pantry` link when it returns true, so no jsdom harness is
+// needed here.
+describe("showPantryEntry", () => {
+  it("shows the pantry entry on a MODERATE (Be careful) result", () => {
+    expect(showPantryEntry("result", "MODERATE")).toBe(true);
+  });
+
+  it("shows the pantry entry on a HIGH (Hold off) result", () => {
+    expect(showPantryEntry("result", "HIGH")).toBe(true);
+  });
+
+  it("never piles on a SAFE (Clear) result", () => {
+    expect(showPantryEntry("result", "SAFE")).toBe(false);
+  });
+
+  it("never shows on the upsell/wall kind", () => {
+    expect(showPantryEntry("upsell")).toBe(false);
+  });
+
+  it("never shows on non-result guidance kinds", () => {
+    for (const kind of ["clarify", "not_food", "out_of_scope", "retry"] as const) {
+      expect(showPantryEntry(kind)).toBe(false);
+    }
   });
 });

@@ -1,6 +1,17 @@
 import Link from "next/link";
 
-import type { RevoraUserResponse } from "../lib/client/ui-state";
+import type { RevoraRisk, RevoraUserResponse } from "../lib/client/ui-state";
+
+// §6.3 post-verdict pantry entry. The one-time Pantry Review line attaches ONLY
+// to non-SAFE results ("Be careful" / "Hold off") — SAFE never piles on, and no
+// non-result kind (upsell/clarify/not_food/out_of_scope/retry) carries it. This
+// pure predicate is the single gate the result branch reads.
+export function showPantryEntry(
+  kind: RevoraUserResponse["kind"],
+  risk?: RevoraRisk
+): boolean {
+  return kind === "result" && risk !== "SAFE";
+}
 
 // §6.1 verdict mapping: the card speaks calm decisions, the engine speaks
 // risk classes. data-risk keeps the raw class for tests and styling.
@@ -111,6 +122,15 @@ export function ResultCard({
           ) : null}
         </div>
         <DisclaimerLine disclaimer={response.disclaimer} />
+        {showPantryEntry(response.kind, response.risk) ? (
+          <p className="field-hint" data-testid="pantry-entry">
+            Want your whole kitchen checked once? See{" "}
+            <Link className="inline-link" href="/pantry">
+              the Pantry Review
+            </Link>{" "}
+            — one payment, nothing renews.
+          </p>
+        ) : null}
       </section>
     );
   }
