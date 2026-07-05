@@ -44,6 +44,8 @@ function createHandler(options: {
   sessionUserId: string | null;
   responseKind?: "result" | "clarify";
   dbFails?: boolean;
+  paywallMode?: () => "legacy" | "trial";
+  dbOverride?: () => typeof testDb.db;
 }) {
   const checkFoodImpl = vi.fn().mockResolvedValue(
     options.responseKind === "clarify"
@@ -64,11 +66,12 @@ function createHandler(options: {
       ? () => {
           throw new Error("db down");
         }
-      : () => testDb.db,
+      : options.dbOverride ?? (() => testDb.db),
     getSession: async () =>
       options.sessionUserId
         ? { userId: options.sessionUserId, email: "persist@test.dev" }
-        : null
+        : null,
+    ...(options.paywallMode ? { paywallMode: options.paywallMode } : {})
   });
 }
 
@@ -198,6 +201,106 @@ describe("free-tier enforcement (4D)", () => {
     for (let i = 0; i < 7; i += 1) {
       const response = await POST(checkRequest());
       expect(response.status).toBe(200);
+    }
+  });
+});
+
+describe("trial-mode hard wall (4.4)", () => {
+  it("trial mode: signed-in user with status lapsed/none gets a hard 402 regardless of checks used", async () => {
+    // No subscription rows → entitlement tier free (status none). The wall must
+    // fire on the very first check — there are no residual free checks in trial.
+    const POST = createHandler({
+      sessionUserId: userId,
+      paywallMode: () => "trial"
+    });
+
+    const limited = await POST(checkRequest());
+    const body = await limited.json();
+
+    expect(limited.status).toBe(402);
+    expect(body.kind).toBe("upsell");
+    expect(body.message).toContain("free week");
+    expect(body.disclaimer).toContain("registered dietitian");
+
+    // Nothing persisted — the blocked check never reaches the model or storage.
+    const rows = await testDb.db.select().from(schema.checks);
+    expect(rows).toHaveLength(0);
+  });
+
+  it("trial mode: trialing and premium users pass with no metering query", async () => {
+    await testDb.db.insert(schema.subscriptions).values({
+      userId,
+      provider: "stripe",
+      providerRef: "sub_trialing",
+      productId: "premium_monthly",
+      status: "trialing",
+      currentPeriodEnd: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    });
+
+    // Record every table touched by a SELECT so we can prove countChecksToday
+    // (checks) and the profile-timezone lookup (profiles) never run.
+    const queriedTables: unknown[] = [];
+    const tracked = new Proxy(testDb.db, {
+      get(target, prop) {
+        if (prop === "select") {
+          return (...args: unknown[]) => {
+            const query = (target.select as (...a: unknown[]) => unknown)(
+              ...args
+            ) as { from: (table: unknown) => unknown };
+            const originalFrom = query.from.bind(query);
+            query.from = (table: unknown) => {
+              queriedTables.push(table);
+              return originalFrom(table);
+            };
+            return query;
+          };
+        }
+        const value = Reflect.get(target, prop);
+        return typeof value === "function" ? value.bind(target) : value;
+      }
+    }) as typeof testDb.db;
+
+    const POST = createHandler({
+      sessionUserId: userId,
+      paywallMode: () => "trial",
+      dbOverride: () => tracked
+    });
+
+    const response = await POST(checkRequest());
+    expect(response.status).toBe(200);
+
+    expect(queriedTables).not.toContain(schema.checks);
+    expect(queriedTables).not.toContain(schema.profiles);
+  });
+
+  it("legacy mode: the 5/day soft limit still behaves byte-identically", async () => {
+    const POST = createHandler({
+      sessionUserId: userId,
+      paywallMode: () => "legacy"
+    });
+
+    for (let i = 0; i < 5; i += 1) {
+      expect((await POST(checkRequest())).status).toBe(200);
+    }
+
+    const limited = await POST(checkRequest());
+    const body = await limited.json();
+
+    expect(limited.status).toBe(402);
+    expect(body.message).toMatch(/premium/i);
+    expect(body.message).not.toContain("free week");
+  });
+
+  it("anonymous requests are untouched in both modes", async () => {
+    for (const mode of ["legacy", "trial"] as const) {
+      const POST = createHandler({
+        sessionUserId: null,
+        paywallMode: () => mode
+      });
+
+      for (let i = 0; i < 7; i += 1) {
+        expect((await POST(checkRequest())).status).toBe(200);
+      }
     }
   });
 });

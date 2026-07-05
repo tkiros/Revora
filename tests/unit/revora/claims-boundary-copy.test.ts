@@ -35,6 +35,7 @@ function scan(text: string): string[] {
 // ("do not diagnose"), and their correctness is governed by the safety-contract
 // fixture tests, not by this user-facing audit.
 const COPY_FILES = [
+  "app/api/check/route.ts",
   "app/page.tsx",
   "app/privacy/page.tsx",
   "app/terms/page.tsx",
