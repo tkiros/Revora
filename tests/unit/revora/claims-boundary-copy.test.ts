@@ -67,7 +67,8 @@ const COPY_FILES = [
   "lib/coach/insights.ts",
   "lib/coach/bai.ts",
   "lib/client/ui-state.ts",
-  "lib/server/pantry/emails.ts"
+  "lib/server/pantry/emails.ts",
+  "lib/server/billing/emails.ts"
 ];
 
 // The single approved user-as-agent line (docs/product-marketing.md; counsel
