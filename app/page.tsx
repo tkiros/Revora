@@ -1,12 +1,14 @@
 import Link from "next/link";
 
 import { DailyLoop } from "../components/daily-loop";
+import { FirstRunGate } from "../components/first-run-gate";
 import { FoodCheckForm } from "../components/food-check-form";
 
 export default function HomePage() {
   return (
     <main className="page-shell">
       <div className="page-frame">
+        <FirstRunGate />
         <section className="surface-card hero-card">
           <p className="hero-eyebrow">Revora</p>
           <h1 className="page-title">Should I eat this?</h1>
