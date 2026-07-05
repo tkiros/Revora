@@ -9,6 +9,7 @@ export type RevoraUserResponse =
       swap: string | null;
       sequencingTip: string | null;
       postMealAction: string | null;
+      keepMost: string | null;
       disclaimer: string;
     }
   | {

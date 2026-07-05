@@ -10,6 +10,7 @@ type ServerResponse =
       swap: string | null;
       sequencingTip: string | null;
       postMealAction: string | null;
+      keepMost: string | null;
       disclaimer: string;
     }
   | {
@@ -182,6 +183,7 @@ function normalizeResponse(payload: unknown): RevoraUserResponse {
           // (older cached responses) instead of failing the whole check.
           sequencingTip: asNullableString(response.sequencingTip),
           postMealAction: asNullableString(response.postMealAction),
+          keepMost: asNullableString(response.keepMost),
           disclaimer: response.disclaimer
         } satisfies ServerResponse;
       }

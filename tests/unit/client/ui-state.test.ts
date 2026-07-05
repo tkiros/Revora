@@ -22,6 +22,7 @@ describe("CheckUiState", () => {
           swap: null,
           sequencingTip: null,
           postMealAction: null,
+          keepMost: null,
           disclaimer: "Not medical advice."
         }
       },
