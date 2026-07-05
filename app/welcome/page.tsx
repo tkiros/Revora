@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { track } from "../../lib/client/analytics";
 import { historyStore } from "../../lib/client/history-store";
 import { profileStore } from "../../lib/client/profile-store";
+import { tasterStore } from "../../lib/client/taster-store";
 
 /**
  * First-sign-in profile completion (plan 4A): the GDPR Art. 9 consent
@@ -103,6 +104,9 @@ export default function WelcomePage() {
           // best-effort: history sync also runs on later visits
         });
       }
+
+      // Signed in: entitlement is server-truth, so drop the device taster.
+      tasterStore.clear();
 
       setState("done");
       track({ name: "signin_completed" });

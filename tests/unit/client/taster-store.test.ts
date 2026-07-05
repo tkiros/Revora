@@ -39,4 +39,12 @@ describe("tasterStore", () => {
     const tomorrow = new Date(Date.now() + 26 * 3600_000);
     expect(tasterStore.status(tomorrow)).toBe("expired");
   });
+
+  it("clear() removes stored state so the device resets to available", () => {
+    tasterStore.recordCheck();
+    expect(tasterStore.get()).not.toBeNull();
+    tasterStore.clear();
+    expect(tasterStore.get()).toBeNull();
+    expect(tasterStore.status()).toBe("available");
+  });
 });
