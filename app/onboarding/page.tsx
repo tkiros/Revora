@@ -161,7 +161,7 @@ export default function OnboardingPage() {
 
           {step === "a1c" ? (
             <>
-              <p className="hero-eyebrow">Step 2 of 4</p>
+              <p className="hero-eyebrow">Your A1C</p>
               <h1 className="page-title">Your latest A1C</h1>
               <p className="page-copy">
                 Revora is built only for the prediabetes range — an A1C of
@@ -224,7 +224,7 @@ export default function OnboardingPage() {
 
           {step === "expectations" ? (
             <>
-              <p className="hero-eyebrow">Step 3 of 4</p>
+              <p className="hero-eyebrow">How Revora works</p>
               <h1 className="page-title">What to expect</h1>
               <ul className="page-copy expectation-list">
                 <li>
