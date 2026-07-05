@@ -27,6 +27,10 @@ export default function AccountPage() {
     null
   );
   const [nudgeSaved, setNudgeSaved] = useState(false);
+  const [canceled, setCanceled] = useState<{ accessUntil: string } | null>(
+    null
+  );
+  const [canceling, setCanceling] = useState(false);
 
   useEffect(() => {
     // Landing point after both checkout paths (Stripe's success_url and the
@@ -96,6 +100,28 @@ export default function AccountPage() {
     }
   }
 
+  async function cancelSubscription() {
+    setError(null);
+    setCanceling(true);
+    try {
+      const response = await fetch("/api/billing/cancel", { method: "POST" });
+      const body = (await response.json()) as {
+        ok?: boolean;
+        accessUntil?: string;
+        error?: string;
+      };
+      if (body.ok && body.accessUntil) {
+        setCanceled({ accessUntil: body.accessUntil });
+      } else {
+        setError(body.error ?? "Couldn't cancel — please try again.");
+      }
+    } catch {
+      setError("Couldn't cancel — please try again.");
+    } finally {
+      setCanceling(false);
+    }
+  }
+
   async function deleteAccount() {
     setDeleting(true);
     setError(null);
@@ -158,13 +184,35 @@ export default function AccountPage() {
                         Manage or cancel in Google Play
                       </a>
                     ) : (
-                      <button
-                        type="button"
-                        className="recheck-button"
-                        onClick={manageStripe}
-                      >
-                        Manage or cancel billing
-                      </button>
+                      <>
+                        {canceled ? null : (
+                          <button
+                            type="button"
+                            className="recheck-button"
+                            disabled={canceling}
+                            data-testid="cancel-subscription"
+                            onClick={cancelSubscription}
+                          >
+                            {canceling
+                              ? "Canceling…"
+                              : "Cancel — one tap, effective at period end"}
+                          </button>
+                        )}
+                        <p className="field-hint" aria-live="polite">
+                          {canceled
+                            ? `Canceled. Access until ${new Date(
+                                canceled.accessUntil
+                              ).toLocaleDateString()}. No charge coming.`
+                            : ""}
+                        </p>
+                        <button
+                          type="button"
+                          className="recheck-button"
+                          onClick={manageStripe}
+                        >
+                          Manage card &amp; billing
+                        </button>
+                      </>
                     )}
                   </>
                 ) : (

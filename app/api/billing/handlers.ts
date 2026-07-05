@@ -22,6 +22,7 @@ import {
   emitBillingEvent,
   type BillingTelemetryEvent
 } from "../../../lib/server/billing/telemetry";
+import { verifyCancelToken } from "../../../lib/server/billing/cancel-token";
 
 /**
  * Billing (plan 4D / docs/adr/billing.md): Play Billing verified server-side
@@ -327,6 +328,92 @@ export function createStripePortalHandler(deps: BillingDeps = {}) {
 
     return NextResponse.json({ url: portal.url });
   };
+}
+
+// ── /api/billing/cancel (email-token GET + account POST) ────────────────────
+
+// Statuses whose subscription is still entitled and therefore cancelable at
+// period end. A cancel on a lapsed row is a no-op (nothing to stop).
+const CANCELABLE = new Set(["trialing", "active", "grace"]);
+
+/**
+ * One-tap cancel (docs/adr/billing.md, anti-Klinio). GET is the signed-out
+ * email link — its trust anchor is the verified token, never a session; POST
+ * is the account-page button behind the session. Both flip
+ * `cancel_at_period_end` on Stripe so entitlement runs out the paid period,
+ * and both are idempotent (a second click re-runs the same harmless update).
+ */
+export function createCancelHandlers(deps: BillingDeps = {}) {
+  const db = deps.db ?? getDb;
+  const getSession = deps.getSession ?? getSessionInfo;
+  const stripe = deps.stripeClient ?? defaultStripe;
+
+  // GET /api/billing/cancel?token=… — from the pre-charge email, works
+  // signed-out. Never dedupe or log by the raw token (it is suffix-malleable);
+  // the verify result is the only trust anchor.
+  async function GET(request: Request): Promise<NextResponse> {
+    const url = new URL(request.url);
+    const canceled = (invalid: boolean) =>
+      NextResponse.redirect(
+        new URL(invalid ? "/canceled?invalid=1" : "/canceled", url),
+        303
+      );
+
+    const verified = verifyCancelToken(url.searchParams.get("token") ?? "");
+    if (!verified) {
+      return canceled(true);
+    }
+
+    const [row] = await db()
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.id, verified.subRowId));
+
+    if (row && row.provider === "stripe" && CANCELABLE.has(row.status)) {
+      await stripe().subscriptions.update(row.providerRef, {
+        cancel_at_period_end: true
+      });
+      if (row.status === "trialing") {
+        emitBillingEvent({
+          name: "trial_canceled",
+          priceVariant:
+            (row.priceVariant as BillingTelemetryEvent["priceVariant"]) ??
+            undefined
+        });
+      }
+    }
+
+    return canceled(false);
+  }
+
+  // POST /api/billing/cancel — the account-page one-tap button. Session-gated;
+  // cancels the caller's own Stripe row only.
+  async function POST(): Promise<NextResponse> {
+    const session = await getSession();
+    if (!session) {
+      return unauthorized();
+    }
+
+    const [row] = await db()
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.userId, session.userId));
+
+    if (!row || row.provider !== "stripe") {
+      return NextResponse.json(
+        { error: "No Stripe subscription to cancel." },
+        { status: 404 }
+      );
+    }
+
+    await stripe().subscriptions.update(row.providerRef, {
+      cancel_at_period_end: true
+    });
+
+    return NextResponse.json({ ok: true, accessUntil: row.currentPeriodEnd });
+  }
+
+  return { GET, POST };
 }
 
 // ── POST /api/billing/stripe/webhook ────────────────────────────────────────

@@ -55,6 +55,7 @@ const COPY_FILES = [
   "app/subscribe/page.tsx",
   "app/trial/started/page.tsx",
   "app/account/page.tsx",
+  "app/canceled/page.tsx",
   "app/account/delete/page.tsx",
   "app/signin/page.tsx",
   "app/signin/check-email/page.tsx",
