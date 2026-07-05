@@ -82,14 +82,19 @@ export function ResultCard({
         <p className="result-title">{RISK_LABELS[response.risk]}</p>
         <p className="result-copy">{response.reason}</p>
         <div className="result-list">
-          {response.adjustment ? (
-            <p>
-              <strong>Adjustment:</strong> {response.adjustment}
+          {response.keepMost ? (
+            <p data-testid="keep-most">
+              <strong>Enjoy it anyway:</strong> {response.keepMost}
             </p>
           ) : null}
           {response.swap ? (
             <p>
               <strong>Swap:</strong> {response.swap}
+            </p>
+          ) : null}
+          {response.adjustment ? (
+            <p>
+              <strong>Adjustment:</strong> {response.adjustment}
             </p>
           ) : null}
           {response.sequencingTip ? (

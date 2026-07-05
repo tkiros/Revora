@@ -1,6 +1,18 @@
+import fs from "node:fs";
+import path from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { showPantryEntry, upsellVariant } from "../../../components/result-card";
+
+// Source-scan of the result-list JSX. The keep-most / swap / adjustment lines
+// each render conditionally on their nullable field, so SAFE (where 7.2's
+// derivation nulls keepMost/swap/adjustment) and a null keepMost skip the block
+// exactly like the sibling lines — no jsdom harness needed to lock the shape.
+const RESULT_CARD_SOURCE = fs.readFileSync(
+  path.join(process.cwd(), "components/result-card.tsx"),
+  "utf8"
+);
 
 // The upsell branch renders the server's `message` verbatim; it only branches
 // its own eyebrow/CTA/data-wall on whether that message mentions "free week"
@@ -38,6 +50,34 @@ describe("upsellVariant", () => {
     // "free checks" (legacy) must NOT read as the trial wall.
     expect(upsellVariant("free checks left today").wall).toBeNull();
     expect(upsellVariant("start your free week today").wall).toBe("trial");
+  });
+});
+
+// §6.x "Enjoy it anyway" keep-most line. MODERATE/HIGH cards carry it (keepMost
+// non-null); SAFE and null keepMost skip it, since the JSX guards on the field.
+// The result-list order is keep-most → swap → adjustment → sequencing →
+// post-meal, so the two enjoyment DOs (keep-most + swap) lead the list.
+describe("result-list keep-most line", () => {
+  it("renders the keep-most enjoyment line, guarded by keepMost", () => {
+    expect(RESULT_CARD_SOURCE).toContain('data-testid="keep-most"');
+    expect(RESULT_CARD_SOURCE).toContain("Enjoy it anyway:");
+    expect(RESULT_CARD_SOURCE).toContain("{response.keepMost}");
+    // The block is conditional on the nullable field, so SAFE / null keepMost
+    // (7.2 nulls it for SAFE + every non-result kind) render nothing.
+    expect(RESULT_CARD_SOURCE).toMatch(/response\.keepMost\s*\?/);
+  });
+
+  it("orders keep-most before swap before adjustment in the list", () => {
+    const keepMostIdx = RESULT_CARD_SOURCE.indexOf('data-testid="keep-most"');
+    const swapIdx = RESULT_CARD_SOURCE.indexOf("<strong>Swap:</strong>");
+    const adjustmentIdx = RESULT_CARD_SOURCE.indexOf(
+      "<strong>Adjustment:</strong>"
+    );
+    expect(keepMostIdx).toBeGreaterThan(-1);
+    expect(swapIdx).toBeGreaterThan(-1);
+    expect(adjustmentIdx).toBeGreaterThan(-1);
+    expect(keepMostIdx).toBeLessThan(swapIdx);
+    expect(swapIdx).toBeLessThan(adjustmentIdx);
   });
 });
 
