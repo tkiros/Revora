@@ -16,6 +16,7 @@ import {
 } from "../../../lib/server/session";
 import { generateClaimToken } from "../../../lib/server/pantry/claims";
 import { intakeEmailText } from "../../../lib/server/pantry/emails";
+import { resolvePriceVariant } from "../../../lib/server/pricing";
 import { sendEmail, type SendEmailResult } from "../../../lib/server/email";
 import {
   emitBillingEvent,
@@ -666,4 +667,99 @@ function mapStripeStatus(
     default:
       return "expired";
   }
+}
+
+// ── POST /api/trial/start ───────────────────────────────────────────────────
+
+const TrialStartSchema = z
+  .object({ email: z.string().trim().toLowerCase().email().max(254) })
+  .strict();
+
+/**
+ * Email-first, card-gated 7-day trial. The account is created at trial start
+ * (find-or-create on the same `users` row the magic-link sign-in resolves via
+ * getUserByEmail), the magic link fires non-fatally as account recovery if the
+ * card step is abandoned, and a subscription Checkout session with a 7-day
+ * trial is returned. Consumed by the Phase-4 paywall (Task 4.2).
+ */
+export function createTrialCheckoutHandler(
+  deps: BillingDeps & {
+    sendMagicLink?: (email: string) => Promise<void>;
+    env?: NodeJS.ProcessEnv;
+  } = {}
+) {
+  const db = deps.db ?? getDb;
+  const stripe = deps.stripeClient ?? defaultStripe;
+  const env = deps.env ?? process.env;
+  const sendMagicLink =
+    deps.sendMagicLink ??
+    (async (email: string) => {
+      // Reuses the exact existing magic-link path; the email doubles as
+      // account recovery if the card step is abandoned.
+      const { signIn } = await import("../../../auth");
+      await signIn("resend", {
+        email,
+        redirect: false,
+        redirectTo: "/welcome?trial=1"
+      });
+    });
+
+  return async function POST(request: Request) {
+    const parsed = TrialStartSchema.safeParse(await readJson(request));
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Enter a valid email." }, { status: 400 });
+    }
+
+    const { variant, priceId } = resolvePriceVariant(env);
+    if (!priceId) {
+      return NextResponse.json(
+        { error: "Billing is not configured." },
+        { status: 503 }
+      );
+    }
+
+    const email = parsed.data.email;
+    // Find-or-create: the DrizzleAdapter's magic-link sign-in resolves this
+    // same row via getUserByEmail, so account creation moves to trial start
+    // without forking the auth model.
+    let [user] = await db()
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.email, email));
+    if (!user) {
+      try {
+        [user] = await db().insert(schema.users).values({ email }).returning();
+      } catch {
+        // Concurrent trial-start for the same new email lost the insert race
+        // (users.email is UNIQUE) — the winner's row is now present.
+        [user] = await db()
+          .select()
+          .from(schema.users)
+          .where(eq(schema.users.email, email));
+      }
+    }
+
+    try {
+      await sendMagicLink(email);
+    } catch {
+      // Non-fatal: /trial/started offers a resend; checkout must not block on email.
+    }
+
+    const appUrl = env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const checkout = await stripe().checkout.sessions.create({
+      mode: "subscription",
+      line_items: [{ price: priceId, quantity: 1 }],
+      payment_method_collection: "always",
+      subscription_data: {
+        trial_period_days: 7,
+        metadata: { price_variant: variant }
+      },
+      client_reference_id: user.id,
+      customer_email: email,
+      success_url: `${appUrl}/trial/started`,
+      cancel_url: `${appUrl}/subscribe?declined=1`
+    });
+
+    return NextResponse.json({ url: checkout.url });
+  };
 }
