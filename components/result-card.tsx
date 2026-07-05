@@ -10,6 +10,34 @@ const RISK_LABELS = {
   HIGH: "Hold off"
 } as const;
 
+// §4D upsell variants. The branch renders the server `message` verbatim in
+// both cases and only picks its own eyebrow/CTA/data-wall. `ponytail:` we sniff
+// the server string instead of prop-drilling a mode flag through this
+// presentational component — the server message is the single source of truth
+// (trial hard-wall names the "free week"; legacy soft limit names "free
+// checks"). Revisit only if a third mode ever appears.
+export function upsellVariant(message: string): {
+  wall: "trial" | null;
+  eyebrow: string;
+  title: string | null;
+  cta: string;
+} {
+  if (message.includes("free week")) {
+    return {
+      wall: "trial",
+      eyebrow: "Where the free taste ends",
+      title: null,
+      cta: "Start your free week"
+    };
+  }
+  return {
+    wall: null,
+    eyebrow: "Daily limit reached",
+    title: "That's five for today",
+    cta: "See what Premium includes"
+  };
+}
+
 function DisclaimerLine({ disclaimer }: { disclaimer: string }) {
   return (
     <p className="result-disclaimer">
@@ -88,18 +116,22 @@ export function ResultCard({
   }
 
   if (response.kind === "upsell") {
+    const variant = upsellVariant(response.message);
     return (
       <section
         aria-live="polite"
         className="result-card"
         data-testid="result-card"
         data-kind="upsell"
+        data-wall={variant.wall ?? undefined}
       >
-        <p className="result-eyebrow">Daily limit reached</p>
-        <p className="status-title">That&apos;s five for today</p>
+        <p className="result-eyebrow">{variant.eyebrow}</p>
+        {variant.title ? (
+          <p className="status-title">{variant.title}</p>
+        ) : null}
         <p className="result-copy">{response.message}</p>
         <Link className="primary-button link-button" href="/subscribe">
-          See what Premium includes
+          {variant.cta}
         </Link>
         <DisclaimerLine disclaimer={response.disclaimer} />
       </section>
