@@ -64,7 +64,8 @@ const COPY_FILES = [
   "lib/revora/coach-outputs.ts",
   "lib/coach/insights.ts",
   "lib/coach/bai.ts",
-  "lib/client/ui-state.ts"
+  "lib/client/ui-state.ts",
+  "lib/server/pantry/emails.ts"
 ];
 
 // The single approved user-as-agent line (docs/product-marketing.md; counsel
