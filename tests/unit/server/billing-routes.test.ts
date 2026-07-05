@@ -267,6 +267,238 @@ describe("applyStripeEvent", () => {
     expect(row.status).toBe("expired");
   });
 
+  it("checkout.session.completed with a trialing subscription stores status trialing + variant", async () => {
+    const trialEnd = Math.floor(FUTURE.getTime() / 1000);
+    const stripeClient = {
+      subscriptions: {
+        retrieve: vi.fn().mockResolvedValue({
+          status: "trialing",
+          trial_end: trialEnd,
+          items: {
+            data: [
+              {
+                price: { id: "price_1299" },
+                current_period_end: Math.floor(NOW.getTime() / 1000)
+              }
+            ]
+          },
+          metadata: { price_variant: "1299" }
+        })
+      }
+    } as unknown as Stripe;
+
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    await applyStripeEvent(
+      testDb.db,
+      {
+        type: "checkout.session.completed",
+        data: {
+          object: { client_reference_id: userId, subscription: "sub_trial" }
+        }
+      } as unknown as Stripe.Event,
+      NOW,
+      () => stripeClient
+    );
+
+    const [row] = await testDb.db.select().from(schema.subscriptions);
+    expect(row.status).toBe("trialing");
+    expect(row.priceVariant).toBe("1299");
+    // currentPeriodEnd prefers trial_end while trialing.
+    expect(row.currentPeriodEnd.toISOString()).toBe(FUTURE.toISOString());
+
+    const emitted = info.mock.calls
+      .map((c) => {
+        try {
+          return JSON.parse(String(c[0]));
+        } catch {
+          return null;
+        }
+      })
+      .filter((e) => e && e.name === "trial_started");
+    expect(emitted).toHaveLength(1);
+    expect(emitted[0].priceVariant).toBe("1299");
+    info.mockRestore();
+  });
+
+  it("invoice.paid flips trialing → active and emits trial_converted once", async () => {
+    await testDb.db.insert(schema.subscriptions).values({
+      userId,
+      provider: "stripe",
+      providerRef: "sub_conv",
+      productId: "premium_monthly",
+      status: "trialing",
+      priceVariant: "1299",
+      currentPeriodEnd: NOW
+    });
+
+    const stripeClient = {
+      subscriptions: {
+        retrieve: vi.fn().mockResolvedValue({
+          status: "active",
+          items: {
+            data: [
+              { current_period_end: Math.floor(FUTURE.getTime() / 1000) }
+            ]
+          }
+        })
+      }
+    } as unknown as Stripe;
+
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    await applyStripeEvent(
+      testDb.db,
+      {
+        type: "invoice.paid",
+        data: {
+          object: {
+            parent: {
+              subscription_details: { subscription: "sub_conv" }
+            }
+          }
+        }
+      } as unknown as Stripe.Event,
+      NOW,
+      () => stripeClient
+    );
+
+    const [row] = await testDb.db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.providerRef, "sub_conv"));
+    expect(row.status).toBe("active");
+    expect(row.currentPeriodEnd.toISOString()).toBe(FUTURE.toISOString());
+
+    const converted = info.mock.calls
+      .map((c) => {
+        try {
+          return JSON.parse(String(c[0]));
+        } catch {
+          return null;
+        }
+      })
+      .filter((e) => e && e.name === "trial_converted");
+    expect(converted).toHaveLength(1);
+    expect(converted[0].priceVariant).toBe("1299");
+    info.mockRestore();
+  });
+
+  it("invoice.paid on an already-active subscription refreshes period end WITHOUT a conversion event (renewals are not conversions)", async () => {
+    await testDb.db.insert(schema.subscriptions).values({
+      userId,
+      provider: "stripe",
+      providerRef: "sub_renew",
+      productId: "premium_monthly",
+      status: "active",
+      priceVariant: "1299",
+      currentPeriodEnd: NOW
+    });
+
+    const stripeClient = {
+      subscriptions: {
+        retrieve: vi.fn().mockResolvedValue({
+          status: "active",
+          items: {
+            data: [
+              { current_period_end: Math.floor(FUTURE.getTime() / 1000) }
+            ]
+          }
+        })
+      }
+    } as unknown as Stripe;
+
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    await applyStripeEvent(
+      testDb.db,
+      {
+        type: "invoice.paid",
+        data: {
+          object: {
+            parent: {
+              subscription_details: { subscription: "sub_renew" }
+            }
+          }
+        }
+      } as unknown as Stripe.Event,
+      NOW,
+      () => stripeClient
+    );
+
+    const [row] = await testDb.db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.providerRef, "sub_renew"));
+    expect(row.status).toBe("active");
+    expect(row.currentPeriodEnd.toISOString()).toBe(FUTURE.toISOString());
+
+    const converted = info.mock.calls
+      .map((c) => {
+        try {
+          return JSON.parse(String(c[0]));
+        } catch {
+          return null;
+        }
+      })
+      .filter((e) => e && e.name === "trial_converted");
+    expect(converted).toHaveLength(0);
+    info.mockRestore();
+  });
+
+  it("subscription.updated with cancel_at_period_end during trial keeps status trialing and emits trial_canceled", async () => {
+    await testDb.db.insert(schema.subscriptions).values({
+      userId,
+      provider: "stripe",
+      providerRef: "sub_cancel",
+      productId: "premium_monthly",
+      status: "trialing",
+      priceVariant: "1299",
+      currentPeriodEnd: FUTURE
+    });
+
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    await applyStripeEvent(
+      testDb.db,
+      {
+        type: "customer.subscription.updated",
+        data: {
+          object: {
+            id: "sub_cancel",
+            status: "trialing",
+            cancel_at_period_end: true,
+            items: {
+              data: [
+                { current_period_end: Math.floor(FUTURE.getTime() / 1000) }
+              ]
+            }
+          }
+        }
+      } as unknown as Stripe.Event,
+      NOW
+    );
+
+    const [row] = await testDb.db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.providerRef, "sub_cancel"));
+    expect(row.status).toBe("trialing");
+
+    const canceled = info.mock.calls
+      .map((c) => {
+        try {
+          return JSON.parse(String(c[0]));
+        } catch {
+          return null;
+        }
+      })
+      .filter((e) => e && e.name === "trial_canceled");
+    expect(canceled).toHaveLength(1);
+    expect(canceled[0].priceVariant).toBe("1299");
+    info.mockRestore();
+  });
+
   it("past_due maps to grace (premium retained through dunning)", async () => {
     await testDb.db.insert(schema.subscriptions).values({
       userId,

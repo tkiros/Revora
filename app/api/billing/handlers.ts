@@ -17,6 +17,10 @@ import {
 import { generateClaimToken } from "../../../lib/server/pantry/claims";
 import { intakeEmailText } from "../../../lib/server/pantry/emails";
 import { sendEmail, type SendEmailResult } from "../../../lib/server/email";
+import {
+  emitBillingEvent,
+  type BillingTelemetryEvent
+} from "../../../lib/server/billing/telemetry";
 
 /**
  * Billing (plan 4D / docs/adr/billing.md): Play Billing verified server-side
@@ -387,6 +391,16 @@ export async function applyStripeEvent(
       : null;
     const item = subscription?.items.data[0];
 
+    const isTrialing = subscription?.status === "trialing";
+    const status = isTrialing ? "trialing" : "active";
+    const priceVariant = subscription?.metadata?.price_variant ?? null;
+    const currentPeriodEnd =
+      isTrialing && subscription?.trial_end
+        ? new Date(subscription.trial_end * 1000)
+        : item?.current_period_end
+          ? new Date(item.current_period_end * 1000)
+          : new Date(now.getTime() + 31 * 24 * 60 * 60 * 1000);
+
     await db
       .insert(schema.subscriptions)
       .values({
@@ -397,16 +411,79 @@ export async function applyStripeEvent(
           item?.price.id === process.env.STRIPE_PRICE_ANNUAL
             ? "premium_annual"
             : "premium_monthly",
-        status: "active",
-        currentPeriodEnd: item?.current_period_end
-          ? new Date(item.current_period_end * 1000)
-          : new Date(now.getTime() + 31 * 24 * 60 * 60 * 1000),
+        status,
+        priceVariant,
+        currentPeriodEnd,
         updatedAt: now
       })
       .onConflictDoUpdate({
         target: schema.subscriptions.providerRef,
-        set: { status: "active", updatedAt: now }
+        set: { status, priceVariant, updatedAt: now }
       });
+
+    if (isTrialing) {
+      emitBillingEvent({
+        name: "trial_started",
+        priceVariant:
+          (priceVariant as BillingTelemetryEvent["priceVariant"]) ?? undefined
+      });
+    }
+    return;
+  }
+
+  if (event.type === "invoice.paid") {
+    const invoice = event.data.object as Stripe.Invoice;
+    // Stripe SDK 22 (basil API): the subscription lives under
+    // invoice.parent.subscription_details — there is no top-level
+    // invoice.subscription on the object anymore.
+    const subRef = invoice.parent?.subscription_details?.subscription;
+    const subscriptionId =
+      typeof subRef === "string" ? subRef : subRef?.id;
+    if (!subscriptionId) {
+      return;
+    }
+
+    const [row] = await db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.providerRef, subscriptionId));
+    if (!row) {
+      return;
+    }
+
+    // Only trial→active and renewals of active rows are ours to touch.
+    if (row.status !== "trialing" && row.status !== "active") {
+      return;
+    }
+
+    const subscription = stripe
+      ? await stripe().subscriptions.retrieve(subscriptionId)
+      : null;
+    const item = subscription?.items.data[0];
+    const currentPeriodEnd = item?.current_period_end
+      ? new Date(item.current_period_end * 1000)
+      : row.currentPeriodEnd;
+
+    if (row.status === "trialing") {
+      // First successful charge converts the trial. Renewals of an
+      // already-active row are NOT conversions (new-only rule).
+      await db
+        .update(schema.subscriptions)
+        .set({ status: "active", currentPeriodEnd, updatedAt: now })
+        .where(eq(schema.subscriptions.id, row.id));
+      emitBillingEvent({
+        name: "trial_converted",
+        priceVariant:
+          (row.priceVariant as BillingTelemetryEvent["priceVariant"]) ??
+          undefined
+      });
+    } else {
+      // Active renewal: period-end refresh only.
+      await db
+        .update(schema.subscriptions)
+        .set({ currentPeriodEnd, updatedAt: now })
+        .where(eq(schema.subscriptions.id, row.id));
+    }
     return;
   }
 
@@ -417,6 +494,27 @@ export async function applyStripeEvent(
     const subscription = event.data.object as Stripe.Subscription;
     const item = subscription.items?.data[0];
     const status = mapStripeStatus(subscription.status, event.type);
+
+    // Trial cancellation telemetry: a trial flagged to cancel at period end
+    // keeps status "trialing" (entitled until it lapses); we only surface the
+    // signal. Telemetry duplicates on repeated updates are tolerable.
+    if (
+      event.type === "customer.subscription.updated" &&
+      subscription.cancel_at_period_end === true
+    ) {
+      const [existing] = await db
+        .select()
+        .from(schema.subscriptions)
+        .where(eq(schema.subscriptions.providerRef, subscription.id));
+      if (existing?.status === "trialing") {
+        emitBillingEvent({
+          name: "trial_canceled",
+          priceVariant:
+            (existing.priceVariant as BillingTelemetryEvent["priceVariant"]) ??
+            undefined
+        });
+      }
+    }
 
     await db
       .update(schema.subscriptions)
@@ -510,15 +608,16 @@ async function applyPantryCheckout(
 function mapStripeStatus(
   status: Stripe.Subscription.Status,
   eventType: string
-): "active" | "canceled" | "grace" | "expired" | "refunded" {
+): "active" | "trialing" | "canceled" | "grace" | "expired" | "refunded" {
   if (eventType === "customer.subscription.deleted") {
     return "expired";
   }
 
   switch (status) {
     case "active":
-    case "trialing":
       return "active";
+    case "trialing":
+      return "trialing";
     case "past_due":
       return "grace";
     case "canceled":
