@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { z } from "zod";
@@ -421,7 +421,12 @@ export function createCancelHandlers(deps: BillingDeps = {}) {
     const [row] = await db()
       .select()
       .from(schema.subscriptions)
-      .where(eq(schema.subscriptions.userId, session.userId));
+      .where(
+        and(
+          eq(schema.subscriptions.userId, session.userId),
+          eq(schema.subscriptions.provider, "stripe")
+        )
+      );
 
     if (!row || row.provider !== "stripe") {
       return NextResponse.json(

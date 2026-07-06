@@ -24,3 +24,14 @@ export function resolvePriceVariant(
 export function paywallMode(env: Partial<NodeJS.ProcessEnv> = process.env): "legacy" | "trial" {
   return env.PAYWALL_MODE === "trial" ? "trial" : "legacy";
 }
+
+// Single source for the human-readable monthly price of a stored variant. The
+// price ladder lives only in VARIANTS (never hard-coded twice); callers that
+// have a persisted `price_variant` (e.g. the pre-charge email) derive display
+// from here. Unknown/null variants fall back to the default $12.99 variant.
+export function priceVariantDisplay(variant: string | null | undefined): string {
+  return (variant != null && variant in VARIANTS
+    ? VARIANTS[variant as PriceVariant]
+    : VARIANTS["1299"]
+  ).display;
+}

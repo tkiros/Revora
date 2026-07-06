@@ -69,6 +69,11 @@ Verified against `lib/server/db/schema.ts`: `subscriptions` has
 `status` (`'active' | 'trialing' | 'canceled' | 'grace' | 'expired' | 'refunded'`).
 `converted / started` per row is the conversion rate for that variant.
 
+This query is a point-in-time snapshot: read it **~1 week after the window's
+last trial start** so trials have had the full 7 days to mature — reading too
+early leaves late-window trials still `trialing` (deflating the ratio), and
+reading long after lets churn move converts back out of the `active` numerator.
+
 Where to run it: the production Postgres console (Neon/Vercel Postgres dashboard
 → SQL editor), or `psql "$POSTGRES_URL"` against prod.
 
@@ -157,13 +162,16 @@ table with `name = 'trial-precharge'` (`lib/server/billing/precharge.ts`, after
 the sweep).
 Verify the schedule is live: Vercel → Project → Settings → Cron Jobs shows
 `/api/cron/trial-precharge` enabled.
-Verify the heartbeat row appears (after the first scheduled run, or trigger it
-manually with the `CRON_SECRET` bearer token):
+**Confirm the heartbeat is fresh before flipping.** Hit `/api/health` on the
+prod domain and confirm `crons.trialPrecharge` is `"ok"` (not `"stale"` or
+`"never"`) — the precharge sweep is the anti-surprise-charge trust rail the
+trial design is gated on, so a stale heartbeat blocks the flip. Fallback if
+`/api/health` is unavailable, or to inspect the exact timestamp (after the first
+scheduled run, or trigger it manually with the `CRON_SECRET` bearer token):
 ```sql
 SELECT name, last_run_at FROM cron_heartbeat WHERE name='trial-precharge';
 ```
-Expect one row with a recent `last_run_at`. (Note: `/api/health` only surfaces
-the `nudge` and `bai-weekly` heartbeats, not this one — check the table directly.)
+Expect one row with a recent `last_run_at`.
 
 **Step 5 — Set the flip env vars.**
 In Vercel prod env, set:

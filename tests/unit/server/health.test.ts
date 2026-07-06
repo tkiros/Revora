@@ -49,13 +49,20 @@ describe("createHealthHandler — db + cron probes (P7)", () => {
 
     expect(payload.ok).toBe(true);
     expect(payload.db).toBe("ok");
-    expect(payload.crons).toEqual({ nudge: "never", baiWeekly: "never" });
+    expect(payload.crons).toEqual({
+      nudge: "never",
+      baiWeekly: "never",
+      trialPrecharge: "never",
+      pantrySweep: "never"
+    });
   });
 
-  it("reports crons:ok when both heartbeats are fresh", async () => {
+  it("reports crons:ok when all four heartbeats are fresh", async () => {
     await testDb.db.insert(schema.cronHeartbeat).values([
       { name: "nudge", lastRunAt: new Date(NOW.getTime() - 30 * 60 * 1000) }, // 30m ago
-      { name: "bai-weekly", lastRunAt: new Date(NOW.getTime() - 24 * 60 * 60 * 1000) } // 1 day ago
+      { name: "bai-weekly", lastRunAt: new Date(NOW.getTime() - 24 * 60 * 60 * 1000) }, // 1 day ago
+      { name: "trial-precharge", lastRunAt: new Date(NOW.getTime() - 30 * 60 * 1000) }, // 30m ago
+      { name: "pantry-sweep", lastRunAt: new Date(NOW.getTime() - 30 * 60 * 1000) } // 30m ago
     ]);
 
     const createHealthHandler = await importHandler();
@@ -64,7 +71,12 @@ describe("createHealthHandler — db + cron probes (P7)", () => {
     const payload = await (await GET()).json();
 
     expect(payload.db).toBe("ok");
-    expect(payload.crons).toEqual({ nudge: "ok", baiWeekly: "ok" });
+    expect(payload.crons).toEqual({
+      nudge: "ok",
+      baiWeekly: "ok",
+      trialPrecharge: "ok",
+      pantrySweep: "ok"
+    });
   });
 
   it("reports crons:stale past each job's own staleness window", async () => {
@@ -72,7 +84,11 @@ describe("createHealthHandler — db + cron probes (P7)", () => {
       // nudge stale past 2h
       { name: "nudge", lastRunAt: new Date(NOW.getTime() - 3 * 60 * 60 * 1000) },
       // bai-weekly stale past 8 days
-      { name: "bai-weekly", lastRunAt: new Date(NOW.getTime() - 9 * 24 * 60 * 60 * 1000) }
+      { name: "bai-weekly", lastRunAt: new Date(NOW.getTime() - 9 * 24 * 60 * 60 * 1000) },
+      // trial-precharge stale past 2h
+      { name: "trial-precharge", lastRunAt: new Date(NOW.getTime() - 3 * 60 * 60 * 1000) },
+      // pantry-sweep stale past 2h
+      { name: "pantry-sweep", lastRunAt: new Date(NOW.getTime() - 3 * 60 * 60 * 1000) }
     ]);
 
     const createHealthHandler = await importHandler();
@@ -80,7 +96,12 @@ describe("createHealthHandler — db + cron probes (P7)", () => {
 
     const payload = await (await GET()).json();
 
-    expect(payload.crons).toEqual({ nudge: "stale", baiWeekly: "stale" });
+    expect(payload.crons).toEqual({
+      nudge: "stale",
+      baiWeekly: "stale",
+      trialPrecharge: "stale",
+      pantrySweep: "stale"
+    });
   });
 
   it("stays db:ok/crons:ok exactly at the staleness boundary (not yet stale)", async () => {
@@ -105,7 +126,12 @@ describe("createHealthHandler — db + cron probes (P7)", () => {
 
     expect(payload.ok).toBe(true); // db being unconfigured never flips ok
     expect(payload.db).toBe("unconfigured");
-    expect(payload.crons).toEqual({ nudge: "unknown", baiWeekly: "unknown" });
+    expect(payload.crons).toEqual({
+      nudge: "unknown",
+      baiWeekly: "unknown",
+      trialPrecharge: "unknown",
+      pantrySweep: "unknown"
+    });
   });
 
   it("reports db:error (and never flips ok) when the db accessor throws mid-query", async () => {
@@ -121,7 +147,12 @@ describe("createHealthHandler — db + cron probes (P7)", () => {
 
     expect(payload.ok).toBe(true);
     expect(payload.db).toBe("error");
-    expect(payload.crons).toEqual({ nudge: "unknown", baiWeekly: "unknown" });
+    expect(payload.crons).toEqual({
+      nudge: "unknown",
+      baiWeekly: "unknown",
+      trialPrecharge: "unknown",
+      pantrySweep: "unknown"
+    });
   });
 
   it("never includes secrets, URLs, or user counts in the response", async () => {

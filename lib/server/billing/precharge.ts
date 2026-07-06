@@ -2,6 +2,7 @@ import { and, eq, gt, isNull, lte } from "drizzle-orm";
 
 import { schema, type Db } from "../db";
 import type { SendEmailResult } from "../email";
+import { priceVariantDisplay } from "../pricing";
 import { createCancelToken } from "./cancel-token";
 import { prechargeEmailText } from "./emails";
 import { emitBillingEvent, type BillingTelemetryEvent } from "./telemetry";
@@ -16,14 +17,6 @@ import { emitBillingEvent, type BillingTelemetryEvent } from "./telemetry";
 
 const WINDOW_MS = 48 * 60 * 60 * 1000;
 const TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-
-// Transparency: the exact monthly amount for each price-test variant. Fallback
-// mirrors the default $12.99 variant if a row somehow lacks one.
-const AMOUNT_DISPLAY: Record<number, string> = {
-  999: "$9.99",
-  1299: "$12.99",
-  1999: "$19.99"
-};
 
 export type PrechargeDeps = {
   db: () => Db;
@@ -66,8 +59,7 @@ export async function runPrechargeSweep(
     );
 
   for (const { sub, email } of due) {
-    const amountDisplay =
-      AMOUNT_DISPLAY[Number(sub.priceVariant)] ?? "$12.99";
+    const amountDisplay = priceVariantDisplay(sub.priceVariant);
     const chargeDateText = sub.currentPeriodEnd.toLocaleDateString("en-US", {
       month: "long",
       day: "numeric"
