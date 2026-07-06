@@ -19,6 +19,7 @@ import {
   validateCheckForm
 } from "../lib/client/validation";
 import type { MealDraftItem } from "../lib/meal/photo-extract";
+import { photoInputEnabled } from "../lib/photo-input-flag";
 import type { PhotoDraftResult } from "../lib/client/photo-draft";
 import { PhotoDraftReview } from "./photo-draft-review";
 import { PhotoInputButton } from "./photo-input-button";
@@ -303,19 +304,21 @@ export function FoodCheckForm() {
           onTranscript={handleVoiceTranscript}
           disabled={isSubmitting}
         />
-        <PhotoInputButton
-          onDraft={handlePhotoDraft}
-          onRequestOpen={() => {
-            // Same taster gate as handleSubmit: a walled taster never spends
-            // a draft call — the picker never opens.
-            if (shouldGateSubmit(mode, tasterStore.status())) {
-              window.location.assign("/subscribe");
-              return false;
-            }
-            return true;
-          }}
-          disabled={isSubmitting}
-        />
+        {photoInputEnabled() ? (
+          <PhotoInputButton
+            onDraft={handlePhotoDraft}
+            onRequestOpen={() => {
+              // Same taster gate as handleSubmit: a walled taster never spends
+              // a draft call — the picker never opens.
+              if (shouldGateSubmit(mode, tasterStore.status())) {
+                window.location.assign("/subscribe");
+                return false;
+              }
+              return true;
+            }}
+            disabled={isSubmitting}
+          />
+        ) : null}
         {photoNotice ? <p className="field-hint">{photoNotice}</p> : null}
         {photoDraft ? (
           <PhotoDraftReview

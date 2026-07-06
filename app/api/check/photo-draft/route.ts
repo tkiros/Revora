@@ -4,6 +4,7 @@ import {
   createMealVisionClient,
   type MealVisionClient
 } from "../../../../lib/meal/photo-extract";
+import { photoInputEnabled } from "../../../../lib/photo-input-flag";
 import { loadSafetyContract } from "../../../../lib/revora/safety-contract";
 import { captureServerError } from "../../../../lib/revora/sentry-capture";
 import { getDb, type Db } from "../../../../lib/server/db";
@@ -55,6 +56,13 @@ export function createPhotoDraftHandler(deps: PhotoDraftDeps = {}) {
   const paywallModeDep = deps.paywallMode ?? (() => paywallMode());
 
   return async function POST(request: Request) {
+    // D5 launch gate (BUG-10): dormant in production until the owner flips
+    // NEXT_PUBLIC_PHOTO_INPUT=1 — the client button is hidden by the same flag;
+    // this is the server-side enforcement of it.
+    if (!photoInputEnabled()) {
+      return NextResponse.json({ kind: "not_found" }, { status: 404 });
+    }
+
     let body: unknown = null;
     try {
       body = await request.json();

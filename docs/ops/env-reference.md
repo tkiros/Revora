@@ -26,6 +26,7 @@ Every variable, per phase. Provision in Vercel for **preview + production**
 | `STRIPE_PRICE_MONTHLY_999` / `STRIPE_PRICE_MONTHLY_1299` / `STRIPE_PRICE_MONTHLY_1999` | launch-readiness | live Stripe price IDs for the three trial-mode monthly variants (`lib/server/pricing.ts`) |
 | `STRIPE_PRICE_PANTRY` | launch-readiness | live Stripe price ID for the one-time $49 Pantry Review |
 | `MEAL_EXTRACT_STUB` | dev/test only | `1` returns a fixed meal-photo draft without a vision call (`lib/meal/photo-extract.ts`). Ignored in production builds |
+| `NEXT_PUBLIC_PHOTO_INPUT` | launch gate | **D5 photo-assist production gate** (`lib/photo-input-flag.ts`): unset → the photo button and `/api/check/photo-draft` are dormant in production (404); set `1` ONLY after the plan §6.3.4 gates clear (dietitian-graded eval, counsel SaMD Q9, owner green-light — launch audit BUG-10). Dev/preview/test are always on. Build-time var — redeploy after changing |
 | `PANTRY_EXTRACT_STUB` | dev/test only | same idea for the Pantry Review photo extraction |
 | `REVORA_DAILY_CHECK_CAP` | existing | global daily check cap enforced by the middleware (default 2000, `lib/revora/rate-limit.ts`) |
 | `NEXT_PUBLIC_WAITLIST_URL` | launch-readiness | Tally waitlist form URL for `/get-the-app`; section hidden when unset |

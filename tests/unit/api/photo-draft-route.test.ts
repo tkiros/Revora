@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createPhotoDraftHandler } from "../../../app/api/check/photo-draft/route";
 import { STUB_DRAFT } from "../../../lib/meal/photo-extract";
@@ -16,6 +16,27 @@ function post(body: string) {
 const visionOk = { draftFromPhoto: async () => STUB_DRAFT };
 
 describe("POST /api/check/photo-draft", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("404s in production while the D5 launch gate is closed (BUG-10), no model call", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    let called = 0;
+    const handler = createPhotoDraftHandler({
+      vision: () => ({ draftFromPhoto: async () => ((called += 1), STUB_DRAFT) }),
+      getSession: async () => null,
+      paywallMode: () => "legacy"
+    });
+    const response = await handler(post(GOOD_BODY));
+    expect(response.status).toBe(404);
+    expect(called).toBe(0);
+
+    // Owner flips the flag → the gate opens.
+    vi.stubEnv("NEXT_PUBLIC_PHOTO_INPUT", "1");
+    expect((await handler(post(GOOD_BODY))).status).toBe(200);
+  });
+
   it("returns the draft for a valid image (guest)", async () => {
     const handler = createPhotoDraftHandler({
       vision: () => visionOk,
