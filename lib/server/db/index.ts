@@ -31,7 +31,11 @@ export function getDb(): Db {
     const pool = new Pool({
       connectionString: url,
       max: 3,
-      ssl: isLocalhost(url) ? undefined : { rejectUnauthorized: true }
+      ssl: isLocalhost(url)
+        ? undefined
+        : // Railway Postgres serves a self-signed cert; opt out of chain
+          // verification only when the URL says so explicitly.
+          { rejectUnauthorized: !url.includes("sslmode=no-verify") }
     });
 
     db = drizzle(pool, { schema });
