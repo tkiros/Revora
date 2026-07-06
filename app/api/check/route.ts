@@ -24,6 +24,7 @@ import {
   FREE_DAILY_CHECKS
 } from "../../../lib/server/entitlement";
 import { fetchPlaySubscription } from "../../../lib/server/play-api";
+import { paywallMode } from "../../../lib/server/pricing";
 import {
   getSessionInfo,
   type SessionInfo
@@ -47,12 +48,19 @@ type CheckRouteDeps = {
   db?: () => Db;
   getSession?: () => Promise<SessionInfo>;
   playLookup?: typeof fetchPlaySubscription;
+  paywallMode?: () => "legacy" | "trial";
 };
 
 // Calm upsell, never a scary wall (plan 4D): the daily loop keeps working
 // tomorrow; premium removes the limit.
 const FREE_LIMIT_MESSAGE =
   "You've used today's five free checks. Premium removes the daily limit and keeps your full history — or check back in with your first meal tomorrow.";
+
+// Hard wall (Decision D): under PAYWALL_MODE=trial there are no residual free
+// checks. The client renders this as the wall CTA; the copy stays calm and
+// names the exact next step.
+const TRIAL_WALL_MESSAGE =
+  "Your free taste of Revora was yesterday's checks. Start your free week — card required, unlimited everything, and we email you before any charge — to keep going.";
 
 let model: RevoraModelClient | null = null;
 
@@ -69,6 +77,7 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
   const db = deps.db ?? getDb;
   const getSession = deps.getSession ?? getSessionInfo;
   const playLookup = deps.playLookup ?? fetchPlaySubscription;
+  const paywallModeDep = deps.paywallMode ?? (() => paywallMode());
 
   return async function POST(request: Request) {
     const startedAt = now();
@@ -90,8 +99,31 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
         const entitlement = await getEntitlement(db(), session.userId, {
           refreshPlaySubscription: (token) => playLookup(token)
         });
+        const mode = paywallModeDep();
 
-        if (entitlement.tier === "free") {
+        if (mode === "trial") {
+          // Hard wall: any signed-in user without an active entitlement
+          // (lapsed/none) is stopped before any model spend — no residual free
+          // checks, so countChecksToday never runs. trialing/premium fall
+          // through untouched. reasonCode "daily_cap" is reused deliberately;
+          // the mode is distinguishable from the paywall config in analysis.
+          if (entitlement.tier !== "premium") {
+            emitEvent({
+              name: "check_failed",
+              environment,
+              reasonCode: "daily_cap",
+              latencyBucket: getLatencyBucket(now() - startedAt)
+            });
+            return NextResponse.json(
+              {
+                kind: "upsell",
+                message: TRIAL_WALL_MESSAGE,
+                disclaimer: loadSafetyContract().copy.disclaimer
+              },
+              { status: 402 }
+            );
+          }
+        } else if (entitlement.tier === "free") {
           const [profile] = await db()
             .select({ timezone: schema.profiles.timezone })
             .from(schema.profiles)

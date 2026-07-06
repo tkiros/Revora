@@ -59,6 +59,31 @@ One accent (dark slate). Risk colors appear only as semantic borders/labels, nev
 
 New screens are assembly jobs. If a screen needs a genuinely new class, it takes tokens + the radius scale + existing patterns; adding a new color or shadow requires editing THIS file first.
 
+## Selectable chips (added 2026-07-05, launch-readiness plan)
+
+For one-tap choices: segmentation taps, meal-suggestion chips. Assembly:
+`.chip-row` (flex, 8px gap, wraps) containing `<button type="button" class="selectable-chip">`.
+
+- Shape: 999px radius (existing pill scale), 1px `--border-strong` border,
+  `--surface` background, `--text-body` text, 16px, 44px min-height (touch rule).
+- Selected state: `aria-pressed="true"` + `--accent` background,
+  `--accent-contrast` text. Selection is a border/fill change ONLY — no icons,
+  no checkmarks, no color beyond the accent (risk colors stay semantic).
+- Chips are buttons, never divs. Focus ring inherits the global `:focus-visible`.
+- Max one chip-row per screen section; chips carry 1–3 word labels, never sentences.
+
+## Day-1 / first-win treatment (added 2026-07-05, launch-readiness plan)
+
+The calm acknowledgment after a user's first completed check. Rules:
+
+- It is typography, not a celebration: a `.first-win` block = one
+  `status-eyebrow` ("Day 1") + one `page-copy` sentence. No confetti, no
+  animation, no emoji, no exclamation marks (verdict-adjacent surface).
+- Uses `--surface-muted` inset (14px radius, nested-card scale) inside the
+  daily-loop card — it is part of the document flow, not a toast/modal.
+- Appears at most once per day, only when the streak is new (streak === 1).
+- The streak chip (`streak-chip`) remains the ONLY ongoing progress ornament.
+
 ## Interaction rules
 
 - Focus: themed `:focus-visible` on inputs/buttons (globals.css) — never remove outlines.

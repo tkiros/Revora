@@ -1,0 +1,256 @@
+import { expect, test, type Page } from "@playwright/test";
+
+/**
+ * Definition-of-Ready walkthrough for the taster → trial-wall → trial paywall
+ * machine plus the one-time Pantry Review.
+ *
+ * ENV MECHANISM (documented per Task 8.1 brief):
+ *   Paywall mode is resolved SERVER-SIDE — app/subscribe/page.tsx calls
+ *   lib/server/pricing.paywallMode(), so which component renders on /subscribe
+ *   (TrialWall vs PaywallCard) is fixed at request time by the server's
+ *   PAYWALL_MODE env. A single webServer cannot serve both `trial` and `legacy`
+ *   at once, and the shared :3100 dev server must stay on the `legacy` default
+ *   (tests/smoke/billing-pages.spec.ts asserts the legacy paywall-card there).
+ *   Resolution (a) from the brief: playwright.config.ts runs a SECOND webServer
+ *   on :3101 with PAYWALL_MODE=trial (+ AUTH_EMAIL_STUB_DIR). The trial
+ *   scenarios below drive that server via absolute TRIAL urls; the legacy-guard
+ *   scenario uses the default baseURL (:3100, legacy). Stripe is never hit —
+ *   the checkout POST is stubbed at the fetch boundary with page.route.
+ *
+ * SELF-CONTAINED RUN (dev-artifact rewrite):
+ *   The :3101 server sets NEXT_DIST_DIR=".next/e2e-trial" (next.config.ts gates
+ *   distDir on it) so two `next dev` instances don't collide on one dev lock.
+ *   Side effect: `next dev` regenerates the TRACKED tsconfig.json (include
+ *   globs) and next-env.d.ts (routes import) to point at that distDir, which
+ *   used to leave the working tree dirty after any Playwright run — a clean-tree
+ *   / tsc CI gate would fail, or the e2e-trial paths could be committed. Two
+ *   guards now make the run self-contained: (1) playwright.config.ts suppresses
+ *   :3101 ONLY when every positional filter is a concrete .spec.ts file and none
+ *   names trial-wall (so an unrelated single-spec run never touches those
+ *   files); a whole-suite run, an explicit trial-wall filter, AND any
+ *   directory-style filter (e.g. `tests/smoke/`, `tests/`) all boot it — a
+ *   directory may contain this spec — and the teardown below restores the
+ *   rewrites; (2) tests/smoke/global-teardown.ts
+ *   surgically collapses any ".next/e2e-trial" segment back to ".next" in both
+ *   files after the run — restoring them without git and without clobbering
+ *   unrelated local edits.
+ */
+
+const TRIAL = "http://127.0.0.1:3101";
+
+// Mirrors lib/client/taster-store.ts dayLocal(): the user's LOCAL calendar day.
+function todayLocal(): string {
+  const d = new Date();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+// The paywall mode reaches the client via GET /api/paywall (food-check-form and
+// trial-wall both fetch it on mount). Wait for that response and flush a React
+// commit so `mode` is `trial` in state before we act — otherwise the fail-open
+// `legacy` default would race the gate/record decision.
+async function settlePaywallMode(page: Page): Promise<void> {
+  await page.waitForResponse((r) => r.url().includes("/api/paywall"));
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      )
+  );
+}
+
+// Both dev servers (re)compile every route on-demand and restart cold each run
+// (reuseExistingServer:false). Running this file serially means each route pays
+// its cold Turbopack compile exactly once — the first test to hit it — and then
+// stays warm, instead of all 7 specs racing the same cold compiles in parallel
+// and flaking on the default 5s assertion timeout. The generous per-test
+// timeout absorbs that one cold compile.
+test.describe.configure({ mode: "serial", timeout: 90_000 });
+
+const RESULT_STUB = {
+  kind: "result",
+  risk: "SAFE",
+  reason: "Oatmeal is a steady pick — it leans on slow carbs and fibre.",
+  adjustment: null,
+  swap: null,
+  sequencingTip: null,
+  postMealAction: null,
+  keepMost: null,
+  disclaimer: "Not medical advice."
+};
+
+test("taster: first-run walk lands a guided oatmeal check and meters used===1", async ({
+  page
+}) => {
+  // Stub the engine so the check never touches the live model.
+  await page.route("**/api/check", (route) => route.fulfill({ json: RESULT_STUB }));
+
+  // Fresh context → home bounces a brand-new visitor into the tour. The
+  // redirect is a client effect gated on the home bundle hydrating, so allow a
+  // cold-compile-tolerant window (all 7 specs hit this server in parallel).
+  await page.goto(`${TRIAL}/`);
+  await expect(page).toHaveURL(/\/onboarding$/, { timeout: 30_000 });
+
+  // Walk welcome → segment → a1c → expectations → first_check (onboarding.spec).
+  await page.getByRole("button", { name: "Get started" }).click();
+  await page.getByRole("button", { name: "New A1C result" }).click();
+  await page.getByLabel("Latest A1C").fill("6.1");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+
+  const paywall = page.waitForResponse((r) => r.url().includes("/api/paywall"));
+  await page.getByRole("button", { name: "oatmeal", exact: true }).click();
+
+  // Home, with the guided food + remembered A1C prefilled.
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByLabel(/eating/i)).toHaveValue("oatmeal");
+  await expect(page.getByLabel(/latest a1c/i)).toHaveValue("6.1");
+
+  await paywall;
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      )
+  );
+
+  await page.getByRole("button", { name: "Should I eat this?" }).click();
+
+  const card = page.getByTestId("result-card");
+  await expect(card).toHaveAttribute("data-kind", "result");
+
+  const used = await page.evaluate(() => {
+    const raw = window.localStorage.getItem("revora.taster.v1");
+    return raw ? (JSON.parse(raw) as { used: number }).used : null;
+  });
+  expect(used).toBe(1);
+});
+
+test("exhaustion: a spent taster is walled on the next submit", async ({ page }) => {
+  await page.addInitScript(
+    (firstDay) => {
+      window.localStorage.setItem(
+        "revora.taster.v1",
+        JSON.stringify({ firstDay, used: 10 })
+      );
+    },
+    todayLocal()
+  );
+
+  await page.goto(`${TRIAL}/`);
+  // Seeded taster → not a first-run visitor, so no bounce to the tour.
+  await expect(page).toHaveURL(/\/$/);
+  await settlePaywallMode(page);
+
+  await page.getByRole("button", { name: "Should I eat this?" }).click();
+  await expect(page).toHaveURL(/\/subscribe$/);
+  await expect(page.getByTestId("trial-wall")).toBeVisible();
+});
+
+test("day 2: an aged-out taster is walled on the next submit", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "revora.taster.v1",
+      JSON.stringify({ firstDay: "2020-01-01", used: 2 })
+    );
+  });
+
+  await page.goto(`${TRIAL}/`);
+  await expect(page).toHaveURL(/\/$/);
+  await settlePaywallMode(page);
+
+  await page.getByRole("button", { name: "Should I eat this?" }).click();
+  await expect(page).toHaveURL(/\/subscribe$/);
+  await expect(page.getByTestId("trial-wall")).toBeVisible();
+});
+
+test("wall → checkout: value → proof → start POSTs the trial and navigates", async ({
+  page
+}) => {
+  let trialStartEmail: string | null = null;
+  await page.route("**/api/trial/start", async (route) => {
+    trialStartEmail =
+      (route.request().postDataJSON() as { email?: string })?.email ?? null;
+    await route.fulfill({ json: { url: `${TRIAL}/__checkout_stub` } });
+  });
+  await page.route("**/__checkout_stub", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "text/html",
+      body: "<!doctype html><title>Checkout</title>ok"
+    })
+  );
+
+  await page.goto(`${TRIAL}/subscribe`);
+  await expect(page.getByTestId("trial-wall")).toBeVisible();
+  await settlePaywallMode(page);
+
+  await page.getByRole("button", { name: "See how the trial works" }).click();
+  await page.getByRole("button", { name: "Start my free week" }).click();
+  await page.getByLabel("Your email").fill("wall@revora.test");
+  await page
+    .getByRole("button", { name: "Continue to secure checkout" })
+    .click();
+
+  await expect(page).toHaveURL(/\/__checkout_stub$/);
+  expect(trialStartEmail).toBe("wall@revora.test");
+});
+
+test("decline catch: /subscribe?declined=1 offers the one-time Pantry Review", async ({
+  page
+}) => {
+  await page.goto(`${TRIAL}/subscribe?declined=1`);
+
+  const catchLine = page.getByTestId("pantry-catch");
+  await expect(catchLine).toBeVisible();
+  await expect(
+    catchLine.getByRole("link", { name: /pantry review/i })
+  ).toHaveAttribute("href", "/pantry");
+});
+
+test("pantry: the landing page shows the sample report + buy button", async ({
+  page
+}) => {
+  await page.goto(`${TRIAL}/pantry`);
+
+  await expect(
+    page.getByRole("heading", { name: "Enjoy freely" })
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Worth a tweak" })
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Handle with care" })
+  ).toBeVisible();
+  await expect(page.getByTestId("pantry-buy")).toBeVisible();
+});
+
+test("legacy guard: PAYWALL_MODE=legacy shows the paywall card, never the wall", async ({
+  page
+}) => {
+  // Default baseURL (:3100) runs on the `legacy` default.
+  await page.goto("/subscribe");
+  await expect(page.getByTestId("paywall-card")).toBeVisible();
+  // The regression this catches: legacy must NEVER render the trial wall.
+  await expect(page.getByTestId("trial-wall")).toHaveCount(0);
+
+  // A seeded returning user is not a first-run visitor and must stay home.
+  await page.addInitScript(
+    (firstDay) => {
+      window.localStorage.setItem(
+        "revora.taster.v1",
+        JSON.stringify({ firstDay, used: 3 })
+      );
+    },
+    todayLocal()
+  );
+  await page.goto("/");
+  // Waiting on the hydrated check form proves FirstRunGate's effect ran: had it
+  // redirected, we'd be on /onboarding (no such button there).
+  await expect(
+    page.getByRole("button", { name: "Should I eat this?" })
+  ).toBeVisible();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByTestId("onboarding-step")).toHaveCount(0);
+});

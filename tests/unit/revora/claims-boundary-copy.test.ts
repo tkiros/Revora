@@ -35,6 +35,8 @@ function scan(text: string): string[] {
 // ("do not diagnose"), and their correctness is governed by the safety-contract
 // fixture tests, not by this user-facing audit.
 const COPY_FILES = [
+  "app/api/check/route.ts",
+  "app/demo/page.tsx",
   "app/page.tsx",
   "app/privacy/page.tsx",
   "app/terms/page.tsx",
@@ -42,6 +44,7 @@ const COPY_FILES = [
   "components/food-check-form.tsx",
   "components/nudge-opt-in.tsx",
   "components/result-card.tsx",
+  "components/demo-check-card.tsx",
   "components/request-status.tsx",
   "components/daily-loop.tsx",
   "components/today-list.tsx",
@@ -49,22 +52,31 @@ const COPY_FILES = [
   "components/insight-card.tsx",
   "components/voice-input-button.tsx",
   "components/paywall-card.tsx",
+  "components/trial-wall.tsx",
   "components/reviewer-signin-form.tsx",
   "components/print-button.tsx",
   "app/report/[id]/page.tsx",
   "app/subscribe/page.tsx",
+  "app/trial/started/page.tsx",
+  "app/get-the-app/page.tsx",
   "app/account/page.tsx",
+  "app/canceled/page.tsx",
   "app/account/delete/page.tsx",
   "app/signin/page.tsx",
   "app/signin/check-email/page.tsx",
   "app/welcome/page.tsx",
   "app/progress/page.tsx",
   "app/how-it-works/page.tsx",
+  "app/pantry/page.tsx",
+  "app/pantry/thanks/page.tsx",
+  "components/pantry-buy-button.tsx",
   "lib/revora/fallback.ts",
   "lib/revora/coach-outputs.ts",
   "lib/coach/insights.ts",
   "lib/coach/bai.ts",
-  "lib/client/ui-state.ts"
+  "lib/client/ui-state.ts",
+  "lib/server/pantry/emails.ts",
+  "lib/server/billing/emails.ts"
 ];
 
 // The single approved user-as-agent line (docs/product-marketing.md; counsel

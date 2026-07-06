@@ -279,3 +279,29 @@ Appendix A, items H1–H6 (the deduplicated master list):
 | H4 | Set `ADMIN_EMAIL` (founder's sign-in email) and `CRON_SECRET` in Vercel (preview + prod). Note: ADMIN_EMAIL comparison is case-sensitive — set it exactly lowercase matching the founder sign-in email. | `/admin/pantry` loads for founder, 404s for others; crons authenticate |
 | H5 | **Verify Vercel Pro** is active (300s `maxDuration` + hourly crons need it) | Plan visible in Vercel dashboard settings |
 | H6 | **8–10 pantry/fridge photos of your own kitchen**, exhaustively labeled into `tests/fixtures/pantry-photos/labels.json`; provide `OPENAI_API_KEY` for the two live eval runs | Task 4.1 + 4.2 verdict doc has real numbers |
+
+### WS3 — Launch-readiness paywall + pantry plan (2026-07-05, Task 2.1 Stripe provisioning)
+
+**Provisioned by agent (Stripe MCP, LIVE mode, Vendoval account `acct_14W8GFKweWSWjefk`, per OQ-1 founder decision 2026-07-05):**
+
+| Object | ID | Detail |
+|---|---|---|
+| Product | `prod_UpYMfliiN8R9DW` | Revora Premium, `statement_descriptor: REVORA`, `metadata.app=revora` |
+| Price | `price_1TptGbKweWSWjefkCeYyknna` | $9.99/mo, `lookup_key revora_monthly_999`, `metadata.price_variant=999` |
+| Price | `price_1TptH2KweWSWjefkouRiU8KE` | $12.99/mo, `lookup_key revora_monthly_1299`, `metadata.price_variant=1299` (default variant) |
+| Price | `price_1TptHYKweWSWjefkscWTlAfo` | $19.99/mo, `lookup_key revora_monthly_1999`, `metadata.price_variant=1999` |
+| Product | `prod_UpYOONypmsbqiZ` | Revora Pantry Review, `statement_descriptor: REVORA PANTRY` |
+| Price | `price_1TptIOKweWSWjefkNlWbC1qH` | $49 one-time, `lookup_key revora_pantry_49` |
+
+No `trial_period_days` on any price (deliberate — the 7-day trial is set per Checkout Session so legacy checkout stays trial-free).
+
+**Human actions (open):**
+
+| # | Action | Done when |
+|---|---|---|
+| H20 | **Configure the Billing Portal default configuration** (dashboard → Settings → Billing → Customer portal; the portal-configuration API is not exposed via the MCP): cancellation ENABLED, mode `at_period_end`, cancellation reason NOT required (one-tap principle), payment-method update ENABLED | Portal test session shows cancel-at-period-end with no reason survey |
+| H21 | **Create the production webhook endpoint** `https://<prod-domain>/api/billing/stripe/webhook` subscribed to exactly: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid`, `charge.refunded`; set `STRIPE_WEBHOOK_SECRET` in Vercel (prod). Blocked on final prod domain. | Stripe CLI `trigger checkout.session.completed` reaches the deploy |
+| H22 | **Set Vercel env vars** (prod + preview): `STRIPE_PRICE_MONTHLY_999/1299/1999` + `STRIPE_PRICE_PANTRY` = the four price IDs above; `STRIPE_PRICE_MONTHLY` = the 1299 ID (legacy handler 503 guard); `PAYWALL_MODE=legacy`; `TRIAL_PRICE_VARIANT=1299` | `/api/paywall` returns `{mode:"legacy",variant:"1299"}` on the deploy |
+| H23 | **OQ-2: provision a test-mode mirror** of the same products/prices (test-mode API keys) for QA/DoR walkthrough; provide test keys + test price IDs for the preview env | Preview checkout completes with `4242…` card |
+| H24 | **Verify the Stripe webhook endpoint API version is 2025-03-31.basil or later** (Dashboard → Developers → Webhooks → endpoint version) so invoice.paid payloads carry `parent.subscription_details`; the code has a legacy top-level fallback but pinning basil removes the ambiguity | Endpoint shows basil+ version |
+| H25 | **Create the Tally store-intent waitlist form** (the connected Tally MCP exposes only auth endpoints — no form-creation API, so this is human-only). Fields: **email** (required) + **platform** (Android / iPhone, required) + a one-line purpose statement: "Only used to tell you when the store version ships." Then set `NEXT_PUBLIC_WAITLIST_URL` in Vercel (preview + prod) to the published Tally form URL. Task 5.6's `/get-the-app` page is env-gated and fully functional without it — the waitlist section stays hidden until the var is set. | `/get-the-app` shows the "Prefer the store version?" section + "Tell me when it ships" CTA on the deploy, and the CTA opens the Tally form |

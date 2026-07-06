@@ -68,7 +68,8 @@ describe("deriveCoachOutputs", () => {
   it("returns null outputs for SAFE results — no piling on", () => {
     expect(deriveCoachOutputs(resultResponse("SAFE"))).toEqual({
       sequencingTip: null,
-      postMealAction: null
+      postMealAction: null,
+      keepMost: null
     });
   });
 
@@ -77,10 +78,41 @@ describe("deriveCoachOutputs", () => {
     (_kind, response) => {
       expect(deriveCoachOutputs(response)).toEqual({
         sequencingTip: null,
-        postMealAction: null
+        postMealAction: null,
+        keepMost: null
       });
     }
   );
+
+  it("keepMost is the approved keep-most phrase for MODERATE and HIGH", () => {
+    const phrase =
+      "Enjoy a smaller portion now and set the rest aside for later — same food, gentler pace.";
+
+    expect(deriveCoachOutputs(resultResponse("MODERATE")).keepMost).toBe(phrase);
+    expect(deriveCoachOutputs(resultResponse("HIGH")).keepMost).toBe(phrase);
+    expect(deriveCoachOutputs(resultResponse("HIGH")).keepMost).toBeTruthy();
+  });
+
+  it("keepMost is null for SAFE and every non-result kind", () => {
+    expect(deriveCoachOutputs(resultResponse("SAFE")).keepMost).toBeNull();
+    for (const response of NON_RESULT_RESPONSES) {
+      expect(deriveCoachOutputs(response).keepMost).toBeNull();
+    }
+  });
+
+  it("keepMost obeys the tone rules — banned list adds skip, no digits", () => {
+    const text = deriveCoachOutputs(resultResponse("HIGH")).keepMost as string;
+
+    // one sentence
+    expect(text.match(/[.!?](?=\s|$)/g) ?? []).toHaveLength(1);
+    // permission-first hedges, never commands framed as musts; skip is banned too
+    expect(text).not.toMatch(/\bmust\b|\bnever\b|\bdon't\b|\bavoid\b|\bskip\b/i);
+    // no backward judgment
+    expect(text).not.toMatch(/should have|you failed|too much/i);
+    // no glycemic numbers and no digits at all for this field
+    expect(text).not.toMatch(/\bGI\b|\bGL\b|\bgrams?\b|mg\/?dl|\bcarbs? grams?\b/i);
+    expect(text).not.toMatch(/\d/);
+  });
 
   it("is deterministic — same input, same output", () => {
     const a = deriveCoachOutputs(resultResponse("MODERATE"));
@@ -122,6 +154,17 @@ describe("CheckApiResponseSchema", () => {
     expect(CheckApiResponseSchema.safeParse(resultResponse("SAFE")).success).toBe(
       false
     );
+  });
+
+  it("requires keepMost on result kinds", () => {
+    const missingKeepMost = {
+      ...resultResponse("MODERATE"),
+      sequencingTip: null,
+      postMealAction: null
+      // keepMost intentionally omitted
+    };
+
+    expect(CheckApiResponseSchema.safeParse(missingKeepMost).success).toBe(false);
   });
 
   it("rejects unknown extra fields (stays strict like the engine schemas)", () => {

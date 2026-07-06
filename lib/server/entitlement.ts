@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray } from "drizzle-orm";
+import { and, desc, eq, gte } from "drizzle-orm";
 
 import { dayKeyInTimezone } from "../coach/days";
 import { schema, type Db } from "./db";
@@ -15,6 +15,7 @@ export const FREE_DAILY_CHECKS = 5;
 export type Entitlement = {
   tier: "free" | "premium";
   source: "play" | "stripe" | null;
+  status: "trialing" | "premium" | "lapsed" | "none";
 };
 
 export type PlayRefreshResult = {
@@ -31,7 +32,8 @@ export type EntitlementDeps = {
 };
 
 // 'canceled' still counts until the paid-through date; grace is honored.
-const PREMIUM_STATUSES = ["active", "grace", "canceled"] as const;
+// 'trialing' grants unlimited premium during the trial window.
+const PREMIUM_STATUSES = ["active", "trialing", "grace", "canceled"] as const;
 
 export async function getEntitlement(
   db: Db,
@@ -40,24 +42,38 @@ export async function getEntitlement(
 ): Promise<Entitlement> {
   const now = deps.now?.() ?? new Date();
 
+  // Select ALL rows for the user (tiny per-user) and filter in JS: this lets us
+  // distinguish "rows exist but none valid" (lapsed) from "no rows at all" (none)
+  // in a single query, while still honoring PREMIUM_STATUSES for the grant.
   const rows = await db
     .select()
     .from(schema.subscriptions)
-    .where(
-      and(
-        eq(schema.subscriptions.userId, userId),
-        inArray(schema.subscriptions.status, [...PREMIUM_STATUSES])
-      )
-    )
+    .where(eq(schema.subscriptions.userId, userId))
     .orderBy(desc(schema.subscriptions.currentPeriodEnd));
 
+  const hadRows = rows.length > 0;
+
   for (const row of rows) {
-    if (row.currentPeriodEnd > now) {
-      return { tier: "premium", source: row.provider };
+    if (
+      (PREMIUM_STATUSES as readonly string[]).includes(row.status) &&
+      row.currentPeriodEnd > now
+    ) {
+      return {
+        tier: "premium",
+        source: row.provider,
+        status: row.status === "trialing" ? "trialing" : "premium"
+      };
     }
 
     // Stale Play row: RTDN may have been missed — verify on read and heal.
-    if (row.provider === "play" && deps.refreshPlaySubscription) {
+    // Gate on status membership so we only touch the Play API for rows the
+    // pre-change status-filtered query would have selected (never for
+    // expired/refunded rows the old inArray filter excluded).
+    if (
+      row.provider === "play" &&
+      (PREMIUM_STATUSES as readonly string[]).includes(row.status) &&
+      deps.refreshPlaySubscription
+    ) {
       try {
         const fresh = await deps.refreshPlaySubscription(row.providerRef);
         await db
@@ -73,7 +89,7 @@ export async function getEntitlement(
           (PREMIUM_STATUSES as readonly string[]).includes(fresh.status) &&
           fresh.currentPeriodEnd > now
         ) {
-          return { tier: "premium", source: "play" };
+          return { tier: "premium", source: "play", status: "premium" };
         }
       } catch {
         // Play API unreachable: fail toward free — never grant on a guess.
@@ -81,7 +97,7 @@ export async function getEntitlement(
     }
   }
 
-  return { tier: "free", source: null };
+  return { tier: "free", source: null, status: hadRows ? "lapsed" : "none" };
 }
 
 /** Server-side free-tier metering: result-checks stored today (profile tz). */

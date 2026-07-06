@@ -10,15 +10,28 @@ export const runtime = "nodejs";
 
 // Staleness windows mirror each cron's own cadence with slack: nudge runs
 // hourly (vercel.json "0 * * * *"), bai-weekly runs Mondays (vercel.json
-// "30 4 * * 1").
+// "30 4 * * 1"), pantry-sweep and trial-precharge both run hourly (vercel.json
+// "15 * * * *" and "45 * * * *") — so both take the same 2h window as nudge.
 const NUDGE_STALE_MS = 2 * 60 * 60 * 1000; // 2 hours
 const BAI_WEEKLY_STALE_MS = 8 * 24 * 60 * 60 * 1000; // 8 days
+const TRIAL_PRECHARGE_STALE_MS = 2 * 60 * 60 * 1000; // 2 hours
+const PANTRY_SWEEP_STALE_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 type DbProbeStatus = "ok" | "error" | "unconfigured";
 type CronProbeStatus = "ok" | "stale" | "never" | "unknown";
-type CronsProbe = { nudge: CronProbeStatus; baiWeekly: CronProbeStatus };
+type CronsProbe = {
+  nudge: CronProbeStatus;
+  baiWeekly: CronProbeStatus;
+  trialPrecharge: CronProbeStatus;
+  pantrySweep: CronProbeStatus;
+};
 
-const UNKNOWN_CRONS: CronsProbe = { nudge: "unknown", baiWeekly: "unknown" };
+const UNKNOWN_CRONS: CronsProbe = {
+  nudge: "unknown",
+  baiWeekly: "unknown",
+  trialPrecharge: "unknown",
+  pantrySweep: "unknown"
+};
 
 export type HealthDeps = {
   db?: () => Db;
@@ -121,12 +134,20 @@ async function probeDbAndCrons(
     const baiAt = heartbeats.find(
       (row) => row.name === "bai-weekly"
     )?.lastRunAt;
+    const prechargeAt = heartbeats.find(
+      (row) => row.name === "trial-precharge"
+    )?.lastRunAt;
+    const pantryAt = heartbeats.find(
+      (row) => row.name === "pantry-sweep"
+    )?.lastRunAt;
 
     return {
       db: "ok",
       crons: {
         nudge: cronStatus(nudgeAt, now, NUDGE_STALE_MS),
-        baiWeekly: cronStatus(baiAt, now, BAI_WEEKLY_STALE_MS)
+        baiWeekly: cronStatus(baiAt, now, BAI_WEEKLY_STALE_MS),
+        trialPrecharge: cronStatus(prechargeAt, now, TRIAL_PRECHARGE_STALE_MS),
+        pantrySweep: cronStatus(pantryAt, now, PANTRY_SWEEP_STALE_MS)
       }
     };
   } catch (error) {

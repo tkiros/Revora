@@ -2,6 +2,7 @@
   "crons": [
     { "path": "/api/cron/nudge", "schedule": "0 * * * *" },
     { "path": "/api/cron/bai-weekly", "schedule": "30 4 * * 1" },
-    { "path": "/api/cron/pantry-sweep", "schedule": "15 * * * *" }
+    { "path": "/api/cron/pantry-sweep", "schedule": "15 * * * *" },
+    { "path": "/api/cron/trial-precharge", "schedule": "45 * * * *" }
   ]
 }

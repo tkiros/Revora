@@ -150,8 +150,12 @@ export const subscriptions = pgTable(
     providerRef: text("provider_ref").notNull().unique(),
     productId: text("product_id").notNull(),
     status: text("status", {
-      enum: ["active", "canceled", "grace", "expired", "refunded"]
+      enum: ["active", "trialing", "canceled", "grace", "expired", "refunded"]
     }).notNull(),
+    priceVariant: text("price_variant"),
+    preChargeEmailSentAt: timestamp("pre_charge_email_sent_at", {
+      withTimezone: true
+    }),
     currentPeriodEnd: timestamp("current_period_end", {
       withTimezone: true
     }).notNull(),
@@ -167,7 +171,7 @@ export const subscriptions = pgTable(
     ),
     check(
       "subscriptions_status_check",
-      sql`${table.status} IN ('active','canceled','grace','expired','refunded')`
+      sql`${table.status} IN ('active','trialing','canceled','grace','expired','refunded')`
     )
   ]
 );

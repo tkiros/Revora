@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { z } from "zod";
@@ -16,7 +16,13 @@ import {
 } from "../../../lib/server/session";
 import { generateClaimToken } from "../../../lib/server/pantry/claims";
 import { intakeEmailText } from "../../../lib/server/pantry/emails";
+import { resolvePriceVariant } from "../../../lib/server/pricing";
 import { sendEmail, type SendEmailResult } from "../../../lib/server/email";
+import {
+  emitBillingEvent,
+  type BillingTelemetryEvent
+} from "../../../lib/server/billing/telemetry";
+import { verifyCancelToken } from "../../../lib/server/billing/cancel-token";
 
 /**
  * Billing (plan 4D / docs/adr/billing.md): Play Billing verified server-side
@@ -282,6 +288,30 @@ export function createStripeCheckoutHandler(deps: BillingDeps = {}) {
   };
 }
 
+// ── POST /api/billing/stripe/pantry-checkout ────────────────────────────────
+
+export function createPantryCheckoutSessionHandler(deps: BillingDeps = {}) {
+  const stripe = deps.stripeClient ?? defaultStripe;
+
+  return async function POST() {
+    const price = process.env.STRIPE_PRICE_PANTRY;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    if (!price) {
+      return NextResponse.json({ error: "The Pantry Review is not available right now." }, { status: 503 });
+    }
+    // No session gate: buyers may be anonymous. Checkout collects the email;
+    // order binding stays possession-of-claim-token, exactly like the
+    // Payment Link path (applyPantryCheckout is reused byte-identically).
+    const checkout = await stripe().checkout.sessions.create({
+      mode: "payment",
+      line_items: [{ price, quantity: 1 }],
+      success_url: `${appUrl}/pantry/thanks`,
+      cancel_url: `${appUrl}/pantry`
+    });
+    return NextResponse.json({ url: checkout.url });
+  };
+}
+
 // ── POST /api/billing/stripe/portal ─────────────────────────────────────────
 
 export function createStripePortalHandler(deps: BillingDeps = {}) {
@@ -322,6 +352,97 @@ export function createStripePortalHandler(deps: BillingDeps = {}) {
 
     return NextResponse.json({ url: portal.url });
   };
+}
+
+// ── /api/billing/cancel (email-token GET + account POST) ────────────────────
+
+// Statuses whose subscription is still entitled and therefore cancelable at
+// period end. A cancel on a lapsed row is a no-op (nothing to stop).
+const CANCELABLE = new Set(["trialing", "active", "grace"]);
+
+/**
+ * One-tap cancel (docs/adr/billing.md, anti-Klinio). GET is the signed-out
+ * email link — its trust anchor is the verified token, never a session; POST
+ * is the account-page button behind the session. Both flip
+ * `cancel_at_period_end` on Stripe so entitlement runs out the paid period,
+ * and both are idempotent (a second click re-runs the same harmless update).
+ */
+export function createCancelHandlers(deps: BillingDeps = {}) {
+  const db = deps.db ?? getDb;
+  const getSession = deps.getSession ?? getSessionInfo;
+  const stripe = deps.stripeClient ?? defaultStripe;
+
+  // GET /api/billing/cancel?token=… — from the pre-charge email, works
+  // signed-out. Never dedupe or log by the raw token (it is suffix-malleable);
+  // the verify result is the only trust anchor.
+  async function GET(request: Request): Promise<NextResponse> {
+    const url = new URL(request.url);
+    const canceled = (invalid: boolean) =>
+      NextResponse.redirect(
+        new URL(invalid ? "/canceled?invalid=1" : "/canceled", url),
+        303
+      );
+
+    const verified = verifyCancelToken(url.searchParams.get("token") ?? "");
+    if (!verified) {
+      return canceled(true);
+    }
+
+    const [row] = await db()
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.id, verified.subRowId));
+
+    if (row && row.provider === "stripe" && CANCELABLE.has(row.status)) {
+      await stripe().subscriptions.update(row.providerRef, {
+        cancel_at_period_end: true
+      });
+      if (row.status === "trialing") {
+        emitBillingEvent({
+          name: "trial_canceled",
+          priceVariant:
+            (row.priceVariant as BillingTelemetryEvent["priceVariant"]) ??
+            undefined
+        });
+      }
+    }
+
+    return canceled(false);
+  }
+
+  // POST /api/billing/cancel — the account-page one-tap button. Session-gated;
+  // cancels the caller's own Stripe row only.
+  async function POST(): Promise<NextResponse> {
+    const session = await getSession();
+    if (!session) {
+      return unauthorized();
+    }
+
+    const [row] = await db()
+      .select()
+      .from(schema.subscriptions)
+      .where(
+        and(
+          eq(schema.subscriptions.userId, session.userId),
+          eq(schema.subscriptions.provider, "stripe")
+        )
+      );
+
+    if (!row || row.provider !== "stripe") {
+      return NextResponse.json(
+        { error: "No Stripe subscription to cancel." },
+        { status: 404 }
+      );
+    }
+
+    await stripe().subscriptions.update(row.providerRef, {
+      cancel_at_period_end: true
+    });
+
+    return NextResponse.json({ ok: true, accessUntil: row.currentPeriodEnd });
+  }
+
+  return { GET, POST };
 }
 
 // ── POST /api/billing/stripe/webhook ────────────────────────────────────────
@@ -387,6 +508,16 @@ export async function applyStripeEvent(
       : null;
     const item = subscription?.items.data[0];
 
+    const isTrialing = subscription?.status === "trialing";
+    const status = isTrialing ? "trialing" : "active";
+    const priceVariant = subscription?.metadata?.price_variant ?? null;
+    const currentPeriodEnd =
+      isTrialing && subscription?.trial_end
+        ? new Date(subscription.trial_end * 1000)
+        : item?.current_period_end
+          ? new Date(item.current_period_end * 1000)
+          : new Date(now.getTime() + 31 * 24 * 60 * 60 * 1000);
+
     await db
       .insert(schema.subscriptions)
       .values({
@@ -397,16 +528,92 @@ export async function applyStripeEvent(
           item?.price.id === process.env.STRIPE_PRICE_ANNUAL
             ? "premium_annual"
             : "premium_monthly",
-        status: "active",
-        currentPeriodEnd: item?.current_period_end
-          ? new Date(item.current_period_end * 1000)
-          : new Date(now.getTime() + 31 * 24 * 60 * 60 * 1000),
+        status,
+        priceVariant,
+        currentPeriodEnd,
         updatedAt: now
       })
       .onConflictDoUpdate({
         target: schema.subscriptions.providerRef,
-        set: { status: "active", updatedAt: now }
+        set: { status, priceVariant, updatedAt: now }
       });
+
+    if (isTrialing) {
+      emitBillingEvent({
+        name: "trial_started",
+        priceVariant:
+          (priceVariant as BillingTelemetryEvent["priceVariant"]) ?? undefined
+      });
+    }
+    return;
+  }
+
+  if (event.type === "invoice.paid") {
+    const invoice = event.data.object as Stripe.Invoice;
+    // Subscription id resolution across API versions. On 2025-03-31.basil+
+    // payloads it lives under invoice.parent.subscription_details; older
+    // account/endpoint versions send a top-level invoice.subscription that
+    // stripe@22's types no longer declare — resolve via a safe cast fallback.
+    const subRef = invoice.parent?.subscription_details?.subscription;
+    let subscriptionId = typeof subRef === "string" ? subRef : subRef?.id;
+    if (!subscriptionId) {
+      const legacy = (
+        invoice as unknown as { subscription?: string | { id: string } }
+      ).subscription;
+      subscriptionId = typeof legacy === "string" ? legacy : legacy?.id;
+    }
+    if (!subscriptionId) {
+      return;
+    }
+
+    const [row] = await db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.providerRef, subscriptionId));
+    if (!row) {
+      return;
+    }
+
+    // The $0 subscription-create invoice fires at trial START. It must not
+    // flip trialing→active or emit a conversion. Other billing reasons
+    // (subscription_cycle, …) or an absent reason proceed to conversion.
+    if (invoice.billing_reason === "subscription_create") {
+      return;
+    }
+
+    // Only trial→active and renewals of active rows are ours to touch.
+    if (row.status !== "trialing" && row.status !== "active") {
+      return;
+    }
+
+    const subscription = stripe
+      ? await stripe().subscriptions.retrieve(subscriptionId)
+      : null;
+    const item = subscription?.items.data[0];
+    const currentPeriodEnd = item?.current_period_end
+      ? new Date(item.current_period_end * 1000)
+      : row.currentPeriodEnd;
+
+    if (row.status === "trialing") {
+      // First successful charge converts the trial. Renewals of an
+      // already-active row are NOT conversions (new-only rule).
+      await db
+        .update(schema.subscriptions)
+        .set({ status: "active", currentPeriodEnd, updatedAt: now })
+        .where(eq(schema.subscriptions.id, row.id));
+      emitBillingEvent({
+        name: "trial_converted",
+        priceVariant:
+          (row.priceVariant as BillingTelemetryEvent["priceVariant"]) ??
+          undefined
+      });
+    } else {
+      // Active renewal: period-end refresh only.
+      await db
+        .update(schema.subscriptions)
+        .set({ currentPeriodEnd, updatedAt: now })
+        .where(eq(schema.subscriptions.id, row.id));
+    }
     return;
   }
 
@@ -418,6 +625,46 @@ export async function applyStripeEvent(
     const item = subscription.items?.data[0];
     const status = mapStripeStatus(subscription.status, event.type);
 
+    // Read the stored row BEFORE the upsert — its pre-update status drives both
+    // the cancel and the conversion telemetry decisions below. (deleted events
+    // need no telemetry, so skip the read for them.)
+    const [existing] =
+      event.type === "customer.subscription.updated"
+        ? await db
+            .select()
+            .from(schema.subscriptions)
+            .where(eq(schema.subscriptions.providerRef, subscription.id))
+        : [undefined];
+
+    // Trial cancellation telemetry: a trial flagged to cancel at period end
+    // keeps status "trialing" (entitled until it lapses); we only surface the
+    // signal. Telemetry duplicates on repeated updates are tolerable.
+    if (
+      event.type === "customer.subscription.updated" &&
+      subscription.cancel_at_period_end === true &&
+      existing?.status === "trialing"
+    ) {
+      emitBillingEvent({
+        name: "trial_canceled",
+        priceVariant:
+          (existing.priceVariant as BillingTelemetryEvent["priceVariant"]) ??
+          undefined
+      });
+    }
+
+    // Conversion can arrive here instead of via invoice.paid when Stripe fires
+    // customer.subscription.updated (trialing→active) first. Emit exactly once:
+    // the stored row still being "trialing" is the dedupe — whichever handler
+    // runs first flips the row, so only one of the two emits.
+    const previousStatus = (
+      event.data.previous_attributes as { status?: string } | undefined
+    )?.status;
+    const isConversion =
+      event.type === "customer.subscription.updated" &&
+      previousStatus === "trialing" &&
+      status === "active" &&
+      existing?.status === "trialing";
+
     await db
       .update(schema.subscriptions)
       .set({
@@ -428,6 +675,15 @@ export async function applyStripeEvent(
         updatedAt: now
       })
       .where(eq(schema.subscriptions.providerRef, subscription.id));
+
+    if (isConversion) {
+      emitBillingEvent({
+        name: "trial_converted",
+        priceVariant:
+          (existing?.priceVariant as BillingTelemetryEvent["priceVariant"]) ??
+          undefined
+      });
+    }
     return;
   }
 
@@ -493,6 +749,8 @@ async function applyPantryCheckout(
     return; // Duplicate webhook delivery — the first one already emailed.
   }
 
+  emitBillingEvent({ name: "pantry_purchased" });
+
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const result = await (email?.send ?? sendEmail)({
     to: buyerEmail,
@@ -510,15 +768,16 @@ async function applyPantryCheckout(
 function mapStripeStatus(
   status: Stripe.Subscription.Status,
   eventType: string
-): "active" | "canceled" | "grace" | "expired" | "refunded" {
+): "active" | "trialing" | "canceled" | "grace" | "expired" | "refunded" {
   if (eventType === "customer.subscription.deleted") {
     return "expired";
   }
 
   switch (status) {
     case "active":
-    case "trialing":
       return "active";
+    case "trialing":
+      return "trialing";
     case "past_due":
       return "grace";
     case "canceled":
@@ -526,4 +785,99 @@ function mapStripeStatus(
     default:
       return "expired";
   }
+}
+
+// ── POST /api/trial/start ───────────────────────────────────────────────────
+
+const TrialStartSchema = z
+  .object({ email: z.string().trim().toLowerCase().email().max(254) })
+  .strict();
+
+/**
+ * Email-first, card-gated 7-day trial. The account is created at trial start
+ * (find-or-create on the same `users` row the magic-link sign-in resolves via
+ * getUserByEmail), the magic link fires non-fatally as account recovery if the
+ * card step is abandoned, and a subscription Checkout session with a 7-day
+ * trial is returned. Consumed by the Phase-4 paywall (Task 4.2).
+ */
+export function createTrialCheckoutHandler(
+  deps: BillingDeps & {
+    sendMagicLink?: (email: string) => Promise<void>;
+    env?: NodeJS.ProcessEnv;
+  } = {}
+) {
+  const db = deps.db ?? getDb;
+  const stripe = deps.stripeClient ?? defaultStripe;
+  const env = deps.env ?? process.env;
+  const sendMagicLink =
+    deps.sendMagicLink ??
+    (async (email: string) => {
+      // Reuses the exact existing magic-link path; the email doubles as
+      // account recovery if the card step is abandoned.
+      const { signIn } = await import("../../../auth");
+      await signIn("resend", {
+        email,
+        redirect: false,
+        redirectTo: "/welcome?trial=1"
+      });
+    });
+
+  return async function POST(request: Request) {
+    const parsed = TrialStartSchema.safeParse(await readJson(request));
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Enter a valid email." }, { status: 400 });
+    }
+
+    const { variant, priceId } = resolvePriceVariant(env);
+    if (!priceId) {
+      return NextResponse.json(
+        { error: "Billing is not configured." },
+        { status: 503 }
+      );
+    }
+
+    const email = parsed.data.email;
+    // Find-or-create: the DrizzleAdapter's magic-link sign-in resolves this
+    // same row via getUserByEmail, so account creation moves to trial start
+    // without forking the auth model.
+    let [user] = await db()
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.email, email));
+    if (!user) {
+      try {
+        [user] = await db().insert(schema.users).values({ email }).returning();
+      } catch {
+        // Concurrent trial-start for the same new email lost the insert race
+        // (users.email is UNIQUE) — the winner's row is now present.
+        [user] = await db()
+          .select()
+          .from(schema.users)
+          .where(eq(schema.users.email, email));
+      }
+    }
+
+    try {
+      await sendMagicLink(email);
+    } catch {
+      // Non-fatal: /trial/started offers a resend; checkout must not block on email.
+    }
+
+    const appUrl = env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const checkout = await stripe().checkout.sessions.create({
+      mode: "subscription",
+      line_items: [{ price: priceId, quantity: 1 }],
+      payment_method_collection: "always",
+      subscription_data: {
+        trial_period_days: 7,
+        metadata: { price_variant: variant }
+      },
+      client_reference_id: user.id,
+      customer_email: email,
+      success_url: `${appUrl}/trial/started`,
+      cancel_url: `${appUrl}/subscribe?declined=1`
+    });
+
+    return NextResponse.json({ url: checkout.url });
+  };
 }

@@ -47,6 +47,17 @@ export function computeStreak(
   return streak;
 }
 
+/**
+ * The Day-1 first-win gate (DESIGN.md §Day-1). Shows the calm acknowledgment
+ * only on the user's first day, and only once they have a check today.
+ * `streak === 1` means the streak is exactly one day long (the first day) —
+ * not one check — so a second day (streak >= 2) never shows it, and a first
+ * day with no check yet (checksToday === 0) stays quiet.
+ */
+export function showFirstWin(streak: number, checksToday: number): boolean {
+  return streak === 1 && checksToday >= 1;
+}
+
 export function hourInTimezone(timezone: string): (date: Date) => number {
   const format = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,

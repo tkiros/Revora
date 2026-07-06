@@ -45,3 +45,20 @@ policy-volatile — counsel verifies before we rely on them (plan §12).
 - RTDN requires a Google Cloud Pub/Sub topic and service account (human, §10).
 - Cancellation is deliberately frictionless (account page deep-links) — the
   anti-Klinio stance is a product feature.
+
+## Amendment 2026-07-05
+
+The **Free tier** decision above (5 result-checks/day) is **superseded by
+Decision D**: a Day-1 anonymous taster converts into a **card-gated 7-day free
+trial** at **$12.99/mo** (price-testing variants **$9.99** and **$19.99**),
+rather than an ongoing free allowance. The change is gated behind the
+`PAYWALL_MODE` environment flag: `legacy` (the default, and any unset value)
+retains the original 5-checks/day behavior for instant rollback, while `trial`
+activates the taster → card-gated trial flow. The rest of this ADR — Play
+Billing, Stripe fallback, unified `subscriptions` state, and verify-on-read —
+is unchanged.
+
+See the strategy handoff
+(`docs/handoff/2026-07-05-paywall-pricing-pantry-strategy-handoff.md`) and the
+implementation plan
+(`docs/superpowers/plans/2026-07-05-launch-readiness-paywall-pantry.md`).

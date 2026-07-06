@@ -7,6 +7,7 @@ import { track } from "../lib/client/analytics";
 import { submitCheck } from "../lib/client/check";
 import { historyStore } from "../lib/client/history-store";
 import { profileStore } from "../lib/client/profile-store";
+import { tasterStore } from "../lib/client/taster-store";
 import { routeA1C } from "../lib/revora/a1c";
 import {
   type CheckUiState,
@@ -23,6 +24,27 @@ import { VoiceInputButton } from "./voice-input-button";
 
 type FieldErrors = Partial<Record<"food" | "a1c", string>>;
 
+// Paywall mode mirrors GET /api/paywall + lib/server/pricing.paywallMode().
+export type PaywallMode = "legacy" | "trial";
+// tasterStore.status() return union (device-local Day-1 allowance state).
+export type TasterStatus = "available" | "exhausted" | "expired";
+
+// Pure decision helpers, colocated on the module so they can be unit-tested
+// without a jsdom/component harness (this repo has none — Tasks 4.1/4.2).
+//
+// Gate: only trial mode walls, and only once the anonymous taster has spent or
+// aged out their free checks. Legacy mode never gates (fail-open by shape).
+export function shouldGateSubmit(mode: PaywallMode, status: TasterStatus): boolean {
+  return mode === "trial" && status !== "available";
+}
+
+// Record: only trial mode meters, and only for anonymous tasters. The check
+// form is session-agnostic, so "anonymous taster" is the only client signal —
+// a live taster store, or a sessionless brand-new user with no store yet.
+export function shouldRecordTaster(mode: PaywallMode, hasStoreOrAnon: boolean): boolean {
+  return mode === "trial" && hasStoreOrAnon;
+}
+
 export function FoodCheckForm() {
   const [input, setInput] = useState<CheckFormInput>({ food: "", a1c: "" });
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -31,6 +53,27 @@ export function FoodCheckForm() {
   const [inputMethod, setInputMethod] = useState<"text" | "voice">("text");
   const [lastCheckId, setLastCheckId] = useState<string | null>(null);
   const [actionDone, setActionDone] = useState(false);
+  const [mode, setMode] = useState<PaywallMode>("legacy");
+
+  useEffect(() => {
+    // Day-1 taster: learn the paywall mode once on mount. Fail-open to the
+    // "legacy" default on ANY failure (network, non-2xx, bad JSON) — a broken
+    // paywall lookup must never wall a user, only ever fall back to legacy.
+    let cancelled = false;
+    fetch("/api/paywall")
+      .then((res) => res.json())
+      .then((data: { mode?: unknown }) => {
+        if (!cancelled && (data?.mode === "trial" || data?.mode === "legacy")) {
+          setMode(data.mode);
+        }
+      })
+      .catch(() => {
+        // fail-open: keep the "legacy" default set above.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     setIsHydrated(true);
@@ -64,6 +107,13 @@ export function FoodCheckForm() {
     event.preventDefault();
 
     if (isSubmitting) {
+      return;
+    }
+
+    // Day-1 taster gate (trial mode only): an anonymous user who has spent or
+    // aged out their free checks goes to the wall — no /api/check spend here.
+    if (shouldGateSubmit(mode, tasterStore.status())) {
+      window.location.assign("/subscribe");
       return;
     }
 
@@ -133,6 +183,18 @@ export function FoodCheckForm() {
           name: "check_completed",
           props: { risk: response.risk, kind: response.kind, input_method: inputMethod }
         });
+
+        // Day-1 taster meter (trial mode): count this check against the free
+        // allowance BEFORE the result renders, so a reload can't double-spend.
+        // Session-agnostic component → every submitter is an anonymous taster:
+        // a live store (tasterStore.get() !== null) OR a sessionless brand-new
+        // user with no store yet — both count (Task 5.4 clears the store
+        // post-sign-in so entitled users skip this).
+        const anonymousTaster = true;
+        if (shouldRecordTaster(mode, anonymousTaster)) {
+          const used = tasterStore.recordCheck();
+          track({ name: "taster_check", props: { used } });
+        }
       }
 
       setUiState({ kind: "done", response });
