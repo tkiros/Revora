@@ -36,6 +36,7 @@ function scan(text: string): string[] {
 // fixture tests, not by this user-facing audit.
 const COPY_FILES = [
   "app/api/check/route.ts",
+  "app/demo/page.tsx",
   "app/page.tsx",
   "app/privacy/page.tsx",
   "app/terms/page.tsx",

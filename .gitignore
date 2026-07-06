@@ -10,6 +10,9 @@ test-results/
 playwright-report/
 coverage/
 
+# generated marketing captures (Task 8.4 — regenerated on demand)
+marketing/screenshots/
+
 # env
 .env
 .env.*
