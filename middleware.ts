@@ -1,7 +1,7 @@
 /**
  * Revora middleware — pre-model abuse + cost gate (Plans 04-02 + launch-hardening)
  *
- * Intercepts POST /api/check and runs, in order, BEFORE any model spend:
+ * Intercepts POST /api/check and /api/check/photo-draft and runs, in order, BEFORE any model spend:
  *   1. Launch-mode pause gate (Edge Config kill-switch).
  *   2. Per-IP rate limit + global daily cap (Upstash).
  *
@@ -72,7 +72,7 @@ function pause503(message: string) {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  if (pathname !== CHECK_PATH || request.method !== "POST") {
+  if (!pathname.startsWith(CHECK_PATH) || request.method !== "POST") {
     return NextResponse.next();
   }
 
@@ -123,4 +123,4 @@ export async function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
-export const config = { matcher: ["/api/check"] };
+export const config = { matcher: ["/api/check", "/api/check/photo-draft"] };

@@ -59,7 +59,7 @@ const FREE_LIMIT_MESSAGE =
 // Hard wall (Decision D): under PAYWALL_MODE=trial there are no residual free
 // checks. The client renders this as the wall CTA; the copy stays calm and
 // names the exact next step.
-const TRIAL_WALL_MESSAGE =
+export const TRIAL_WALL_MESSAGE =
   "Your free taste of Revora was yesterday's checks. Start your free week — card required, unlimited everything, and we email you before any charge — to keep going.";
 
 let model: RevoraModelClient | null = null;
@@ -241,7 +241,10 @@ async function persistCheck(input: {
       foodCiphertext: encryptField(parsed.data.food),
       risk: input.risk,
       a1cBand: route.band,
-      inputMethod: methodHeader === "voice" ? "voice" : "text",
+      inputMethod:
+        methodHeader === "voice" || methodHeader === "photo"
+          ? methodHeader
+          : "text",
       clientId: clientId && clientId.length <= 64 ? clientId : null
     })
     .onConflictDoNothing();
