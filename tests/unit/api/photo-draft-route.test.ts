@@ -67,7 +67,7 @@ describe("POST /api/check/photo-draft", () => {
     expect(called).toBe(0);
   });
 
-  it("returns a calm 502 retry body when the model call throws", async () => {
+  it("returns a calm 200 retry body when the model call throws (mirrors /api/check)", async () => {
     const handler = createPhotoDraftHandler({
       vision: () => ({
         draftFromPhoto: async () => {
@@ -78,7 +78,7 @@ describe("POST /api/check/photo-draft", () => {
       paywallMode: () => "legacy"
     });
     const response = await handler(post(GOOD_BODY));
-    expect(response.status).toBe(502);
+    expect(response.status).toBe(200);
     expect((await response.json()).kind).toBe("retry");
   });
 });

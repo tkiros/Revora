@@ -62,3 +62,14 @@ See the strategy handoff
 (`docs/handoff/2026-07-05-paywall-pricing-pantry-strategy-handoff.md`) and the
 implementation plan
 (`docs/superpowers/plans/2026-07-05-launch-readiness-paywall-pantry.md`).
+
+## Amendment 2026-07-06 — refund policy (launch audit BUG-17)
+
+`charge.refunded` handling: a **full** refund of a subscription invoice charge
+sets the subscription row to `refunded` (the only writer of that enum value),
+dropping premium immediately instead of at period-end. **Partial** refunds
+leave the entitlement untouched (a goodwill credit is not a cancellation). A
+refund issued together with a cancellation also flows through
+`customer.subscription.deleted`; the two updates are idempotent. Pantry Review
+(one-time payment) refunds continue to cancel the matching `pantry_orders` row
+by payment intent.

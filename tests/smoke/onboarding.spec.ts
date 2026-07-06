@@ -16,13 +16,15 @@ test("a new user walks welcome→segment→a1c→expectations→first_check into
 }) => {
   await page.goto("/onboarding");
 
-  // Step 1: welcome + the North Star line
+  // Step 1: welcome. (The "Reversal…" North Star line was removed 2026-07-06
+  // pending counsel Q8 — launch audit BUG-05; restore this assertion only with
+  // an Approved copy-ledger row.)
   await expect(page.getByTestId("onboarding-step")).toHaveAttribute(
     "data-step",
     "welcome"
   );
   await expect(
-    page.getByText(/Reversal is achieved through your dietary choices/)
+    page.getByText(/one reason, one adjustment, and one safer swap/)
   ).toBeVisible();
   await expectNoSeriousViolations(page);
   await page.getByRole("button", { name: "Get started" }).click();

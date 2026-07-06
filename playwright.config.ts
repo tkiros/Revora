@@ -45,7 +45,9 @@ const trialWebServer = {
   reuseExistingServer: false,
   stdout: "pipe" as const,
   stderr: "pipe" as const,
-  timeout: 120000,
+  // 240s: a cold .next cache on a slow disk exceeded the 120s default and
+  // zero tests ran (2026-07-06 launch audit BUG-15). Warm boots are unaffected.
+  timeout: 240_000,
   env: {
     NEXT_PUBLIC_VAPID_PUBLIC_KEY:
       "BDd3_hVL9fZi9Ybo2UUmA0mNzLFmwEsuJdyxdCLVQV-XFotN0jkNqp7GQ96_2enX0mUeXBIvBqXAiCveKuMhGJ0",
@@ -85,7 +87,8 @@ export default defineConfig({
       reuseExistingServer: false,
       stdout: "pipe",
       stderr: "pipe",
-      timeout: 120000,
+      // 240s: see the trialWebServer note (BUG-15 cold-boot timeout).
+      timeout: 240_000,
       env: {
         // A syntactically-valid VAPID public key so the nudge opt-in flow can
         // run end-to-end against mocked push APIs (never used to send).

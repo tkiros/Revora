@@ -20,9 +20,17 @@ Every variable, per phase. Provision in Vercel for **preview + production**
 | `PLAY_PACKAGE_NAME` | 4D | e.g. `app.revora.twa` |
 | ⚙ `RTDN_SHARED_TOKEN` | 4D | shared token on the Pub/Sub push endpoint URL |
 | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | 4D | web-fallback billing |
-| `STRIPE_PRICE_MONTHLY` / `STRIPE_PRICE_ANNUAL` | 4D | Stripe price IDs for the two SKUs |
+| `STRIPE_PRICE_MONTHLY` / `STRIPE_PRICE_ANNUAL` | 4D | Stripe price IDs for the two legacy SKUs |
+| `PAYWALL_MODE` | launch-readiness | **The business-model flag.** `trial` = card-gated 7-day trial + hard wall (the locked 2026-07-05 model); anything else = `legacy` standing free tier (5 checks/day). Defaults to `legacy` (`lib/server/pricing.ts`) — production must be flipped to `trial` deliberately, after the DoR live walkthrough (see `docs/runbooks/price-test.md`) |
+| `TRIAL_PRICE_VARIANT` | launch-readiness | `999` / `1299` (default) / `1999` — selects the monthly price cohort for the trial wall |
+| `STRIPE_PRICE_MONTHLY_999` / `STRIPE_PRICE_MONTHLY_1299` / `STRIPE_PRICE_MONTHLY_1999` | launch-readiness | live Stripe price IDs for the three trial-mode monthly variants (`lib/server/pricing.ts`) |
+| `STRIPE_PRICE_PANTRY` | launch-readiness | live Stripe price ID for the one-time $49 Pantry Review |
+| `MEAL_EXTRACT_STUB` | dev/test only | `1` returns a fixed meal-photo draft without a vision call (`lib/meal/photo-extract.ts`). Ignored in production builds |
+| `PANTRY_EXTRACT_STUB` | dev/test only | same idea for the Pantry Review photo extraction |
+| `REVORA_DAILY_CHECK_CAP` | existing | global daily check cap enforced by the middleware (default 2000, `lib/revora/rate-limit.ts`) |
+| `NEXT_PUBLIC_WAITLIST_URL` | launch-readiness | Tally waitlist form URL for `/get-the-app`; section hidden when unset |
 | ⚙ `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | P5 | `npx web-push generate-vapid-keys`; also expose the public key as `NEXT_PUBLIC_VAPID_PUBLIC_KEY` |
-| ⚙ `CRON_SECRET` | P5 | bearer token Vercel sends to cron routes |
+| ⚙ `CRON_SECRET` | P5 | bearer token the schedulers send to cron routes — the Railway `hourly-crons` service (nudge, pantry-sweep, trial-precharge; `docs/runbooks/price-test.md`) and the one remaining Vercel cron (`bai-weekly`, `vercel.json`) |
 | `NEXT_PUBLIC_UMAMI_SRC` | P7 | Umami tracker script URL (self-hosted on Railway — `docs/adr/analytics-umami.md`); analytics is fully disabled (no `<script>` rendered, `track()` no-ops) when unset |
 | `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | P7 | Umami website ID; both this and `NEXT_PUBLIC_UMAMI_SRC` must be set for analytics to activate |
 | `NEXT_PUBLIC_APP_URL` | 4D/P7 | canonical origin, e.g. `https://revora.app` |

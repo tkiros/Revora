@@ -3,7 +3,7 @@
  * fixture markup using the REAL result-card classes — always pixel-true,
  * crawlable, and claims-audited via the copy ledger. No live check runs here.
  */
-import Link from "next/link";
+import { DisclaimerLine } from "./disclaimer-line";
 
 export function DemoCheckCard() {
   return (
@@ -29,13 +29,7 @@ export function DemoCheckCard() {
             instant packets.
           </p>
         </div>
-        <p className="result-disclaimer">
-          Revora is informational only and is not medical advice. Talk with a
-          doctor or registered dietitian for guidance that is specific to you.{" "}
-          <Link className="result-disclaimer-link" href="/privacy">
-            Privacy
-          </Link>
-        </p>
+        <DisclaimerLine />
       </div>
     </section>
   );

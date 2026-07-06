@@ -114,10 +114,6 @@ export default function OnboardingPage() {
                 Should I eat this, now? Get a calm answer.
               </h1>
               <p className="page-copy">
-                Reversal is achieved through your dietary choices — Revora
-                gives you the clarity to make them.
-              </p>
-              <p className="page-copy">
                 At the moment of a meal, Revora gives you one clear answer —
                 Clear, Be careful, or Hold off — with one reason, one
                 adjustment, and one safer swap. Never a calorie, never a

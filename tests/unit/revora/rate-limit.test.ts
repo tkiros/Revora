@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  createRateLimitDeps,
   evaluateRateLimit,
   getClientIp,
+  isRateLimitConfigured,
+  rateLimitConfigState,
   type RateLimitDeps
 } from "../../../lib/revora/rate-limit";
 
@@ -64,5 +67,48 @@ describe("evaluateRateLimit", () => {
 
   it("falls back to 'unknown' with no IP header", () => {
     expect(getClientIp(new Headers())).toBe("unknown");
+  });
+});
+
+describe("rateLimitConfigState (BUG-01/07 hardening)", () => {
+  const REST_URL = "https://fake.upstash.io";
+  const TCP_URL = "rediss://default:pass@fake.upstash.io:6379";
+  const env = (vars: Record<string, string>) =>
+    vars as unknown as NodeJS.ProcessEnv;
+
+  it("is unconfigured when either var is absent", () => {
+    expect(rateLimitConfigState(env({}))).toBe("unconfigured");
+    expect(
+      rateLimitConfigState(env({ UPSTASH_REDIS_REST_URL: REST_URL }))
+    ).toBe("unconfigured");
+  });
+
+  it("is configured for the https:// REST URL", () => {
+    const configured = env({
+      UPSTASH_REDIS_REST_URL: REST_URL,
+      UPSTASH_REDIS_REST_TOKEN: "tok"
+    });
+    expect(rateLimitConfigState(configured)).toBe("configured");
+    expect(isRateLimitConfigured(configured)).toBe(true);
+  });
+
+  it("is invalid for the rediss:// TCP URL — the misconfig that 500'd prod", () => {
+    const invalid = env({
+      UPSTASH_REDIS_REST_URL: TCP_URL,
+      UPSTASH_REDIS_REST_TOKEN: "tok"
+    });
+    expect(rateLimitConfigState(invalid)).toBe("invalid");
+    expect(isRateLimitConfigured(invalid)).toBe(false);
+  });
+
+  it("createRateLimitDeps returns null (never throws) on an invalid URL", () => {
+    expect(
+      createRateLimitDeps(
+        env({
+          UPSTASH_REDIS_REST_URL: TCP_URL,
+          UPSTASH_REDIS_REST_TOKEN: "tok"
+        })
+      )
+    ).toBeNull();
   });
 });

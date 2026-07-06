@@ -30,8 +30,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(payload.title, {
       body: payload.body,
-      icon: "/icons/icon-192.png",
-      badge: "/icons/icon-192.png",
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
       tag: "revora-daily-nudge" // same tag: never stacks duplicates
     })
   );

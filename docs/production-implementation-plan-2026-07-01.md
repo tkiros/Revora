@@ -184,7 +184,7 @@ D5 adds exactly two components in front of the existing form: `POST /api/draft-m
 | **Input & decisioning** |||||
 | F1 | Text input → engine → decision card | **SHIP** (exists; card extended) | 0, 1 | §6.1 |
 | F2 | Voice input → transcription → same text path | **SHIP** (new) | 2 | §6.2 |
-| F3 | Photo-assist, confirm-before-verdict (D5) | **DEFERRED — specified, not built** | — | §6.3 |
+| F3 | Photo-assist, confirm-before-verdict (D5) | **DEFERRED — specified, not built** *(superseded — see the CORRECTION note directly below this table)* | — | §6.3 |
 | F4 | Decision card: risk + one reason + one adjustment + one swap | **SHIP** (exists) | 0 | §6.1 |
 | F5 | Food-sequencing coach (first-class output, PP-03) | **SHIP** (new) | 1 | §5 P1 |
 | F6 | Post-meal actions (one calm next step, PP-06) | **SHIP** (new) | 1 | §5 P1 |
@@ -209,6 +209,8 @@ D5 adds exactly two components in front of the existing form: `POST /api/draft-m
 | F21 | CGM correlation (premium) | **EXCLUDED — post-launch increment 1** (specified, not built; not an input method) | — | §13 |
 
 F3 and F21 are distinct categories: **D5 is the single deferred input method** (roadmap, built in a later release once §6.3's gates pass); **CGM is excluded from launch scope** and planned as the first post-launch increment.
+
+> **CORRECTION 2026-07-06 (F3 / D5):** D5 Photo-assist is no longer deferred — built and merged to `main` (see `docs/superpowers/plans/2026-07-06-photo-assist-check-input.md`, commits 7ee6867…6a607ba); ships transcribe-only draft→confirm→existing `/api/check`, gated + no photo persistence. ⚠ The §6.3.4 binding pre-ship gates (100-meal blind dietitian-graded eval; counsel SaMD imaging answer Q9; owner green-light) are NOT yet evidenced as satisfied — the shipped eval is a lighter 20–30-photo recall bar with fixtures uncommitted (skipped). Treat those gates as still-open before any photo marketing / store-facing launch.
 
 ---
 

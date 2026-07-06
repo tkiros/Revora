@@ -348,6 +348,24 @@ describe("/api/health reports launchMode from launch-control seam", () => {
     expect(payload.upstash).toBe("configured");
   });
 
+  it("reports upstash:invalid when the URL is the rediss:// TCP form (BUG-01/07)", async () => {
+    process.env = {
+      ...ORIGINAL_ENV,
+      NODE_ENV: "production",
+      VERCEL_ENV: "preview",
+      OPENAI_API_KEY: "sk-preview-test",
+      UPSTASH_REDIS_REST_URL: "rediss://default:pass@fake.upstash.io:6379",
+      UPSTASH_REDIS_REST_TOKEN: "fake-token"
+    };
+    delete process.env.EDGE_CONFIG;
+    delete process.env.REVORA_LAUNCH_MODE_OVERRIDE;
+
+    const { GET } = await import("../../../app/api/health/route");
+    const payload = await (await GET()).json();
+
+    expect(payload.upstash).toBe("invalid");
+  });
+
   it("includes launchMode:paused when the override is active", async () => {
     process.env = {
       ...ORIGINAL_ENV,

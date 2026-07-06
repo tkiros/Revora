@@ -39,10 +39,11 @@ describe("DemoCheckCard source (ledger + static-fixture contract)", () => {
     );
   });
 
-  it("renders the verbatim result-footer disclaimer", () => {
-    expect(NORMALIZED).toContain(
-      "Revora is informational only and is not medical advice. Talk with a doctor or registered dietitian for guidance that is specific to you."
-    );
+  it("renders the shared result-footer disclaimer component (BUG-13 dedupe)", () => {
+    // The verbatim string is pinned once, in components/disclaimer-line.tsx;
+    // the demo card must render that shared component, not its own copy.
+    expect(NORMALIZED).toContain("<DisclaimerLine />");
+    expect(NORMALIZED).toContain('from "./disclaimer-line"');
   });
 
   it("is a static fixture: no form controls and no fetch", () => {

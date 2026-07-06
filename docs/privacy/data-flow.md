@@ -44,6 +44,7 @@ Revora now has two data postures:
 | `push_subscriptions` | endpoint + keys | opt-in only; deleted on opt-out/account deletion |
 | `subscriptions` | provider ref, product, status, period end | no payment instruments — Play/Stripe hold those |
 | `bai_weekly` | behavioral scores | derived, qualitative-banded |
+| `pantry_orders` | buyer email (plaintext), Stripe refs, order status | email is the Stripe checkout address, used to send the intake link + report; no payment instruments |
 | `deletion_log` | sha256(user id), timestamps | retains no identity |
 
 **Never stored anywhere:** plaintext food, plaintext exact A1C, prompt text,

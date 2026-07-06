@@ -6,7 +6,7 @@
  * contracts and the privacy invariant (the SW must never cache /api/check responses).
  */
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
@@ -80,5 +80,16 @@ describe("Phase 7 — service worker privacy invariant", () => {
 
   it("never writes responses to the cache (so no API response is ever cached)", () => {
     expect(sw).not.toMatch(/\.put\s*\(/);
+  });
+
+  it("references only asset paths that exist in public/ (BUG-16)", () => {
+    const referenced = sw.match(/"\/[\w./-]+\.(?:png|html)"/g) ?? [];
+    expect(referenced.length).toBeGreaterThan(0);
+    for (const quoted of referenced) {
+      const asset = quoted.slice(1, -1);
+      expect(existsSync(`public${asset}`), `${asset} missing in public/`).toBe(
+        true
+      );
+    }
   });
 });

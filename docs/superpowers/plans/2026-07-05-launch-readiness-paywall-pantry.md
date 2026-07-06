@@ -1,5 +1,7 @@
 # Revora Launch-Readiness Implementation Plan
 
+> **NOTE 2026-07-06:** This plan does not scope D5 Photo-assist (its "photo" references are the Pantry Review upload, a separate surface). D5 meal-photo check input was built under `docs/superpowers/plans/2026-07-06-photo-assist-check-input.md`; no change to this plan's paywall/pantry scope is implied.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Ship the web app to launch readiness: Day-1 anonymous taster (≤10 checks) → hard wall → 7-day card-required Stripe trial auto-converting to $12.99/mo (with 2-day pre-charge email + one-tap cancel), in-app Pantry Review purchase, guided first-run onboarding, "Enjoy it anyway" enrichment, and the instrumentation + price-test harness to measure all of it.

@@ -550,18 +550,7 @@ export async function applyStripeEvent(
 
   if (event.type === "invoice.paid") {
     const invoice = event.data.object as Stripe.Invoice;
-    // Subscription id resolution across API versions. On 2025-03-31.basil+
-    // payloads it lives under invoice.parent.subscription_details; older
-    // account/endpoint versions send a top-level invoice.subscription that
-    // stripe@22's types no longer declare — resolve via a safe cast fallback.
-    const subRef = invoice.parent?.subscription_details?.subscription;
-    let subscriptionId = typeof subRef === "string" ? subRef : subRef?.id;
-    if (!subscriptionId) {
-      const legacy = (
-        invoice as unknown as { subscription?: string | { id: string } }
-      ).subscription;
-      subscriptionId = typeof legacy === "string" ? legacy : legacy?.id;
-    }
+    const subscriptionId = resolveInvoiceSubscriptionId(invoice);
     if (!subscriptionId) {
       return;
     }
@@ -693,14 +682,61 @@ export async function applyStripeEvent(
       typeof charge.payment_intent === "string"
         ? charge.payment_intent
         : charge.payment_intent?.id;
-    if (!paymentIntent) {
+    if (paymentIntent) {
+      await db
+        .update(schema.pantryOrders)
+        .set({ status: "canceled", updatedAt: now })
+        .where(eq(schema.pantryOrders.stripePaymentIntent, paymentIntent));
+    }
+
+    // Subscription refund (launch audit BUG-17). Policy: a FULL refund of a
+    // subscription invoice charge (charge.refunded === true) drops premium
+    // immediately via status "refunded" — the only writer of that enum value.
+    // Partial refunds keep the entitlement; a refund WITH a cancel also flows
+    // through subscription.deleted, and this update is idempotent alongside it.
+    // stripe@22's basil types drop charge.invoice — same safe-cast fallback as
+    // the invoice.paid resolution above.
+    if (!charge.refunded || !stripe) {
+      return;
+    }
+    const invoiceRef = (
+      charge as unknown as { invoice?: string | { id: string } | null }
+    ).invoice;
+    const invoiceId =
+      typeof invoiceRef === "string" ? invoiceRef : invoiceRef?.id;
+    if (!invoiceId) {
+      return;
+    }
+    const invoice = await stripe().invoices.retrieve(invoiceId);
+    const subscriptionId = resolveInvoiceSubscriptionId(invoice);
+    if (!subscriptionId) {
       return;
     }
     await db
-      .update(schema.pantryOrders)
-      .set({ status: "canceled", updatedAt: now })
-      .where(eq(schema.pantryOrders.stripePaymentIntent, paymentIntent));
+      .update(schema.subscriptions)
+      .set({ status: "refunded", updatedAt: now })
+      .where(eq(schema.subscriptions.providerRef, subscriptionId));
   }
+}
+
+/**
+ * Subscription id resolution across API versions. On 2025-03-31.basil+
+ * payloads it lives under invoice.parent.subscription_details; older
+ * account/endpoint versions send a top-level invoice.subscription that
+ * stripe@22's types no longer declare — resolve via a safe cast fallback.
+ */
+function resolveInvoiceSubscriptionId(
+  invoice: Stripe.Invoice
+): string | undefined {
+  const subRef = invoice.parent?.subscription_details?.subscription;
+  const fromParent = typeof subRef === "string" ? subRef : subRef?.id;
+  if (fromParent) {
+    return fromParent;
+  }
+  const legacy = (
+    invoice as unknown as { subscription?: string | { id: string } }
+  ).subscription;
+  return typeof legacy === "string" ? legacy : legacy?.id;
 }
 
 async function applyPantryCheckout(

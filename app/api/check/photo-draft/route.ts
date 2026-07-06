@@ -107,10 +107,10 @@ export function createPhotoDraftHandler(deps: PhotoDraftDeps = {}) {
       return NextResponse.json({ kind: "draft", ...draft });
     } catch (error) {
       await captureServerError(error, "route");
-      return NextResponse.json(
-        { kind: "retry", message: RETRY_MESSAGE },
-        { status: 502 }
-      );
+      // 200 + kind:"retry" mirrors /api/check's calm-retry contract: a model
+      // hiccup is a handled product state, not a gateway error, and must not
+      // read as a 5xx in monitoring (launch audit BUG-12).
+      return NextResponse.json({ kind: "retry", message: RETRY_MESSAGE });
     }
   };
 }

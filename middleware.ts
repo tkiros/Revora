@@ -30,7 +30,10 @@ const DEFAULT_PAUSE_DISCLAIMER = "Not medical advice.";
 const RATE_LIMIT_COPY =
   "Revora is helping a lot of people right now. Please try again in a moment.";
 
-// Built once per runtime; null when Upstash env is absent.
+// Built once per runtime; null when Upstash env is absent OR invalid (e.g. a
+// rediss:// TCP URL instead of the https:// REST URL). The factory never
+// throws — a throw at module scope here is a platform 500 on every matched
+// request (launch audit BUG-01); null fails closed below on public deploys.
 const rateLimitDeps: RateLimitDeps | null = createRateLimitDeps();
 
 /**

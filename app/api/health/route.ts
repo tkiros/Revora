@@ -2,16 +2,16 @@ import { NextResponse } from "next/server";
 
 import { getLaunchControls } from "../../../lib/revora/launch-controls";
 import { getRevoraEnv } from "../../../lib/revora/env";
-import { isRateLimitConfigured } from "../../../lib/revora/rate-limit";
+import { rateLimitConfigState } from "../../../lib/revora/rate-limit";
 import { captureServerError } from "../../../lib/revora/sentry-capture";
 import { getDb, schema, type Db } from "../../../lib/server/db";
 
 export const runtime = "nodejs";
 
-// Staleness windows mirror each cron's own cadence with slack: nudge runs
-// hourly (vercel.json "0 * * * *"), bai-weekly runs Mondays (vercel.json
-// "30 4 * * 1"), pantry-sweep and trial-precharge both run hourly (vercel.json
-// "15 * * * *" and "45 * * * *") — so both take the same 2h window as nudge.
+// Staleness windows mirror each cron's own cadence with slack: bai-weekly runs
+// Mondays via vercel.json ("30 4 * * 1"); nudge, pantry-sweep and
+// trial-precharge run hourly from the Railway scheduler service (see
+// docs/runbooks/price-test.md) — all three take the same 2h window.
 const NUDGE_STALE_MS = 2 * 60 * 60 * 1000; // 2 hours
 const BAI_WEEKLY_STALE_MS = 8 * 24 * 60 * 60 * 1000; // 8 days
 const TRIAL_PRECHARGE_STALE_MS = 2 * 60 * 60 * 1000; // 2 hours
@@ -64,7 +64,7 @@ export function createHealthHandler(deps: HealthDeps = {}) {
           environment,
           launch: "missing_config",
           launchMode: "normal",
-          upstash: isRateLimitConfigured() ? "configured" : "unconfigured",
+          upstash: rateLimitConfigState(),
           db,
           crons
         },
@@ -83,10 +83,12 @@ export function createHealthHandler(deps: HealthDeps = {}) {
       launch: isPaused ? "paused" : "ready",
       launchMode,
       // Surfaces the merge-gate dependency: middleware fails CLOSED (503) on a
-      // public deploy when Upstash env is absent. ponytail: presence only, no live
-      // ping and no client construction — the limiter fails open on reachability, so
-      // a ping failure isn't app-fatal and doesn't belong in a frequently-hit probe.
-      upstash: isRateLimitConfigured() ? "configured" : "unconfigured",
+      // public deploy when Upstash env is absent OR invalid. "invalid" means the
+      // URL is not the https:// REST endpoint (e.g. a rediss:// TCP URL) — wire
+      // monitoring to alert on anything but "configured". ponytail: static
+      // validation only, no live ping — the limiter fails open on reachability,
+      // so a ping failure isn't app-fatal and doesn't belong in a hot probe.
+      upstash: rateLimitConfigState(),
       // db/crons are visibility-only (P7): a db error or stale/never cron
       // never flips `ok` false — guests are still served without a DB, and a
       // missed cron tick isn't an outage. Never secrets, URLs, or counts.

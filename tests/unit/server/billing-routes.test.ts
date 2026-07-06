@@ -267,6 +267,83 @@ describe("applyStripeEvent", () => {
     expect(row.status).toBe("expired");
   });
 
+  it("charge.refunded (full) on a subscription invoice drops the row to refunded (BUG-17)", async () => {
+    await testDb.db.insert(schema.subscriptions).values({
+      userId,
+      provider: "stripe",
+      providerRef: "sub_refund",
+      productId: "premium_monthly",
+      status: "active",
+      currentPeriodEnd: FUTURE
+    });
+
+    const stripeClient = {
+      invoices: {
+        retrieve: vi.fn().mockResolvedValue({
+          parent: { subscription_details: { subscription: "sub_refund" } }
+        })
+      }
+    } as unknown as Stripe;
+
+    await applyStripeEvent(
+      testDb.db,
+      {
+        type: "charge.refunded",
+        data: {
+          object: {
+            payment_intent: "pi_refund",
+            refunded: true,
+            invoice: "in_refund"
+          }
+        }
+      } as unknown as Stripe.Event,
+      NOW,
+      () => stripeClient
+    );
+
+    const [row] = await testDb.db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.providerRef, "sub_refund"));
+    // "refunded" is outside PREMIUM_STATUSES — premium drops immediately.
+    expect(row.status).toBe("refunded");
+  });
+
+  it("charge.refunded (partial) leaves the subscription untouched", async () => {
+    await testDb.db.insert(schema.subscriptions).values({
+      userId,
+      provider: "stripe",
+      providerRef: "sub_partial",
+      productId: "premium_monthly",
+      status: "active",
+      currentPeriodEnd: FUTURE
+    });
+
+    const retrieve = vi.fn();
+    await applyStripeEvent(
+      testDb.db,
+      {
+        type: "charge.refunded",
+        data: {
+          object: {
+            payment_intent: "pi_partial",
+            refunded: false, // amount_refunded < amount
+            invoice: "in_partial"
+          }
+        }
+      } as unknown as Stripe.Event,
+      NOW,
+      () => ({ invoices: { retrieve } }) as unknown as Stripe
+    );
+
+    const [row] = await testDb.db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.providerRef, "sub_partial"));
+    expect(row.status).toBe("active");
+    expect(retrieve).not.toHaveBeenCalled();
+  });
+
   it("checkout.session.completed with a trialing subscription stores status trialing + variant", async () => {
     const trialEnd = Math.floor(FUTURE.getTime() / 1000);
     const stripeClient = {

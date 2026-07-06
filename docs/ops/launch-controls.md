@@ -372,7 +372,8 @@ hourly run is acceptable and self-heals: the nudge cron
 their hour's nudge simply gets the next day's normally, and a user who *did*
 get it is skipped on every subsequent run that day even if the cron fires
 again. **Action:** check the cron heartbeat (`/api/health`'s `crons.nudge`
-staleness probe — `ok`/`stale`/`never`) and Vercel cron logs to confirm the
+staleness probe — `ok`/`stale`/`never`) and the Railway `hourly-crons`
+service logs (`docs/runbooks/price-test.md`) to confirm the
 job is actually running on schedule; never manually re-fire a nudge send for
 a user or cohort — the skip-if-already-notified design means a manual re-fire
 risks being the actual cause of a double-send, not the fix for a missed one.
