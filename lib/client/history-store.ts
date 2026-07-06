@@ -14,7 +14,7 @@ export type StoredCheck = {
   food: string;
   risk: RevoraRisk;
   a1cBand: string;
-  inputMethod: "text" | "voice";
+  inputMethod: "text" | "voice" | "photo";
   createdAt: string; // ISO
   actionDoneAt?: string;
 };

@@ -807,3 +807,103 @@ button.inline-link {
     break-inside: avoid;
   }
 }
+
+/* Photo-assist (D5): draft review card + chips. One amber for uncertainty;
+   everything else stays on the existing tokens. */
+.secondary-button {
+  min-height: 44px;
+  border: 2px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 8px 16px;
+  background: var(--surface-muted);
+  color: var(--text-strong);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.secondary-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.secondary-button:focus-visible {
+  outline: 3px solid rgba(15, 23, 42, 0.18);
+  outline-offset: 2px;
+}
+
+.draft-card {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border: 2px solid var(--border-strong);
+  border-radius: 22px;
+  background: var(--surface);
+}
+
+.chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 2px solid var(--border-soft);
+  border-radius: 999px;
+  background: var(--surface-muted);
+  padding: 4px 6px 4px 12px;
+}
+
+.chip-uncertain {
+  border-color: #b45309;
+  background: #fffbeb;
+}
+
+.chip-label {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--text-body);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.chip-uncertain .chip-label {
+  color: #92400e;
+}
+
+.chip-remove {
+  border: 0;
+  background: none;
+  padding: 0 6px;
+  color: var(--text-soft);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.chip-add-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.chip-add-row .text-input {
+  flex: 1;
+}
+
+.link-button-plain {
+  border: 0;
+  background: none;
+  padding: 4px 0;
+  color: var(--text-muted);
+  font-size: 15px;
+  text-decoration: underline;
+  cursor: pointer;
+}

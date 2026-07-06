@@ -18,6 +18,10 @@ import {
   type CheckFormInput,
   validateCheckForm
 } from "../lib/client/validation";
+import type { MealDraftItem } from "../lib/meal/photo-extract";
+import type { PhotoDraftResult } from "../lib/client/photo-draft";
+import { PhotoDraftReview } from "./photo-draft-review";
+import { PhotoInputButton } from "./photo-input-button";
 import { RequestStatus } from "./request-status";
 import { ResultCard } from "./result-card";
 import { VoiceInputButton } from "./voice-input-button";
@@ -50,7 +54,12 @@ export function FoodCheckForm() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [uiState, setUiState] = useState<CheckUiState>({ kind: "idle" });
   const [isHydrated, setIsHydrated] = useState(false);
-  const [inputMethod, setInputMethod] = useState<"text" | "voice">("text");
+  const [inputMethod, setInputMethod] = useState<"text" | "voice" | "photo">("text");
+  const [photoDraft, setPhotoDraft] = useState<{
+    dish: string | null;
+    items: MealDraftItem[];
+  } | null>(null);
+  const [photoNotice, setPhotoNotice] = useState<string | null>(null);
   const [lastCheckId, setLastCheckId] = useState<string | null>(null);
   const [actionDone, setActionDone] = useState(false);
   const [mode, setMode] = useState<PaywallMode>("legacy");
@@ -208,6 +217,7 @@ export function FoodCheckForm() {
   function handleChange(field: keyof CheckFormInput, value: string) {
     setInput((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: undefined }));
+    setPhotoNotice(null);
 
     if (uiState.kind === "invalid" || uiState.kind === "error") {
       setUiState({ kind: "idle" });
@@ -224,9 +234,27 @@ export function FoodCheckForm() {
   function handleTypedFoodChange(value: string) {
     handleChange("food", value);
     // ponytail: an emptied field restarts as typed input; small edits after a
-    // dictation keep counting as voice — good enough for the method signal.
+    // dictation/photo confirm keep counting as voice/photo — good enough for
+    // the method signal.
     if (value.trim().length === 0) {
       setInputMethod("text");
+    }
+  }
+
+  function handlePhotoDraft(result: PhotoDraftResult) {
+    if (result.kind === "draft") {
+      setPhotoDraft({ dish: result.dish, items: result.items });
+      track({
+        name: "photo_draft",
+        props: {
+          items: result.items.length,
+          uncertain: result.items.filter((item) => item.uncertain).length
+        }
+      });
+    } else if (result.kind === "upsell") {
+      window.location.assign("/subscribe");
+    } else {
+      setPhotoNotice(result.message);
     }
   }
 
@@ -275,6 +303,32 @@ export function FoodCheckForm() {
           onTranscript={handleVoiceTranscript}
           disabled={isSubmitting}
         />
+        <PhotoInputButton
+          onDraft={handlePhotoDraft}
+          onRequestOpen={() => {
+            // Same taster gate as handleSubmit: a walled taster never spends
+            // a draft call — the picker never opens.
+            if (shouldGateSubmit(mode, tasterStore.status())) {
+              window.location.assign("/subscribe");
+              return false;
+            }
+            return true;
+          }}
+          disabled={isSubmitting}
+        />
+        {photoNotice ? <p className="field-hint">{photoNotice}</p> : null}
+        {photoDraft ? (
+          <PhotoDraftReview
+            dish={photoDraft.dish}
+            items={photoDraft.items}
+            onConfirm={(text) => {
+              handleChange("food", text);
+              setInputMethod("photo");
+              setPhotoDraft(null);
+            }}
+            onDiscard={() => setPhotoDraft(null)}
+          />
+        ) : null}
       </div>
 
       <div className="field-stack">

@@ -9,7 +9,8 @@
     "test:revora": "vitest run tests/unit/revora",
     "eval:revora": "vitest run tests/evals/revora-safety-eval.test.ts",
     "eval:revora:live": "node scripts/run-graded-evals.mjs",
-    "eval:pantry-extract": "vitest run tests/evals/pantry-extract-eval.test.ts"
+    "eval:pantry-extract": "vitest run tests/evals/pantry-extract-eval.test.ts",
+    "eval:meal-photo": "vitest run tests/evals/meal-photo-eval.test.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.2",

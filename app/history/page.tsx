@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { DisclaimerLine } from "../../components/disclaimer-line";
 import type { StoredCheck } from "../../lib/client/history-store";
 import { loadHistory } from "../../lib/client/remote-history";
 import { dayKeyLocal as localDayKey } from "../../lib/coach/days";
@@ -133,6 +134,8 @@ export default function HistoryPage() {
             </ul>
           )}
         </section>
+
+        <DisclaimerLine />
 
         <footer className="page-footer">
           <Link href="/">Home</Link>

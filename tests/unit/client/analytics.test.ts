@@ -19,7 +19,8 @@ const ALLOWED_NAMES = [
   "trial_checkout_started",
   "trial_started",
   "pantry_viewed",
-  "pantry_checkout_started"
+  "pantry_checkout_started",
+  "photo_draft"
 ] as const;
 
 // (a) Compile-time exhaustiveness: this switch must handle every member of
@@ -42,6 +43,7 @@ function assertExhaustive(name: AnalyticsEvent["name"]): void {
     case "trial_started":
     case "pantry_viewed":
     case "pantry_checkout_started":
+    case "photo_draft":
       return;
     default: {
       const exhaustiveCheck: never = name;
@@ -73,7 +75,8 @@ describe("AnalyticsEvent allowlist", () => {
       { name: "trial_checkout_started", props: { variant: "1299" } },
       { name: "trial_started", props: { variant: "999" } },
       { name: "pantry_viewed", props: { source: "wall_decline" } },
-      { name: "pantry_checkout_started" }
+      { name: "pantry_checkout_started" },
+      { name: "photo_draft", props: { items: 3, uncertain: 1 } }
     ];
 
     expect(oneOfEach.map((event) => event.name).sort()).toEqual(
@@ -203,7 +206,7 @@ describe("AnalyticsEvent props stay closed unions (no free-text props)", () => {
     // The union's final variant/terminator — everything between the start
     // and this marker (inclusive) is the full AnalyticsEvent declaration,
     // spanning the nested check_completed props object.
-    const endMarker = '"pantry_checkout_started" };';
+    const endMarker = '"photo_draft"; props: { items: number; uncertain: number } };';
     const typeBlockEndIndex = SOURCE.indexOf(endMarker, typeBlockStart);
     expect(typeBlockStart).toBeGreaterThanOrEqual(0);
     expect(typeBlockEndIndex).toBeGreaterThan(typeBlockStart);

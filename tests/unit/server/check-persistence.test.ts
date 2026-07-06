@@ -128,9 +128,17 @@ describe("check persistence (4B)", () => {
     expect(rows).toHaveLength(0);
   });
 
-  it("defaults a bad input-method header to text", async () => {
+  it("persists the photo input method (D5)", async () => {
     const POST = createHandler({ sessionUserId: userId });
     await POST(checkRequest({ "x-revora-input-method": "photo" }));
+
+    const rows = await testDb.db.select().from(schema.checks);
+    expect(rows[0].inputMethod).toBe("photo");
+  });
+
+  it("defaults a bad input-method header to text", async () => {
+    const POST = createHandler({ sessionUserId: userId });
+    await POST(checkRequest({ "x-revora-input-method": "gibberish" }));
 
     const rows = await testDb.db.select().from(schema.checks);
     expect(rows[0].inputMethod).toBe("text");
