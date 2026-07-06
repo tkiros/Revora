@@ -16,6 +16,20 @@ import { expect, test, type Page } from "@playwright/test";
  *   scenarios below drive that server via absolute TRIAL urls; the legacy-guard
  *   scenario uses the default baseURL (:3100, legacy). Stripe is never hit —
  *   the checkout POST is stubbed at the fetch boundary with page.route.
+ *
+ * SELF-CONTAINED RUN (dev-artifact rewrite):
+ *   The :3101 server sets NEXT_DIST_DIR=".next/e2e-trial" (next.config.ts gates
+ *   distDir on it) so two `next dev` instances don't collide on one dev lock.
+ *   Side effect: `next dev` regenerates the TRACKED tsconfig.json (include
+ *   globs) and next-env.d.ts (routes import) to point at that distDir, which
+ *   used to leave the working tree dirty after any Playwright run — a clean-tree
+ *   / tsc CI gate would fail, or the e2e-trial paths could be committed. Two
+ *   guards now make the run self-contained: (1) playwright.config.ts only boots
+ *   :3101 when this spec is actually in the run (a filtered run of an unrelated
+ *   spec never touches those files); (2) tests/smoke/global-teardown.ts
+ *   surgically collapses any ".next/e2e-trial" segment back to ".next" in both
+ *   files after the run — restoring them without git and without clobbering
+ *   unrelated local edits.
  */
 
 const TRIAL = "http://127.0.0.1:3101";
