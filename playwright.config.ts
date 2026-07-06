@@ -3,11 +3,19 @@ import { defineConfig, devices } from "@playwright/test";
 // The PAYWALL_MODE=trial server on :3101 is only needed when the trial-wall spec
 // is actually in the run. Booting it also rewrites the tracked tsconfig.json /
 // next-env.d.ts to the e2e-trial distDir (healed by tests/smoke/global-teardown.ts),
-// so we keep its blast radius to runs that need it: skip it when a file filter is
-// given that does NOT name trial-wall, and always include it for an unfiltered
-// (whole-suite) run. Detection is conservative — anything that looks like a spec
-// path filter counts; flags like --project="Mobile Chrome" (and its bare value)
-// do not, so a filter-less run still boots it.
+// so we keep its blast radius to runs that provably don't need it.
+//
+// SUPPRESSION RULE: only a set of CONCRETE spec-file filters (each arg
+// endsWith(".spec.ts")) that omit trial-wall suppresses :3101. Everything else
+// boots it — a whole-suite run, an explicit trial-wall filter, AND any
+// directory-style/ambiguous filter (e.g. `tests/smoke/`, `tests/`), because a
+// directory can contain trial-wall.spec.ts and we cannot prove otherwise from
+// the arg alone. Booting when unsure is safe: global-teardown.ts reverts the
+// dev-artifact rewrite so the tree stays clean.
+//
+// specFilters picks out path-like positional args only — the leading `test`
+// subcommand and flags/values like --project="Mobile Chrome" don't look like a
+// spec path, so a filter-less run still boots :3101.
 const specFilters = process.argv
   .slice(2)
   .filter(
@@ -15,8 +23,15 @@ const specFilters = process.argv
       !a.startsWith("-") &&
       (a.endsWith(".ts") || a.includes(".spec") || a.includes("tests/"))
   );
+const concreteSpecFilters = specFilters.filter((a) => a.endsWith(".spec.ts"));
 const runsTrialSpec =
-  specFilters.length === 0 || specFilters.some((a) => a.includes("trial-wall"));
+  // No path filter → whole-suite run → boot.
+  specFilters.length === 0 ||
+  // Any non-concrete path filter (a directory or anything ambiguous) is present
+  // → boot, since it may resolve to trial-wall.
+  concreteSpecFilters.length !== specFilters.length ||
+  // Every filter is a concrete .spec.ts: boot only if one of them is trial-wall.
+  concreteSpecFilters.some((a) => a.includes("trial-wall"));
 
 const trialWebServer = {
   // Second server on :3101 running PAYWALL_MODE=trial for

@@ -24,9 +24,13 @@ import { expect, test, type Page } from "@playwright/test";
  *   globs) and next-env.d.ts (routes import) to point at that distDir, which
  *   used to leave the working tree dirty after any Playwright run — a clean-tree
  *   / tsc CI gate would fail, or the e2e-trial paths could be committed. Two
- *   guards now make the run self-contained: (1) playwright.config.ts only boots
- *   :3101 when this spec is actually in the run (a filtered run of an unrelated
- *   spec never touches those files); (2) tests/smoke/global-teardown.ts
+ *   guards now make the run self-contained: (1) playwright.config.ts suppresses
+ *   :3101 ONLY when every positional filter is a concrete .spec.ts file and none
+ *   names trial-wall (so an unrelated single-spec run never touches those
+ *   files); a whole-suite run, an explicit trial-wall filter, AND any
+ *   directory-style filter (e.g. `tests/smoke/`, `tests/`) all boot it — a
+ *   directory may contain this spec — and the teardown below restores the
+ *   rewrites; (2) tests/smoke/global-teardown.ts
  *   surgically collapses any ".next/e2e-trial" segment back to ".next" in both
  *   files after the run — restoring them without git and without clobbering
  *   unrelated local edits.
