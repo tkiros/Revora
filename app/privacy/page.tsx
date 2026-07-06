@@ -103,6 +103,12 @@ export default function PrivacyPage() {
             encrypted, the same way as your checks, and are removed if you
             delete your account.
           </p>
+          <p>
+            Meal photos you snap for a check are processed in memory to draft
+            your description and are never stored — not on our servers, not in
+            your history. Only the text you confirm is checked and (when
+            you&apos;re signed in) saved.
+          </p>
 
           <h2>What Revora records about usage</h2>
           <p>
