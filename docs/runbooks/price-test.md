@@ -156,12 +156,15 @@ five events and points at the prod domain. Confirm delivery with Stripe CLI:
 `stripe trigger checkout.session.completed` and check the endpoint logs a 2xx.
 
 **Step 4 — Phase-3 cron deployed and alive.**
-`vercel.json` contains `{ "path": "/api/cron/trial-precharge", "schedule":
-"45 * * * *" }`. The route writes a liveness heartbeat to the `cron_heartbeat`
-table with `name = 'trial-precharge'` (`lib/server/billing/precharge.ts`, after
-the sweep).
-Verify the schedule is live: Vercel → Project → Settings → Cron Jobs shows
-`/api/cron/trial-precharge` enabled.
+The hourly crons (`nudge`, `pantry-sweep`, `trial-precharge`) are triggered by
+the Railway service `hourly-crons` in the `revora` Railway project (schedule
+`0 * * * *`; it curls each `/api/cron/*` endpoint with the `CRON_SECRET`
+bearer token — Vercel Hobby only allows daily crons, so only the weekly
+`bai-weekly` remains in `vercel.json`). The route writes a liveness heartbeat
+to the `cron_heartbeat` table with `name = 'trial-precharge'`
+(`lib/server/billing/precharge.ts`, after the sweep).
+Verify the schedule is live: Railway → revora → hourly-crons shows the cron
+schedule enabled and a recent successful run.
 **Confirm the heartbeat is fresh before flipping.** Hit `/api/health` on the
 prod domain and confirm `crons.trialPrecharge` is `"ok"` (not `"stale"` or
 `"never"`) — the precharge sweep is the anti-surprise-charge trust rail the
