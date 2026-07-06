@@ -50,7 +50,7 @@ export async function submitCheck(
     // 4B: server-side meal memory metadata — never part of the engine request
     // body, so the engine contract stays untouched.
     clientId?: string;
-    inputMethod?: "text" | "voice";
+    inputMethod?: "text" | "voice" | "photo";
   }
 ): Promise<RevoraUserResponse> {
   let response: Response;
