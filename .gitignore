@@ -21,3 +21,5 @@ marketing/screenshots/
 # misc
 .DS_Store
 *.tsbuildinfo
+.vercel
+.env*
