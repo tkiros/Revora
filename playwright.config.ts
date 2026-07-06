@@ -15,20 +15,46 @@ export default defineConfig({
     // contract) and the Phase 8.1 manual offline-launch matrix.
     serviceWorkers: "block"
   },
-  webServer: {
-    command: "npx next dev --hostname 127.0.0.1 --port 3100",
-    url: "http://127.0.0.1:3100",
-    reuseExistingServer: false,
-    stdout: "pipe",
-    stderr: "pipe",
-    timeout: 120000,
-    env: {
-      // A syntactically-valid VAPID public key so the nudge opt-in flow can
-      // run end-to-end against mocked push APIs (never used to send).
-      NEXT_PUBLIC_VAPID_PUBLIC_KEY:
-        "BDd3_hVL9fZi9Ybo2UUmA0mNzLFmwEsuJdyxdCLVQV-XFotN0jkNqp7GQ96_2enX0mUeXBIvBqXAiCveKuMhGJ0"
+  webServer: [
+    {
+      command: "npx next dev --hostname 127.0.0.1 --port 3100",
+      url: "http://127.0.0.1:3100",
+      reuseExistingServer: false,
+      stdout: "pipe",
+      stderr: "pipe",
+      timeout: 120000,
+      env: {
+        // A syntactically-valid VAPID public key so the nudge opt-in flow can
+        // run end-to-end against mocked push APIs (never used to send).
+        NEXT_PUBLIC_VAPID_PUBLIC_KEY:
+          "BDd3_hVL9fZi9Ybo2UUmA0mNzLFmwEsuJdyxdCLVQV-XFotN0jkNqp7GQ96_2enX0mUeXBIvBqXAiCveKuMhGJ0"
+      }
+    },
+    {
+      // Second server on :3101 running PAYWALL_MODE=trial for
+      // tests/smoke/trial-wall.spec.ts. Paywall mode is resolved server-side
+      // (app/subscribe/page.tsx → lib/server/pricing.paywallMode()), so the
+      // trial wall can only be exercised by a genuinely trial-mode server; the
+      // :3100 server above stays on the `legacy` default that
+      // billing-pages.spec expects. One server cannot serve both modes at once.
+      command: "npx next dev --hostname 127.0.0.1 --port 3101",
+      url: "http://127.0.0.1:3101",
+      reuseExistingServer: false,
+      stdout: "pipe",
+      stderr: "pipe",
+      timeout: 120000,
+      env: {
+        NEXT_PUBLIC_VAPID_PUBLIC_KEY:
+          "BDd3_hVL9fZi9Ybo2UUmA0mNzLFmwEsuJdyxdCLVQV-XFotN0jkNqp7GQ96_2enX0mUeXBIvBqXAiCveKuMhGJ0",
+        PAYWALL_MODE: "trial",
+        AUTH_EMAIL_STUB_DIR: "/tmp/revora-trial-smoke-stub",
+        // Isolate this server's build dir + dev lock from the :3100 server so
+        // both `next dev` instances coexist (see next.config.ts distDir gate).
+        // Under .next/, so it inherits the .next/ gitignore — nothing new to track.
+        NEXT_DIST_DIR: ".next/e2e-trial"
+      }
     }
-  },
+  ],
   projects: [
     {
       name: "Mobile Chrome",
