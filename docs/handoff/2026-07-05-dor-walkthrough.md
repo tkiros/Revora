@@ -31,8 +31,8 @@ Before Step 1, stand up a preview environment of **this branch** with the follow
   - Test-mode **price IDs** for the trial ($12.99) and the pantry product — **H23** (these are the
     OQ-2 test-mode price IDs; they differ from live-mode IDs).
   - Test-mode **webhook signing secret** + a **test webhook endpoint** pointing at
-    `<preview>/api/billing/webhook` (either a dashboard test-mode webhook, or `stripe listen
-    --forward-to <preview>/api/billing/webhook`).
+    `<preview>/api/billing/stripe/webhook` (either a dashboard test-mode webhook, or `stripe listen
+    --forward-to <preview>/api/billing/stripe/webhook`).
   - `AUTH_EMAIL_STUB_DIR=<dir>` to capture magic-link / transactional emails as files
     (read in `lib/server/email.ts`), **or** a Resend test key if you want real delivery.
   - `PANTRY_EXTRACT_STUB=1` — deterministic stub extractor for pantry photo uploads
@@ -62,8 +62,8 @@ Before Step 1, stand up a preview environment of **this branch** with the follow
 
 1. Deploy the `launch-readiness` branch to a preview environment.
 2. Set every env var listed in **Prerequisites** on that deploy.
-3. Point a test-mode Stripe webhook at `<preview>/api/billing/webhook` (dashboard test-mode endpoint,
-   or `stripe listen --forward-to <preview>/api/billing/webhook`). Confirm the signing secret in the
+3. Point a test-mode Stripe webhook at `<preview>/api/billing/stripe/webhook` (dashboard test-mode endpoint,
+   or `stripe listen --forward-to <preview>/api/billing/stripe/webhook`). Confirm the signing secret in the
    listener matches the `STRIPE_WEBHOOK_SECRET` (or equivalent) on the deploy.
 4. Load `<preview>/` in a fresh browser (no cookies, empty localStorage) and confirm the app renders
    in trial mode (paywall wiring active).
@@ -72,7 +72,7 @@ Before Step 1, stand up a preview environment of **this branch** with the follow
 - [ ] Screenshot: Vercel preview deploy showing the branch = `launch-readiness` and env vars set
       (`PAYWALL_MODE=trial`, `TRIAL_PRICE_VARIANT=1299`).
 - [ ] Log line / screenshot: Stripe test-mode webhook endpoint healthy (200 on a test ping) pointing at
-      `<preview>/api/billing/webhook`.
+      `<preview>/api/billing/stripe/webhook`.
 - [ ] Screenshot: `<preview>/` home rendering in a fresh browser.
 
 ---
@@ -171,7 +171,7 @@ suites (Step 7 / Step 8 below), runnable off the preview but with the caveats no
 
 1. Start a **fresh** trial (new user/email) via the wall → checkout → `4242…` flow, and do **not** cancel.
 2. Attach a **Stripe test clock** and advance it **past the trial end**.
-3. Confirm the `invoice.paid` webhook arrives at `<preview>/api/billing/webhook`.
+3. Confirm the `invoice.paid` webhook arrives at `<preview>/api/billing/stripe/webhook`.
 4. Confirm the `subscriptions` row flips **`status = active`** (conversion path in
    `app/api/billing/handlers.ts` sets `active` on `invoice.paid` for a `trialing` row).
 5. Confirm a **`trial_converted`** telemetry event is logged — proving the $12.99 auto-charge in test mode.
