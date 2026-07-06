@@ -27,7 +27,7 @@ export type AnalyticsEvent =
       props: {
         risk: RevoraRisk;
         kind: CheckResponseKind;
-        input_method: "text" | "voice";
+        input_method: "text" | "voice" | "photo";
       };
     }
   | { name: "onboarding_completed" }
@@ -45,7 +45,8 @@ export type AnalyticsEvent =
       name: "pantry_viewed";
       props: { source: "landing" | "wall_decline" | "result_card" };
     }
-  | { name: "pantry_checkout_started" };
+  | { name: "pantry_checkout_started" }
+  | { name: "photo_draft"; props: { items: number; uncertain: number } };
 
 // Runtime belt-over-type-belt guard: even if a caller bypasses the type
 // system (e.g. `track(untyped)`), only these names are ever forwarded.
@@ -63,7 +64,8 @@ const ALLOWED_EVENT_NAMES: ReadonlySet<AnalyticsEvent["name"]> = new Set([
   "trial_checkout_started",
   "trial_started",
   "pantry_viewed",
-  "pantry_checkout_started"
+  "pantry_checkout_started",
+  "photo_draft"
 ]);
 
 type AnalyticsHost = {
