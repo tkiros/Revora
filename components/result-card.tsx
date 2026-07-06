@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import type { RevoraRisk, RevoraUserResponse } from "../lib/client/ui-state";
+import { DisclaimerLine } from "./disclaimer-line";
 
 // §6.3 post-verdict pantry entry. The one-time Pantry Review line attaches ONLY
 // to non-SAFE results ("Be careful" / "Hold off") — SAFE never piles on, and no
@@ -47,17 +48,6 @@ export function upsellVariant(message: string): {
     title: "That's five for today",
     cta: "See what Premium includes"
   };
-}
-
-function DisclaimerLine({ disclaimer }: { disclaimer: string }) {
-  return (
-    <p className="result-disclaimer">
-      {disclaimer}{" "}
-      <Link className="result-disclaimer-link" href="/privacy">
-        Privacy
-      </Link>
-    </p>
-  );
 }
 
 export function ResultCard({

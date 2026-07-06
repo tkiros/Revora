@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { DisclaimerLine } from "../../components/disclaimer-line";
 import { BAI_BAND_COPY, bandOf, type BaiBand } from "../../lib/coach/bai";
 
 /**
@@ -208,6 +209,8 @@ export default function ProgressPage() {
             .
           </p>
         </section>
+
+        <DisclaimerLine />
 
         <footer className="page-footer">
           <Link href="/">Home</Link>
