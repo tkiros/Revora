@@ -164,7 +164,7 @@ export default function ProgressPage() {
               of checking in, computed Monday morning. Check your next meal
               to get started.
             </p>
-            <Link className="recheck-button link-button" href="/">
+            <Link className="recheck-button link-button" href="/check">
               Check a meal
             </Link>
           </section>

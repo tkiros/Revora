@@ -82,7 +82,7 @@ test("magic-link round trip: email → link → session → consent → profile"
   await page.getByLabel(/I consent to Revora storing/).check();
   await page.getByTestId("welcome-save").click();
 
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/check$/);
 
   // Session survives a reload; profile exists.
   const profile = await page.evaluate(async () => {

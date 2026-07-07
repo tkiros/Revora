@@ -84,7 +84,7 @@ test("spoken meal lands in the textarea, is editable, and submits", async ({
     });
   });
 
-  await page.goto("/?stay=1");
+  await page.goto("/check?stay=1");
 
   const micButton = page.getByTestId("voice-input-button");
   await expect(micButton).toBeVisible();
@@ -109,7 +109,7 @@ test("spoken meal lands in the textarea, is editable, and submits", async ({
 
 test("listening state is announced and passes axe", async ({ page }) => {
   await injectFakeSpeechRecognition(page);
-  await page.goto("/?stay=1");
+  await page.goto("/check?stay=1");
 
   await page.getByTestId("voice-input-button").click();
 
@@ -133,7 +133,7 @@ test("unsupported browsers hide the mic and show the keyboard-dictation hint", a
   page
 }) => {
   await removeSpeechRecognition(page);
-  await page.goto("/?stay=1");
+  await page.goto("/check?stay=1");
 
   await expect(page.getByTestId("voice-dictation-hint")).toContainText(
     /keyboard.+mic to dictate/i

@@ -72,6 +72,24 @@ For one-tap choices: segmentation taps, meal-suggestion chips. Assembly:
 - Chips are buttons, never divs. Focus ring inherits the global `:focus-visible`.
 - Max one chip-row per screen section; chips carry 1–3 word labels, never sentences.
 
+## Marketing landing `/` (added 2026-07-07)
+
+The root is a marketing surface (Cal AI-style structure), the app lives at
+`/check`. The landing keeps every token (colors, radius scale, the one card
+shadow, Arial stack) but relaxes two app rules, on this surface ONLY:
+
+- Width: `.landing-frame` is `max-width: 1080px` with responsive two-column
+  grids — the 480px `.page-frame` rule stays app-only.
+- Dark bands: `.landing-dark` sections use `--accent` (#0f172a) as a
+  BACKGROUND with `--accent-contrast` text — the hero, and the closing CTA.
+  Inside dark bands the primary CTA inverts (`.landing-cta` — white pill,
+  dark text). Risk colors remain semantic-only, even here.
+
+Credibility is honesty, not decoration: no fabricated ratings, user counts,
+or testimonials. The proof points are the disclaimer, the research
+disclosure (/how-it-works), encrypted-at-rest + one-tap delete, and the
+pre-charge email promise. All landing copy is claims-audited like app copy.
+
 ## Input-method row (added 2026-07-07, three-way meal input)
 
 The check form leads with the three input methods — Type it / Say your meal /

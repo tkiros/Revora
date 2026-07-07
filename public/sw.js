@@ -42,7 +42,7 @@ self.addEventListener("notificationclick", (event) => {
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((wins) => {
       const existing = wins.find((w) => "focus" in w);
-      return existing ? existing.focus() : clients.openWindow("/");
+      return existing ? existing.focus() : clients.openWindow("/check");
     })
   );
 });

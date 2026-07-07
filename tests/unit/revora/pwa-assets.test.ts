@@ -22,7 +22,7 @@ describe("Phase 7 — web manifest", () => {
   it("declares the installability fields", () => {
     expect(manifest.name).toBe("Revora");
     expect(manifest.short_name).toBe("Revora");
-    expect(manifest.start_url).toBe("/");
+    expect(manifest.start_url).toBe("/check");
     expect(manifest.display).toBe("standalone");
     expect(manifest.theme_color).toBe("#0f172a");
     expect(manifest.background_color).toBe("#f3f7fb");

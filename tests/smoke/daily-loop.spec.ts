@@ -37,7 +37,7 @@ test("checks build the on-device day: today list, streak, action ack", async ({
   page
 }) => {
   await stubModerate(page);
-  await page.goto("/?stay=1");
+  await page.goto("/check?stay=1");
 
   // Fresh visitor: invitation to the tour, no loop yet
   await expect(page.getByTestId("daily-loop-empty")).toBeVisible();
@@ -68,7 +68,7 @@ test("history page shows the week strip and one-tap re-check prefills the form",
   page
 }) => {
   await stubModerate(page);
-  await page.goto("/?stay=1");
+  await page.goto("/check?stay=1");
   await runCheck(page, "plain bagel");
 
   await page.goto("/history");
@@ -85,7 +85,7 @@ test("history page shows the week strip and one-tap re-check prefills the form",
   expect(serious).toEqual([]);
 
   await page.getByTestId("recheck-button").first().click();
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/check$/);
   await expect(
     page.getByLabel(/what are you thinking about eating/i)
   ).toHaveValue("plain bagel");
@@ -108,7 +108,7 @@ test("empty history page is calm and passes axe", async ({ page }) => {
 test("insight appears after five checks with a daypart pattern", async ({
   page
 }) => {
-  await page.goto("/?stay=1");
+  await page.goto("/check?stay=1");
 
   // Seed history directly: three careful breakfasts + two safe meals.
   await page.evaluate(() => {

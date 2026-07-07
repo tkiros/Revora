@@ -56,7 +56,7 @@ export default function OnboardingPage() {
   function skipTour() {
     // 5.1's escape hatch: ?stay=1 tells FirstRunGate not to bounce the user
     // straight back into the tour, so "skip" never loops.
-    router.push("/?stay=1");
+    router.push("/check?stay=1");
   }
 
   function handleA1cContinue() {
@@ -96,7 +96,7 @@ export default function OnboardingPage() {
       profileStore.set({ a1c: a1cValue, onboardedAt: new Date().toISOString() });
     }
     track({ name: "onboarding_completed" });
-    router.push("/");
+    router.push("/check");
   }
 
   return (

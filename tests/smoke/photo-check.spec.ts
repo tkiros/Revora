@@ -20,7 +20,7 @@ test("photo draft flows into the food textarea after confirmation", async ({ pag
 
   // ?stay=1: the first-run gate's escape hatch — a brand-new visitor is
   // otherwise bounced to /onboarding before the form mounts.
-  await page.goto("/?stay=1");
+  await page.goto("/check?stay=1");
 
   await page
     .getByTestId("photo-file-input")

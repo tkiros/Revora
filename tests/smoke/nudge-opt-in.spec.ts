@@ -88,7 +88,7 @@ test("premium user with a prior-day check gets the two-step opt-in", async ({
     });
   });
 
-  await page.goto("/");
+  await page.goto("/check");
   await expect(page.getByTestId("nudge-opt-in")).toBeVisible();
   // step 1 shown; nothing subscribed yet
   expect(subscribeCalls).toBe(0);
@@ -104,7 +104,7 @@ test("fresh users and guests never see the nudge ask", async ({ page }) => {
     await route.fulfill({ status: 401, contentType: "application/json", body: "{}" });
   });
 
-  await page.goto("/");
+  await page.goto("/check");
   await expect(page.getByTestId("daily-loop-empty")).toBeVisible();
   await expect(page.getByTestId("nudge-opt-in")).toHaveCount(0);
 });

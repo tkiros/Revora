@@ -72,7 +72,7 @@ async function stubRateLimit(route: Route) {
 test("normal mode — public check completes successfully", async ({ page }) => {
   await page.route("**/api/check", stubNormalMode);
 
-  await page.goto("/?stay=1");
+  await page.goto("/check?stay=1");
 
   // Fill in the form
   await page.getByLabel(/what are you thinking about eating/i).fill("lentil soup");
@@ -97,7 +97,7 @@ test("maintenance mode — friendly pause response before model spend", async ({
 }) => {
   await page.route("**/api/check", stubMaintenanceMode);
 
-  await page.goto("/?stay=1");
+  await page.goto("/check?stay=1");
 
   await page.getByLabel(/what are you thinking about eating/i).fill("oatmeal");
   await page.getByLabel(/latest a1c/i).fill("6.0");
@@ -133,7 +133,7 @@ test("rate limit — friendly retry response (WAF 429 behavior)", async ({
 }) => {
   await page.route("**/api/check", stubRateLimit);
 
-  await page.goto("/?stay=1");
+  await page.goto("/check?stay=1");
 
   await page.getByLabel(/what are you thinking about eating/i).fill("brown rice");
   await page.getByLabel(/latest a1c/i).fill("6.2");

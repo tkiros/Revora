@@ -56,7 +56,7 @@ export default function HistoryPage() {
     } catch {
       // best-effort prefill only
     }
-    router.push("/");
+    router.push("/check");
   }
 
   return (

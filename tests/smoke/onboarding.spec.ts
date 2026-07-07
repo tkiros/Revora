@@ -76,7 +76,7 @@ test("a new user walks welcome→segment→a1c→expectations→first_check into
   await page.getByRole("button", { name: "oatmeal", exact: true }).click();
 
   // Lands on home with the guided food prefilled and the A1C remembered
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/check$/);
   await expect(page.getByLabel(/eating/i)).toHaveValue("oatmeal");
   await expect(page.getByLabel(/latest a1c/i)).toHaveValue("6.1");
 });

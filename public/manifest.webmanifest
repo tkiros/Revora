@@ -2,7 +2,7 @@
   "name": "Revora",
   "short_name": "Revora",
   "description": "Informational-only food checks for prediabetes-range A1C inputs.",
-  "start_url": "/",
+  "start_url": "/check",
   "display": "standalone",
   "theme_color": "#0f172a",
   "background_color": "#f3f7fb",

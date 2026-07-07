@@ -10,7 +10,7 @@ test("manifest is served and installable", async ({ request }) => {
   expect(res.status()).toBe(200);
   const manifest = JSON.parse(await res.text());
   expect(manifest.name).toBe("Revora");
-  expect(manifest.start_url).toBe("/");
+  expect(manifest.start_url).toBe("/check");
   expect(manifest.display).toBe("standalone");
   expect(manifest.icons.length).toBeGreaterThanOrEqual(3);
 });

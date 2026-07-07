@@ -108,7 +108,7 @@ async function fillValidForm(page: Page, overrides?: Partial<{ food: string; a1c
 }
 
 test("public no-login form", async ({ page }) => {
-  await page.goto("/?stay=1");
+  await page.goto("/check?stay=1");
 
   await expect(page.getByRole("heading", { name: /should i eat this/i })).toBeVisible();
   await expect(
@@ -132,7 +132,7 @@ test("invalid submit does not POST", async ({ page }) => {
     });
   });
 
-  await page.goto("/?stay=1");
+  await page.goto("/check?stay=1");
   await page.getByRole("button", { name: "Should I eat this?" }).click();
 
   await expect(page.getByText("Enter a food or meal.")).toBeVisible();
@@ -141,7 +141,7 @@ test("invalid submit does not POST", async ({ page }) => {
 });
 
 test("cta label and position", async ({ page }) => {
-  await page.goto("/?stay=1");
+  await page.goto("/check?stay=1");
 
   const button = page.getByRole("button", { name: "Should I eat this?" });
   await expect(button).toBeVisible();
@@ -152,7 +152,7 @@ test("cta label and position", async ({ page }) => {
 });
 
 test("no autofocus mobile inputs", async ({ page }) => {
-  await page.goto("/?stay=1");
+  await page.goto("/check?stay=1");
 
   const activeTag = await page.evaluate(() => document.activeElement?.tagName ?? null);
   const activeId = await page.evaluate(() => document.activeElement?.id ?? null);
@@ -165,12 +165,12 @@ test("no autofocus mobile inputs", async ({ page }) => {
 
 test("single screen flow", async ({ page }) => {
   await stubCheckRoute(page, { kind: "result" });
-  await page.goto("/?stay=1");
+  await page.goto("/check?stay=1");
   await fillValidForm(page);
 
   await page.getByRole("button", { name: "Should I eat this?" }).click();
 
-  await expect(page).toHaveURL(/\/\?stay=1$/);
+  await expect(page).toHaveURL(/\/check\?stay=1$/);
   await expect(page.getByTestId("result-card")).toBeVisible();
   await expect(page.getByRole("button", { name: "Should I eat this?" })).toHaveCount(1);
   await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -180,7 +180,7 @@ test("decision card v2 blocks render for MODERATE and not for SAFE", async ({
   page
 }) => {
   await stubCheckRoute(page, { kind: "moderate" });
-  await page.goto("/?stay=1");
+  await page.goto("/check?stay=1");
   await fillValidForm(page);
   await page.getByRole("button", { name: "Should I eat this?" }).click();
 
@@ -203,7 +203,7 @@ test("decision card v2 blocks render for MODERATE and not for SAFE", async ({
 
 test("loading state", async ({ page }) => {
   await stubCheckRoute(page, { kind: "slow" });
-  await page.goto("/?stay=1");
+  await page.goto("/check?stay=1");
   await fillValidForm(page);
 
   await page.getByRole("button", { name: "Should I eat this?" }).click();
@@ -214,7 +214,7 @@ test("loading state", async ({ page }) => {
 
 test("slow state after five seconds", async ({ page }) => {
   await stubCheckRoute(page, { kind: "slow" });
-  await page.goto("/?stay=1");
+  await page.goto("/check?stay=1");
   await fillValidForm(page);
 
   await page.getByRole("button", { name: "Should I eat this?" }).click();
@@ -225,7 +225,7 @@ test("slow state after five seconds", async ({ page }) => {
 
 test("friendly retry states", async ({ page }) => {
   await stubCheckRoute(page, { kind: "429" });
-  await page.goto("/?stay=1");
+  await page.goto("/check?stay=1");
   await fillValidForm(page);
 
   await page.getByRole("button", { name: "Should I eat this?" }).click();
@@ -267,7 +267,7 @@ test("offline submit short-circuits before any network call", async ({
     });
   });
 
-  await page.goto("/?stay=1");
+  await page.goto("/check?stay=1");
   await fillValidForm(page);
   await page.getByRole("button", { name: "Should I eat this?" }).click();
 
@@ -278,7 +278,7 @@ test("offline submit short-circuits before any network call", async ({
 
 test("normal response before five seconds", async ({ page }) => {
   await stubCheckRoute(page, { kind: "result" });
-  await page.goto("/?stay=1");
+  await page.goto("/check?stay=1");
   await fillValidForm(page);
 
   await page.getByRole("button", { name: "Should I eat this?" }).click();
@@ -294,7 +294,7 @@ test("normal response before five seconds", async ({ page }) => {
 
 test("result readability", async ({ page }) => {
   await stubCheckRoute(page, { kind: "result" });
-  await page.goto("/?stay=1");
+  await page.goto("/check?stay=1");
   await fillValidForm(page);
 
   await page.getByRole("button", { name: "Should I eat this?" }).click();
@@ -315,7 +315,7 @@ test("result readability", async ({ page }) => {
 
 test("useful response states", async ({ page }) => {
   await stubCheckRoute(page, { kind: "clarify" });
-  await page.goto("/?stay=1");
+  await page.goto("/check?stay=1");
   await fillValidForm(page);
 
   await page.getByRole("button", { name: "Should I eat this?" }).click();

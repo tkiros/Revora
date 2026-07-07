@@ -11,7 +11,7 @@
   "navigationColorDark": "#0f172a",
   "backgroundColor": "#f3f7fb",
   "backgroundColorDark": "#0f172a",
-  "startUrl": "/",
+  "startUrl": "/check",
   "iconUrl": "https://<domain>/icon-512.png",
   "maskableIconUrl": "https://<domain>/icon-maskable-512.png",
   "webManifestUrl": "https://<domain>/manifest.webmanifest",

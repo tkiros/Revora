@@ -89,7 +89,7 @@ test("taster: first-run walk lands a guided oatmeal check and meters used===1", 
   // Fresh context → home bounces a brand-new visitor into the tour. The
   // redirect is a client effect gated on the home bundle hydrating, so allow a
   // cold-compile-tolerant window (all 7 specs hit this server in parallel).
-  await page.goto(`${TRIAL}/`);
+  await page.goto(`${TRIAL}/check`);
   await expect(page).toHaveURL(/\/onboarding$/, { timeout: 30_000 });
 
   // Walk welcome → segment → a1c → expectations → first_check (onboarding.spec).
@@ -103,7 +103,7 @@ test("taster: first-run walk lands a guided oatmeal check and meters used===1", 
   await page.getByRole("button", { name: "oatmeal", exact: true }).click();
 
   // Home, with the guided food + remembered A1C prefilled.
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/check$/);
   await expect(page.getByLabel(/eating/i)).toHaveValue("oatmeal");
   await expect(page.getByLabel(/latest a1c/i)).toHaveValue("6.1");
 
@@ -138,9 +138,9 @@ test("exhaustion: a spent taster is walled on the next submit", async ({ page })
     todayLocal()
   );
 
-  await page.goto(`${TRIAL}/`);
+  await page.goto(`${TRIAL}/check`);
   // Seeded taster → not a first-run visitor, so no bounce to the tour.
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/check$/);
   await settlePaywallMode(page);
 
   await page.getByRole("button", { name: "Should I eat this?" }).click();
@@ -156,8 +156,8 @@ test("day 2: an aged-out taster is walled on the next submit", async ({ page }) 
     );
   });
 
-  await page.goto(`${TRIAL}/`);
-  await expect(page).toHaveURL(/\/$/);
+  await page.goto(`${TRIAL}/check`);
+  await expect(page).toHaveURL(/\/check$/);
   await settlePaywallMode(page);
 
   await page.getByRole("button", { name: "Should I eat this?" }).click();
@@ -246,12 +246,12 @@ test("legacy guard: PAYWALL_MODE=legacy shows the paywall card, never the wall",
     },
     todayLocal()
   );
-  await page.goto("/");
+  await page.goto("/check");
   // Waiting on the hydrated check form proves FirstRunGate's effect ran: had it
   // redirected, we'd be on /onboarding (no such button there).
   await expect(
     page.getByRole("button", { name: "Should I eat this?" })
   ).toBeVisible();
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/check$/);
   await expect(page.getByTestId("onboarding-step")).toHaveCount(0);
 });

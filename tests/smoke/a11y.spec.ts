@@ -47,7 +47,7 @@ async function blockingViolations(page: Page) {
 }
 
 test("home page has no critical or serious a11y violations", async ({ page }) => {
-  await page.goto("/?stay=1");
+  await page.goto("/check?stay=1");
   await expect(
     page.getByRole("button", { name: "Should I eat this?" })
   ).toBeVisible();
@@ -134,7 +134,7 @@ test("result state has no critical or serious a11y violations", async ({
     });
   });
 
-  await page.goto("/?stay=1");
+  await page.goto("/check?stay=1");
   await page.getByLabel(/what are you thinking about eating/i).fill("white rice");
   await page.getByLabel(/latest a1c/i).fill("6.1");
   await page.getByRole("button", { name: "Should I eat this?" }).click();
@@ -160,7 +160,7 @@ test("error/status surface has no critical or serious a11y violations", async ({
     });
   });
 
-  await page.goto("/?stay=1");
+  await page.goto("/check?stay=1");
   await page.getByLabel(/what are you thinking about eating/i).fill("white rice");
   await page.getByLabel(/latest a1c/i).fill("6.1");
   await page.getByRole("button", { name: "Should I eat this?" }).click();
