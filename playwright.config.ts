@@ -38,8 +38,9 @@ const trialWebServer = {
   // tests/smoke/trial-wall.spec.ts. Paywall mode is resolved server-side
   // (app/subscribe/page.tsx → lib/server/pricing.paywallMode()), so the
   // trial wall can only be exercised by a genuinely trial-mode server; the
-  // :3100 server stays on the `legacy` default that billing-pages.spec
-  // expects. One server cannot serve both modes at once.
+  // :3100 server is pinned to PAYWALL_MODE=legacy (trial is the code
+  // default now) for billing-pages.spec. One server cannot serve both
+  // modes at once.
   command: "npx next dev --hostname 127.0.0.1 --port 3101",
   url: "http://127.0.0.1:3101",
   reuseExistingServer: false,
@@ -90,6 +91,10 @@ export default defineConfig({
       // 240s: see the trialWebServer note (BUG-15 cold-boot timeout).
       timeout: 240_000,
       env: {
+        // Trial is now the code default (lib/server/pricing.ts), so the
+        // legacy-mode assertions (billing-pages.spec, trial-wall's legacy
+        // guard) need this server pinned to legacy explicitly.
+        PAYWALL_MODE: "legacy",
         // A syntactically-valid VAPID public key so the nudge opt-in flow can
         // run end-to-end against mocked push APIs (never used to send).
         NEXT_PUBLIC_VAPID_PUBLIC_KEY:

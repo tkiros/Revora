@@ -71,7 +71,10 @@ function createHandler(options: {
       options.sessionUserId
         ? { userId: options.sessionUserId, email: "persist@test.dev" }
         : null,
-    ...(options.paywallMode ? { paywallMode: options.paywallMode } : {})
+    // Trial is the live default (lib/server/pricing.ts, 2026-07-07); these
+    // suites describe the legacy persistence/free-tier paths, so the harness
+    // pins legacy unless a test opts into trial explicitly.
+    paywallMode: options.paywallMode ?? (() => "legacy" as const)
   });
 }
 

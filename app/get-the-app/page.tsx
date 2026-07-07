@@ -1,7 +1,10 @@
+import { storeWaitlistUrl } from "../../lib/waitlist";
+
 export const metadata = { title: "Get Revora on your phone — Revora" };
 
 export default function GetTheAppPage() {
-  const waitlistUrl = process.env.NEXT_PUBLIC_WAITLIST_URL;
+  const androidWaitlist = storeWaitlistUrl("android");
+  const iosWaitlist = storeWaitlistUrl("ios");
   return (
     <main className="page-shell">
       <div className="page-frame">
@@ -22,18 +25,36 @@ export default function GetTheAppPage() {
             Open Revora in Safari, tap Share, then &quot;Add to Home
             Screen&quot;, then Add.
           </p>
-          {waitlistUrl ? (
-            <>
-              <h2 className="section-title">Prefer the store version?</h2>
-              <p className="page-copy">
-                Leave your email and we&apos;ll tell you when the Play Store or
-                App Store version ships. Nothing else, ever.
-              </p>
-              <a className="primary-button link-button" href={waitlistUrl}>
-                Tell me when it ships
+          <h2 className="section-title">Prefer the store version?</h2>
+          <p className="page-copy">
+            The Google Play and App Store versions are coming soon. Join your
+            platform&apos;s waitlist and we&apos;ll email you once when it
+            ships. Nothing else, ever.
+          </p>
+          <div className="field-stack">
+            {androidWaitlist ? (
+              <a
+                className="recheck-button link-button"
+                href={androidWaitlist}
+                data-testid="waitlist-android"
+              >
+                Google Play — join the Android waitlist
               </a>
-            </>
-          ) : null}
+            ) : (
+              <p className="field-hint">Google Play — coming soon.</p>
+            )}
+            {iosWaitlist ? (
+              <a
+                className="recheck-button link-button"
+                href={iosWaitlist}
+                data-testid="waitlist-ios"
+              >
+                App Store — join the iPhone waitlist
+              </a>
+            ) : (
+              <p className="field-hint">App Store — coming soon.</p>
+            )}
+          </div>
         </section>
       </div>
     </main>

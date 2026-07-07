@@ -20,8 +20,9 @@ describe("POST /api/check/photo-draft", () => {
     vi.unstubAllEnvs();
   });
 
-  it("404s in production while the D5 launch gate is closed (BUG-10), no model call", async () => {
+  it("404s everywhere when the NEXT_PUBLIC_PHOTO_INPUT=0 kill-switch is set, no model call", async () => {
     vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_PHOTO_INPUT", "0");
     let called = 0;
     const handler = createPhotoDraftHandler({
       vision: () => ({ draftFromPhoto: async () => ((called += 1), STUB_DRAFT) }),
@@ -32,7 +33,8 @@ describe("POST /api/check/photo-draft", () => {
     expect(response.status).toBe(404);
     expect(called).toBe(0);
 
-    // Owner flips the flag → the gate opens.
+    // Kill-switch lifted → photo-assist is on by default (owner green-light
+    // 2026-07-07), including in production.
     vi.stubEnv("NEXT_PUBLIC_PHOTO_INPUT", "1");
     expect((await handler(post(GOOD_BODY))).status).toBe(200);
   });

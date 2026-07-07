@@ -165,7 +165,7 @@ test("day 2: an aged-out taster is walled on the next submit", async ({ page }) 
   await expect(page.getByTestId("trial-wall")).toBeVisible();
 });
 
-test("wall → checkout: value → proof → start POSTs the trial and navigates", async ({
+test("wall → checkout: value → start POSTs the trial and navigates", async ({
   page
 }) => {
   let trialStartEmail: string | null = null;
@@ -186,7 +186,8 @@ test("wall → checkout: value → proof → start POSTs the trial and navigates
   await expect(page.getByTestId("trial-wall")).toBeVisible();
   await settlePaywallMode(page);
 
-  await page.getByRole("button", { name: "See how the trial works" }).click();
+  // Two-step wall: the first screen leads with "7 days free" + the price, so
+  // one click reaches the email step.
   await page.getByRole("button", { name: "Start my free week" }).click();
   await page.getByLabel("Your email").fill("wall@revora.test");
   await page

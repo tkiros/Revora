@@ -143,7 +143,8 @@ export default function ProgressPage() {
             <p className="page-copy">
               The weekly progress view — your check-in consistency and
               follow-through, computed every Monday — is one of the things
-              Premium keeps around. The check itself stays free, every day.
+              Premium keeps around, so a good week is something you can see,
+              not just remember.
             </p>
             <Link
               className="primary-button link-button"

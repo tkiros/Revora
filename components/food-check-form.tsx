@@ -1,7 +1,7 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { track } from "../lib/client/analytics";
 import { submitCheck } from "../lib/client/check";
@@ -64,6 +64,7 @@ export function FoodCheckForm() {
   const [lastCheckId, setLastCheckId] = useState<string | null>(null);
   const [actionDone, setActionDone] = useState(false);
   const [mode, setMode] = useState<PaywallMode>("legacy");
+  const foodInputRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     // Day-1 taster: learn the paywall mode once on mount. Fail-open to the
@@ -281,10 +282,49 @@ export function FoodCheckForm() {
         <label htmlFor="food" className="field-label">
           What are you thinking about eating?
         </label>
+        {/* The three first-class input methods, visible BEFORE the user
+            commits to typing: type, speak, or snap a photo. All three land in
+            the same reviewed text path — voice and photo never bypass it. */}
+        <div
+          className="chip-row"
+          role="group"
+          aria-label="Three ways to add your meal"
+          data-testid="input-method-row"
+        >
+          <button
+            type="button"
+            className="selectable-chip"
+            aria-pressed={inputMethod === "text"}
+            data-testid="type-input-button"
+            onClick={() => foodInputRef.current?.focus()}
+          >
+            Type it
+          </button>
+          <VoiceInputButton
+            onTranscript={handleVoiceTranscript}
+            disabled={isSubmitting}
+          />
+          {photoInputEnabled() ? (
+            <PhotoInputButton
+              onDraft={handlePhotoDraft}
+              onRequestOpen={() => {
+                // Same taster gate as handleSubmit: a walled taster never spends
+                // a draft call — the picker never opens.
+                if (shouldGateSubmit(mode, tasterStore.status())) {
+                  window.location.assign("/subscribe");
+                  return false;
+                }
+                return true;
+              }}
+              disabled={isSubmitting}
+            />
+          ) : null}
+        </div>
         <textarea
           id="food"
           name="food"
           rows={3}
+          ref={foodInputRef}
           value={input.food}
           onChange={(event) => {
             handleTypedFoodChange(event.target.value);
@@ -299,25 +339,6 @@ export function FoodCheckForm() {
           <p id="food-error" className="field-error">
             {errors.food}
           </p>
-        ) : null}
-        <VoiceInputButton
-          onTranscript={handleVoiceTranscript}
-          disabled={isSubmitting}
-        />
-        {photoInputEnabled() ? (
-          <PhotoInputButton
-            onDraft={handlePhotoDraft}
-            onRequestOpen={() => {
-              // Same taster gate as handleSubmit: a walled taster never spends
-              // a draft call — the picker never opens.
-              if (shouldGateSubmit(mode, tasterStore.status())) {
-                window.location.assign("/subscribe");
-                return false;
-              }
-              return true;
-            }}
-            disabled={isSubmitting}
-          />
         ) : null}
         {photoNotice ? <p className="field-hint">{photoNotice}</p> : null}
         {photoDraft ? (

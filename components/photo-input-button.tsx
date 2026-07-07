@@ -63,7 +63,7 @@ export function PhotoInputButton({
           }
         }}
       >
-        {isDrafting ? "Reading your photo..." : "Snap a photo instead"}
+        {isDrafting ? "Reading your photo..." : "Snap a photo"}
       </button>
     </>
   );

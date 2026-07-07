@@ -41,12 +41,15 @@ export default function PantryLandingPage() {
       <div className="page-frame report-frame">
         <section className="surface-card hero-card">
           <p className="hero-eyebrow">Pantry Review</p>
-          <h1 className="page-title">Your whole kitchen, sorted in one report</h1>
+          <h1 className="page-title">
+            Stop second-guessing every shelf in your kitchen
+          </h1>
           <p className="page-copy">
-            Send us photos of your pantry and fridge. You confirm the item list,
-            and the same careful engine behind Revora&apos;s meal check groups
-            everything into a calm, printable report. One payment. Nothing
-            renews.
+            One evening of photos, one calm report. Send us pictures of your
+            pantry and fridge, confirm the item list, and the same careful
+            engine behind Revora&apos;s meal check sorts everything you own
+            into enjoy freely, worth a tweak, and handle with care —
+            printable, and yours to keep. One payment. Nothing renews.
           </p>
         </section>
 

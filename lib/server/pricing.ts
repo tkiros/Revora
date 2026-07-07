@@ -21,8 +21,12 @@ export function resolvePriceVariant(
   };
 }
 
+// Trial is the launch funnel (owner decision 2026-07-07): Day-1 free taste →
+// Day-2 wall → 7-day trial → paid. `PAYWALL_MODE=legacy` is the explicit
+// escape hatch back to the old 5-checks/day free tier, kept for rollback and
+// for the legacy-mode test server.
 export function paywallMode(env: Partial<NodeJS.ProcessEnv> = process.env): "legacy" | "trial" {
-  return env.PAYWALL_MODE === "trial" ? "trial" : "legacy";
+  return env.PAYWALL_MODE === "legacy" ? "legacy" : "trial";
 }
 
 // Single source for the human-readable monthly price of a stored variant. The

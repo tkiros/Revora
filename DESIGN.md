@@ -72,6 +72,16 @@ For one-tap choices: segmentation taps, meal-suggestion chips. Assembly:
 - Chips are buttons, never divs. Focus ring inherits the global `:focus-visible`.
 - Max one chip-row per screen section; chips carry 1–3 word labels, never sentences.
 
+## Input-method row (added 2026-07-07, three-way meal input)
+
+The check form leads with the three input methods — Type it / Say your meal /
+Snap a photo — in one `.chip-row` ABOVE the food textarea, so users see all
+three ways before they start typing. Assembly reuses existing pieces: a
+`selectable-chip` for "Type it" (aria-pressed mirrors the active method,
+click focuses the textarea) plus the existing `voice-input-button` and
+`secondary-button` photo pill. No new classes, colors, or shadows. All three
+methods land in the same reviewed text path — voice and photo never bypass it.
+
 ## Day-1 / first-win treatment (added 2026-07-05, launch-readiness plan)
 
 The calm acknowledgment after a user's first completed check. Rules:

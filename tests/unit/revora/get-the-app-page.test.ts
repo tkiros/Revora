@@ -2,9 +2,11 @@ import type { ReactElement, ReactNode } from "react";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-// The page is a static server component that reads NEXT_PUBLIC_WAITLIST_URL at
+import { storeWaitlistUrl } from "../../../lib/waitlist";
+
+// The page is a static server component that reads the waitlist env vars at
 // render time (no build-time inlining under vitest), so we can drive the env
-// var directly and inspect the returned element tree — no jsdom harness needed.
+// vars directly and inspect the returned element tree — no jsdom harness needed.
 async function renderText(): Promise<string> {
   vi.resetModules();
   const mod = await import("../../../app/get-the-app/page");
@@ -27,27 +29,59 @@ function collectText(node: ReactNode): string {
   return "";
 }
 
-describe("get-the-app page waitlist gating", () => {
+describe("get-the-app page store waitlists", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
   });
 
-  it("hides the waitlist section when NEXT_PUBLIC_WAITLIST_URL is unset", async () => {
+  it("shows coming-soon copy without links when no waitlist env is set", async () => {
     vi.stubEnv("NEXT_PUBLIC_WAITLIST_URL", "");
+    vi.stubEnv("NEXT_PUBLIC_WAITLIST_ANDROID_URL", "");
+    vi.stubEnv("NEXT_PUBLIC_WAITLIST_IOS_URL", "");
     const text = await renderText();
     // Install guidance always renders.
     expect(text).toContain("Revora already works on your phone");
-    // Waitlist markers must be absent.
-    expect(text).not.toContain("Prefer the store version?");
-    expect(text).not.toContain("Tell me when it ships");
+    // The store section always renders (coming-soon messaging), links don't.
+    expect(text).toContain("Prefer the store version?");
+    expect(text).toContain("Google Play — coming soon.");
+    expect(text).toContain("App Store — coming soon.");
+    expect(text).not.toContain("join the Android waitlist");
+    expect(text).not.toContain("join the iPhone waitlist");
   });
 
-  it("shows the waitlist section (with the form URL) when the env var is set", async () => {
-    const url = "https://tally.so/r/revora-waitlist";
-    vi.stubEnv("NEXT_PUBLIC_WAITLIST_URL", url);
+  it("renders both platform links from per-store env vars", async () => {
+    vi.stubEnv("NEXT_PUBLIC_WAITLIST_ANDROID_URL", "https://tally.so/r/android");
+    vi.stubEnv("NEXT_PUBLIC_WAITLIST_IOS_URL", "https://tally.so/r/ios");
     const text = await renderText();
-    expect(text).toContain("Prefer the store version?");
-    expect(text).toContain("Tell me when it ships");
-    expect(text).toContain(url);
+    expect(text).toContain("https://tally.so/r/android");
+    expect(text).toContain("https://tally.so/r/ios");
+    expect(text).toContain("join the Android waitlist");
+    expect(text).toContain("join the iPhone waitlist");
+  });
+
+  it("segments a single shared URL with ?platform= so demand stays measurable", async () => {
+    vi.stubEnv("NEXT_PUBLIC_WAITLIST_ANDROID_URL", "");
+    vi.stubEnv("NEXT_PUBLIC_WAITLIST_IOS_URL", "");
+    vi.stubEnv("NEXT_PUBLIC_WAITLIST_URL", "https://tally.so/r/revora-waitlist");
+    const text = await renderText();
+    expect(text).toContain("https://tally.so/r/revora-waitlist?platform=android");
+    expect(text).toContain("https://tally.so/r/revora-waitlist?platform=ios");
+  });
+});
+
+describe("storeWaitlistUrl", () => {
+  it("prefers the per-store URL and appends platform to a shared URL with existing params", () => {
+    expect(
+      storeWaitlistUrl("android", {
+        NEXT_PUBLIC_WAITLIST_ANDROID_URL: "https://a.example",
+        NEXT_PUBLIC_WAITLIST_URL: "https://shared.example"
+      })
+    ).toBe("https://a.example");
+    expect(
+      storeWaitlistUrl("ios", {
+        NEXT_PUBLIC_WAITLIST_URL: "https://shared.example?src=app"
+      })
+    ).toBe("https://shared.example?src=app&platform=ios");
+    expect(storeWaitlistUrl("ios", {})).toBeNull();
   });
 });

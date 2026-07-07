@@ -6,7 +6,9 @@ import { useEffect, useState } from "react";
 import { track, type PriceVariant } from "../lib/client/analytics";
 
 type Config = { variant: PriceVariant; priceDisplay: string };
-type Step = "value" | "proof" | "start";
+// Two steps (was three): the offer, the trial mechanics, and the price all
+// live on the first screen — "7 days free" is never hidden behind a click.
+type Step = "value" | "start";
 
 export function TrialWall({ declined = false }: { declined?: boolean }) {
   const [config, setConfig] = useState<Config | null>(null);
@@ -55,25 +57,23 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
       {step === "value" ? (
         <>
           <p className="hero-eyebrow">Day 2 with Revora</p>
-          <h1 className="page-title">Yesterday was the free taste</h1>
+          <h1 className="page-title">Keep your calm answers — 7 days free</h1>
           <p className="page-copy">
-            From here, Revora is a paid companion: unlimited checks, your full
-            history on every device, weekly patterns from your own meals, and
-            one gentle daily reminder.
+            Yesterday you asked &quot;should I eat this?&quot; and got a
+            straight answer instead of a guess. Your free week keeps that
+            going at every meal: unlimited checks, your history on every
+            device, weekly patterns from your own meals, and one gentle daily
+            reminder.
           </p>
-          <button type="button" className="primary-button" onClick={() => setStep("proof")}>
-            See how the trial works
-          </button>
-        </>
-      ) : step === "proof" ? (
-        <>
-          <p className="hero-eyebrow">How the trial works</p>
-          <h1 className="page-title">Seven days free, and we remind you before any charge</h1>
           <ul className="page-copy expectation-list">
             <li>Start today with a card — nothing is charged for 7 days.</li>
             <li>Two days before the trial ends, we email you the exact date and amount.</li>
             <li>Cancel in one tap — from that email or your account page. No retention screens.</li>
           </ul>
+          <p className="field-hint">
+            {config?.priceDisplay ?? "$12.99"}/month after your free week.
+            Cancel anytime.
+          </p>
           <button type="button" className="primary-button" onClick={() => setStep("start")}>
             Start my free week
           </button>

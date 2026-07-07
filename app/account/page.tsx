@@ -31,6 +31,23 @@ export default function AccountPage() {
     null
   );
   const [canceling, setCanceling] = useState(false);
+  // Free-tier copy is mode-dependent: legacy has a real 5/day free plan, the
+  // trial funnel doesn't. Default to trial (the code default) so the copy
+  // never resurrects the retired free offer on a failed lookup.
+  const [mode, setMode] = useState<"legacy" | "trial">("trial");
+
+  useEffect(() => {
+    fetch("/api/paywall")
+      .then((response) => response.json())
+      .then((data: { mode?: unknown }) => {
+        if (data?.mode === "legacy") {
+          setMode("legacy");
+        }
+      })
+      .catch(() => {
+        // keep the trial default
+      });
+  }, []);
 
   useEffect(() => {
     // Landing point after both checkout paths (Stripe's success_url and the
@@ -214,6 +231,17 @@ export default function AccountPage() {
                         </button>
                       </>
                     )}
+                  </>
+                ) : mode === "trial" ? (
+                  <>
+                    <p className="page-copy">
+                      <strong>Free taste</strong> — your first day of checks.
+                      After that, your free week takes over: 7 days of
+                      everything, and we email you before any charge.
+                    </p>
+                    <Link className="recheck-button link-button" href="/subscribe">
+                      Start your free week
+                    </Link>
                   </>
                 ) : (
                   <>
