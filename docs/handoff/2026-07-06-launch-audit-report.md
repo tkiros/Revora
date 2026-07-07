@@ -321,4 +321,17 @@ All engineering fixes landed on `main` in commits `6de7f7c` (BUG-01/05/07/08/12/
 | BUG-18/19 | **Fixed** | Data-flow allowlist row; cron doc drift (4 files); env-reference rows (`PAYWALL_MODE`, `TRIAL_PRICE_VARIANT`, price IDs, `MEAL_EXTRACT_STUB`, `REVORA_DAILY_CHECK_CAP`, `NEXT_PUBLIC_WAITLIST_URL`, `NEXT_PUBLIC_PHOTO_INPUT`); §3.4 correction notes appended to both plans; health-route comment. |
 | BUG-20 | Owner | Local `.env*` remains permission-blocked to agents; reconcile against `env-reference.md`. |
 
-**New findings this session:** Vercel prod env is **missing** `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `AUTH_EMAIL_FROM`, `EDGE_CONFIG`, `SENTRY_DSN`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `SUPPORT_EMAIL` — checkout, webhooks, magic-link email, kill-switch, error capture, and push cannot work in production until these are added (Stripe MCP cannot read webhook endpoints; configure in dashboard, H21).
+**New findings this session:** Vercel prod env is **missing** `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `AUTH_EMAIL_FROM`, `EDGE_CONFIG`, `SENTRY_DSN`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `SUPPORT_EMAIL` — checkout, webhooks, magic-link email, kill-switch, error capture, and push cannot work in production until these are added.
+
+## 9. Provisioning session (2026-07-06 later evening — owner supplied secrets)
+
+All six env/infra items provisioned via CLI (deployment `revora-gkz8cxfi1`, alias `revora-lovat`):
+
+- **Upstash** — corrected `UPSTASH_REDIS_REST_URL` (`https://crucial-buzzard-75251.upstash.io`) + token. **Prod `/api/health` now `upstash:"configured"`; `POST /api/check` returns HTTP 200, not the MIDDLEWARE 500. BUG-01 fully closed.**
+- **Env vars set**: `STRIPE_SECRET_KEY` (live, account `acct_14W8GFKweWSWjefk`, `charges_enabled:true`), `AUTH_EMAIL_FROM=signin@revora.bio`, `SENTRY_DSN`, `SUPPORT_EMAIL=support@revora.bio`, fresh `VAPID_PUBLIC/PRIVATE/NEXT_PUBLIC` triple, `NEXT_PUBLIC_APP_URL=https://revora.bio`.
+- **Edge Config** — store `ecfg_ro3jbfnd3qze6ybvilwr9wtojokj` (`revora-launch-controls`) created + seeded (`launch_mode:normal`, `public_checks_enabled:true`, `incident_message:""`), read-token connection string wired to `EDGE_CONFIG`.
+- **Stripe webhook** — live endpoint `we_1TqNZLKweWSWjefk1MkEUChd` → `https://revora.bio/api/billing/stripe/webhook`, all 5 events, enabled; `STRIPE_WEBHOOK_SECRET` set. Activates once DNS resolves.
+- **Domain** — `revora.bio` added to the team. **Owner DNS action: set `A revora.bio → 76.76.21.21`** at the registrar; Vercel then auto-issues the cert (the `revora.bio` alias bind currently fails only for lack of DNS).
+- **GitHub** — `github.com/tkiros/Revora` connected to the Vercel project → pushes now auto-deploy (removes the BUG-02 stale-build failure class).
+
+**⚠ REMAINING PROD BLOCKER (new, pre-existing, was masked by BUG-01):** With the middleware fixed, `POST /api/check` now reaches the model and returns the calm `retry` fallback on **every** request — telemetry `check_completed / responseKind:retry / latencyBucket:<2s`. The sub-2s latency means the OpenAI call **fails fast** (invalid key / model-not-found for `gpt-5.4-mini` / insufficient quota), not a timeout. Exact error is in Sentry (`captureServerError(…, "model")`). The `OPENAI_API_KEY` (owner-set ~19h ago) and its error are unreadable via CLI (sensitive). **Resolution needs the owner: verify the OpenAI key is valid + has access to the configured model, or set `REVORA_MODEL` to an accessible one.** Core answers do not work until this clears.
