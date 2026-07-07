@@ -17,7 +17,7 @@ const storage = fakeStorage();
 vi.stubGlobal("localStorage", storage);
 vi.stubGlobal("window", { localStorage: storage });
 
-import { nextStepAfterSegment } from "../../../app/onboarding/page";
+import { nextStepAfterSegment, STEP_PROGRESS } from "../../../app/onboarding/page";
 
 describe("nextStepAfterSegment (single-source A1C rule)", () => {
   it("routes a device with a saved A1C straight past the A1C step", () => {
@@ -26,5 +26,25 @@ describe("nextStepAfterSegment (single-source A1C rule)", () => {
 
   it("asks for the A1C when the device has none", () => {
     expect(nextStepAfterSegment(false)).toBe("a1c");
+  });
+});
+
+describe("STEP_PROGRESS (goal-gradient bar)", () => {
+  it("never shows a visible step at zero — arriving counts as progress", () => {
+    const visible = ["welcome", "segment", "a1c", "expectations", "first_check"] as const;
+    for (const step of visible) {
+      expect(STEP_PROGRESS[step]).toBeGreaterThan(0);
+      expect(STEP_PROGRESS[step]).toBeLessThan(100);
+    }
+  });
+
+  it("only ever moves forward, on both the full and the skip-A1C path", () => {
+    const full = ["welcome", "segment", "a1c", "expectations", "first_check"] as const;
+    const skipA1c = ["welcome", "segment", "expectations", "first_check"] as const;
+    for (const path of [full, skipA1c]) {
+      for (let i = 1; i < path.length; i++) {
+        expect(STEP_PROGRESS[path[i]]).toBeGreaterThan(STEP_PROGRESS[path[i - 1]]);
+      }
+    }
   });
 });

@@ -47,6 +47,17 @@ export const FIRST_CHECK_CHIPS_BY_SEGMENT: Record<
   "Just checking": FIRST_CHECK_CLASSICS
 };
 
+// Goal-gradient bar: never starts at zero — arriving counts as progress
+// (car-wash stamp study). Boundary is an exit, not a step, so it hides the bar.
+export const STEP_PROGRESS: Record<Step, number> = {
+  welcome: 20,
+  segment: 40,
+  a1c: 55,
+  expectations: 75,
+  first_check: 90,
+  boundary: 0
+};
+
 // Single-source rule (P3): the tour never re-asks what the device already knows.
 // A guest who has an on-device A1C skips the A1C step entirely. Pure so the
 // branch is unit-testable in node without a component harness.
@@ -133,6 +144,21 @@ export default function OnboardingPage() {
           data-testid="onboarding-step"
           data-step={step}
         >
+          {step !== "boundary" ? (
+            <div
+              className="onboarding-progress"
+              role="progressbar"
+              aria-label="Tour progress"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={STEP_PROGRESS[step]}
+            >
+              <div
+                className="onboarding-progress-fill"
+                style={{ width: `${STEP_PROGRESS[step]}%` }}
+              />
+            </div>
+          ) : null}
           {step === "welcome" ? (
             <>
               <p className="hero-eyebrow">Welcome to Revora</p>

@@ -186,12 +186,19 @@ test("wall → checkout: value → start POSTs the trial and navigates", async (
   await expect(page.getByTestId("trial-wall")).toBeVisible();
   await settlePaywallMode(page);
 
+  // The value screen tells the week as a Today → Day 5 → Day 7 timeline.
+  const timeline = page.getByTestId("trial-timeline");
+  await expect(timeline).toBeVisible();
+  await expect(timeline).toContainText("Today");
+  await expect(timeline).toContainText("Day 5");
+  await expect(timeline).toContainText("Day 7");
+
   // Two-step wall: the first screen leads with "7 days free" + the price, so
   // one click reaches the email step.
   await page.getByRole("button", { name: "Start my free week" }).click();
   await page.getByLabel("Your email").fill("wall@revora.test");
   await page
-    .getByRole("button", { name: "Continue to secure checkout" })
+    .getByRole("button", { name: "Continue to checkout — $0 due today" })
     .click();
 
   await expect(page).toHaveURL(/\/__checkout_stub$/);
@@ -201,6 +208,16 @@ test("wall → checkout: value → start POSTs the trial and navigates", async (
 test("decline catch: /subscribe?declined=1 offers the one-time Pantry Review", async ({
   page
 }) => {
+  // Seed two local checks so the endowment note has something to name.
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "revora.history.v1",
+      JSON.stringify([
+        { clientId: "a", food: "oatmeal", createdAt: "2026-07-06T10:00:00.000Z" },
+        { clientId: "b", food: "banana", createdAt: "2026-07-06T11:00:00.000Z" }
+      ])
+    );
+  });
   await page.goto(`${TRIAL}/subscribe?declined=1`);
 
   const catchLine = page.getByTestId("pantry-catch");
@@ -208,6 +225,11 @@ test("decline catch: /subscribe?declined=1 offers the one-time Pantry Review", a
   await expect(
     catchLine.getByRole("link", { name: /pantry review/i })
   ).toHaveAttribute("href", "/pantry");
+
+  // Gentle loss-aversion: the declined state names the checks already saved.
+  const savedNote = page.getByTestId("saved-checks-note");
+  await expect(savedNote).toBeVisible();
+  await expect(savedNote).toContainText("2 checks");
 });
 
 test("pantry: the landing page shows the sample report + buy button", async ({
