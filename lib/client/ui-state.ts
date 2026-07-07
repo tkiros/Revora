@@ -33,8 +33,11 @@ export type RevoraUserResponse =
       disclaimer: string;
     }
   | {
-      // 4D free-tier limit reached — calm upsell, rendered like a card
+      // 4D free-tier limit reached — calm upsell, rendered like a card.
+      // upsellKind is the server's structured wall type; older/cached
+      // responses may omit it (the card falls back to sniffing the message).
       kind: "upsell";
+      upsellKind?: "trial" | "legacy";
       message: string;
       disclaimer: string;
     };

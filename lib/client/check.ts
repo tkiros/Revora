@@ -87,6 +87,10 @@ export async function submitCheck(
       ) {
         return {
           kind: "upsell",
+          upsellKind:
+            payload.upsellKind === "trial" || payload.upsellKind === "legacy"
+              ? payload.upsellKind
+              : undefined,
           message: payload.message,
           disclaimer: payload.disclaimer
         };

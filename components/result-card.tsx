@@ -2,6 +2,21 @@ import Link from "next/link";
 
 import type { RevoraRisk, RevoraUserResponse } from "../lib/client/ui-state";
 import { DisclaimerLine } from "./disclaimer-line";
+import {
+  IconAlert,
+  IconArrowRight,
+  IconCheck,
+  IconHeart,
+  IconLeaf,
+  IconPause
+} from "./icons";
+
+// Verdict glyphs (DESIGN.md §Icons): calm check / heads-up / pause.
+const RISK_ICONS = {
+  SAFE: IconCheck,
+  MODERATE: IconAlert,
+  HIGH: IconPause
+} as const;
 
 // §6.3 post-verdict pantry entry. The one-time Pantry Review line attaches ONLY
 // to non-SAFE results ("Be careful" / "Hold off") — SAFE never piles on, and no
@@ -23,18 +38,23 @@ const RISK_LABELS = {
 } as const;
 
 // §4D upsell variants. The branch renders the server `message` verbatim in
-// both cases and only picks its own eyebrow/CTA/data-wall. `ponytail:` we sniff
-// the server string instead of prop-drilling a mode flag through this
-// presentational component — the server message is the single source of truth
-// (trial hard-wall names the "free week"; legacy soft limit names "free
-// checks"). Revisit only if a third mode ever appears.
-export function upsellVariant(message: string): {
+// both cases and only picks its own eyebrow/CTA/data-wall. The server now
+// sends a structured `upsellKind`; the message sniff survives only as the
+// fallback for older/cached responses that omit it.
+// The legacy title's "five" mirrors FREE_DAILY_CHECKS (lib/server/entitlement)
+// — result-card-upsell.test.ts pins the two together.
+export function upsellVariant(
+  message: string,
+  upsellKind?: "trial" | "legacy"
+): {
   wall: "trial" | null;
   eyebrow: string;
   title: string | null;
   cta: string;
 } {
-  if (message.includes("free week")) {
+  const kind =
+    upsellKind ?? (message.includes("free week") ? "trial" : "legacy");
+  if (kind === "trial") {
     return {
       wall: "trial",
       eyebrow: "Where the free taste ends",
@@ -50,6 +70,21 @@ export function upsellVariant(message: string): {
   };
 }
 
+// The one-time Pantry Review cross-sell. Rendered by the caller AFTER the
+// verdict card (its own quiet slot), gated by showPantryEntry — the offer
+// never sits inside the verdict itself.
+export function PantryEntry() {
+  return (
+    <p className="cross-sell" data-testid="pantry-entry">
+      Want your whole kitchen checked once? See{" "}
+      <Link className="inline-link" href="/pantry">
+        the Pantry Review
+      </Link>{" "}
+      — one payment, nothing renews.
+    </p>
+  );
+}
+
 export function ResultCard({
   response,
   actionDone,
@@ -60,6 +95,7 @@ export function ResultCard({
   onActionDone?: () => void;
 }) {
   if (response.kind === "result") {
+    const VerdictIcon = RISK_ICONS[response.risk];
     return (
       <section
         aria-live="polite"
@@ -69,33 +105,51 @@ export function ResultCard({
         data-risk={response.risk}
       >
         <p className="result-eyebrow">Revora result</p>
-        <p className="result-title">{RISK_LABELS[response.risk]}</p>
+        <p className="result-title verdict-title" data-risk={response.risk}>
+          <VerdictIcon size={26} />
+          {RISK_LABELS[response.risk]}
+        </p>
         <p className="result-copy">{response.reason}</p>
         <div className="result-list">
           {response.keepMost ? (
-            <p data-testid="keep-most">
-              <strong>Enjoy it anyway:</strong> {response.keepMost}
+            <p className="result-row" data-testid="keep-most">
+              <IconHeart size={16} />
+              <span>
+                <strong>Enjoy it anyway:</strong> {response.keepMost}
+              </span>
             </p>
           ) : null}
           {response.swap ? (
-            <p>
-              <strong>Swap:</strong> {response.swap}
+            <p className="result-row">
+              <IconArrowRight size={16} />
+              <span>
+                <strong>Swap:</strong> {response.swap}
+              </span>
             </p>
           ) : null}
           {response.adjustment ? (
-            <p>
-              <strong>Adjustment:</strong> {response.adjustment}
+            <p className="result-row">
+              <IconLeaf size={16} />
+              <span>
+                <strong>Adjustment:</strong> {response.adjustment}
+              </span>
             </p>
           ) : null}
           {response.sequencingTip ? (
-            <p data-testid="sequencing-tip">
-              <strong>Eat it in this order:</strong> {response.sequencingTip}
+            <p className="result-row" data-testid="sequencing-tip">
+              <IconArrowRight size={16} />
+              <span>
+                <strong>Eat it in this order:</strong> {response.sequencingTip}
+              </span>
             </p>
           ) : null}
           {response.postMealAction ? (
             <div data-testid="post-meal-action">
-              <p>
-                <strong>After this meal:</strong> {response.postMealAction}
+              <p className="result-row">
+                <IconCheck size={16} />
+                <span>
+                  <strong>After this meal:</strong> {response.postMealAction}
+                </span>
               </p>
               {onActionDone ? (
                 actionDone ? (
@@ -116,30 +170,23 @@ export function ResultCard({
             </div>
           ) : null}
         </div>
-        {/* `general-guidance-01` ledger row (docs/safety/copy-ledger.md): the
-            T1 honesty line — verdicts are band-general, never a prediction of
-            this user's own response. */}
-        <p className="result-disclaimer" data-testid="general-guidance">
-          Revora&apos;s guidance is general for your A1C range — your own
-          response to a food can differ. Only you (and your care team) know
-          your body.
-        </p>
-        <DisclaimerLine disclaimer={response.disclaimer} />
-        {showPantryEntry(response.kind, response.risk) ? (
-          <p className="field-hint" data-testid="pantry-entry">
-            Want your whole kitchen checked once? See{" "}
-            <Link className="inline-link" href="/pantry">
-              the Pantry Review
-            </Link>{" "}
-            — one payment, nothing renews.
+        <div className="result-fineprint">
+          {/* `general-guidance-01` ledger row (docs/safety/copy-ledger.md): the
+              T1 honesty line — verdicts are band-general, never a prediction of
+              this user's own response. */}
+          <p className="result-disclaimer" data-testid="general-guidance">
+            Revora&apos;s guidance is general for your A1C range — your own
+            response to a food can differ. Only you (and your care team) know
+            your body.
           </p>
-        ) : null}
+          <DisclaimerLine disclaimer={response.disclaimer} />
+        </div>
       </section>
     );
   }
 
   if (response.kind === "upsell") {
-    const variant = upsellVariant(response.message);
+    const variant = upsellVariant(response.message, response.upsellKind);
     return (
       <section
         aria-live="polite"

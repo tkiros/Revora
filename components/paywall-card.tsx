@@ -20,9 +20,23 @@ export function PaywallCard() {
   const [error, setError] = useState<string | null>(null);
   const [playPrices, setPlayPrices] = useState<Record<string, string>>({});
   const [usesPlay, setUsesPlay] = useState(false);
+  const [monthlyDisplay, setMonthlyDisplay] = useState<string | null>(null);
 
   useEffect(() => {
     track({ name: "paywall_viewed" });
+
+    // Monthly display price comes from the paywall config (the variant the
+    // checkout will actually charge) — never a second hard-coded ladder.
+    fetch("/api/paywall")
+      .then((r) => r.json())
+      .then((cfg: { priceDisplay?: unknown }) => {
+        if (typeof cfg.priceDisplay === "string") {
+          setMonthlyDisplay(cfg.priceDisplay);
+        }
+      })
+      .catch(() => {
+        // keep the fallback label
+      });
 
     if (isPlayBillingAvailable()) {
       setUsesPlay(true);
@@ -91,6 +105,27 @@ export function PaywallCard() {
     }
   }
 
+  // Play prices win in the TWA; otherwise the paywall config's monthly
+  // variant; the literal only as the offline fallback.
+  const monthlyLabel =
+    playPrices[PLAY_SKUS.monthly] ?? `${monthlyDisplay ?? "$12.99"}/mo`;
+  // FLAG: annual has no server price source yet — hard-coded until a
+  // STRIPE_PRICE_ANNUAL variant exists.
+  const annualLabel = playPrices[PLAY_SKUS.annual] ?? "$99.99/yr";
+  // Savings vs 12 months of the live monthly variant; hidden when the math
+  // doesn't hold (cheap variants, Play-priced currencies).
+  const monthlyNumber = Number.parseFloat(
+    (monthlyDisplay ?? "$12.99").replace(/[^0-9.]/g, "")
+  );
+  const annualSavingsPct =
+    Number.isFinite(monthlyNumber) && monthlyNumber > 0
+      ? Math.round((1 - 99.99 / (monthlyNumber * 12)) * 100)
+      : 0;
+  const annualNote =
+    !playPrices[PLAY_SKUS.annual] && annualSavingsPct >= 10
+      ? ` /year — save about ${annualSavingsPct}% vs monthly`
+      : " /year";
+
   return (
     <div className="paywall-card" data-testid="paywall-card">
       <ul className="page-copy expectation-list">
@@ -100,12 +135,12 @@ export function PaywallCard() {
         <li>The progress view</li>
         <li>One gentle daily reminder (optional)</li>
       </ul>
-      <p className="field-hint">
-        Free keeps working: five checks a day and your today view. Cancel
-        anytime — the cancel button lives on your account page, not behind an
-        email.
-      </p>
-      <div className="paywall-actions">
+      <div className="plan-card" data-recommended="">
+        <p className="plan-card-flag">Most popular</p>
+        <p className="plan-card-price">
+          {monthlyDisplay ?? "$12.99"}
+          <span> /month</span>
+        </p>
         <button
           type="button"
           className="primary-button"
@@ -113,22 +148,30 @@ export function PaywallCard() {
           data-testid="subscribe-monthly"
           onClick={() => subscribe("monthly")}
         >
-          {busy === "monthly"
-            ? "Opening…"
-            : `Monthly — ${playPrices[PLAY_SKUS.monthly] ?? "$12.99/mo"}`}
+          {busy === "monthly" ? "Opening…" : `Monthly — ${monthlyLabel}`}
         </button>
+      </div>
+      <div className="plan-card">
+        <p className="plan-card-flag">Best value</p>
+        <p className="plan-card-price">
+          $99.99
+          <span>{annualNote}</span>
+        </p>
         <button
           type="button"
-          className="primary-button"
+          className="secondary-button"
           disabled={busy !== null}
           data-testid="subscribe-annual"
           onClick={() => subscribe("annual")}
         >
-          {busy === "annual"
-            ? "Opening…"
-            : `Annual — ${playPrices[PLAY_SKUS.annual] ?? "$99.99/yr"}`}
+          {busy === "annual" ? "Opening…" : `Annual — ${annualLabel}`}
         </button>
       </div>
+      <p className="field-hint">
+        Free keeps working: five checks a day and your today view. Cancel
+        anytime — the cancel button lives on your account page, not behind an
+        email.
+      </p>
       {error ? <p className="field-error">{error}</p> : null}
     </div>
   );

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { DemoCheckCard } from "../components/demo-check-card";
+import { IconAlert, IconArrowRight, IconLeaf } from "../components/icons";
 import { storeWaitlistUrl } from "../lib/waitlist";
 
 export const metadata: Metadata = {
@@ -85,20 +87,29 @@ export default function LandingPage() {
                 <p className="status-eyebrow">You snap: oatmeal</p>
                 <div className="result-card" data-risk="MODERATE">
                   <p className="result-eyebrow">Revora result</p>
-                  <p className="result-title">Be careful</p>
+                  <p className="result-title verdict-title" data-risk="MODERATE">
+                    <IconAlert size={26} />
+                    Be careful
+                  </p>
                   <p className="result-copy">
                     Oatmeal on its own is a carb-heavy start, so it can have a
                     higher blood-sugar impact than its healthy reputation
                     suggests.
                   </p>
                   <div className="result-list">
-                    <p>
-                      <strong>Adjustment:</strong> add protein — Greek yogurt,
-                      nuts, or eggs on the side.
+                    <p className="result-row">
+                      <IconLeaf size={16} />
+                      <span>
+                        <strong>Adjustment:</strong> add protein — Greek
+                        yogurt, nuts, or eggs on the side.
+                      </span>
                     </p>
-                    <p>
-                      <strong>Swap:</strong> steel-cut oats hold up steadier
-                      than instant packets.
+                    <p className="result-row">
+                      <IconArrowRight size={16} />
+                      <span>
+                        <strong>Swap:</strong> steel-cut oats hold up steadier
+                        than instant packets.
+                      </span>
                     </p>
                   </div>
                 </div>
@@ -149,6 +160,19 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* ── Live example ────────────────────────────────────── */}
+        <section className="landing-section" id="live-example">
+          <div className="landing-section-head">
+            <h2 className="landing-h2">This is the actual answer you get</h2>
+            <p className="landing-section-lede">
+              No dashboard, no numbers to decode — one card, in plain words.
+            </p>
+          </div>
+          <div className="landing-example">
+            <DemoCheckCard />
+          </div>
+        </section>
+
         {/* ── Why trust it ────────────────────────────────────── */}
         <section className="landing-section">
           <div className="landing-section-head">
@@ -157,6 +181,28 @@ export default function LandingPage() {
               No miracle promises. Revora earns trust the slow way — by
               telling you exactly what it measures and where it stops.
             </p>
+          </div>
+          {/* Research proof, honestly framed: a citation for the approach,
+              never a promise about this user's numbers. */}
+          <div className="landing-proof-band">
+            <p className="landing-proof-stat">58%</p>
+            <div>
+              <p>
+                In the landmark CDC DPP trial (NEJM, 2002), participants who
+                made sustained diet and activity changes saw a 58% reduction
+                in progression to type 2 diabetes. Revora&apos;s daily check
+                is built around the same idea that trial studied: small,
+                consistent food decisions, made at the meal.
+              </p>
+              <p className="landing-proof-note">
+                A citation for the approach — not a result from Revora&apos;s
+                users, and not a promise about your numbers.{" "}
+                <Link className="inline-link" href="/how-it-works">
+                  Read the research disclosure
+                </Link>
+                .
+              </p>
+            </div>
           </div>
           <div className="landing-proof">
             <div className="landing-proof-item">
@@ -332,7 +378,7 @@ export default function LandingPage() {
             <div className="landing-footer-col">
               <h3>Learn</h3>
               <Link href="/how-it-works">How the progress score works</Link>
-              <Link href="/demo">See a live example</Link>
+              <a href="#live-example">See a live example</a>
             </div>
             <div className="landing-footer-col">
               <h3>Legal</h3>

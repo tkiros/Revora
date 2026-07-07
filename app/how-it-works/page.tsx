@@ -99,6 +99,15 @@ export default function HowItWorksPage() {
           <p className="result-disclaimer">Not medical advice.</p>
         </section>
 
+        <section className="surface-card hero-card">
+          <p className="page-copy">
+            The habit itself takes about ten seconds a day.
+          </p>
+          <Link className="primary-button link-button" href="/check">
+            Try it with your next meal
+          </Link>
+        </section>
+
         <footer className="page-footer">
           <Link href="/progress">Progress</Link>
           <Link href="/">Home</Link>

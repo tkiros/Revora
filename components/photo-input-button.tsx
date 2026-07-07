@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 
 import { fileToDataUrl } from "../lib/client/image";
 import { requestPhotoDraft, type PhotoDraftResult } from "../lib/client/photo-draft";
+import { IconCamera } from "./icons";
 
 /** D5 photo-assist entry point. Native capture input — no camera library.
  *  The result is a DRAFT the user must review (photo-draft-review.tsx);
@@ -53,7 +54,7 @@ export function PhotoInputButton({
       />
       <button
         type="button"
-        className="secondary-button"
+        className="secondary-button method-chip"
         data-testid="photo-input-button"
         disabled={disabled || isDrafting}
         onClick={() => {
@@ -63,6 +64,7 @@ export function PhotoInputButton({
           }
         }}
       >
+        <IconCamera size={20} />
         {isDrafting ? "Reading your photo..." : "Snap a photo"}
       </button>
     </>

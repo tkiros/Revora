@@ -52,9 +52,23 @@ type CheckRouteDeps = {
 };
 
 // Calm upsell, never a scary wall (plan 4D): the daily loop keeps working
-// tomorrow; premium removes the limit.
-const FREE_LIMIT_MESSAGE =
-  "You've used today's five free checks. Premium removes the daily limit and keeps your full history — or check back in with your first meal tomorrow.";
+// tomorrow; premium removes the limit. The count is derived from
+// FREE_DAILY_CHECKS so the copy can never drift from the real limit.
+const COUNT_WORDS = [
+  "zero",
+  "one",
+  "two",
+  "three",
+  "four",
+  "five",
+  "six",
+  "seven",
+  "eight",
+  "nine",
+  "ten"
+] as const;
+const FREE_LIMIT_WORD = COUNT_WORDS[FREE_DAILY_CHECKS] ?? String(FREE_DAILY_CHECKS);
+const FREE_LIMIT_MESSAGE = `You've used today's ${FREE_LIMIT_WORD} free checks. Premium removes the daily limit and keeps your full history — or check back in with your first meal tomorrow.`;
 
 // Hard wall (Decision D): under PAYWALL_MODE=trial there are no residual free
 // checks. The client renders this as the wall CTA; the copy stays calm and
@@ -117,6 +131,7 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
             return NextResponse.json(
               {
                 kind: "upsell",
+                upsellKind: "trial",
                 message: TRIAL_WALL_MESSAGE,
                 disclaimer: loadSafetyContract().copy.disclaimer
               },
@@ -144,6 +159,7 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
             return NextResponse.json(
               {
                 kind: "upsell",
+                upsellKind: "legacy",
                 message: FREE_LIMIT_MESSAGE,
                 disclaimer: loadSafetyContract().copy.disclaimer
               },

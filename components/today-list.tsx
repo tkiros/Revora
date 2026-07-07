@@ -20,7 +20,9 @@ export function TodayList({ checks }: { checks: StoredCheck[] }) {
       {checks.map((check) => (
         <li key={check.clientId} className="today-item" data-risk={check.risk}>
           <span className="today-food">{check.food}</span>
-          <span className="today-risk">{RISK_LABELS[check.risk]}</span>
+          <span className="today-risk" data-risk={check.risk}>
+            {RISK_LABELS[check.risk]}
+          </span>
         </li>
       ))}
     </ul>

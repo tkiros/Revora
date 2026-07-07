@@ -44,6 +44,15 @@ export const tasterStore = {
       // ignore
     }
   },
+  // Free checks left on the Day-1 allowance: full limit before first use,
+  // zero once spent or aged out. Drives the visible "N free checks left"
+  // counter so the wall is never a surprise.
+  remaining(now: Date = new Date()): number {
+    const state = read();
+    if (!state) return TASTER_LIMIT;
+    if (state.firstDay !== dayLocal(now)) return 0;
+    return Math.max(0, TASTER_LIMIT - state.used);
+  },
   status(now: Date = new Date()): "available" | "exhausted" | "expired" {
     const state = read();
     if (!state) return "available";

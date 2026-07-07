@@ -50,6 +50,13 @@ function qualitativeLabel(percent: number): string {
 
 function BaiBar({ label, percent }: { label: string; percent: number }) {
   const qualitative = qualitativeLabel(percent);
+  // Fill animates from 0 on mount (width transition in globals.css);
+  // prefers-reduced-motion zeroes the transition so it just appears.
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setWidth(percent));
+    return () => cancelAnimationFrame(frame);
+  }, [percent]);
   return (
     <div className="bai-bar-row">
       <span className="bai-bar-label">{label}</span>
@@ -58,7 +65,7 @@ function BaiBar({ label, percent }: { label: string; percent: number }) {
         role="img"
         aria-label={`${label}: ${qualitative}`}
       >
-        <div className="bai-bar-fill" style={{ width: `${percent}%` }} />
+        <div className="bai-bar-fill" style={{ width: `${width}%` }} />
       </div>
       <span className="bai-bar-qual">{qualitative}</span>
     </div>
@@ -132,13 +139,13 @@ export default function ProgressPage() {
         </section>
 
         {state === "loading" ? (
-          <section className="surface-card">
+          <section className="surface-card hero-card">
             <p className="page-copy">Loading your week…</p>
           </section>
         ) : null}
 
         {state === "locked" ? (
-          <section className="surface-card" data-testid="progress-locked">
+          <section className="surface-card hero-card" data-testid="progress-locked">
             <h2 className="section-title">Progress is part of Premium</h2>
             <p className="page-copy">
               The weekly progress view — your check-in consistency and
@@ -157,7 +164,7 @@ export default function ProgressPage() {
         ) : null}
 
         {state === "empty" ? (
-          <section className="surface-card" data-testid="progress-empty">
+          <section className="surface-card hero-card" data-testid="progress-empty">
             <h2 className="section-title">Building your first week</h2>
             <p className="page-copy">
               Your first weekly progress appears after your first full week
@@ -171,7 +178,7 @@ export default function ProgressPage() {
         ) : null}
 
         {state === "ready" && latestBai && bandCopy ? (
-          <section className="surface-card" data-testid="progress-bands">
+          <section className="surface-card hero-card" data-testid="progress-bands">
             <p className="hero-eyebrow">
               Week of {formatWeekStart(latestBai.weekStart)}
             </p>
@@ -201,7 +208,7 @@ export default function ProgressPage() {
           </section>
         ) : null}
 
-        <section className="surface-card">
+        <section className="surface-card hero-card">
           <p className="page-copy">
             Curious how this is computed, and what it is not?{" "}
             <Link className="inline-link" href="/how-it-works">

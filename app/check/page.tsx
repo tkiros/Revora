@@ -4,6 +4,7 @@ import { DailyLoop } from "../../components/daily-loop";
 import { DemoCheckCard } from "../../components/demo-check-card";
 import { FirstRunGate } from "../../components/first-run-gate";
 import { FoodCheckForm } from "../../components/food-check-form";
+import { IconCheck, IconHeart, IconLock } from "../../components/icons";
 
 export const metadata = { title: "Check a meal — Revora" };
 
@@ -18,10 +19,8 @@ export default function CheckPage() {
           <p className="hero-eyebrow">Revora</p>
           <h1 className="page-title">Should I eat this?</h1>
           <p className="page-copy">
-            With prediabetes, that question can hang over every plate. Revora
-            answers it in seconds — one calm verdict, one reason, one safer
-            swap — so you can decide and get back to your meal. Type it, say
-            it, or snap a photo. No login for your first checks.
+            One calm answer at the moment you&apos;re deciding — the reason
+            behind it, and one easy swap. Type it, say it, or snap a photo.
           </p>
         </section>
 
@@ -31,13 +30,22 @@ export default function CheckPage() {
 
         <DailyLoop />
 
-        <DemoCheckCard />
-
-        <ul className="page-copy expectation-list" data-testid="trust-strip">
-          <li>No login for your first checks.</li>
-          <li>When we&apos;re unsure, we say so.</li>
-          <li>If you ever subscribe, cancel is one tap — not an email.</li>
+        <ul className="trust-row" data-testid="trust-strip">
+          <li>
+            <IconLock size={20} />
+            <span>No login for your first checks.</span>
+          </li>
+          <li>
+            <IconHeart size={20} />
+            <span>When we&apos;re unsure, we say so.</span>
+          </li>
+          <li>
+            <IconCheck size={20} />
+            <span>If you ever subscribe, cancel is one tap — not an email.</span>
+          </li>
         </ul>
+
+        <DemoCheckCard />
 
         <footer className="page-footer">
           <Link href="/history">Your week</Link>
