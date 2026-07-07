@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { track, type PriceVariant } from "../lib/client/analytics";
-import { IconCheck, IconHeart, IconLock } from "./icons";
+import { historyStore } from "../lib/client/history-store";
 
 type Config = { variant: PriceVariant; priceDisplay: string };
 // Two steps (was three): the offer, the trial mechanics, and the price all
@@ -17,6 +17,14 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Endowment nudge for the declined state: name what's already theirs. Local
+  // history only — the declined visitor is a guest; read in an effect so the
+  // server render (0) never mismatches hydration.
+  const [savedChecks, setSavedChecks] = useState(0);
+
+  useEffect(() => {
+    setSavedChecks(historyStore.all().length);
+  }, []);
 
   useEffect(() => {
     fetch("/api/paywall")
@@ -66,26 +74,29 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
             device, weekly patterns from your own meals, and one gentle daily
             reminder.
           </p>
-          <ul className="trust-row">
+          {/* The same three facts as the old trust bullets, told as the
+              timeline the week actually follows (Today → Day 5 → Day 7). */}
+          <ol className="trial-timeline" data-testid="trial-timeline">
             <li>
-              <IconLock size={20} />
-              <span>Start today with a card — nothing is charged for 7 days.</span>
-            </li>
-            <li>
-              <IconHeart size={20} />
+              <span className="trial-timeline-day">Today</span>
               <span>
-                Two days before the trial ends, we email you the exact date and
-                amount.
+                Start with a card — everything unlocks, nothing is charged.
               </span>
             </li>
             <li>
-              <IconCheck size={20} />
+              <span className="trial-timeline-day">Day 5</span>
               <span>
-                Cancel in one tap — from that email or your account page. No
-                retention screens.
+                We email you the exact date and amount before any charge.
               </span>
             </li>
-          </ul>
+            <li>
+              <span className="trial-timeline-day">Day 7</span>
+              <span>
+                Your first charge — cancel any time before, in one tap, from
+                that email or your account page. No retention screens.
+              </span>
+            </li>
+          </ol>
           <div className="plan-card" data-recommended="">
             <p className="plan-card-flag">7 days free</p>
             <p className="plan-card-price">
@@ -127,11 +138,18 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
             onChange={(e) => setEmail(e.target.value)}
           />
           <button type="submit" className="primary-button" disabled={busy}>
-            {busy ? "Opening…" : "Continue to secure checkout"}
+            {busy ? "Opening…" : "Continue to checkout — $0 due today"}
           </button>
           {error ? <p className="field-error">{error}</p> : null}
         </form>
       )}
+      {declined && savedChecks > 0 ? (
+        <p className="field-hint" data-testid="saved-checks-note">
+          The {savedChecks} {savedChecks === 1 ? "check" : "checks"} you&apos;ve
+          already made stay saved on this device — your history is here
+          whenever you come back.
+        </p>
+      ) : null}
       {declined ? (
         <p className="field-hint" data-testid="pantry-catch">
           Not ready for a subscription? There&apos;s a one-time option:{" "}

@@ -1016,6 +1016,70 @@ button.inline-link {
   color: var(--accent);
 }
 
+/* Trial timeline (Today → Day 5 → Day 7): the wall's mechanics as a story. */
+.trial-timeline {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 14px;
+}
+
+.trial-timeline li {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  padding-left: 22px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.trial-timeline li::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.trial-timeline li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 17px;
+  bottom: -12px;
+  width: 2px;
+  background: var(--accent-tint);
+}
+
+.trial-timeline-day {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-strong);
+}
+
+/* Onboarding goal-gradient bar — never renders at zero. */
+.onboarding-progress {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent-tint);
+  overflow: hidden;
+}
+
+.onboarding-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width var(--dur-fast) var(--ease);
+}
+
 /* Remaining free-check counter (trial taster). */
 .taster-counter {
   margin: 0;
