@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "start": "next start",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "rm -rf .next/dev/types .next/types && tsc --noEmit",
     "build": "next build",
     "test": "vitest run",
     "test:revora": "vitest run tests/unit/revora",

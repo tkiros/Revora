@@ -116,6 +116,14 @@ export function ResultCard({
             </div>
           ) : null}
         </div>
+        {/* `general-guidance-01` ledger row (docs/safety/copy-ledger.md): the
+            T1 honesty line — verdicts are band-general, never a prediction of
+            this user's own response. */}
+        <p className="result-disclaimer" data-testid="general-guidance">
+          Revora&apos;s guidance is general for your A1C range — your own
+          response to a food can differ. Only you (and your care team) know
+          your body.
+        </p>
         <DisclaimerLine disclaimer={response.disclaimer} />
         {showPantryEntry(response.kind, response.risk) ? (
           <p className="field-hint" data-testid="pantry-entry">

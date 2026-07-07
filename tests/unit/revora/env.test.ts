@@ -94,7 +94,12 @@ describe("GET /api/health", () => {
       launchMode: "normal",
       upstash: "unconfigured",
       db: "unconfigured",
-      crons: { nudge: "unknown", baiWeekly: "unknown" }
+      crons: {
+        nudge: "unknown",
+        baiWeekly: "unknown",
+        trialPrecharge: "unknown",
+        pantrySweep: "unknown"
+      }
     });
     expect(JSON.stringify(payload)).not.toContain("sk-preview");
     expect(JSON.stringify(payload)).not.toContain("ecfg_connection_string");
@@ -122,7 +127,12 @@ describe("GET /api/health", () => {
       launchMode: "normal",
       upstash: "unconfigured",
       db: "unconfigured",
-      crons: { nudge: "unknown", baiWeekly: "unknown" }
+      crons: {
+        nudge: "unknown",
+        baiWeekly: "unknown",
+        trialPrecharge: "unknown",
+        pantrySweep: "unknown"
+      }
     });
   });
 });

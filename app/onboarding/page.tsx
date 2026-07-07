@@ -231,6 +231,13 @@ export default function OnboardingPage() {
                   Guidance is qualitative — plain words, not glucose numbers
                   or calorie math.
                 </li>
+                {/* `general-guidance-01` ledger row — same line as the result
+                    card renders. */}
+                <li>
+                  Revora&apos;s guidance is general for your A1C range — your
+                  own response to a food can differ. Only you (and your care
+                  team) know your body.
+                </li>
                 <li>
                   When Revora isn&apos;t sure, it says so and errs on the careful
                   side.

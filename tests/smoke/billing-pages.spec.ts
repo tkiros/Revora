@@ -56,7 +56,7 @@ test("free-tier limit renders the calm upsell card", async ({ page }) => {
     });
   });
 
-  await page.goto("/");
+  await page.goto("/?stay=1");
   await page
     .getByLabel(/what are you thinking about eating/i)
     .fill("lentil soup");
