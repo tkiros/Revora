@@ -29,8 +29,8 @@ function ItemRow({ item, tone }: { item: ReportItem; tone: "safe" | "moderate" |
         {item.portion ? <span className="report-item-portion"> · {item.portion}</span> : null}
       </p>
       <p className="report-item-reason">{item.reason}</p>
-      {item.swap ? <p className="report-item-tip">Swap idea: {item.swap}</p> : null}
-      {item.adjustment ? <p className="report-item-tip">Timing tip: {item.adjustment}</p> : null}
+      {item.swap ? <p className="report-item-tip">Swap: {item.swap}</p> : null}
+      {item.adjustment ? <p className="report-item-tip">Adjustment: {item.adjustment}</p> : null}
     </div>
   );
 }
@@ -100,7 +100,7 @@ export default async function ReportPage({
 
         {report.sections.moderate.length > 0 ? (
           <section className="surface-card">
-            <h2>Swap these</h2>
+            <h2>Worth a tweak</h2>
             <p className="page-copy">
               Small upgrades — a portion, a pairing, or a timing change makes
               each of these work better for you.
@@ -141,7 +141,8 @@ export default async function ReportPage({
           <h2>Keep checking daily meals</h2>
           <p>
             The same review, one meal at a time — type or say any food and get
-            a calm answer in seconds. Premium removes the daily limit.
+            a calm answer in seconds. Premium keeps it unlimited, with your
+            history on every device.
           </p>
           <a className="primary-button" href="/subscribe">
             See Premium

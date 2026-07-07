@@ -36,17 +36,27 @@ export default function HistoryPage() {
     };
   }, []);
 
-  const checkedDays = new Set(
-    recent.map((check) => localDayKey(new Date(check.createdAt)))
-  );
+  // Verdict-colored dots: a day is tinted by its most careful verdict, so the
+  // strip reads as information, not decoration (risk colors stay semantic).
+  const RISK_RANK = { SAFE: 0, MODERATE: 1, HIGH: 2 } as const;
+  const dayRisk = new Map<string, StoredCheck["risk"]>();
+  for (const check of recent) {
+    const key = localDayKey(new Date(check.createdAt));
+    const prev = dayRisk.get(key);
+    if (!prev || RISK_RANK[check.risk] > RISK_RANK[prev]) {
+      dayRisk.set(key, check.risk);
+    }
+  }
 
   const weekStrip = Array.from({ length: 7 }, (_, offset) => {
     const day = new Date();
     day.setDate(day.getDate() - (6 - offset));
+    const key = localDayKey(day);
     return {
-      key: localDayKey(day),
+      key,
       label: DAY_LABELS[day.getDay()],
-      checked: checkedDays.has(localDayKey(day))
+      checked: dayRisk.has(key),
+      risk: dayRisk.get(key)
     };
   });
 
@@ -80,6 +90,7 @@ export default function HistoryPage() {
                 <span
                   aria-hidden="true"
                   className={day.checked ? "week-dot week-dot-on" : "week-dot"}
+                  data-risk={day.risk}
                 />
                 <span className="sr-only">
                   {day.checked ? "checked in" : "no checks"}
@@ -89,15 +100,20 @@ export default function HistoryPage() {
           </ol>
         </section>
 
-        <section className="surface-card">
+        <section className="surface-card hero-card">
           <h2 className="section-title">Recent checks</h2>
           {!hydrated ? (
             <p className="page-copy">Loading your week…</p>
           ) : recent.length === 0 ? (
-            <p className="page-copy" data-testid="history-empty">
-              Nothing here yet. Check your next meal and it will show up on
-              this page.
-            </p>
+            <div className="empty-state" data-testid="history-empty">
+              <p>
+                Nothing here yet. Check your next meal and it will show up on
+                this page.
+              </p>
+              <Link className="recheck-button link-button" href="/check">
+                Check a meal
+              </Link>
+            </div>
           ) : (
             <ul className="history-list" data-testid="history-list">
               {recent.map((check) => (
@@ -108,7 +124,7 @@ export default function HistoryPage() {
                 >
                   <div className="history-item-main">
                     <span className="today-food">{check.food}</span>
-                    <span className="today-risk">
+                    <span className="today-risk" data-risk={check.risk}>
                       {RISK_LABELS[check.risk]}
                     </span>
                   </div>

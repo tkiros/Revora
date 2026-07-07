@@ -15,10 +15,11 @@ const RESULT_CARD_SOURCE = fs.readFileSync(
 );
 
 // The upsell branch renders the server's `message` verbatim; it only branches
-// its own eyebrow/CTA/data-wall on whether that message mentions "free week"
-// (the string sniff — the server message is the single source of truth). These
-// tests lock the pure variant picker; the JSX renders `message` unchanged in
-// both cases, so it needs no jsdom harness here.
+// its own eyebrow/CTA/data-wall on the server's structured `upsellKind`. The
+// old "free week" message sniff survives only as the fallback for older or
+// cached responses that omit the field. These tests lock the pure variant
+// picker; the JSX renders `message` unchanged in both cases, so it needs no
+// jsdom harness here.
 
 // The real server strings (app/api/check/route.ts): the trial hard-wall body
 // names "free week"; the legacy soft limit names "free checks".
@@ -28,8 +29,8 @@ const FREE_LIMIT_MESSAGE =
   "You've used today's five free checks. Premium removes the daily limit and keeps your full history — or check back in with your first meal tomorrow.";
 
 describe("upsellVariant", () => {
-  it("renders the trial wall CTA when the message mentions the free week", () => {
-    expect(upsellVariant(TRIAL_WALL_MESSAGE)).toEqual({
+  it("renders the trial wall CTA for the structured trial kind", () => {
+    expect(upsellVariant(TRIAL_WALL_MESSAGE, "trial")).toEqual({
       wall: "trial",
       eyebrow: "Where the free taste ends",
       title: null,
@@ -37,8 +38,8 @@ describe("upsellVariant", () => {
     });
   });
 
-  it("keeps the legacy daily-limit copy for the free-checks message", () => {
-    expect(upsellVariant(FREE_LIMIT_MESSAGE)).toEqual({
+  it("keeps the legacy daily-limit copy for the structured legacy kind", () => {
+    expect(upsellVariant(FREE_LIMIT_MESSAGE, "legacy")).toEqual({
       wall: null,
       eyebrow: "Daily limit reached",
       title: "That's five for today",
@@ -46,10 +47,39 @@ describe("upsellVariant", () => {
     });
   });
 
-  it("only trips the trial variant on the exact 'free week' phrase", () => {
+  it("the structured kind wins over whatever the message says", () => {
+    expect(upsellVariant(TRIAL_WALL_MESSAGE, "legacy").wall).toBeNull();
+    expect(upsellVariant(FREE_LIMIT_MESSAGE, "trial").wall).toBe("trial");
+  });
+
+  it("falls back to the 'free week' message sniff when the kind is absent", () => {
+    expect(upsellVariant(TRIAL_WALL_MESSAGE).wall).toBe("trial");
+    expect(upsellVariant(FREE_LIMIT_MESSAGE).wall).toBeNull();
     // "free checks" (legacy) must NOT read as the trial wall.
     expect(upsellVariant("free checks left today").wall).toBeNull();
     expect(upsellVariant("start your free week today").wall).toBe("trial");
+  });
+
+  it("pins the legacy title's number word to FREE_DAILY_CHECKS", async () => {
+    const { FREE_DAILY_CHECKS } = await import(
+      "../../../lib/server/entitlement"
+    );
+    const words = [
+      "zero",
+      "one",
+      "two",
+      "three",
+      "four",
+      "five",
+      "six",
+      "seven",
+      "eight",
+      "nine",
+      "ten"
+    ];
+    expect(upsellVariant("", "legacy").title).toBe(
+      `That's ${words[FREE_DAILY_CHECKS]} for today`
+    );
   });
 });
 

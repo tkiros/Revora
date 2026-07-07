@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { track, type PriceVariant } from "../lib/client/analytics";
+import { IconCheck, IconHeart, IconLock } from "./icons";
 
 type Config = { variant: PriceVariant; priceDisplay: string };
 // Two steps (was three): the offer, the trial mechanics, and the price all
@@ -53,7 +54,7 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
   }
 
   return (
-    <div className="surface-card" data-testid="trial-wall">
+    <div className="surface-card hero-card" data-testid="trial-wall">
       {step === "value" ? (
         <>
           <p className="hero-eyebrow">Day 2 with Revora</p>
@@ -65,18 +66,47 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
             device, weekly patterns from your own meals, and one gentle daily
             reminder.
           </p>
-          <ul className="page-copy expectation-list">
-            <li>Start today with a card — nothing is charged for 7 days.</li>
-            <li>Two days before the trial ends, we email you the exact date and amount.</li>
-            <li>Cancel in one tap — from that email or your account page. No retention screens.</li>
+          <ul className="trust-row">
+            <li>
+              <IconLock size={20} />
+              <span>Start today with a card — nothing is charged for 7 days.</span>
+            </li>
+            <li>
+              <IconHeart size={20} />
+              <span>
+                Two days before the trial ends, we email you the exact date and
+                amount.
+              </span>
+            </li>
+            <li>
+              <IconCheck size={20} />
+              <span>
+                Cancel in one tap — from that email or your account page. No
+                retention screens.
+              </span>
+            </li>
           </ul>
+          <div className="plan-card" data-recommended="">
+            <p className="plan-card-flag">7 days free</p>
+            <p className="plan-card-price">
+              {config?.priceDisplay ?? "$12.99"}
+              <span> /month after your free week — cancel anytime</span>
+            </p>
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() => setStep("start")}
+            >
+              Start my free week
+            </button>
+          </div>
           <p className="field-hint">
-            {config?.priceDisplay ?? "$12.99"}/month after your free week.
-            Cancel anytime.
+            Grounded in published research —{" "}
+            <Link className="inline-link" href="/how-it-works">
+              see how Revora works
+            </Link>
+            .
           </p>
-          <button type="button" className="primary-button" onClick={() => setStep("start")}>
-            Start my free week
-          </button>
         </>
       ) : (
         <form onSubmit={startTrial} className="field-stack">

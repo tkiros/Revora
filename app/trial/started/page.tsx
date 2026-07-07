@@ -21,11 +21,15 @@ export default function TrialStartedPage() {
       <div className="page-frame">
         <section className="surface-card hero-card">
           <p className="hero-eyebrow">Your free week</p>
-          <h1 className="page-title">Your free week is active</h1>
+          <h1 className="page-title">You&apos;re in. Your free week starts now.</h1>
           <p className="page-copy">
             We emailed you a sign-in link — tap it to unlock unlimited checks
-            on this and every device.
+            on this and every device. Then do the one thing that matters:
+            check your next meal.
           </p>
+          <Link className="primary-button link-button" href="/check">
+            Check your next meal
+          </Link>
           <p className="page-copy">
             Two days before your trial ends, we&apos;ll email you a reminder
             with the exact date and amount — and a one-tap cancel link. Cancel
@@ -44,6 +48,13 @@ export default function TrialStartedPage() {
             .
           </p>
         </section>
+
+        <footer className="page-footer">
+          <Link href="/check">Check a meal</Link>
+          <Link href="/account">Account</Link>
+          <Link href="/privacy">Privacy</Link>
+          <Link href="/terms">Terms</Link>
+        </footer>
       </div>
     </main>
   );

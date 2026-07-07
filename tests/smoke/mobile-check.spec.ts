@@ -303,7 +303,9 @@ test("result readability", async ({ page }) => {
   const reason = page.getByText("This looks balanced enough for your usual plan.");
 
   await expect(resultCard).toBeVisible();
-  await expect(resultCard).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  // SAFE verdict carries the --safe-bg tint (#ecfdf5) since the 2026-07-07
+  // revamp — the card is no longer plain white.
+  await expect(resultCard).toHaveCSS("background-color", "rgb(236, 253, 245)");
   await expect(resultCard).toHaveCSS("border-top-width", "2px");
   await expect(reason).toHaveCSS("color", "rgb(30, 41, 59)");
 

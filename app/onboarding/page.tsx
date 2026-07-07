@@ -7,6 +7,7 @@ import { useState } from "react";
 import { routeA1C } from "../../lib/revora/a1c";
 import { track } from "../../lib/client/analytics";
 import { profileStore } from "../../lib/client/profile-store";
+import { IconAlert, IconCheck, IconPause } from "../../components/icons";
 
 const DISCLAIMER =
   "Revora is informational only and is not medical advice. Talk with a doctor or registered dietitian for guidance that is specific to you.";
@@ -20,9 +21,9 @@ const HIGH_RANGE_MESSAGE =
 
 type Step = "welcome" | "segment" | "a1c" | "expectations" | "first_check" | "boundary";
 
-// Segmentation prompt — one tap, stored NOWHERE (no server write, no analytics
-// event). It exists only to make the tour feel like it's listening; each tap
-// (or "Skip") just advances. Segmentation analytics is a post-launch YAGNI.
+// Segmentation prompt — one tap, kept on-device only (no server write). The
+// answer picks which three first-check foods step 5 suggests, so the tour
+// actually listens. Segmentation analytics is a post-launch YAGNI.
 const SEGMENT_CHIPS = [
   "New A1C result",
   "Doctor's advice",
@@ -30,9 +31,21 @@ const SEGMENT_CHIPS = [
   "Just checking"
 ] as const;
 
-// The guided-first-check foods — three everyday items whose impact surprises
-// almost everyone, so the very first check earns an "oh, huh" moment.
-const FIRST_CHECK_CHIPS = ["oatmeal", "banana", "orange juice"] as const;
+type Segment = (typeof SEGMENT_CHIPS)[number];
+
+// The guided-first-check foods — everyday items whose impact surprises almost
+// everyone, so the very first check earns an "oh, huh" moment. Varied by what
+// brought the user here; the classics are the default.
+const FIRST_CHECK_CLASSICS = ["oatmeal", "banana", "orange juice"] as const;
+export const FIRST_CHECK_CHIPS_BY_SEGMENT: Record<
+  Segment,
+  readonly string[]
+> = {
+  "New A1C result": FIRST_CHECK_CLASSICS,
+  "Doctor's advice": ["brown rice", "granola", "fruit smoothie"],
+  "Family history": ["white bread", "grapes", "sweet tea"],
+  "Just checking": FIRST_CHECK_CLASSICS
+};
 
 // Single-source rule (P3): the tour never re-asks what the device already knows.
 // A guest who has an on-device A1C skips the A1C step entirely. Pure so the
@@ -48,10 +61,23 @@ export default function OnboardingPage() {
   const [a1cError, setA1cError] = useState<string | null>(null);
   const [boundaryMessage, setBoundaryMessage] = useState("");
   const [a1cValue, setA1cValue] = useState<number | null>(null);
+  const [segment, setSegment] = useState<Segment | null>(null);
 
-  function advanceFromSegment() {
+  function advanceFromSegment(choice?: Segment) {
+    if (choice) {
+      setSegment(choice);
+      try {
+        window.localStorage.setItem("revora.segment.v1", choice);
+      } catch {
+        // best-effort — the chip choice still steers this tour
+      }
+    }
     setStep(nextStepAfterSegment(profileStore.get() !== null));
   }
+
+  const firstCheckChips = segment
+    ? FIRST_CHECK_CHIPS_BY_SEGMENT[segment]
+    : FIRST_CHECK_CLASSICS;
 
   function skipTour() {
     // 5.1's escape hatch: ?stay=1 tells FirstRunGate not to bounce the user
@@ -119,6 +145,20 @@ export default function OnboardingPage() {
                 adjustment, and one safer swap. Never a calorie, never a
                 number to track.
               </p>
+              <div className="chip-row" aria-hidden="true">
+                <span className="verdict-badge" data-risk="SAFE">
+                  <IconCheck size={16} />
+                  Clear
+                </span>
+                <span className="verdict-badge" data-risk="MODERATE">
+                  <IconAlert size={16} />
+                  Be careful
+                </span>
+                <span className="verdict-badge" data-risk="HIGH">
+                  <IconPause size={16} />
+                  Hold off
+                </span>
+              </div>
               <button
                 type="button"
                 className="primary-button"
@@ -139,7 +179,7 @@ export default function OnboardingPage() {
                     key={label}
                     type="button"
                     className="selectable-chip"
-                    onClick={advanceFromSegment}
+                    onClick={() => advanceFromSegment(label)}
                   >
                     {label}
                   </button>
@@ -148,7 +188,7 @@ export default function OnboardingPage() {
               <button
                 type="button"
                 className="inline-link onboarding-skip"
-                onClick={advanceFromSegment}
+                onClick={() => advanceFromSegment()}
               >
                 Skip
               </button>
@@ -238,10 +278,6 @@ export default function OnboardingPage() {
                   own response to a food can differ. Only you (and your care
                   team) know your body.
                 </li>
-                <li>
-                  When Revora isn&apos;t sure, it says so and errs on the careful
-                  side.
-                </li>
                 <li>It is information to decide with, not medical advice.</li>
               </ul>
               <p className="result-disclaimer">{DISCLAIMER}</p>
@@ -268,7 +304,7 @@ export default function OnboardingPage() {
                 role="group"
                 aria-label="Try one of the classics"
               >
-                {FIRST_CHECK_CHIPS.map((food) => (
+                {firstCheckChips.map((food) => (
                   <button
                     key={food}
                     type="button"

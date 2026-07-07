@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import Script from "next/script";
 import type { ReactNode } from "react";
 
@@ -13,6 +14,15 @@ import "./globals.css";
 const UMAMI_SRC = process.env.NEXT_PUBLIC_UMAMI_SRC;
 const UMAMI_WEBSITE_ID = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID;
 
+// Brand typeface (DESIGN.md §Type). display:swap + Arial fallback in
+// globals.css keep offline test runs (Playwright, no network) flicker-safe.
+const sans = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+  weight: ["400", "500", "600", "700", "800"]
+});
+
 export const metadata: Metadata = {
   title: "Revora",
   description: "Server-side permission-first food checks for prediabetes-range A1C inputs.",
@@ -21,7 +31,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0f172a",
+  themeColor: "#0d5f57",
   width: "device-width",
   initialScale: 1
 };
@@ -32,7 +42,7 @@ export default function RootLayout({
   children: ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={sans.variable}>
       <body>
         {children}
         <SwRegister />

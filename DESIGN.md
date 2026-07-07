@@ -1,9 +1,11 @@
 # Revora Design System
 
-Canonical reference, extracted from `app/globals.css` (684 lines) + the permission-first
+Canonical reference, extracted from `app/globals.css` + the permission-first
 brand direction (`docs/revora-design-20260404-070350.md`, superseded but voice still applies,
 and `docs/product-marketing.md`). All new UI calibrates against this file.
-Created by /iplan-design-review 2026-07-04.
+Created by /iplan-design-review 2026-07-04. Major revamp 2026-07-07: Plus
+Jakarta Sans, deep-green brand accent, verdict tint/badge sets, sanctioned
+motion + icon layers (see §Motion, §Icons).
 
 ## Voice — permission-first
 
@@ -20,7 +22,7 @@ calm permission or gives one clear next action. Rules:
 
 | Token | Value | Use |
 |---|---|---|
-| `--page-bg` | `#f3f7fb` | body background (pages add a soft top gradient via `.page-shell`) |
+| `--page-bg` | `#f2f7f6` | body background (pages add a soft top gradient via `.page-shell`) |
 | `--surface` | `#ffffff` | cards |
 | `--surface-muted` | `#f8fafc` | inset areas, secondary surfaces |
 | `--border-strong` / `--border-soft` | `#cbd5e1` / `#e2e8f0` | inputs / card borders |
@@ -28,15 +30,25 @@ calm permission or gives one clear next action. Rules:
 | `--text-body` | `#1e293b` | body copy |
 | `--text-muted` | `#475569` | eyebrows, labels |
 | `--text-soft` | `#64748b` | hints ONLY (AA at 16px on white; never health info) |
-| `--accent` / `--accent-contrast` | `#0f172a` / `#f8fafc` | primary buttons (dark slate, not a color) |
+| `--accent` / `--accent-strong` / `--accent-contrast` / `--accent-tint` | `#0d5f57` / `#0a4a44` / `#f8fafc` / `#e6f2ef` | the ONE brand color (deep spruce green): primary buttons, focus rings, streak, trust icons; `-strong` is hover/pressed; `-tint` is selected/soft-brand fills |
+| `--ink` | `#0f172a` | the old slate, kept for anything that must stay neutral-dark |
 | `--danger` | `#b91c1c` | destructive/error text |
-| `--safe-border` / `--moderate-border` / `--high-border` | `#0f766e` / `#b45309` / `#b91c1c` | SEMANTIC risk left-borders on result rows — this is the product's risk language; never use decoratively |
+| `--safe-border` / `--safe-bg` / `--safe-text` / `--safe-badge` | `#0f766e` / `#ecfdf5` / `#065f46` / `#d1fae5` | SAFE verdict: border, card tint, text, badge fill |
+| `--moderate-border` / `--moderate-bg` / `--moderate-text` / `--moderate-badge` | `#b45309` / `#fffbeb` / `#92400e` / `#fef3c7` | MODERATE verdict set |
+| `--high-border` / `--high-bg` / `--high-text` / `--high-badge` | `#b91c1c` / `#fef2f2` / `#991b1b` / `#fee2e2` | HIGH verdict set |
+| `--landing-band` | `#0c332e` | landing dark bands (deep green-slate) |
 
-One accent (dark slate). Risk colors appear only as semantic borders/labels, never as fills or decoration.
+One brand accent (deep green, 2026-07-07 revamp — replaces the slate-only rule).
+Risk colors are STILL semantic-only, but graduate from border-only to the full
+verdict treatment: card tint (`-bg`), badge fill (`-badge`), and verdict text
+(`-text`). All `-text`-on-`-bg`/-`badge` pairs clear WCAG AA. Never use risk
+colors decoratively.
 
 ## Type
 
-- Stack: `Arial, Helvetica, sans-serif` — a known default-stack tradeoff, kept for zero-flash simplicity. If ever replaced, one display + system body, nothing else.
+- Stack: `var(--font-sans), Arial, Helvetica, sans-serif` — Plus Jakarta Sans
+  (variable 400–800) via `next/font` in `app/layout.tsx`, `display: swap`, Arial
+  fallback so offline test runs never flash unstyled. One family, nothing else.
 - Base 16px / 1.5. Body copy 1.65 line-height.
 - Scale: 13px uppercase eyebrow (700, 0.08em tracking) · 14–15px hints/meta · 16px body + inputs · 18px subheads (700) · titles `clamp(2rem, 7vw, 2.6rem)` (tight -0.03em).
 - Weights: 400 body, 600 secondary emphasis, 700 headings/CTAs. Nothing lighter or heavier.
@@ -76,19 +88,22 @@ For one-tap choices: segmentation taps, meal-suggestion chips. Assembly:
 
 The root is a marketing surface (Cal AI-style structure), the app lives at
 `/check`. The landing keeps every token (colors, radius scale, the one card
-shadow, Arial stack) but relaxes two app rules, on this surface ONLY:
+shadow, the type stack) but relaxes two app rules, on this surface ONLY:
 
 - Width: `.landing-frame` is `max-width: 1080px` with responsive two-column
   grids — the 480px `.page-frame` rule stays app-only.
-- Dark bands: `.landing-dark` sections use `--accent` (#0f172a) as a
-  BACKGROUND with `--accent-contrast` text — the hero, and the closing CTA.
-  Inside dark bands the primary CTA inverts (`.landing-cta` — white pill,
-  dark text). Risk colors remain semantic-only, even here.
+- Dark bands: `.landing-dark` sections use `--landing-band` (#0c332e,
+  deep green-slate) as a BACKGROUND with `--accent-contrast` text — the
+  hero, and the closing CTA. Inside dark bands the primary CTA inverts
+  (`.landing-cta` — white pill, dark text). Risk colors remain
+  semantic-only, even here.
 
 Credibility is honesty, not decoration: no fabricated ratings, user counts,
 or testimonials. The proof points are the disclaimer, the research
-disclosure (/how-it-works), encrypted-at-rest + one-tap delete, and the
-pre-charge email promise. All landing copy is claims-audited like app copy.
+disclosure (/how-it-works), the `.landing-proof-band` (CDC DPP citation,
+hedged and attributed — never a promise about the user's numbers),
+encrypted-at-rest + one-tap delete, and the pre-charge email promise. All
+landing copy is claims-audited like app copy.
 
 ## Input-method row (added 2026-07-07, three-way meal input)
 
@@ -112,11 +127,32 @@ The calm acknowledgment after a user's first completed check. Rules:
 - Appears at most once per day, only when the streak is new (streak === 1).
 - The streak chip (`streak-chip`) remains the ONLY ongoing progress ornament.
 
+## Motion (added 2026-07-07 revamp)
+
+A small sanctioned layer — CSS only, no animation libraries:
+
+- Tokens: `--dur-fast: 150ms`, `--dur: 200ms`, `--ease: cubic-bezier(0.22,0.61,0.36,1)`.
+- Buttons/chips/CTAs transition background/border/transform on hover/active
+  (`translateY(1px)` press, nothing bouncier).
+- `revora-rise` (6px fade-up) is the only keyframe; it plays once on result-card
+  entrance. No looping animation anywhere.
+- A global `prefers-reduced-motion: reduce` block zeroes ALL animation and
+  transition durations — mandatory, never remove it.
+
+## Icons (added 2026-07-07 revamp)
+
+`components/icons.tsx` is the entire icon vocabulary: Check, Alert, Pause
+(verdicts) · Keyboard, Mic, Camera (input methods) · Lock, Leaf, Heart, EyeOff
+(trust) · ArrowRight. Hand-written 24-viewbox strokes, `stroke: currentColor`,
+sized by `--icon-sm` (16px) / `--icon` (20px). Icons always sit next to text,
+never alone, never decorative-only, always `aria-hidden`. Adding a glyph means
+editing that file and this list — no icon libraries.
+
 ## Interaction rules
 
 - Focus: themed `:focus-visible` on inputs/buttons (globals.css) — never remove outlines.
 - Status text updates use `aria-live="polite"`; progress = text count first, spinner optional.
-- No new animations without a reason; respect `prefers-reduced-motion`.
+- Motion only from the sanctioned layer above; respect `prefers-reduced-motion`.
 - Empty states are features: warmth + one primary action + context. "No X found." alone is banned.
 - Never dead-end a paid or signed-in user: every error state names the next step (retry, support email, or "we'll email you").
 - Print (reports): `@media print` hides nav/buttons/paywall; black-on-white; `break-inside: avoid` on item rows.
@@ -124,6 +160,7 @@ The calm acknowledgment after a user's first completed check. Rules:
 ## App-UI guardrails (anti-slop)
 
 Document-not-dashboard for content pages. No icon-in-circle decoration, no centered-everything,
-no card mosaics, no decorative gradients beyond `.page-shell`'s background, no colored
-left-borders except the semantic risk tokens. Cards earn existence: if it isn't interactive
+no card mosaics, no decorative gradients beyond `.page-shell`'s background. Colored fills and
+borders only from the semantic verdict token sets or the brand accent. Icons only from the
+sanctioned set (§Icons), always paired with text. Cards earn existence: if it isn't interactive
 or semantically bounded, it's typography, not a card.

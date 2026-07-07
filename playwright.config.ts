@@ -79,7 +79,13 @@ export default defineConfig({
     // navigations (a Playwright-WebKit limitation), and tests should never run against a
     // cached SW. The SW itself is covered by tests/unit/revora/pwa-assets.test.ts (file
     // contract) and the Phase 8.1 manual offline-launch matrix.
-    serviceWorkers: "block"
+    serviceWorkers: "block",
+    // The 2026-07-07 revamp added a small CSS motion layer (transitions +
+    // result-card entrance). WebKit-under-parallel-load stalls its
+    // element-stability checks on animated layouts; tests assert content, not
+    // motion, and the app's prefers-reduced-motion block makes this a real
+    // user path too.
+    contextOptions: { reducedMotion: "reduce" as const }
   },
   webServer: [
     {

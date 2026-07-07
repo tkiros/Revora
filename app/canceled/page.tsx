@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export const metadata = { title: "Canceled — Revora" };
 
 export default async function CanceledPage({
@@ -25,6 +27,13 @@ export default async function CanceledPage({
             Go to your account
           </a>
         </section>
+
+        <footer className="page-footer">
+          <Link href="/check">Check a meal</Link>
+          <Link href="/">Home</Link>
+          <Link href="/privacy">Privacy</Link>
+          <Link href="/terms">Terms</Link>
+        </footer>
       </div>
     </main>
   );

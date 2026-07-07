@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { storeWaitlistUrl } from "../../lib/waitlist";
 
 export const metadata = { title: "Get Revora on your phone — Revora" };
@@ -56,6 +58,13 @@ export default function GetTheAppPage() {
             )}
           </div>
         </section>
+
+        <footer className="page-footer">
+          <Link href="/check">Check a meal</Link>
+          <Link href="/">Home</Link>
+          <Link href="/privacy">Privacy</Link>
+          <Link href="/terms">Terms</Link>
+        </footer>
       </div>
     </main>
   );

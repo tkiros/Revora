@@ -10,23 +10,21 @@ export function RequestStatus({
       ? {
           eyebrow: "Status",
           title: "Checking your food",
-          message:
-            "Stay on this page while Revora compares this food with your A1C input.",
-          note: "This page will update here as soon as the answer is ready."
+          message: "Revora is weighing this food against your A1C range.",
+          note: "Your answer lands here in a few seconds."
         }
       : state.kind === "slow"
         ? {
             eyebrow: "Still running",
             title: "Still checking",
-            message:
-              "This one is taking a little longer. Keep this page open while Revora finishes the check.",
-            note: "You do not need to resubmit unless you want to change the food or A1C."
+            message: "This one is taking a little longer than usual.",
+            note: "No need to resubmit — your answer is still on its way."
           }
         : {
             eyebrow: "Check paused",
             title: "Try again on this page",
             message: state.message,
-            note: "Your food and A1C entry are still here if you want to try once more."
+            note: "Your food and A1C are saved right here — one tap to retry."
           };
 
   return (

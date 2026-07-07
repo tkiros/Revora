@@ -21,10 +21,11 @@ import {
 import type { MealDraftItem } from "../lib/meal/photo-extract";
 import { photoInputEnabled } from "../lib/photo-input-flag";
 import type { PhotoDraftResult } from "../lib/client/photo-draft";
+import { IconKeyboard } from "./icons";
 import { PhotoDraftReview } from "./photo-draft-review";
 import { PhotoInputButton } from "./photo-input-button";
 import { RequestStatus } from "./request-status";
-import { ResultCard } from "./result-card";
+import { PantryEntry, ResultCard, showPantryEntry } from "./result-card";
 import { VoiceInputButton } from "./voice-input-button";
 
 type FieldErrors = Partial<Record<"food" | "a1c", string>>;
@@ -263,13 +264,14 @@ export function FoodCheckForm() {
   if (!isHydrated) {
     return (
       <section aria-live="polite" className="placeholder-card">
-        <p className="placeholder-title">Preparing form</p>
-        <p className="placeholder-copy">
-          Revora is getting the mobile check ready on this page.
-        </p>
+        <p className="placeholder-title">One moment</p>
+        <p className="placeholder-copy">Your meal check is loading.</p>
       </section>
     );
   }
+
+  // Visible Day-1 meter (trial mode): the wall is never a surprise.
+  const tasterRemaining = mode === "trial" ? tasterStore.remaining() : null;
 
   return (
     <form
@@ -293,11 +295,12 @@ export function FoodCheckForm() {
         >
           <button
             type="button"
-            className="selectable-chip"
+            className="selectable-chip method-chip"
             aria-pressed={inputMethod === "text"}
             data-testid="type-input-button"
             onClick={() => foodInputRef.current?.focus()}
           >
+            <IconKeyboard size={20} />
             Type it
           </button>
           <VoiceInputButton
@@ -389,37 +392,52 @@ export function FoodCheckForm() {
         {isSubmitting ? "Checking..." : "Should I eat this?"}
       </button>
 
+      {tasterRemaining !== null && tasterRemaining > 0 ? (
+        <p className="taster-counter" data-testid="taster-counter">
+          {tasterRemaining === 1
+            ? "1 free check left today"
+            : `${tasterRemaining} free checks left today`}
+        </p>
+      ) : null}
+
       {uiState.kind === "submitting" ||
       uiState.kind === "slow" ||
       uiState.kind === "error" ? (
         <RequestStatus state={uiState} />
       ) : uiState.kind === "done" ? (
-        <ResultCard
-          response={uiState.response}
-          actionDone={actionDone}
-          onActionDone={
-            lastCheckId
-              ? () => {
-                  historyStore.markActionDone(lastCheckId);
-                  setActionDone(true);
-                  // Signed-in: mirror the ack server-side (guests get 401 —
-                  // fire-and-forget either way).
-                  void fetch("/api/history/action", {
-                    method: "POST",
-                    headers: { "content-type": "application/json" },
-                    body: JSON.stringify({ clientId: lastCheckId })
-                  }).catch(() => undefined);
-                }
-              : undefined
-          }
-        />
+        <>
+          <ResultCard
+            response={uiState.response}
+            actionDone={actionDone}
+            onActionDone={
+              lastCheckId
+                ? () => {
+                    historyStore.markActionDone(lastCheckId);
+                    setActionDone(true);
+                    // Signed-in: mirror the ack server-side (guests get 401 —
+                    // fire-and-forget either way).
+                    void fetch("/api/history/action", {
+                      method: "POST",
+                      headers: { "content-type": "application/json" },
+                      body: JSON.stringify({ clientId: lastCheckId })
+                    }).catch(() => undefined);
+                  }
+                : undefined
+            }
+          />
+          {showPantryEntry(
+            uiState.response.kind,
+            uiState.response.kind === "result" ? uiState.response.risk : undefined
+          ) ? (
+            <PantryEntry />
+          ) : null}
+        </>
       ) : (
         <section aria-live="polite" className="placeholder-card">
-          <p className="placeholder-title">Response area</p>
           <p className="placeholder-copy">
             {uiState.kind === "invalid"
               ? uiState.message
-              : "Your food check result will appear here on this page after you submit."}
+              : "Your answer will show up right here."}
           </p>
         </section>
       )}

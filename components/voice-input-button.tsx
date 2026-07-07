@@ -7,6 +7,7 @@ import {
   isSpeechRecognitionSupported,
   startDictation
 } from "../lib/client/speech";
+import { IconMic } from "./icons";
 
 type VoiceInputButtonProps = {
   onTranscript(transcript: string): void;
@@ -87,13 +88,14 @@ export function VoiceInputButton({
     <div className="voice-input">
       <button
         type="button"
-        className="voice-input-button"
+        className="voice-input-button method-chip"
         data-testid="voice-input-button"
         data-listening={listening || undefined}
         aria-pressed={listening}
         disabled={disabled}
         onClick={toggle}
       >
+        <IconMic size={20} />
         {listening ? "Stop listening" : "Say your meal"}
       </button>
       <span

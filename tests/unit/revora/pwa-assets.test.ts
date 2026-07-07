@@ -24,7 +24,7 @@ describe("Phase 7 — web manifest", () => {
     expect(manifest.short_name).toBe("Revora");
     expect(manifest.start_url).toBe("/check");
     expect(manifest.display).toBe("standalone");
-    expect(manifest.theme_color).toBe("#0f172a");
+    expect(manifest.theme_color).toBe("#0d5f57");
     expect(manifest.background_color).toBe("#f3f7fb");
   });
 
