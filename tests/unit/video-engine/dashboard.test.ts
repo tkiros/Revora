@@ -123,6 +123,15 @@ describe("commitReview (path-scoped, safe)", () => {
     const staged = execFileSync("git", ["diff", "--cached", "--name-only"], { cwd: root }).toString();
     expect(staged).toContain("unrelated.ts");
   });
+  it("a no-op commit (nothing changed) is ok, not a failure", () => {
+    fs.mkdirSync(path.join(root, "output", "2026-07-09"), { recursive: true });
+    fs.writeFileSync(path.join(root, "output", "2026-07-09", "REVIEW.md"), "# review");
+    expect(commitReview("2026-07-09", { cwd: root }).ok).toBe(true); // first commit
+    const res = commitReview("2026-07-09", { cwd: root }); // nothing new
+    expect(res.ok).toBe(true);
+    expect(res.message).toMatch(/nothing/i);
+  });
+
   it("index.lock present → surfaces a manual-commit message, no throw", () => {
     fs.mkdirSync(path.join(root, "output", "2026-07-09"), { recursive: true });
     fs.writeFileSync(path.join(root, "output", "2026-07-09", "REVIEW.md"), "# review");

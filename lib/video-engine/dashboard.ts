@@ -65,6 +65,32 @@ export function readRunFile(date: string, videoEngineRoot: string): RunState | n
   }
 }
 
+function writeRunFile(date: string, state: RunState, veRoot: string): void {
+  const p = path.join(veRoot, "output", date, "run.json");
+  fs.mkdirSync(path.dirname(p), { recursive: true });
+  const tmp = `${p}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(state, null, 2));
+  fs.renameSync(tmp, p);
+}
+
+/** Write an initial run.json SYNCHRONOUSLY before spawning the detached child.
+ * Closes the single-run-lock window (a second request now sees the active run)
+ * and lets the client start polling immediately instead of racing the child. */
+export function seedRun(date: string, phase: "hooks" | "specs", veRoot: string, selectedHookIds?: string[]): void {
+  const now = new Date().toISOString();
+  const prior = phase === "specs" ? readRunFile(date, veRoot) : null; // hooks = fresh start; specs = resume
+  const state: RunState = {
+    date,
+    status: phase === "hooks" ? "HOOKS" : "SPECS",
+    selectedHookIds: selectedHookIds ?? prior?.selectedHookIds ?? [],
+    progress: prior?.progress ?? { stage: "starting", done: 0, total: 0 },
+    specs: prior?.specs ?? {},
+    pid: null, // child will stamp its own pid; until then the fresh heartbeat holds the lock
+    heartbeat: now,
+  };
+  writeRunFile(date, state, veRoot);
+}
+
 /** Everything the dashboard needs for a date in one poll: state + entities + decisions. */
 export function readSnapshot(date: string, videoEngineRoot: string) {
   const dir = path.join(videoEngineRoot, "output", date);
@@ -143,6 +169,9 @@ export function commitReview(
     execFileSync("git", ["commit", "-m", msg, "--", target], { cwd: opts.cwd, stdio: "pipe" });
     return { ok: true, message: `committed ${target}` };
   } catch (e) {
+    // "nothing to commit" (already committed / unchanged) is a benign no-op, not a failure.
+    const out = `${(e as { stdout?: Buffer }).stdout ?? ""}${(e as { stderr?: Buffer }).stderr ?? ""}`;
+    if (/nothing to commit|no changes added/i.test(out)) return { ok: true, message: `nothing new to commit for ${target}` };
     const detail = e instanceof Error ? e.message : String(e);
     return { ok: false, message: `commit failed (${detail}) — run manually: git commit ${target} -m "..."` };
   }
@@ -159,5 +188,24 @@ export function spawnJob(
   if (args.selected?.length) argv.push("--selected", args.selected.join(","));
   if (args.maxHooks != null) argv.push("--maxHooks", String(args.maxHooks));
   const child = spawn("tsx", argv, { cwd, detached: true, stdio: "ignore" });
+  // Without this, a spawn failure (e.g. tsx not on PATH) emits an unhandled
+  // 'error' event that would take down the whole `next dev` process. Instead,
+  // surface it into run.json as FAILED so the dashboard shows it.
+  child.on("error", (err) => {
+    try {
+      const veRoot = path.join(cwd, "video-engine");
+      const prior = readRunFile(args.date, veRoot);
+      writeRunFile(args.date, {
+        date: args.date,
+        status: "FAILED",
+        error: `failed to start the engine: ${err.message} (is tsx on PATH?)`,
+        selectedHookIds: prior?.selectedHookIds ?? [],
+        progress: prior?.progress ?? { stage: "starting", done: 0, total: 0 },
+        specs: prior?.specs ?? {},
+        pid: null,
+        heartbeat: new Date().toISOString(),
+      }, veRoot);
+    } catch { /* best-effort; never rethrow from the error handler */ }
+  });
   child.unref();
 }

@@ -140,6 +140,33 @@ describe("runSpecs isolation + state", () => {
     expect(specs.map((x: { hook_id: string }) => x.hook_id).sort()).toEqual(["h1", "h2"]);
   });
 
+  it("[REGRESSION] a subset re-run (Retry) preserves previously-built sibling specs", async () => {
+    const runner = makeRunner({ hookIds: ["h1", "h2", "h3"] });
+    await runHooks(DATE, { runner, root });
+    await runSpecs(DATE, ["h1", "h2", "h3"], { runner, root });
+    const read = () => JSON.parse(fs.readFileSync(path.join(root, "output", DATE, "specs.json"), "utf8"));
+    expect(read()).toHaveLength(3);
+    // Retry only h2 — must NOT wipe h1/h3 from specs.json.
+    await runSpecs(DATE, ["h2"], { runner, root });
+    expect(read().map((x: { hook_id: string }) => x.hook_id).sort()).toEqual(["h1", "h2", "h3"]);
+  });
+
+  it("NaN maxHooks does not silently build zero specs", async () => {
+    const runner = makeRunner({ hookIds: ["h1", "h2"] });
+    await runHooks(DATE, { runner, root });
+    await runSpecs(DATE, ["h1", "h2"], { runner, root, maxHooks: Number("garbage") });
+    const specs = JSON.parse(fs.readFileSync(path.join(root, "output", DATE, "specs.json"), "utf8"));
+    expect(specs).toHaveLength(2);
+  });
+
+  it("a throw outside the per-hook loop (missing hooks.json) → run.json FAILED, no wedge", async () => {
+    // never ran hooks → hooks.json absent
+    await runSpecs(DATE, ["h1"], { runner: makeRunner(), root });
+    const s = readRun(DATE, root);
+    expect(s?.status).toBe("FAILED");
+    expect(s?.error).toBeTruthy();
+  });
+
   it("[REGRESSION] duplicate model spec id → colliding hook ERROR, NO throw", async () => {
     const runner = makeRunner({ hookIds: ["h1", "h2"], specBehavior: { h1: { forceSpecId: "dup" }, h2: { forceSpecId: "dup" } } });
     await runHooks(DATE, { runner, root });

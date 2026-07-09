@@ -22,7 +22,8 @@ export function parseArgs(argv: string[]): CliArgs {
     date,
     phase: flags.phase === "hooks" || flags.phase === "specs" ? flags.phase : undefined,
     selected: flags.selected ? flags.selected.split(",").filter(Boolean) : undefined,
-    maxHooks: flags.maxHooks != null ? Number(flags.maxHooks) : undefined,
+    // ignore a missing/garbage --maxHooks rather than pass NaN downstream
+    maxHooks: (() => { const n = Number(flags.maxHooks); return Number.isFinite(n) && n > 0 ? n : undefined; })(),
   };
 }
 
@@ -83,80 +84,97 @@ export async function runSpecs(
   const { runner, root, maxHooks } = opts ?? {};
   const a = runner ? { runner } : undefined;
 
-  const allHooks = readJson<Hook[]>(date, "hooks.json", root);
-  const selected = new Set(selectedHookIds);
-  let hooks = allHooks.filter((h) => selected.has(h.id));
-  if (maxHooks != null) hooks = hooks.slice(0, maxHooks); // blunt safety net; G0 is the real lever
-
+  // State-read first so the outer catch can always mark FAILED (e.g. hooks.json missing).
   const s = readRun(date, root) ?? newRun(date);
   s.status = "SPECS";
   s.selectedHookIds = selectedHookIds;
-  s.progress = { stage: "building", done: 0, total: hooks.length };
-  // seed a slot per selected hook so the UI can render PENDING immediately.
-  for (const h of hooks) if (!s.specs[h.id]) s.specs[h.id] = { status: "PENDING" };
   save(s, root);
 
-  // resume: carry forward only specs/reports we can actually RECOVER from disk.
-  // A hook flagged DONE whose spec never made it to specs.json (crash before the
-  // incremental write) is NOT skippable — it gets rebuilt below, never lost.
-  const safe = <T,>(name: string): T[] => { try { return readJson<T[]>(date, name, root); } catch { return []; } };
-  const doneHookIds = new Set(hooks.filter((h) => s.specs[h.id]?.status === "DONE").map((h) => h.id));
-  const priorSpecs = safe<VideoSpec>("specs.json").filter((sp) => doneHookIds.has(sp.hook_id));
-  const recovered = new Set(priorSpecs.map((sp) => sp.hook_id));
-  const priorReports = safe<ComplianceReport>("compliance.json").filter((r) => priorSpecs.some((sp) => sp.id === r.spec_id));
-  const specs: VideoSpec[] = [...priorSpecs];
-  const reports: ComplianceReport[] = [...priorReports];
-  const seenSpecIds = new Set<string>(priorSpecs.map((sp) => sp.id));
-  let done = 0;
+  try {
+    const allHooks = readJson<Hook[]>(date, "hooks.json", root);
+    const selected = new Set(selectedHookIds);
+    let hooks = allHooks.filter((h) => selected.has(h.id));
+    // maxHooks is a blunt cap; guard against NaN/garbage so we never slice(0, NaN) → 0.
+    if (Number.isFinite(maxHooks) && (maxHooks as number) > 0) hooks = hooks.slice(0, maxHooks);
 
-  const flush = () => { writeJson(date, "specs.json", specs, root); writeJson(date, "compliance.json", reports, root); };
+    s.progress = { stage: "building", done: 0, total: hooks.length };
+    for (const h of hooks) if (!s.specs[h.id]) s.specs[h.id] = { status: "PENDING" };
+    save(s, root);
 
-  for (const hook of hooks) {
-    // resume: skip a hook only if its spec was actually recovered from disk.
-    if (recovered.has(hook.id)) { done++; continue; }
-    try {
-      s.specs[hook.id] = { status: "BUILDING" };
-      s.progress = { stage: "building", done, total: hooks.length };
-      save(s, root);
-      const spec = await buildSpec(hook, a);
+    // Persistence spans ALL hooks for the date, not just this selection — a subset
+    // re-run (per-spec Retry) must never wipe sibling specs. So:
+    //   carry   = existing specs whose hook isn't in THIS build set (untouched)
+    //   recover = existing specs for build-set hooks already DONE (resume; skip rebuild)
+    //   rebuild = everything else in the build set
+    const safe = <T,>(name: string): T[] => { try { return readJson<T[]>(date, name, root); } catch { return []; } };
+    const existingSpecs = safe<VideoSpec>("specs.json");
+    const existingReports = safe<ComplianceReport>("compliance.json");
+    const buildSet = new Set(hooks.map((h) => h.id));
+    const doneInBuildSet = new Set(hooks.filter((h) => s.specs[h.id]?.status === "DONE").map((h) => h.id));
 
-      // duplicate model spec id: first wins, later collisions are isolated (never a batch-wide throw).
-      if (seenSpecIds.has(spec.id)) {
-        s.specs[hook.id] = { status: "ERROR", error: `duplicate spec id "${spec.id}" — cannot safely correlate compliance reports`, specId: spec.id };
-        done++;
+    const carrySpecs = existingSpecs.filter((sp) => !buildSet.has(sp.hook_id));
+    const recoverSpecs = existingSpecs.filter((sp) => doneInBuildSet.has(sp.hook_id));
+    const recovered = new Set(recoverSpecs.map((sp) => sp.hook_id));
+    const keptSpecs = [...carrySpecs, ...recoverSpecs];
+    const keptIds = new Set(keptSpecs.map((sp) => sp.id));
+
+    const specs: VideoSpec[] = [...keptSpecs];
+    const reports: ComplianceReport[] = existingReports.filter((r) => keptIds.has(r.spec_id));
+    const seenSpecIds = new Set<string>(keptSpecs.map((sp) => sp.id));
+    let done = 0;
+
+    const flush = () => { writeJson(date, "specs.json", specs, root); writeJson(date, "compliance.json", reports, root); };
+
+    for (const hook of hooks) {
+      if (recovered.has(hook.id)) { done++; continue; } // resume: recovered from disk
+      try {
+        s.specs[hook.id] = { status: "BUILDING" };
         s.progress = { stage: "building", done, total: hooks.length };
         save(s, root);
-        continue;
+        const spec = await buildSpec(hook, a);
+
+        // duplicate model spec id: first wins, later collisions isolated (never a batch-wide throw).
+        if (seenSpecIds.has(spec.id)) {
+          s.specs[hook.id] = { status: "ERROR", error: `duplicate spec id "${spec.id}" — cannot safely correlate compliance reports`, specId: spec.id };
+          done++;
+          save(s, root);
+          continue;
+        }
+        seenSpecIds.add(spec.id);
+
+        s.specs[hook.id] = { status: "LINTING", specId: spec.id };
+        s.progress = { stage: "linting", done, total: hooks.length };
+        save(s, root);
+        const report = await lintSpec(spec, a);
+
+        specs.push(spec);
+        reports.push(report);
+        s.specs[hook.id] = { status: "DONE", specId: spec.id };
+      } catch (e) {
+        // per-spec isolation: a hook that fails twice is marked ERROR; the batch continues.
+        s.specs[hook.id] = { status: "ERROR", error: e instanceof Error ? e.message : String(e) };
       }
-      seenSpecIds.add(spec.id);
-
-      s.specs[hook.id] = { status: "LINTING", specId: spec.id };
-      s.progress = { stage: "linting", done, total: hooks.length };
+      done++;
+      flush(); // incremental persistence: crash-safe resume
       save(s, root);
-      const report = await lintSpec(spec, a);
-
-      specs.push(spec);
-      reports.push(report);
-      s.specs[hook.id] = { status: "DONE", specId: spec.id };
-    } catch (e) {
-      // per-spec isolation: a hook that fails twice is marked ERROR; the batch continues.
-      s.specs[hook.id] = { status: "ERROR", error: e instanceof Error ? e.message : String(e) };
     }
-    done++;
-    flush(); // incremental persistence: specs/reports on disk after every hook (crash-safe resume)
-    s.progress = { stage: "linting", done, total: hooks.length };
+
+    flush();
+    // Render over the FULL set (all hooks + all kept/built specs) so REVIEW.md and
+    // the commit reflect every spec for the date, not just this run's selection.
+    writeText(date, "REVIEW.md", renderReview(date, specs, allHooks, reports), root);
+
+    s.status = "AWAITING_G1";
+    s.progress = { stage: "awaiting_g1", done, total: hooks.length };
+    save(s, root);
+
+    const bounced = reports.filter((r) => r.verdict === "hard_fail").length;
+    console.log(`[video-engine] ${date}: ${specs.length} specs, ${bounced} bounced.`);
+  } catch (e) {
+    s.status = "FAILED";
+    s.error = e instanceof Error ? e.message : String(e);
     save(s, root);
   }
-
-  flush();
-  writeText(date, "REVIEW.md", renderReview(date, specs, hooks, reports), root);
-
-  s.status = "AWAITING_G1";
-  s.progress = { stage: "awaiting_g1", done, total: hooks.length };
-  save(s, root);
-
-  const bounced = reports.filter((r) => r.verdict === "hard_fail").length;
-  console.log(`[video-engine] ${date}: ${specs.length} specs, ${bounced} bounced.`);
 }
 
 /** Full run: both phases back-to-back over every hook (CLI convenience / regression guard). */
@@ -189,8 +207,17 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     : phase === "specs" ? runSpecs(date, selected ?? [], { maxHooks })
     : runBatch(date, { maxHooks });
 
-  Promise.resolve(job).catch((e) => {
-    console.error("[video-engine] job failed:", e instanceof Error ? e.message : e);
-    process.exit(1);
-  });
+  Promise.resolve(job)
+    .then(() => {
+      // runHooks/runSpecs swallow errors into run.json (FAILED) rather than throwing,
+      // so surface that as a non-zero exit for CLI/CI wrappers that check $?.
+      if (readRun(date)?.status === "FAILED") {
+        console.error(`[video-engine] run FAILED: ${readRun(date)?.error ?? ""}`);
+        process.exit(1);
+      }
+    })
+    .catch((e) => {
+      console.error("[video-engine] job failed:", e instanceof Error ? e.message : e);
+      process.exit(1);
+    });
 }

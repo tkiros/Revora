@@ -1,6 +1,6 @@
 import path from "node:path";
 import { NextResponse } from "next/server";
-import { isVideoEngineEnabled, isRunInFlight, defaultPidAlive, readRunFile, claudeReady, writeDump, spawnJob } from "../../../../lib/video-engine/dashboard";
+import { isVideoEngineEnabled, isRunInFlight, defaultPidAlive, readRunFile, claudeReady, writeDump, seedRun, spawnJob } from "../../../../lib/video-engine/dashboard";
 
 export const runtime = "nodejs";
 
@@ -39,6 +39,8 @@ export function createHooksHandler(deps: HooksDeps = {}) {
     }
 
     writeDump(d, dump, veRoot);
+    // seed run.json synchronously (before the async child) to close the lock window
+    seedRun(d, "hooks", veRoot);
     spawn({ date: d, phase: "hooks", maxHooks: body?.maxHooks }, cwd());
     return NextResponse.json({ date: d, status: "HOOKS" }, { status: 202 });
   };

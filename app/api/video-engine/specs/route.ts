@@ -1,6 +1,6 @@
 import path from "node:path";
 import { NextResponse } from "next/server";
-import { isVideoEngineEnabled, isRunInFlight, defaultPidAlive, readRunFile, claudeReady, spawnJob } from "../../../../lib/video-engine/dashboard";
+import { isVideoEngineEnabled, isRunInFlight, defaultPidAlive, readRunFile, claudeReady, seedRun, spawnJob } from "../../../../lib/video-engine/dashboard";
 
 export const runtime = "nodejs";
 
@@ -36,6 +36,7 @@ export function createSpecsHandler(deps: SpecsDeps = {}) {
       return NextResponse.json({ error: "a run is already in progress for this date." }, { status: 409 });
     }
 
+    seedRun(date, "specs", veRoot, selected); // close the lock window before the async child
     spawn({ date, phase: "specs", selected, maxHooks: body?.maxHooks }, cwd());
     return NextResponse.json({ date, status: "SPECS" }, { status: 202 });
   };

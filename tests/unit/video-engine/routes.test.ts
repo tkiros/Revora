@@ -52,6 +52,19 @@ describe("hooks route", () => {
     expect(fs.readFileSync(path.join(repo, "video-engine", "input", "2026-07-09-voc-dump.md"), "utf8")).toContain("oatmeal");
   });
 
+  it("seeds run.json synchronously so a second concurrent Start 409s (no double-spawn)", async () => {
+    const env = withClaude();
+    let spawns = 0;
+    const h = createHooksHandler({ getEnv: () => env, cwd: cwd(), today: () => "2026-07-09", spawn: () => { spawns++; } });
+    const r1 = await h(post({ dump: "x" }));
+    expect(r1.status).toBe(202);
+    // run.json exists immediately (seeded by the route, not the async child)
+    expect(fs.existsSync(path.join(repo, "video-engine", "output", "2026-07-09", "run.json"))).toBe(true);
+    const r2 = await h(post({ dump: "x" }));
+    expect(r2.status).toBe(409);
+    expect(spawns).toBe(1); // only the first request spawned a child
+  });
+
   it("in-flight run for date → 409", async () => {
     const env = withClaude();
     writeRun("2026-07-09", { status: "SPECS", pid: process.pid }); // live pid → in flight
