@@ -1,15 +1,15 @@
 // video-engine/run.ts
-import { loadDump, writeJson, writeText, renderReview } from "./store";
+import { loadDump, writeJson, readJson, writeText, renderReview } from "./store";
 import { mineInsights, generateHooks, buildSpec, lintSpec } from "./agents";
 import type { ClaudeRunner } from "./llm";
-import type { VideoSpec, ComplianceReport } from "./schema";
+import type { Hook, VideoSpec, ComplianceReport } from "./schema";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-export async function runBatch(
-  date: string,
-  opts?: { runner?: ClaudeRunner; root?: string },
-): Promise<void> {
+export type RunOpts = { runner?: ClaudeRunner; root?: string };
+
+/** G0 phase: dump → insights → angles → hooks (cheap; one call per stage). */
+export async function runHooks(date: string, opts?: RunOpts): Promise<Hook[]> {
   const { runner, root } = opts ?? {};
   const a = runner ? { runner } : undefined;
 
@@ -21,6 +21,22 @@ export async function runBatch(
   const { angles, hooks } = await generateHooks(insights, a);
   writeJson(date, "angles.json", angles, root);
   writeJson(date, "hooks.json", hooks, root);
+
+  return hooks;
+}
+
+/** G1 phase: selected hooks → specs → compliance → REVIEW.md (expensive; one call per hook). */
+export async function runSpecs(
+  date: string,
+  selectedHookIds: string[],
+  opts?: RunOpts,
+): Promise<void> {
+  const { runner, root } = opts ?? {};
+  const a = runner ? { runner } : undefined;
+
+  const allHooks = readJson<Hook[]>(date, "hooks.json", root);
+  const selected = new Set(selectedHookIds);
+  const hooks = allHooks.filter((h) => selected.has(h.id));
 
   const specs: VideoSpec[] = [];
   for (const hook of hooks) specs.push(await buildSpec(hook, a));
@@ -41,6 +57,12 @@ export async function runBatch(
 
   const bounced = reports.filter((r) => r.verdict === "hard_fail").length;
   console.log(`[video-engine] ${date}: ${specs.length} specs, ${bounced} bounced.`);
+}
+
+/** Full run: both phases back-to-back over every hook (CLI convenience / regression guard). */
+export async function runBatch(date: string, opts?: RunOpts): Promise<void> {
+  const hooks = await runHooks(date, opts);
+  await runSpecs(date, hooks.map((h) => h.id), opts);
 }
 
 // CLI entry
