@@ -23,3 +23,6 @@ marketing/screenshots/
 *.tsbuildinfo
 .vercel
 .env*
+
+# video-engine rendered assets (large binaries; regenerate from specs)
+video-engine/output/**/assets/
