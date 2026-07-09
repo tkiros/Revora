@@ -1,9 +1,23 @@
 // video-engine/llm.ts
 import { spawn } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
 import type { ZodType } from "zod";
 import { MODEL } from "./config";
 
 export type ClaudeRunner = (prompt: string) => Promise<string>;
+
+/** Preflight: is an executable `claude` resolvable on PATH? (avoid a mid-run ENOENT). */
+export function claudeOnPath(pathEnv: string = process.env.PATH ?? ""): boolean {
+  return pathEnv.split(path.delimiter).filter(Boolean).some((dir) => {
+    try {
+      fs.accessSync(path.join(dir, "claude"), fs.constants.X_OK);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+}
 
 // Default runner: pipe the prompt to `claude -p` via STDIN (never argv — ARG_MAX).
 const defaultRunner: ClaudeRunner = (prompt) =>

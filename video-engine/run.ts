@@ -2,10 +2,29 @@
 import { loadDump, writeJson, readJson, writeText, renderReview } from "./store";
 import { mineInsights, generateHooks, buildSpec, lintSpec } from "./agents";
 import { readRun, writeRun, newRun, type RunState } from "./state";
-import type { ClaudeRunner } from "./llm";
+import { claudeOnPath, type ClaudeRunner } from "./llm";
 import type { Hook, VideoSpec, ComplianceReport } from "./schema";
 
 const today = () => new Date().toISOString().slice(0, 10);
+
+export type CliArgs = { date: string; phase?: "hooks" | "specs"; selected?: string[]; maxHooks?: number };
+
+/** Parse the job entrypoint argv: `<date?> [--phase hooks|specs] [--selected a,b] [--maxHooks n]`. */
+export function parseArgs(argv: string[]): CliArgs {
+  const flags: Record<string, string> = {};
+  let date = today();
+  for (let i = 0; i < argv.length; i++) {
+    const t = argv[i];
+    if (t.startsWith("--")) flags[t.slice(2)] = argv[++i];
+    else date = t;
+  }
+  return {
+    date,
+    phase: flags.phase === "hooks" || flags.phase === "specs" ? flags.phase : undefined,
+    selected: flags.selected ? flags.selected.split(",").filter(Boolean) : undefined,
+    maxHooks: flags.maxHooks != null ? Number(flags.maxHooks) : undefined,
+  };
+}
 
 export type RunOpts = { runner?: ClaudeRunner; root?: string; maxHooks?: number };
 
@@ -141,10 +160,31 @@ export async function runBatch(date: string, opts?: RunOpts): Promise<void> {
   await runSpecs(date, hooks.map((h) => h.id), opts);
 }
 
-// CLI entry
+// CLI / spawned-job entry. Single entrypoint for the dashboard's detached child
+// (`tsx video-engine/run.ts <date> --phase hooks|specs ...`) and the manual CLI.
 if (import.meta.url === `file://${process.argv[1]}`) {
-  runBatch(process.argv[2] ?? today()).catch((e) => {
-    console.error("[video-engine] batch failed:", e.message);
+  const { date, phase, selected, maxHooks } = parseArgs(process.argv.slice(2));
+
+  // Preflight: the real runner shells out to `claude`. If it's not on PATH, fail
+  // loudly into run.json instead of dying with a mid-run ENOENT.
+  if (!claudeOnPath()) {
+    const s = readRun(date) ?? newRun(date);
+    s.status = "FAILED";
+    s.error = "claude CLI not found — authenticate it and ensure it's on PATH.";
+    s.pid = process.pid;
+    s.heartbeat = new Date().toISOString();
+    writeRun(date, s);
+    console.error(`[video-engine] ${s.error}`);
+    process.exit(1);
+  }
+
+  const job =
+    phase === "hooks" ? runHooks(date, { maxHooks })
+    : phase === "specs" ? runSpecs(date, selected ?? [], { maxHooks })
+    : runBatch(date, { maxHooks });
+
+  Promise.resolve(job).catch((e) => {
+    console.error("[video-engine] job failed:", e instanceof Error ? e.message : e);
     process.exit(1);
   });
 }
