@@ -101,6 +101,30 @@ describe("runSpecs isolation + state", () => {
     expect(fs.existsSync(path.join(root, "output", DATE, "REVIEW.md"))).toBe(true);
   });
 
+  it("maxHooks caps the fan-out before building", async () => {
+    const runner = makeRunner({ hookIds: ["h1", "h2", "h3"] });
+    await runHooks(DATE, { runner, root });
+    await runSpecs(DATE, ["h1", "h2", "h3"], { runner, root, maxHooks: 2 });
+    const specs = JSON.parse(fs.readFileSync(path.join(root, "output", DATE, "specs.json"), "utf8"));
+    expect(specs).toHaveLength(2);
+  });
+
+  it("resume: DONE hooks are skipped (not rebuilt) and their specs preserved", async () => {
+    // 1st run: h2 fails (build), h1 done.
+    await runHooks(DATE, { runner: makeRunner({ hookIds: ["h1", "h2"] }), root });
+    await runSpecs(DATE, ["h1", "h2"], { runner: makeRunner({ hookIds: ["h1", "h2"], specBehavior: { h2: "throw" } }), root });
+
+    // 2nd run: h2 now succeeds; count how many A3 build calls happen.
+    let builds = 0;
+    const base = makeRunner({ hookIds: ["h1", "h2"] });
+    const counting: ClaudeRunner = async (p) => { if (p.includes("<!-- a3-spec -->")) builds++; return base(p); };
+    await runSpecs(DATE, ["h1", "h2"], { runner: counting, root });
+
+    expect(builds).toBe(1); // only h2 rebuilt; h1 was DONE and skipped
+    const specs = JSON.parse(fs.readFileSync(path.join(root, "output", DATE, "specs.json"), "utf8"));
+    expect(specs.map((x: { hook_id: string }) => x.hook_id).sort()).toEqual(["h1", "h2"]);
+  });
+
   it("[REGRESSION] duplicate model spec id → colliding hook ERROR, NO throw", async () => {
     const runner = makeRunner({ hookIds: ["h1", "h2"], specBehavior: { h1: { forceSpecId: "dup" }, h2: { forceSpecId: "dup" } } });
     await runHooks(DATE, { runner, root });

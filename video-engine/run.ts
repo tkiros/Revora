@@ -7,7 +7,7 @@ import type { Hook, VideoSpec, ComplianceReport } from "./schema";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-export type RunOpts = { runner?: ClaudeRunner; root?: string };
+export type RunOpts = { runner?: ClaudeRunner; root?: string; maxHooks?: number };
 
 const save = (s: RunState, root?: string) => {
   s.heartbeat = new Date().toISOString();
@@ -61,12 +61,13 @@ export async function runSpecs(
   selectedHookIds: string[],
   opts?: RunOpts,
 ): Promise<void> {
-  const { runner, root } = opts ?? {};
+  const { runner, root, maxHooks } = opts ?? {};
   const a = runner ? { runner } : undefined;
 
   const allHooks = readJson<Hook[]>(date, "hooks.json", root);
   const selected = new Set(selectedHookIds);
-  const hooks = allHooks.filter((h) => selected.has(h.id));
+  let hooks = allHooks.filter((h) => selected.has(h.id));
+  if (maxHooks != null) hooks = hooks.slice(0, maxHooks); // blunt safety net; G0 is the real lever
 
   const s = readRun(date, root) ?? newRun(date);
   s.status = "SPECS";
@@ -76,13 +77,17 @@ export async function runSpecs(
   for (const h of hooks) if (!s.specs[h.id]) s.specs[h.id] = { status: "PENDING" };
   save(s, root);
 
-  const specs: VideoSpec[] = [];
-  const reports: ComplianceReport[] = [];
-  const seenSpecIds = new Set<string>();
+  // resume: carry forward specs/reports already built this run (their hooks are skipped below).
+  const doneHookIds = new Set(hooks.filter((h) => s.specs[h.id]?.status === "DONE").map((h) => h.id));
+  const priorSpecs = doneHookIds.size ? readJson<VideoSpec[]>(date, "specs.json", root).filter((sp) => doneHookIds.has(sp.hook_id)) : [];
+  const priorReports = doneHookIds.size ? readJson<ComplianceReport[]>(date, "compliance.json", root).filter((r) => priorSpecs.some((sp) => sp.id === r.spec_id)) : [];
+  const specs: VideoSpec[] = [...priorSpecs];
+  const reports: ComplianceReport[] = [...priorReports];
+  const seenSpecIds = new Set<string>(priorSpecs.map((sp) => sp.id));
   let done = 0;
 
   for (const hook of hooks) {
-    // resume: a hook already DONE this run is skipped (spec/report re-read below).
+    // resume: a hook already DONE this run is skipped (spec/report carried forward above).
     if (s.specs[hook.id]?.status === "DONE") { done++; continue; }
     try {
       s.specs[hook.id] = { status: "BUILDING" };
