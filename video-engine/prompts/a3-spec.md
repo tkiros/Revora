@@ -35,5 +35,8 @@ anything renders.
 
 Return ONLY a VideoSpec object
 `{id, hook_id, format ∈ [check_demo,myth_label_trap,slideshow,food_clip], spoken_hook, visual_hook (<=7 words), beats[], asset_list[], caption_text, disclosure_block, claims_used[], duration_s, status:"DRAFT"}`.
+`beats` is an array of **plain strings** — one sentence per beat, NOT objects.
+`asset_list` is an array of **plain strings** — one asset description per item, NOT objects.
+`claims_used` is an array of plain strings. `duration_s` is a number.
 `hook_id` MUST equal the input hook's id.
 No prose, no code fences — just the JSON object.
