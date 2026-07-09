@@ -15,10 +15,17 @@ export function loadDump(date: string, root: string = ROOT): string {
   return text;
 }
 
-export function writeJson(date: string, name: string, data: unknown, root: string = ROOT): void {
-  const dir = outDir(date, root);
+/** temp-file + rename so a crash mid-write can't leave truncated output. */
+function writeAtomic(dir: string, name: string, body: string): void {
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, name), JSON.stringify(data, null, 2));
+  const dest = path.join(dir, name);
+  const tmp = `${dest}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, body);
+  fs.renameSync(tmp, dest);
+}
+
+export function writeJson(date: string, name: string, data: unknown, root: string = ROOT): void {
+  writeAtomic(outDir(date, root), name, JSON.stringify(data, null, 2));
 }
 
 export function readJson<T>(date: string, name: string, root: string = ROOT): T {
@@ -26,9 +33,7 @@ export function readJson<T>(date: string, name: string, root: string = ROOT): T 
 }
 
 export function writeText(date: string, name: string, text: string, root: string = ROOT): void {
-  const dir = outDir(date, root);
-  fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, name), text);
+  writeAtomic(outDir(date, root), name, text);
 }
 
 export function renderReview(
