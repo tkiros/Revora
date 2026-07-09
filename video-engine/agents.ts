@@ -34,7 +34,7 @@ export async function buildSpec(hook: Hook, opts?: Opts): Promise<VideoSpec> {
 export async function lintSpec(spec: VideoSpec, opts?: Opts): Promise<ComplianceReport> {
   const regexItems = runRegexChecks(spec);
   const prompt = `${loadPrompt("a4-linter.md")}\n\n## SPEC\n${JSON.stringify(spec, null, 2)}`;
-  const llmOut = await llm(prompt, z.object({ items: z.array(ComplianceItemSchema) }), opts).catch(() => ({ items: [] }));
+  const llmOut = await llm(prompt, z.object({ items: z.array(ComplianceItemSchema) }), opts).catch((e) => { console.warn(`[video-engine] A4 LLM linter failed for ${spec.id}, degrading to regex-only: ${e instanceof Error ? e.message : e}`); return { items: [] }; });
 
   const seen = new Set<string>();
   const items = [...regexItems, ...llmOut.items].filter((i) => {

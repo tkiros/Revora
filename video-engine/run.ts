@@ -24,6 +24,13 @@ export async function runBatch(
 
   const specs: VideoSpec[] = [];
   for (const hook of hooks) specs.push(await buildSpec(hook, a));
+
+  const ids = specs.map((s) => s.id);
+  const dupes = ids.filter((id, i) => ids.indexOf(id) !== i);
+  if (dupes.length) {
+    throw new Error(`[video-engine] duplicate spec id(s) from model: ${[...new Set(dupes)].join(", ")} — cannot safely correlate compliance reports; re-run.`);
+  }
+
   writeJson(date, "specs.json", specs, root);
 
   const reports: ComplianceReport[] = [];
