@@ -5,9 +5,10 @@
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { bundle } from "@remotion/bundler";
-import { selectComposition, renderMedia, ensureBrowser } from "@remotion/renderer";
+import { selectComposition, renderMedia, ensureBrowser, openBrowser } from "@remotion/renderer";
 import type { VideoSpec } from "./schema";
 import { templateFor } from "./template";
+import { trackBrowser, untrackBrowser, installBrowserTeardown } from "./browser-teardown";
 
 const ENTRY = fileURLToPath(new URL("./remotion/index.ts", import.meta.url));
 
@@ -32,21 +33,33 @@ function getBundle(): Promise<string> {
   return bundlePromise;
 }
 
-/** Render one approved spec to a 9:16 H.264 master at `outFile`. Returns the path. */
+/** Render one approved spec to a 9:16 H.264 master at `outFile`. Returns the path.
+ *  Owns its Chromium instance (via openBrowser) so browser-teardown can reap it if this
+ *  detached child is killed/crashes mid-render — otherwise the unref()'d parent orphans Chrome. */
 export async function renderSpec(spec: VideoSpec, outFile: string): Promise<string> {
   const { compositionId, inputProps } = templateFor(spec);
-  const browserExecutable = findChrome();
+  const browserExecutable = findChrome() ?? null;
   if (!browserExecutable) await ensureBrowser(); // no system Chrome → let Remotion fetch one
   const serveUrl = await getBundle();
-  const composition = await selectComposition({ serveUrl, id: compositionId, inputProps, browserExecutable });
-  await renderMedia({
-    composition,
-    serveUrl,
-    codec: "h264",
-    outputLocation: outFile,
-    inputProps,
-    browserExecutable,
-    chromiumOptions: { gl: "angle" },
-  });
-  return outFile;
+  const chromiumOptions = { gl: "angle" as const };
+
+  installBrowserTeardown();
+  const browser = await openBrowser("chrome", { browserExecutable, chromiumOptions });
+  trackBrowser(browser);
+  try {
+    const composition = await selectComposition({ serveUrl, id: compositionId, inputProps, puppeteerInstance: browser });
+    await renderMedia({
+      composition,
+      serveUrl,
+      codec: "h264",
+      outputLocation: outFile,
+      inputProps,
+      puppeteerInstance: browser,
+      chromiumOptions,
+    });
+    return outFile;
+  } finally {
+    untrackBrowser(browser);
+    await browser.close({ silent: false });
+  }
 }

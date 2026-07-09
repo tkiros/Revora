@@ -6,6 +6,7 @@ import { execFileSync } from "node:child_process";
 import {
   isVideoEngineEnabled,
   isRunInFlight,
+  renderRuntimeReady,
   appendDecision,
   readDecisions,
   commitReview,
@@ -53,6 +54,24 @@ describe("isRunInFlight (single-run lock w/ liveness)", () => {
     for (const status of ["AWAITING_G0", "AWAITING_G1", "DONE", "FAILED"] as const) {
       expect(isRunInFlight(base({ status }), { now: NOW, isPidAlive: alive })).toBe(false);
     }
+  });
+  it("PRODUCING (render live) is in flight — a render and a spec run for a date are mutually exclusive", () => {
+    expect(isRunInFlight(base({ status: "PRODUCING" }), { now: NOW, isPidAlive: alive })).toBe(true);
+  });
+});
+
+describe("renderRuntimeReady (render-path preflight, distinct from claudeReady)", () => {
+  it("true when a Chrome executable is present (via REMOTION_BROWSER_EXECUTABLE)", () => {
+    const bin = fs.mkdtempSync(path.join(os.tmpdir(), "ve-chrome-"));
+    const chrome = path.join(bin, "chrome");
+    fs.writeFileSync(chrome, "");
+    expect(renderRuntimeReady({ REMOTION_BROWSER_EXECUTABLE: chrome })).toBe(true);
+  });
+  it("a bogus override does not spuriously pass on its own (falls back to system paths)", () => {
+    // if the host has a real /usr/bin/google-chrome this equals the no-override result; the point
+    // is a garbage REMOTION_BROWSER_EXECUTABLE never fabricates readiness by itself.
+    expect(renderRuntimeReady({ REMOTION_BROWSER_EXECUTABLE: "/nope/chrome" }))
+      .toBe(renderRuntimeReady({}));
   });
 });
 

@@ -1,15 +1,23 @@
 // video-engine/run.ts
+import fs from "node:fs";
+import path from "node:path";
 import { loadDump, writeJson, readJson, writeText, renderReview } from "./store";
 import { mineInsights, generateHooks, buildSpec, lintSpec } from "./agents";
 import { readRun, writeRun, newRun, type RunState } from "./state";
 import { claudeOnPath, type ClaudeRunner } from "./llm";
+import { approvedSpecIds } from "./decisions";
+import { buildPostingPackage } from "./export";
+import { ROOT } from "./config";
 import type { Hook, VideoSpec, ComplianceReport } from "./schema";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-export type CliArgs = { date: string; phase?: "hooks" | "specs"; selected?: string[]; maxHooks?: number };
+const PHASES = ["hooks", "specs", "render"] as const;
+export type Phase = (typeof PHASES)[number];
+export type CliArgs = { date: string; phase?: Phase; selected?: string[]; maxHooks?: number };
 
-/** Parse the job entrypoint argv: `<date?> [--phase hooks|specs] [--selected a,b] [--maxHooks n]`. */
+/** Parse the job entrypoint argv: `<date?> [--phase hooks|specs|render] [--selected a,b] [--maxHooks n]`.
+ *  A present-but-unrecognized --phase THROWS (must never fall through to a full runBatch LLM re-run). */
 export function parseArgs(argv: string[]): CliArgs {
   const flags: Record<string, string> = {};
   let date = today();
@@ -18,9 +26,12 @@ export function parseArgs(argv: string[]): CliArgs {
     if (t.startsWith("--")) flags[t.slice(2)] = argv[++i];
     else date = t;
   }
+  if (flags.phase !== undefined && !PHASES.includes(flags.phase as Phase)) {
+    throw new Error(`unknown --phase "${flags.phase}" (expected hooks|specs|render)`);
+  }
   return {
     date,
-    phase: flags.phase === "hooks" || flags.phase === "specs" ? flags.phase : undefined,
+    phase: flags.phase as Phase | undefined,
     selected: flags.selected ? flags.selected.split(",").filter(Boolean) : undefined,
     // ignore a missing/garbage --maxHooks rather than pass NaN downstream
     maxHooks: (() => { const n = Number(flags.maxHooks); return Number.isFinite(n) && n > 0 ? n : undefined; })(),
@@ -177,6 +188,85 @@ export async function runSpecs(
   }
 }
 
+/** Render one approved spec to a 9:16 master at `outFile`. Injected so the phase is unit-testable
+ *  without launching Remotion/Chromium; the default lazily imports render.ts (keeps Remotion out of
+ *  the module graph — and out of every non-render test's import cost). */
+export type RenderFn = (spec: VideoSpec, outFile: string) => Promise<string>;
+const defaultRender: RenderFn = async (spec, outFile) => (await import("./render")).renderSpec(spec, outFile);
+
+/**
+ * G2-producing phase: render the founder's selected (G1-approved) specs to master.mp4 + caption.txt.
+ * Per-spec ERROR isolation and carry/recover mirror runSpecs — but the payload is on-disk asset
+ * DIRECTORIES indexed by run.json.render, so a second wave MUST MERGE the prior render map (start
+ * from readRun's state), never rebuild it, or wave-1's assets get orphaned (files survive, the G2
+ * view loses the pointer). No LLM in this path.
+ */
+export async function runRender(
+  date: string,
+  selectedSpecIds: string[],
+  opts?: { render?: RenderFn; root?: string; force?: boolean },
+): Promise<void> {
+  const { root, force } = opts ?? {};
+  const render = opts?.render ?? defaultRender;
+  const veRoot = root ?? ROOT;
+
+  const s = readRun(date, root) ?? newRun(date);
+  s.status = "PRODUCING";
+  s.render ??= {}; // MERGE: prior render map is carried from readRun, never rebuilt
+  save(s, root);
+
+  try {
+    const safe = <T,>(name: string): T[] => { try { return readJson<T[]>(date, name, root); } catch { return []; } };
+    // eligibility keys off specs.json ids (unique — duplicate-spec-id hooks ERROR before this).
+    const specById = new Map(safe<VideoSpec>("specs.json").map((sp) => [sp.id, sp]));
+    const approved = approvedSpecIds(date, veRoot); // gate discriminator: only G1-approved render
+    const outRoot = path.resolve(veRoot, "output", date, "assets");
+
+    const targets = [...new Set(selectedSpecIds)]
+      .filter((id) => approved.has(id) && specById.has(id))       // approved + present on disk
+      .filter((id) => force || s.render![id]?.status !== "READY"); // skip already-READY (recover) unless force
+
+    let done = 0;
+    s.progress = { stage: "rendering", done, total: targets.length };
+    save(s, root);
+
+    for (const id of targets) {
+      const specDef = specById.get(id)!;
+      s.render![id] = { status: "RENDERING" };
+      save(s, root);
+      const tmp = `${path.join(outRoot, id)}.tmp-${process.pid}`;
+      try {
+        fs.rmSync(tmp, { recursive: true, force: true });
+        fs.mkdirSync(tmp, { recursive: true });
+        const master = path.join(tmp, "master.mp4");
+        await render(specDef, master);
+        // dual-mode compliance (caption half): buildPostingPackage mirrors the disclosure in.
+        fs.writeFileSync(path.join(tmp, "caption.txt"), buildPostingPackage(specDef, master).caption);
+        // Only rename on FULL success → no half-written asset dir. rm+rename is safe under the
+        // single-run lock (one writer per date). ponytail: not truly atomic; the date lock is the guard.
+        const dest = path.join(outRoot, id);
+        fs.rmSync(dest, { recursive: true, force: true });
+        fs.mkdirSync(outRoot, { recursive: true });
+        fs.renameSync(tmp, dest);
+        s.render![id] = { status: "READY", assetDir: dest };
+      } catch (e) {
+        fs.rmSync(tmp, { recursive: true, force: true }); // discard partial temp (master rendered, export failed, …)
+        s.render![id] = { status: "ERROR", error: e instanceof Error ? e.message : String(e) };
+      }
+      done++;
+      s.progress = { stage: "rendering", done, total: targets.length };
+      save(s, root); // incremental persist → crash-safe resume
+    }
+
+    s.status = "AWAITING_G1"; // rest at the gate; the per-spec render map carries G2-eligibility
+    save(s, root);
+  } catch (e) {
+    s.status = "FAILED";
+    s.error = e instanceof Error ? e.message : String(e);
+    save(s, root);
+  }
+}
+
 /** Full run: both phases back-to-back over every hook (CLI convenience / regression guard). */
 export async function runBatch(date: string, opts?: RunOpts): Promise<void> {
   const hooks = await runHooks(date, opts);
@@ -189,9 +279,10 @@ export async function runBatch(date: string, opts?: RunOpts): Promise<void> {
 if (import.meta.url === `file://${process.argv[1]}`) {
   const { date, phase, selected, maxHooks } = parseArgs(process.argv.slice(2));
 
-  // Preflight: the real runner shells out to `claude`. If it's not on PATH, fail
-  // loudly into run.json instead of dying with a mid-run ENOENT.
-  if (!claudeOnPath()) {
+  // Preflight: the LLM phases shell out to `claude`. If it's not on PATH, fail loudly into
+  // run.json instead of dying with a mid-run ENOENT. The render path has NO LLM — skip it there
+  // (the /render route's renderRuntimeReady() gates Chrome; a missing runtime surfaces per-spec).
+  if (phase !== "render" && !claudeOnPath()) {
     const s = readRun(date) ?? newRun(date);
     s.status = "FAILED";
     s.error = "claude CLI not found — authenticate it and ensure it's on PATH.";
@@ -205,6 +296,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const job =
     phase === "hooks" ? runHooks(date, { maxHooks })
     : phase === "specs" ? runSpecs(date, selected ?? [], { maxHooks })
+    : phase === "render" ? runRender(date, selected ?? [], {})
     : runBatch(date, { maxHooks });
 
   Promise.resolve(job)

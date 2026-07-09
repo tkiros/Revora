@@ -3,8 +3,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { ROOT } from "./config";
 
-export type RunStatus = "HOOKS" | "AWAITING_G0" | "SPECS" | "AWAITING_G1" | "DONE" | "FAILED";
+// PRODUCING is coarse/transient — set only while a render child is live; it drops back
+// to AWAITING_G1 (the resting gate) when the child exits. G2-eligibility is derived from
+// the per-spec render map, not a global AWAITING_G2 status (renders happen in waves).
+export type RunStatus = "HOOKS" | "AWAITING_G0" | "SPECS" | "AWAITING_G1" | "PRODUCING" | "DONE" | "FAILED";
 export type SpecStatus = "PENDING" | "BUILDING" | "LINTING" | "ERROR" | "DONE";
+export type RenderStatus = "PENDING" | "RENDERING" | "READY" | "ERROR";
+export type RenderEntry = { status: RenderStatus; assetDir?: string; error?: string };
 
 export type RunState = {
   date: string;
@@ -15,6 +20,9 @@ export type RunState = {
   // keyed by hook_id (unique per run) so a build that fails before producing a
   // spec id still has a slot, and a duplicate model spec id can't collide here.
   specs: Record<string, { status: SpecStatus; error?: string; specId?: string }>;
+  // Render map keyed by specId (unique in specs.json — duplicate-spec-id hooks are
+  // ERRORed before they reach specs.json). Optional so pre-Slice-2 run.json parse fine.
+  render?: Record<string, RenderEntry>;
   pid: number | null;
   heartbeat: string; // iso ts, refreshed every step — see liveness check in the lock
 };

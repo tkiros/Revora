@@ -19,6 +19,13 @@ describe("parseArgs", () => {
   it("leading flag → date defaults to today (YYYY-MM-DD)", () => {
     expect(parseArgs(["--phase", "hooks"]).date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
+  it("accepts --phase render with --selected spec ids", () => {
+    expect(parseArgs(["2026-07-09", "--phase", "render", "--selected", "vs-1,vs-2"]))
+      .toMatchObject({ phase: "render", selected: ["vs-1", "vs-2"] });
+  });
+  it("an unknown --phase THROWS (never falls through to a full runBatch LLM re-run)", () => {
+    expect(() => parseArgs(["2026-07-09", "--phase", "bogus"])).toThrow(/unknown --phase/);
+  });
 });
 
 describe("claudeOnPath", () => {

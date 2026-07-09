@@ -7,6 +7,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync, spawn } from "node:child_process";
 import type { RunState } from "../../video-engine/state";
+// The decision log lives in the engine module (pure fs) so the render phase and the
+// route lib share ONE gate-discriminator backfill. Re-exported for existing importers.
+export { type Decision, appendDecision, readDecisions, approvedSpecIds } from "../../video-engine/decisions";
+import { readDecisions } from "../../video-engine/decisions";
 
 // --- prod guard (fail-closed) -------------------------------------------------
 // Enabled ONLY in pure-local dev. Any VERCEL_ENV (production/preview/development)
@@ -24,6 +28,21 @@ export function claudeReady(pathEnv: string = process.env.PATH ?? ""): boolean {
   });
 }
 
+/** Render-path preflight — a system Chrome must be present (this host has no network for
+ * Remotion's Chromium CDN). Distinct from claudeReady: the render path has NO LLM, so gating
+ * it on `claude` would be wrong. Mirrors render.ts findChrome (routes must not import render.ts). */
+export function renderRuntimeReady(env: Record<string, string | undefined> = process.env): boolean {
+  const candidates = [
+    env.REMOTION_BROWSER_EXECUTABLE,
+    "/usr/bin/google-chrome",
+    "/usr/bin/google-chrome-stable",
+    "/opt/google/chrome/chrome",
+    "/usr/bin/chromium",
+    "/usr/bin/chromium-browser",
+  ];
+  return candidates.some((p) => !!p && fs.existsSync(p));
+}
+
 /** Persist the pasted VOC dump where the engine's loadDump expects it. */
 export function writeDump(date: string, text: string, videoEngineRoot: string): void {
   const dir = path.join(videoEngineRoot, "input");
@@ -33,7 +52,9 @@ export function writeDump(date: string, text: string, videoEngineRoot: string): 
 
 // --- single-run lock with liveness -------------------------------------------
 const HEARTBEAT_STALE_MS = 90_000;
-const ACTIVE: RunState["status"][] = ["HOOKS", "SPECS"];
+// PRODUCING is in the ACTIVE set so a render and a hooks/specs run for the same date
+// are mutually exclusive — all phases share one run.json per date (one lock per date).
+const ACTIVE: RunState["status"][] = ["HOOKS", "SPECS", "PRODUCING"];
 
 export function defaultPidAlive(pid: number): boolean {
   try {
@@ -76,15 +97,18 @@ function writeRunFile(date: string, state: RunState, veRoot: string): void {
 /** Write an initial run.json SYNCHRONOUSLY before spawning the detached child.
  * Closes the single-run-lock window (a second request now sees the active run)
  * and lets the client start polling immediately instead of racing the child. */
-export function seedRun(date: string, phase: "hooks" | "specs", veRoot: string, selectedHookIds?: string[]): void {
+export function seedRun(date: string, phase: "hooks" | "specs" | "render", veRoot: string, selectedIds?: string[]): void {
   const now = new Date().toISOString();
-  const prior = phase === "specs" ? readRunFile(date, veRoot) : null; // hooks = fresh start; specs = resume
+  const prior = phase === "hooks" ? null : readRunFile(date, veRoot); // hooks = fresh start; specs/render = resume
+  const status = phase === "hooks" ? "HOOKS" : phase === "render" ? "PRODUCING" : "SPECS";
   const state: RunState = {
     date,
-    status: phase === "hooks" ? "HOOKS" : "SPECS",
-    selectedHookIds: selectedHookIds ?? prior?.selectedHookIds ?? [],
+    status,
+    // render selects spec ids (not hooks), so it must not clobber the hook selection.
+    selectedHookIds: phase === "render" ? prior?.selectedHookIds ?? [] : selectedIds ?? prior?.selectedHookIds ?? [],
     progress: prior?.progress ?? { stage: "starting", done: 0, total: 0 },
     specs: prior?.specs ?? {},
+    render: prior?.render, // carry the render map so the G2 view keeps prior READY specs during a new wave
     pid: null, // child will stamp its own pid; until then the fresh heartbeat holds the lock
     heartbeat: now,
   };
@@ -133,26 +157,6 @@ export function listRuns(videoEngineRoot: string): RunSummary[] {
     .sort((a, b) => (a.date < b.date ? 1 : -1));
 }
 
-// --- decisions log (G1 approvals; append-only audit) -------------------------
-/** gate: "g1" = script approval (render-eligible), "g2" = rendered-asset approval. */
-export type Decision = { specId: string; verdict: "approve" | "reject"; gate: "g1" | "g2"; ts: string; reportRef?: string };
-
-export function appendDecision(date: string, d: Decision, videoEngineRoot: string): void {
-  const dir = path.join(videoEngineRoot, "output", date);
-  fs.mkdirSync(dir, { recursive: true });
-  fs.appendFileSync(path.join(dir, "decisions.jsonl"), JSON.stringify(d) + "\n");
-}
-
-export function readDecisions(date: string, videoEngineRoot: string): Decision[] {
-  try {
-    return fs.readFileSync(path.join(videoEngineRoot, "output", date, "decisions.jsonl"), "utf8")
-      // backfill legacy rows (written before the gate field) as g1 — they were all script approvals.
-      .split("\n").filter(Boolean).map((l) => ({ gate: "g1", ...JSON.parse(l) } as Decision));
-  } catch {
-    return [];
-  }
-}
-
 // --- path-scoped commit (audit trail) ----------------------------------------
 /** Commit ONLY video-engine/output/<date>. Scoped `add` + pathspec-limited
  * `commit` so a web click can never sweep up the founder's unrelated staged files. */
@@ -183,7 +187,7 @@ export function commitReview(
 /** Spawn the engine as a detached child so it survives tab-close / dev-server HMR.
  * Does NOT import the engine module → keeps claude/git out of the bundle. */
 export function spawnJob(
-  args: { date: string; phase: "hooks" | "specs"; selected?: string[]; maxHooks?: number },
+  args: { date: string; phase: "hooks" | "specs" | "render"; selected?: string[]; maxHooks?: number },
   cwd: string,
 ): void {
   const argv = ["video-engine/run.ts", args.date, "--phase", args.phase];
