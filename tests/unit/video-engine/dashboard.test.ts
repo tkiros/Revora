@@ -9,6 +9,7 @@ import {
   appendDecision,
   readDecisions,
   commitReview,
+  listRuns,
 } from "../../../lib/video-engine/dashboard";
 import type { RunState } from "../../../video-engine/state";
 
@@ -68,6 +69,28 @@ describe("decisions log", () => {
   });
   it("missing file → empty list", () => {
     expect(readDecisions("2026-07-09", root)).toEqual([]);
+  });
+});
+
+describe("listRuns (history)", () => {
+  let root: string;
+  beforeEach(() => { root = fs.mkdtempSync(path.join(os.tmpdir(), "ve-list-")); });
+  const seed = (date: string, run: Partial<RunState>, files?: Record<string, unknown>) => {
+    const dir = path.join(root, "output", date);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "run.json"), JSON.stringify(base({ date, ...run })));
+    for (const [name, data] of Object.entries(files ?? {})) fs.writeFileSync(path.join(dir, name), JSON.stringify(data));
+  };
+  it("summarizes each dated run, newest first", () => {
+    seed("2026-07-01", { status: "DONE" }, { "hooks.json": [{ id: "h1" }, { id: "h2" }], "specs.json": [{ id: "s1" }] });
+    seed("2026-07-08", { status: "AWAITING_G1" }, { "hooks.json": [{ id: "h1" }] });
+    const runs = listRuns(root);
+    expect(runs.map((r) => r.date)).toEqual(["2026-07-08", "2026-07-01"]); // desc
+    const first = runs.find((r) => r.date === "2026-07-01")!;
+    expect(first).toMatchObject({ status: "DONE", hooks: 2, specs: 1 });
+  });
+  it("no output dir → empty list", () => {
+    expect(listRuns(root)).toEqual([]);
   });
 });
 

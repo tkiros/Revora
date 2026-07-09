@@ -16,6 +16,21 @@ export function isVideoEngineEnabled(env: { VERCEL_ENV?: string; NODE_ENV?: stri
   return env.NODE_ENV !== "production";
 }
 
+/** Route-side `claude`-on-PATH preflight (kept here so routes never import the
+ * engine module). Mirrors video-engine/llm.claudeOnPath. */
+export function claudeReady(pathEnv: string = process.env.PATH ?? ""): boolean {
+  return pathEnv.split(path.delimiter).filter(Boolean).some((dir) => {
+    try { fs.accessSync(path.join(dir, "claude"), fs.constants.X_OK); return true; } catch { return false; }
+  });
+}
+
+/** Persist the pasted VOC dump where the engine's loadDump expects it. */
+export function writeDump(date: string, text: string, videoEngineRoot: string): void {
+  const dir = path.join(videoEngineRoot, "input");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, `${date}-voc-dump.md`), text);
+}
+
 // --- single-run lock with liveness -------------------------------------------
 const HEARTBEAT_STALE_MS = 90_000;
 const ACTIVE: RunState["status"][] = ["HOOKS", "SPECS"];
@@ -48,6 +63,48 @@ export function readRunFile(date: string, videoEngineRoot: string): RunState | n
   } catch {
     return null;
   }
+}
+
+/** Everything the dashboard needs for a date in one poll: state + entities + decisions. */
+export function readSnapshot(date: string, videoEngineRoot: string) {
+  const dir = path.join(videoEngineRoot, "output", date);
+  return {
+    run: readRunFile(date, videoEngineRoot),
+    hooks: readJsonSafe<unknown[]>(path.join(dir, "hooks.json"), []),
+    specs: readJsonSafe<unknown[]>(path.join(dir, "specs.json"), []),
+    reports: readJsonSafe<unknown[]>(path.join(dir, "compliance.json"), []),
+    decisions: readDecisions(date, videoEngineRoot),
+  };
+}
+
+export type RunSummary = { date: string; status: RunState["status"]; hooks: number; specs: number; approved: number; bounced: number };
+
+const readJsonSafe = <T,>(p: string, fallback: T): T => {
+  try { return JSON.parse(fs.readFileSync(p, "utf8")) as T; } catch { return fallback; }
+};
+
+/** History: one summary row per dated run under output/*, newest first. */
+export function listRuns(videoEngineRoot: string): RunSummary[] {
+  const outRoot = path.join(videoEngineRoot, "output");
+  let dates: string[];
+  try { dates = fs.readdirSync(outRoot).filter((d) => fs.existsSync(path.join(outRoot, d, "run.json"))); } catch { return []; }
+  return dates
+    .map((date) => {
+      const dir = path.join(outRoot, date);
+      const run = readRunFile(date, videoEngineRoot);
+      const hooks = readJsonSafe<unknown[]>(path.join(dir, "hooks.json"), []);
+      const specs = readJsonSafe<unknown[]>(path.join(dir, "specs.json"), []);
+      const reports = readJsonSafe<{ verdict: string }[]>(path.join(dir, "compliance.json"), []);
+      return {
+        date,
+        status: run?.status ?? "FAILED",
+        hooks: hooks.length,
+        specs: specs.length,
+        approved: readDecisions(date, videoEngineRoot).filter((d) => d.verdict === "approve").length,
+        bounced: reports.filter((r) => r.verdict === "hard_fail").length,
+      };
+    })
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
 }
 
 // --- decisions log (G1 approvals; append-only audit) -------------------------
