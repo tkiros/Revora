@@ -6,21 +6,13 @@ const nextConfig: NextConfig = {
   // isolating its build dir + dev lock (Next 16 forbids two dev servers sharing
   // one distDir). Inert in every normal run — NEXT_DIST_DIR is unset, so this is
   // exactly ".next".
-  distDir: process.env.NEXT_DIST_DIR || ".next",
-
-  // The Video Engine dashboard's detached child writes run.json ~1×/s under
-  // video-engine/output/. Keep that out of the dev file-watcher so status
-  // writes don't churn Fast Refresh. (webpack-dev only; under Turbopack the
-  // run is a detached child and survives HMR regardless — ponytail: cosmetic there.)
-  webpack: (config) => {
-    const ignored = config.watchOptions?.ignored;
-    const extra = "**/video-engine/output/**";
-    config.watchOptions = {
-      ...config.watchOptions,
-      ignored: Array.isArray(ignored) ? [...ignored, extra] : extra,
-    };
-    return config;
-  }
+  distDir: process.env.NEXT_DIST_DIR || ".next"
+  // Note: the Video Engine dashboard's run.json writes (~1×/s under
+  // video-engine/output/) can churn Fast Refresh, but the run is a DETACHED
+  // child and survives HMR regardless, so churn is cosmetic. A webpack
+  // watchOptions.ignored was tried but Next 16 defaults to Turbopack (a webpack
+  // config is a hard build error). Revisit with a turbopack-native ignore only
+  // if the churn actually annoys.
 };
 
 export default nextConfig;
