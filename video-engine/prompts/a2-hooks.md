@@ -49,7 +49,10 @@ outcomes — Revora is informational only.
 
 ## Output contract
 
-Return ONLY `{"angles": Angle[], "hooks": Hook[]}`. Each Hook:
+Return ONLY `{"angles": Angle[], "hooks": Hook[]}`.
+Each Angle:
+`{id, insight_ids (array of the insight ids this angle draws from), premise, enemy, persona, status:"DRAFT"}`.
+Each Hook:
 `{id, angle_id, spoken_text, visual_text (<=7 words), framework_tag, cta_type, pillar, similarity_max_30d:null, status:"DRAFT"}`.
 `framework_tag` names the mechanism used (e.g. `"scenario-injection"`,
 `"context-lean-snapback"`). `similarity_max_30d` stays `null` in this slice.
