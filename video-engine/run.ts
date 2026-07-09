@@ -96,18 +96,24 @@ export async function runSpecs(
   for (const h of hooks) if (!s.specs[h.id]) s.specs[h.id] = { status: "PENDING" };
   save(s, root);
 
-  // resume: carry forward specs/reports already built this run (their hooks are skipped below).
+  // resume: carry forward only specs/reports we can actually RECOVER from disk.
+  // A hook flagged DONE whose spec never made it to specs.json (crash before the
+  // incremental write) is NOT skippable — it gets rebuilt below, never lost.
+  const safe = <T,>(name: string): T[] => { try { return readJson<T[]>(date, name, root); } catch { return []; } };
   const doneHookIds = new Set(hooks.filter((h) => s.specs[h.id]?.status === "DONE").map((h) => h.id));
-  const priorSpecs = doneHookIds.size ? readJson<VideoSpec[]>(date, "specs.json", root).filter((sp) => doneHookIds.has(sp.hook_id)) : [];
-  const priorReports = doneHookIds.size ? readJson<ComplianceReport[]>(date, "compliance.json", root).filter((r) => priorSpecs.some((sp) => sp.id === r.spec_id)) : [];
+  const priorSpecs = safe<VideoSpec>("specs.json").filter((sp) => doneHookIds.has(sp.hook_id));
+  const recovered = new Set(priorSpecs.map((sp) => sp.hook_id));
+  const priorReports = safe<ComplianceReport>("compliance.json").filter((r) => priorSpecs.some((sp) => sp.id === r.spec_id));
   const specs: VideoSpec[] = [...priorSpecs];
   const reports: ComplianceReport[] = [...priorReports];
   const seenSpecIds = new Set<string>(priorSpecs.map((sp) => sp.id));
   let done = 0;
 
+  const flush = () => { writeJson(date, "specs.json", specs, root); writeJson(date, "compliance.json", reports, root); };
+
   for (const hook of hooks) {
-    // resume: a hook already DONE this run is skipped (spec/report carried forward above).
-    if (s.specs[hook.id]?.status === "DONE") { done++; continue; }
+    // resume: skip a hook only if its spec was actually recovered from disk.
+    if (recovered.has(hook.id)) { done++; continue; }
     try {
       s.specs[hook.id] = { status: "BUILDING" };
       s.progress = { stage: "building", done, total: hooks.length };
@@ -137,12 +143,12 @@ export async function runSpecs(
       s.specs[hook.id] = { status: "ERROR", error: e instanceof Error ? e.message : String(e) };
     }
     done++;
+    flush(); // incremental persistence: specs/reports on disk after every hook (crash-safe resume)
     s.progress = { stage: "linting", done, total: hooks.length };
     save(s, root);
   }
 
-  writeJson(date, "specs.json", specs, root);
-  writeJson(date, "compliance.json", reports, root);
+  flush();
   writeText(date, "REVIEW.md", renderReview(date, specs, hooks, reports), root);
 
   s.status = "AWAITING_G1";

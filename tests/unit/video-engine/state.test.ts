@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { runHooks, runSpecs } from "../../../video-engine/run";
-import { readRun } from "../../../video-engine/state";
+import { readRun, writeRun } from "../../../video-engine/state";
 import type { ClaudeRunner } from "../../../video-engine/llm";
 
 // A configurable fake `claude` runner. `specBehavior` maps a hook id to how its
@@ -121,6 +121,21 @@ describe("runSpecs isolation + state", () => {
     await runSpecs(DATE, ["h1", "h2"], { runner: counting, root });
 
     expect(builds).toBe(1); // only h2 rebuilt; h1 was DONE and skipped
+    const specs = JSON.parse(fs.readFileSync(path.join(root, "output", DATE, "specs.json"), "utf8"));
+    expect(specs.map((x: { hook_id: string }) => x.hook_id).sort()).toEqual(["h1", "h2"]);
+  });
+
+  it("resume tolerates a crash before specs.json was written (DONE in run.json, no spec on disk)", async () => {
+    await runHooks(DATE, { runner: makeRunner({ hookIds: ["h1", "h2"] }), root });
+    // simulate a crash mid-run: h1 marked DONE in run.json, but specs.json never written.
+    const s = readRun(DATE, root)!;
+    s.status = "SPECS";
+    s.specs = { h1: { status: "DONE", specId: "s_h1" }, h2: { status: "PENDING" } };
+    writeRun(DATE, s, root);
+    expect(fs.existsSync(path.join(root, "output", DATE, "specs.json"))).toBe(false);
+
+    // must not throw, and must not silently lose h1 — it's unrecoverable, so rebuild it.
+    await runSpecs(DATE, ["h1", "h2"], { runner: makeRunner({ hookIds: ["h1", "h2"] }), root });
     const specs = JSON.parse(fs.readFileSync(path.join(root, "output", DATE, "specs.json"), "utf8"));
     expect(specs.map((x: { hook_id: string }) => x.hook_id).sort()).toEqual(["h1", "h2"]);
   });
