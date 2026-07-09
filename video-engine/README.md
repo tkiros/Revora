@@ -1,4 +1,4 @@
-# Video Engine — Slice 1
+# Video Engine
 
 Turns a weekly voice-of-customer (VOC) dump into compliance-linted short-form video specs,
 plus a single `REVIEW.md` you approve or reject. Four agents run in sequence:
@@ -56,6 +56,30 @@ mine insights → generate angles/hooks → build specs → lint for compliance.
    the **Bounced — hard-fail, fix and re-run** section, with the offending rule and span.
    Bounced specs are not approvable. Fix the underlying prompt or the input dump, then
    re-run the batch for that date.
+
+## Dashboard (local, dev-only)
+
+Instead of editing files by hand, run the two-gate dashboard:
+
+```bash
+npm run dev        # then open http://localhost:3000/video-engine
+```
+
+- **New run:** paste the dump into the textarea, set an optional max-hooks cap, **Start**.
+  The engine runs the cheap hooks phase (A1+A2) in a detached child; progress streams live.
+- **G0 — pick hooks:** tick the 3–5 hooks worth building and **Build selected**. Only those
+  hooks go through the expensive spec + lint fan-out (a rich dump can yield 20 hooks → this
+  cuts ~75% of the LLM calls *and* raises quality).
+- **G1 — approve scripts:** Approve/Reject each spec (recorded to `decisions.jsonl`). Bounced
+  hard-fails are read-only with the reason; a failed spec shows an **ERROR** card with a
+  per-spec **Retry**. **Commit review** writes a path-scoped `git commit` of
+  `video-engine/output/<date>` — the audit trail, automated.
+- A single bad spec no longer kills the batch (per-spec ERROR isolation), runs are resumable
+  (re-running a date skips completed specs), and the whole route is **404 in production** —
+  it shells out to `claude`/`git`, so it only exists in pure-local dev.
+
+The dashboard drives the same engine as the CLI; `run.ts` is the single entrypoint for both
+(the dashboard spawns `tsx video-engine/run.ts <date> --phase hooks|specs …`).
 
 ## Requirements
 
