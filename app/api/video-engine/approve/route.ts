@@ -27,7 +27,7 @@ export function createApproveHandler(deps: ApproveDeps = {}) {
       return NextResponse.json({ error: "date, specId and verdict (approve|reject) are required." }, { status: 400 });
     }
 
-    appendDecision(date, { specId, verdict, ts: now().toISOString() }, path.join(cwd(), "video-engine"));
+    appendDecision(date, { specId, verdict, gate: "g1", ts: now().toISOString() }, path.join(cwd(), "video-engine"));
     return NextResponse.json({ ok: true }, { status: 200 });
   };
 }

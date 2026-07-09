@@ -16,7 +16,7 @@ type Hook = { id: string; spoken_text: string; visual_text: string; framework_ta
 type Spec = { id: string; hook_id: string; format: string; duration_s: number; spoken_hook: string; visual_hook: string; caption_text: string };
 type Item = { severity: "hard_fail" | "flag"; rule: string; span: string; suggestion?: string };
 type Report = { spec_id: string; verdict: "hard_fail" | "flag" | "pass"; items: Item[] };
-type Decision = { specId: string; verdict: "approve" | "reject" };
+type Decision = { specId: string; verdict: "approve" | "reject"; gate: "g1" | "g2" };
 type Snapshot = { run: RunState | null; hooks: Hook[]; specs: Spec[]; reports: Report[]; decisions: Decision[] };
 type RunSummary = { date: string; status: RunState["status"]; hooks: number; specs: number; approved: number; bounced: number };
 
@@ -162,7 +162,8 @@ function G1({ snap, onDecide, onRetry, onCommit }: {
   onCommit: () => void;
 }) {
   const reportBy = new Map(snap.reports.map((r) => [r.spec_id, r]));
-  const decisionBy = new Map(snap.decisions.map((d) => [d.specId, d.verdict]));
+  // G1 only — a later G2 (asset) decision on the same specId must not clobber the script verdict here.
+  const decisionBy = new Map(snap.decisions.filter((d) => d.gate === "g1").map((d) => [d.specId, d.verdict]));
   const errored = Object.entries(snap.run?.specs ?? {}).filter(([, s]) => s.status === "ERROR");
   const reviewable = snap.specs.filter((s) => reportBy.get(s.id)?.verdict !== "hard_fail");
   const bounced = snap.specs.filter((s) => reportBy.get(s.id)?.verdict === "hard_fail");

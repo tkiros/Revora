@@ -126,7 +126,7 @@ export function listRuns(videoEngineRoot: string): RunSummary[] {
         status: run?.status ?? "FAILED",
         hooks: hooks.length,
         specs: specs.length,
-        approved: readDecisions(date, videoEngineRoot).filter((d) => d.verdict === "approve").length,
+        approved: readDecisions(date, videoEngineRoot).filter((d) => d.verdict === "approve" && d.gate === "g1").length,
         bounced: reports.filter((r) => r.verdict === "hard_fail").length,
       };
     })
@@ -134,7 +134,8 @@ export function listRuns(videoEngineRoot: string): RunSummary[] {
 }
 
 // --- decisions log (G1 approvals; append-only audit) -------------------------
-export type Decision = { specId: string; verdict: "approve" | "reject"; ts: string; reportRef?: string };
+/** gate: "g1" = script approval (render-eligible), "g2" = rendered-asset approval. */
+export type Decision = { specId: string; verdict: "approve" | "reject"; gate: "g1" | "g2"; ts: string; reportRef?: string };
 
 export function appendDecision(date: string, d: Decision, videoEngineRoot: string): void {
   const dir = path.join(videoEngineRoot, "output", date);
@@ -145,7 +146,8 @@ export function appendDecision(date: string, d: Decision, videoEngineRoot: strin
 export function readDecisions(date: string, videoEngineRoot: string): Decision[] {
   try {
     return fs.readFileSync(path.join(videoEngineRoot, "output", date, "decisions.jsonl"), "utf8")
-      .split("\n").filter(Boolean).map((l) => JSON.parse(l) as Decision);
+      // backfill legacy rows (written before the gate field) as g1 — they were all script approvals.
+      .split("\n").filter(Boolean).map((l) => ({ gate: "g1", ...JSON.parse(l) } as Decision));
   } catch {
     return [];
   }

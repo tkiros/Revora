@@ -60,8 +60,8 @@ describe("decisions log", () => {
   let root: string;
   beforeEach(() => { root = fs.mkdtempSync(path.join(os.tmpdir(), "ve-dec-")); });
   it("appends and reads back one record per action", () => {
-    appendDecision("2026-07-09", { specId: "s_h1", verdict: "approve", ts: "t1" }, root);
-    appendDecision("2026-07-09", { specId: "s_h2", verdict: "reject", ts: "t2" }, root);
+    appendDecision("2026-07-09", { specId: "s_h1", verdict: "approve", gate: "g1", ts: "t1" }, root);
+    appendDecision("2026-07-09", { specId: "s_h2", verdict: "reject", gate: "g1", ts: "t2" }, root);
     const d = readDecisions("2026-07-09", root);
     expect(d).toHaveLength(2);
     expect(d[0]).toMatchObject({ specId: "s_h1", verdict: "approve" });
@@ -69,6 +69,22 @@ describe("decisions log", () => {
   });
   it("missing file → empty list", () => {
     expect(readDecisions("2026-07-09", root)).toEqual([]);
+  });
+});
+
+describe("gate discriminator (G1/G2 split — Slice 2 foundation)", () => {
+  let root: string;
+  beforeEach(() => { root = fs.mkdtempSync(path.join(os.tmpdir(), "ve-gate-")); });
+
+  it("backfills legacy rows (written before the gate field existed) as g1, keeps explicit gates", () => {
+    const dir = path.join(root, "output", "2026-07-09");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "decisions.jsonl"),
+      JSON.stringify({ specId: "vs-016", verdict: "approve", ts: "t0" }) + "\n"); // no gate → legacy
+    appendDecision("2026-07-09", { specId: "vs-016", verdict: "reject", gate: "g2", ts: "t1" }, root);
+    const d = readDecisions("2026-07-09", root);
+    expect(d.find((x) => x.gate === "g1" || x.ts === "t0")?.gate).toBe("g1");
+    expect(d.find((x) => x.ts === "t1")?.gate).toBe("g2");
   });
 });
 
@@ -91,6 +107,16 @@ describe("listRuns (history)", () => {
   });
   it("no output dir → empty list", () => {
     expect(listRuns(root)).toEqual([]);
+  });
+  it("approved count is G1-only — a G2 approve never inflates it (not re-render-eligible)", () => {
+    const dir = path.join(root, "output", "2026-07-09");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "run.json"), JSON.stringify(base({ date: "2026-07-09", status: "DONE" })));
+    fs.writeFileSync(path.join(dir, "decisions.jsonl"), [
+      { specId: "vs-1", verdict: "approve", gate: "g1", ts: "t1" }, // the real G1 approval
+      { specId: "vs-1", verdict: "approve", gate: "g2", ts: "t2" }, // a later G2 asset approval — must NOT count
+    ].map((r) => JSON.stringify(r)).join("\n") + "\n");
+    expect(listRuns(root).find((r) => r.date === "2026-07-09")!.approved).toBe(1);
   });
 });
 
