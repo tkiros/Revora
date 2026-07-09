@@ -100,6 +100,12 @@ describe("approve route", () => {
     const h = createApproveHandler({ getEnv: () => DEV, cwd: cwd() });
     expect((await h(post({ date: "2026-07-09", specId: "s1", verdict: "maybe" }))).status).toBe(400);
   });
+  it("G2 approval records gate:g2 (kept off the G1 render-eligible count)", async () => {
+    const h = createApproveHandler({ getEnv: () => DEV, cwd: cwd(), now: () => new Date("2026-07-09T00:00:00Z") });
+    const res = await h(post({ date: "2026-07-09", specId: "vs-1", verdict: "approve", gate: "g2" }));
+    expect(res.status).toBe(200);
+    expect(readDecisions("2026-07-09", path.join(repo, "video-engine"))).toMatchObject([{ specId: "vs-1", verdict: "approve", gate: "g2" }]);
+  });
 });
 
 describe("render route", () => {

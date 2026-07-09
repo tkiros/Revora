@@ -5,12 +5,14 @@ import { useCallback, useEffect, useState } from "react";
 // Lightweight view types (mirror the engine's JSON; kept local so nothing from
 // video-engine/ enters the client bundle).
 type SpecStatus = "PENDING" | "BUILDING" | "LINTING" | "ERROR" | "DONE";
+type RenderStatus = "PENDING" | "RENDERING" | "READY" | "ERROR";
 type RunState = {
   date: string;
-  status: "HOOKS" | "AWAITING_G0" | "SPECS" | "AWAITING_G1" | "DONE" | "FAILED";
+  status: "HOOKS" | "AWAITING_G0" | "SPECS" | "AWAITING_G1" | "PRODUCING" | "DONE" | "FAILED";
   error?: string;
   progress: { stage: string; done: number; total: number };
   specs: Record<string, { status: SpecStatus; error?: string; specId?: string }>;
+  render?: Record<string, { status: RenderStatus; assetDir?: string; error?: string }>;
 };
 type Hook = { id: string; spoken_text: string; visual_text: string; framework_tag: string; pillar: string };
 type Spec = { id: string; hook_id: string; format: string; duration_s: number; spoken_hook: string; visual_hook: string; caption_text: string };
@@ -20,7 +22,7 @@ type Decision = { specId: string; verdict: "approve" | "reject"; gate: "g1" | "g
 type Snapshot = { run: RunState | null; hooks: Hook[]; specs: Spec[]; reports: Report[]; decisions: Decision[] };
 type RunSummary = { date: string; status: RunState["status"]; hooks: number; specs: number; approved: number; bounced: number };
 
-const ACTIVE = new Set(["HOOKS", "SPECS"]);
+const ACTIVE = new Set(["HOOKS", "SPECS", "PRODUCING"]);
 const card: React.CSSProperties = { border: "1px solid #ccc", borderRadius: 8, padding: 12, marginBottom: 10 };
 const mono: React.CSSProperties = { fontFamily: "ui-monospace, monospace" };
 
@@ -130,10 +132,16 @@ function RunView({ date, onBack }: { date: string; onBack: () => void }) {
         }} onBuild={() => post("specs", { date, selectedHookIds: [...selected] })} />
       )}
 
-      {run && ["SPECS", "AWAITING_G1", "DONE"].includes(run.status) && snap && (
-        <G1 snap={snap} onDecide={(specId, verdict) => post("approve", { date, specId, verdict })}
-          onRetry={(hookId) => post("specs", { date, selectedHookIds: [hookId] })}
-          onCommit={async () => { const r = await post("commit", { date }); if (r.ok) setMsg(r.body.message); }} />
+      {run && ["SPECS", "AWAITING_G1", "PRODUCING", "DONE"].includes(run.status) && snap && (
+        <>
+          <G1 snap={snap} onDecide={(specId, verdict) => post("approve", { date, specId, verdict, gate: "g1" })}
+            onRetry={(hookId) => post("specs", { date, selectedHookIds: [hookId] })}
+            onRender={(specIds) => post("render", { date, specIds })}
+            onCommit={async () => { const r = await post("commit", { date }); if (r.ok) setMsg(r.body.message); }} />
+          <G2 snap={snap} date={date}
+            onDecide={(specId, verdict) => post("approve", { date, specId, verdict, gate: "g2" })}
+            onRetry={(specId) => post("render", { date, specIds: [specId] })} />
+        </>
       )}
     </>
   );
@@ -155,10 +163,11 @@ function G0({ hooks, selected, toggle, onBuild }: { hooks: Hook[]; selected: Set
   );
 }
 
-function G1({ snap, onDecide, onRetry, onCommit }: {
+function G1({ snap, onDecide, onRetry, onRender, onCommit }: {
   snap: Snapshot;
   onDecide: (specId: string, verdict: "approve" | "reject") => void;
   onRetry: (hookId: string) => void;
+  onRender: (specIds: string[]) => void;
   onCommit: () => void;
 }) {
   const reportBy = new Map(snap.reports.map((r) => [r.spec_id, r]));
@@ -168,9 +177,21 @@ function G1({ snap, onDecide, onRetry, onCommit }: {
   const reviewable = snap.specs.filter((s) => reportBy.get(s.id)?.verdict !== "hard_fail");
   const bounced = snap.specs.filter((s) => reportBy.get(s.id)?.verdict === "hard_fail");
 
+  // Render-eligible = G1-approved specs not already rendered (READY) or rendering.
+  const render = snap.run?.render ?? {};
+  const renderable = reviewable
+    .filter((s) => decisionBy.get(s.id) === "approve")
+    .filter((s) => !["READY", "RENDERING"].includes(render[s.id]?.status ?? ""))
+    .map((s) => s.id);
+
   return (
     <>
       <h3>G1 — approve scripts ({reviewable.length})</h3>
+      {renderable.length > 0 && (
+        <button onClick={() => onRender(renderable)} style={{ marginBottom: 10 }}>
+          Render approved ({renderable.length}) →
+        </button>
+      )}
       {reviewable.map((s) => {
         const r = reportBy.get(s.id);
         const decided = decisionBy.get(s.id);
@@ -222,6 +243,61 @@ function G1({ snap, onDecide, onRetry, onCommit }: {
       )}
 
       <button onClick={onCommit} style={{ marginTop: 12 }}>Commit review (audit trail)</button>
+    </>
+  );
+}
+
+// G2 — the rendered-asset review gate. Not a separate global status: it lists every spec that has
+// a render entry (READY → player + approve/download; ERROR → retry; else in-progress).
+function G2({ snap, date, onDecide, onRetry }: {
+  snap: Snapshot;
+  date: string;
+  onDecide: (specId: string, verdict: "approve" | "reject") => void;
+  onRetry: (specId: string) => void;
+}) {
+  const render = snap.run?.render ?? {};
+  const entries = Object.entries(render);
+  const g2By = new Map(snap.decisions.filter((d) => d.gate === "g2").map((d) => [d.specId, d.verdict]));
+  const specById = new Map(snap.specs.map((s) => [s.id, s]));
+  const assetUrl = (specId: string) => `/api/video-engine/asset?date=${date}&specId=${encodeURIComponent(specId)}`;
+
+  if (entries.length === 0) {
+    return <><h3 style={{ marginTop: 20 }}>G2 — rendered videos</h3><p style={{ color: "#555" }}>No renders yet — approve a script above, then “Render approved”.</p></>;
+  }
+
+  return (
+    <>
+      <h3 style={{ marginTop: 20 }}>G2 — rendered videos ({entries.length})</h3>
+      {entries.map(([specId, r]) => {
+        const spec = specById.get(specId);
+        const decided = g2By.get(specId);
+        return (
+          <div key={specId} style={{ ...card, borderColor: r.status === "ERROR" ? "crimson" : "#ccc" }}>
+            <div style={mono}>{specId} — {r.status.toLowerCase()}</div>
+            {r.status === "READY" && (
+              <>
+                {/* eslint-disable-next-line jsx-a11y/media-has-caption -- disclosure is baked on-screen + in caption */}
+                <video controls src={assetUrl(specId)} style={{ width: 240, maxWidth: "100%", display: "block", margin: "8px 0", background: "#000" }} />
+                {spec && <pre style={{ ...mono, whiteSpace: "pre-wrap", fontSize: 12, color: "#333" }}>{spec.caption_text}</pre>}
+                <div style={{ marginTop: 6 }}>
+                  <button onClick={() => onDecide(specId, "approve")} disabled={decided === "approve"}>Approve (G2)</button>{" "}
+                  <button onClick={() => onDecide(specId, "reject")} disabled={decided === "reject"}>Reject</button>{" "}
+                  <a href={assetUrl(specId)} download={`${specId}.mp4`}><button type="button">Download .mp4</button></a>{" "}
+                  <button onClick={() => onRetry(specId)}>Re-render</button>
+                  {decided && <span style={{ marginLeft: 8 }}>→ {decided}</span>}
+                </div>
+              </>
+            )}
+            {r.status === "ERROR" && (
+              <>
+                <div style={{ color: "crimson", fontSize: 13 }}>{r.error}</div>
+                <button onClick={() => onRetry(specId)}>Retry render</button>
+              </>
+            )}
+            {(r.status === "RENDERING" || r.status === "PENDING") && <div style={{ color: "#555" }}>rendering…</div>}
+          </div>
+        );
+      })}
     </>
   );
 }

@@ -12,7 +12,9 @@ export type ApproveDeps = {
   now?: () => Date;
 };
 
-/** G1 decision: append one approve/reject record to decisions.jsonl (audit trail). */
+/** G1 (script) or G2 (rendered-asset) decision: append one approve/reject record to
+ * decisions.jsonl. gate defaults to g1; the G2 player posts gate:"g2". The gate discriminator
+ * (video-engine/decisions) keeps G2 approvals out of the G1 render-eligible count. */
 export function createApproveHandler(deps: ApproveDeps = {}) {
   const getEnv = deps.getEnv ?? (() => process.env);
   const cwd = deps.cwd ?? (() => process.cwd());
@@ -21,13 +23,14 @@ export function createApproveHandler(deps: ApproveDeps = {}) {
   return async function POST(req: Request): Promise<NextResponse> {
     if (!isVideoEngineEnabled(getEnv())) return notFound();
 
-    const body = (await req.json().catch(() => null)) as { date?: string; specId?: string; verdict?: "approve" | "reject" } | null;
+    const body = (await req.json().catch(() => null)) as { date?: string; specId?: string; verdict?: "approve" | "reject"; gate?: "g1" | "g2" } | null;
     const { date, specId, verdict } = body ?? {};
-    if (!date || !specId || (verdict !== "approve" && verdict !== "reject")) {
-      return NextResponse.json({ error: "date, specId and verdict (approve|reject) are required." }, { status: 400 });
+    const gate = body?.gate ?? "g1";
+    if (!date || !specId || (verdict !== "approve" && verdict !== "reject") || (gate !== "g1" && gate !== "g2")) {
+      return NextResponse.json({ error: "date, specId, verdict (approve|reject) and gate (g1|g2) are required." }, { status: 400 });
     }
 
-    appendDecision(date, { specId, verdict, gate: "g1", ts: now().toISOString() }, path.join(cwd(), "video-engine"));
+    appendDecision(date, { specId, verdict, gate, ts: now().toISOString() }, path.join(cwd(), "video-engine"));
     return NextResponse.json({ ok: true }, { status: 200 });
   };
 }
