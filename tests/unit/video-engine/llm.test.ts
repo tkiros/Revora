@@ -29,4 +29,19 @@ describe("llm", () => {
   it("throws after a second failure", async () => {
     await expect(llm("p", S, { runner: async () => "nope" })).rejects.toThrow();
   });
+
+  it("feeds the zod validation error into the retry prompt", async () => {
+    const prompts: string[] = [];
+    let n = 0;
+    const runner = async (p: string) => {
+      prompts.push(p);
+      return n++ === 0 ? '{"a":"not-a-number"}' : '{"a":2}';
+    };
+    await llm("p", S, { runner });
+    expect(prompts).toHaveLength(2);
+    // retry prompt must surface the ACTUAL zod failure ("Expected number, received string"),
+    // not just the generic "your output was invalid" nudge the old code sent.
+    expect(prompts[1].toLowerCase()).toContain("received string");
+    expect(prompts[1]).toContain(prompts[0]); // still includes the original prompt
+  });
 });

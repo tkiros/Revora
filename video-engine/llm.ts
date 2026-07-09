@@ -50,8 +50,11 @@ export async function llm<T>(
   const attempt = async (p: string) => schema.parse(extractJson(await runner(p)));
   try {
     return await attempt(prompt);
-  } catch {
-    // one retry with an explicit "JSON only" nudge; a second failure throws (dead-letter).
-    return attempt(prompt + "\n\nYour previous output was invalid. Return ONLY the JSON object matching the schema — no prose, no code fences.");
+  } catch (e) {
+    // one retry that feeds the ACTUAL failure back so the model can self-correct
+    // (the A2/A3 contract bugs from the real run would both have auto-fixed here);
+    // a second failure throws (dead-letter).
+    const why = e instanceof Error ? e.message : String(e);
+    return attempt(`${prompt}\n\nYour previous output was invalid and failed validation:\n${why}\n\nFix exactly those problems and return ONLY the corrected JSON object matching the schema — no prose, no code fences.`);
   }
 }
