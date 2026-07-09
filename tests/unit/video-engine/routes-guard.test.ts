@@ -7,6 +7,8 @@ import { createApproveHandler } from "../../../app/api/video-engine/approve/rout
 import { createCommitHandler } from "../../../app/api/video-engine/commit/route";
 import { createStateHandler } from "../../../app/api/video-engine/state/route";
 import { createRunsHandler } from "../../../app/api/video-engine/runs/route";
+import { createRenderHandler } from "../../../app/api/video-engine/render/route";
+import { createAssetHandler } from "../../../app/api/video-engine/asset/route";
 
 // A spawn spy so the guard test can never actually launch a child.
 const noSpawn = () => {};
@@ -41,6 +43,14 @@ describe("SECURITY: video-engine routes 404 outside pure-local dev", () => {
       const h = createRunsHandler({ getEnv: () => env });
       expect((await h()).status).toBe(404);
     });
+    it(`render 404s under ${label}`, async () => {
+      const h = createRenderHandler({ getEnv: () => env, spawn: noSpawn, runtimeReady: () => true });
+      expect((await h(req({ date: "2026-07-09", specIds: ["s1"] }))).status).toBe(404);
+    });
+    it(`asset 404s under ${label}`, async () => {
+      const h = createAssetHandler({ getEnv: () => env });
+      expect((await h(new Request("http://localhost/api/video-engine/asset?date=2026-07-09&specId=s1"))).status).toBe(404);
+    });
   }
 });
 
@@ -50,8 +60,9 @@ describe("SECURITY: routes never import the engine module (bundle isolation)", (
   for (const f of files) {
     it(`${path.basename(path.dirname(f))}/route.ts imports only the dashboard lib`, () => {
       const src = fs.readFileSync(f, "utf8");
-      // must not import from the engine dir (run/agents/llm/state) — those pull claude/git.
-      expect(src).not.toMatch(/from\s+["'][^"']*\/video-engine\/(run|agents|llm|state|linter|store)["']/);
+      // must not import from the engine dir — run/agents/llm/state/linter/store pull claude/git;
+      // render/template pull the Remotion bundler + Chromium (catastrophic in the serverless build).
+      expect(src).not.toMatch(/from\s+["'][^"']*\/video-engine\/(run|agents|llm|state|linter|store|render|template)["']/);
     });
   }
 });

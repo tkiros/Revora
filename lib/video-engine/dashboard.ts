@@ -133,6 +133,12 @@ const readJsonSafe = <T,>(p: string, fallback: T): T => {
   try { return JSON.parse(fs.readFileSync(p, "utf8")) as T; } catch { return fallback; }
 };
 
+/** Ids from specs.json — the /asset route's allowlist (specId is NEVER a raw path segment). */
+export function readSpecIds(date: string, videoEngineRoot: string): string[] {
+  return readJsonSafe<{ id?: unknown }[]>(path.join(videoEngineRoot, "output", date, "specs.json"), [])
+    .map((s) => s?.id).filter((id): id is string => typeof id === "string");
+}
+
 /** History: one summary row per dated run under output/*, newest first. */
 export function listRuns(videoEngineRoot: string): RunSummary[] {
   const outRoot = path.join(videoEngineRoot, "output");

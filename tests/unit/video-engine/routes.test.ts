@@ -5,6 +5,8 @@ import path from "node:path";
 import { createHooksHandler } from "../../../app/api/video-engine/hooks/route";
 import { createSpecsHandler } from "../../../app/api/video-engine/specs/route";
 import { createApproveHandler } from "../../../app/api/video-engine/approve/route";
+import { createRenderHandler } from "../../../app/api/video-engine/render/route";
+import { createAssetHandler } from "../../../app/api/video-engine/asset/route";
 import { readDecisions } from "../../../lib/video-engine/dashboard";
 import type { RunState } from "../../../video-engine/state";
 
@@ -97,5 +99,78 @@ describe("approve route", () => {
   it("bad verdict → 400", async () => {
     const h = createApproveHandler({ getEnv: () => DEV, cwd: cwd() });
     expect((await h(post({ date: "2026-07-09", specId: "s1", verdict: "maybe" }))).status).toBe(400);
+  });
+});
+
+describe("render route", () => {
+  const ready = () => true;
+  it("no specIds → 400, no spawn", async () => {
+    let spawned = false;
+    const h = createRenderHandler({ getEnv: () => DEV, cwd: cwd(), runtimeReady: ready, spawn: () => { spawned = true; } });
+    expect((await h(post({ date: "2026-07-09", specIds: [] }))).status).toBe(400);
+    expect(spawned).toBe(false);
+  });
+  it("render runtime missing → 503 (renderRuntimeReady, not claudeReady), no spawn", async () => {
+    let spawned = false;
+    const h = createRenderHandler({ getEnv: () => DEV, cwd: cwd(), runtimeReady: () => false, spawn: () => { spawned = true; } });
+    expect((await h(post({ date: "2026-07-09", specIds: ["vs-1"] }))).status).toBe(503);
+    expect(spawned).toBe(false);
+  });
+  it("happy path → seeds PRODUCING, spawns render with spec ids, 202", async () => {
+    let arg: { phase?: string; selected?: string[] } | null = null;
+    const h = createRenderHandler({ getEnv: () => DEV, cwd: cwd(), runtimeReady: ready, spawn: (a) => { arg = a as typeof arg; } });
+    const res = await h(post({ date: "2026-07-09", specIds: ["vs-1", "vs-2"] }));
+    expect(res.status).toBe(202);
+    expect(arg).toMatchObject({ phase: "render", selected: ["vs-1", "vs-2"] });
+    const seeded = JSON.parse(fs.readFileSync(path.join(repo, "video-engine", "output", "2026-07-09", "run.json"), "utf8"));
+    expect(seeded.status).toBe("PRODUCING");
+  });
+  it("a render already live (PRODUCING) → 409, no double-spawn", async () => {
+    writeRun("2026-07-09", { status: "PRODUCING", pid: process.pid });
+    let spawned = false;
+    const h = createRenderHandler({ getEnv: () => DEV, cwd: cwd(), runtimeReady: ready, spawn: () => { spawned = true; } });
+    expect((await h(post({ date: "2026-07-09", specIds: ["vs-1"] }))).status).toBe(409);
+    expect(spawned).toBe(false);
+  });
+});
+
+describe("asset route (validation + path-traversal defense)", () => {
+  const get = (qs: string) => new Request(`http://x/api/video-engine/asset?${qs}`);
+  const writeAsset = (date: string, specId: string, body: string) => {
+    const dir = path.join(repo, "video-engine", "output", date);
+    fs.mkdirSync(path.join(dir, "assets", specId), { recursive: true });
+    fs.writeFileSync(path.join(dir, "specs.json"), JSON.stringify([{ id: specId }]));
+    fs.writeFileSync(path.join(dir, "assets", specId, "master.mp4"), body);
+  };
+
+  it("invalid date shape → 400", async () => {
+    const h = createAssetHandler({ getEnv: () => DEV, cwd: cwd() });
+    expect((await h(get("date=notadate&specId=vs-1"))).status).toBe(400);
+  });
+  it("specId not in specs.json → 404 (never touches the filesystem)", async () => {
+    writeAsset("2026-07-09", "vs-1", "MP4");
+    const h = createAssetHandler({ getEnv: () => DEV, cwd: cwd() });
+    expect((await h(get("date=2026-07-09&specId=vs-999"))).status).toBe(404);
+  });
+  it("path-traversal specId → 404 (allowlist blocks it before any resolve)", async () => {
+    writeAsset("2026-07-09", "vs-1", "MP4");
+    const h = createAssetHandler({ getEnv: () => DEV, cwd: cwd() });
+    expect((await h(get(`date=2026-07-09&specId=${encodeURIComponent("../../../../etc/passwd")}`))).status).toBe(404);
+  });
+  it("valid specId → 200 video/mp4", async () => {
+    writeAsset("2026-07-09", "vs-1", "MP4DATA");
+    const h = createAssetHandler({ getEnv: () => DEV, cwd: cwd() });
+    const res = await h(get("date=2026-07-09&specId=vs-1"));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("video/mp4");
+    expect(await res.text()).toBe("MP4DATA");
+  });
+  it("Range request → 206 partial content", async () => {
+    writeAsset("2026-07-09", "vs-1", "0123456789");
+    const h = createAssetHandler({ getEnv: () => DEV, cwd: cwd() });
+    const res = await h(new Request("http://x/api/video-engine/asset?date=2026-07-09&specId=vs-1", { headers: { range: "bytes=2-5" } }));
+    expect(res.status).toBe(206);
+    expect(await res.text()).toBe("2345");
+    expect(res.headers.get("content-range")).toBe("bytes 2-5/10");
   });
 });
