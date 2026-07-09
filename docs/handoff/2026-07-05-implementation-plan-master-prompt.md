@@ -32,6 +32,7 @@ If anything you plan contradicts doc #1 or #2, the docs win — flag the conflic
 - **Clients must be able to pay for BOTH** the subscription (via the trial) **and** the Pantry Review (in-app, not just an external link) by launch.
 - **"Enjoy it anyway" feature (Approach B):** enrich Be-careful/Hold-off results with two enjoyment-preserving DOs — keep-most (qualitative portion / set-a-component-aside) and swap. Qualitative only, DO-framed, never "skip/avoid."
 - **All changes additive and reversible.** Every new user-facing string clears the claims-boundary CI test before merge.
+- **stripe MCP is setup and authonticated - agent can execute all the necessary actions to make the payment system ready for client payment**
 
 ### 2. TASK — produce three deliverables in one plan document
 
@@ -108,4 +109,4 @@ The plan is good when an engineer could execute it phase by phase without asking
 
 ## ⬆️ END OF MASTER PROMPT ⬆️
 
-**Suggested run:** `/gsd-plan-phase` or `/iplan-eng-review` with this file as the brief, or paste the boxed section into a fresh Claude Code session at the repo root. Keep the agent in read-only/plan mode until the plan is approved.
+

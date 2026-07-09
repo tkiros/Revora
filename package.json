@@ -12,7 +12,8 @@
     "eval:revora": "vitest run tests/evals/revora-safety-eval.test.ts",
     "eval:revora:live": "node scripts/run-graded-evals.mjs",
     "eval:pantry-extract": "vitest run tests/evals/pantry-extract-eval.test.ts",
-    "eval:meal-photo": "vitest run tests/evals/meal-photo-eval.test.ts"
+    "eval:meal-photo": "vitest run tests/evals/meal-photo-eval.test.ts",
+    "video-engine": "tsx video-engine/run.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.2",
@@ -42,6 +43,7 @@
     "@types/react-dom": "^19.2.2",
     "@types/web-push": "^3.6.4",
     "drizzle-kit": "^0.31.10",
+    "tsx": "^4.21.0",
     "typescript": "6.0.3",
     "vitest": "4.1.5"
   }

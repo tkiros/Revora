@@ -1,0 +1,56 @@
+[
+  {
+    "id": "a1-001",
+    "verbatim": "a bowl of porridge oats with milk and salt pushes my bgl up to about 9 mmol/l and it stays high till evening.",
+    "source_url": "https://www.diabetes.co.uk/forum/threads/oatmeal.185532/",
+    "theme": "healthy-breakfast betrayal",
+    "pillar": "P3",
+    "freq_count": 3,
+    "status": "NEW"
+  },
+  {
+    "id": "a1-002",
+    "verbatim": "After 2 days of this i was crawling up the wall desperate for crisps and crumpets.",
+    "source_url": "https://www.diabetes.co.uk/forum/threads/oatmeal.185532/",
+    "theme": "carb crash triggers junk-food cravings",
+    "pillar": "P3",
+    "freq_count": 2,
+    "status": "NEW"
+  },
+  {
+    "id": "a1-003",
+    "verbatim": "I walk in to supermarket try and work out a meal and end up in tears",
+    "source_url": "https://www.diabetes.co.uk/forum/threads/please-help-im-getting-a-phobia-of-eating.116030/",
+    "theme": "fear of eating anything",
+    "pillar": "P2",
+    "freq_count": 4,
+    "status": "NEW"
+  },
+  {
+    "id": "a1-004",
+    "verbatim": "I am trying to eat better etc so wondering what is best to eat for breakfast, before this I didn't eat any or maybe cereal.",
+    "source_url": "https://www.diabetes.co.uk/forum/threads/breakfast-what-should-i-eat-newly-diagnosed-pre.131235/",
+    "theme": "newly diagnosed, no idea what to eat for breakfast",
+    "pillar": "P2",
+    "freq_count": 1,
+    "status": "NEW"
+  },
+  {
+    "id": "a1-005",
+    "verbatim": "Can I have porridge made with water?",
+    "source_url": "https://www.diabetes.co.uk/forum/threads/breakfast-what-should-i-eat-newly-diagnosed-pre.131235/",
+    "theme": "is this specific food safe? (porridge check)",
+    "pillar": "P1",
+    "freq_count": 1,
+    "status": "NEW"
+  },
+  {
+    "id": "a1-006",
+    "verbatim": "On the front 'sugars' per slice is shown as 0.4 BUT on the back on the official nutritional label carbs are 5.2 per slice, quite a difference.",
+    "source_url": "https://www.diabetes.co.uk/forum/threads/sugars-in-uk-food-labelling-m-s.190247/",
+    "theme": "sugars-vs-carbs label trap",
+    "pillar": "P3",
+    "freq_count": 5,
+    "status": "NEW"
+  }
+]

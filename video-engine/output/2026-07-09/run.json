@@ -1,0 +1,40 @@
+{
+  "date": "2026-07-09",
+  "status": "AWAITING_G1",
+  "selectedHookIds": [
+    "hk-022",
+    "hk-002",
+    "hk-019",
+    "hk-006",
+    "hk-016"
+  ],
+  "progress": {
+    "stage": "awaiting_g1",
+    "done": 5,
+    "total": 5
+  },
+  "specs": {
+    "hk-002": {
+      "status": "DONE",
+      "specId": "vs-002"
+    },
+    "hk-006": {
+      "status": "DONE",
+      "specId": "vs-006"
+    },
+    "hk-016": {
+      "status": "DONE",
+      "specId": "vs-016"
+    },
+    "hk-019": {
+      "status": "DONE",
+      "specId": "vs-hk-019-01"
+    },
+    "hk-022": {
+      "status": "DONE",
+      "specId": "vs-022"
+    }
+  },
+  "pid": 1172729,
+  "heartbeat": "2026-07-09T17:13:54.414Z"
+}

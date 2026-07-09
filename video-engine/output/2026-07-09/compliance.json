@@ -1,0 +1,104 @@
+[
+  {
+    "id": "cr_vs-002",
+    "spec_id": "vs-002",
+    "verdict": "flag",
+    "items": [
+      {
+        "layer": "llm",
+        "severity": "flag",
+        "rule": "result-qualitative-impact",
+        "span": "keeps blood sugar elevated way longer than the oats themselves",
+        "suggestion": "keeps blood sugar elevated more than the oats themselves"
+      },
+      {
+        "layer": "llm",
+        "severity": "flag",
+        "rule": "result-qualitative-impact",
+        "span": "The verdict flags the added sugar and dried fruit as the reason blood sugar stays elevated longer than the oats alone would cause.",
+        "suggestion": "The verdict flags the added sugar and dried fruit as a likely bigger driver of blood sugar impact than the oats alone."
+      },
+      {
+        "layer": "llm",
+        "severity": "flag",
+        "rule": "result-adjustment",
+        "span": "is the lever that actually changes the outcome",
+        "suggestion": "is one adjustment that can help, not a guaranteed fix"
+      }
+    ],
+    "ts": "2026-07-09T17:07:32.335Z"
+  },
+  {
+    "id": "cr_vs-006",
+    "spec_id": "vs-006",
+    "verdict": "hard_fail",
+    "items": [
+      {
+        "layer": "llm",
+        "severity": "hard_fail",
+        "rule": "Banned Claim Family: Glucose-curve prediction / unsupported clinical-outcome guarantee claim",
+        "span": "Two people eat the same bowl of oatmeal. One stays steady. One doesn't. The oats aren't the difference.",
+        "suggestion": "Two people scan the same bowl of oatmeal in Revora. One gets a lower-impact result. One doesn't. The oats alone aren't what decided it."
+      },
+      {
+        "layer": "llm",
+        "severity": "hard_fail",
+        "rule": "Banned Claim Family: Glucose-curve prediction (implies the app measured a real physiological outcome, not a food classification)",
+        "span": "two people ate this exact bowl and had two different results",
+        "suggestion": "the same bowl of oatmeal can classify two different ways in Revora"
+      },
+      {
+        "layer": "llm",
+        "severity": "flag",
+        "rule": "result-qualitative-impact — restates the unqualified physiological-outcome claim from the hook rather than a food classification",
+        "span": "Same oatmeal. Two different outcomes. It's not the food, it's what's around it.",
+        "suggestion": "Same oatmeal. Two different results in Revora. It's not just the food, it's what's around it."
+      },
+      {
+        "layer": "llm",
+        "severity": "flag",
+        "rule": "claims_used log mirrors the unqualified physiological claim rather than a food-classification claim, which will propagate the boundary issue downstream if not corrected at the source",
+        "span": "one person 'stays steady' and one doesn't after eating the same food",
+        "suggestion": "one bowl of oatmeal gets two different Revora classifications depending on what's added to it"
+      }
+    ],
+    "ts": "2026-07-09T17:09:07.754Z"
+  },
+  {
+    "id": "cr_vs-016",
+    "spec_id": "vs-016",
+    "verdict": "flag",
+    "items": [
+      {
+        "layer": "llm",
+        "severity": "flag",
+        "rule": "prompt-scope",
+        "span": "Stop trying to memorize every food rule. Ask one question instead: does this have protein or fiber with it? Follow for more one-question swaps.",
+        "suggestion": "Stop guessing at breakfast. Run it through Revora and see if adding protein or fiber changes the read. Follow for more real checks."
+      }
+    ],
+    "ts": "2026-07-09T17:11:21.142Z"
+  },
+  {
+    "id": "cr_vs-hk-019-01",
+    "spec_id": "vs-hk-019-01",
+    "verdict": "flag",
+    "items": [
+      {
+        "layer": "llm",
+        "severity": "flag",
+        "rule": "prompt-scope",
+        "span": "Follow for more real label checks before you trust what's printed up top.",
+        "suggestion": "Follow for more real checks like this — Revora reads food labels for people in the prediabetes A1C range (5.7%–6.4%)."
+      }
+    ],
+    "ts": "2026-07-09T17:12:47.152Z"
+  },
+  {
+    "id": "cr_vs-022",
+    "spec_id": "vs-022",
+    "verdict": "pass",
+    "items": [],
+    "ts": "2026-07-09T17:13:54.411Z"
+  }
+]
