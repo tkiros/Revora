@@ -1,0 +1,45 @@
+[
+  {
+    "id": "ang-001",
+    "insight_ids": [
+      "a1-001",
+      "a1-005"
+    ],
+    "premise": "The oatmeal breakfast recommended everywhere as 'diabetes-friendly' is quietly one of the most common ways people spike after diagnosis, because the advice never separates 'porridge' as a category from how it's actually made.",
+    "enemy": "generic 'eat oatmeal, it's healthy' advice that ignores prep and portion",
+    "persona": "newly diagnosed, was told oats are a safe carb, hasn't been warned about milk/toppings/portion effect",
+    "status": "DRAFT"
+  },
+  {
+    "id": "ang-002",
+    "insight_ids": [
+      "a1-002",
+      "a1-001"
+    ],
+    "premise": "The crash that follows a big carb breakfast is what actually drives the crisps-and-crumpets craving later, the craving isn't a willpower failure, it's a downstream effect of the breakfast choice.",
+    "enemy": "the idea that cravings mean a lack of discipline",
+    "persona": "someone who white-knuckled a 'clean' diet for a couple days and got blindsided by intense junk cravings",
+    "status": "DRAFT"
+  },
+  {
+    "id": "ang-003",
+    "insight_ids": [
+      "a1-003",
+      "a1-004"
+    ],
+    "premise": "The overwhelm at diagnosis isn't about any single food, it's the total absence of a starting point, and that gap is what turns a normal supermarket trip into a breakdown.",
+    "enemy": "generic 'just eat healthy' advice with no concrete starting point",
+    "persona": "newly diagnosed, standing in the supermarket aisle unable to decide what's safe to buy",
+    "status": "DRAFT"
+  },
+  {
+    "id": "ang-004",
+    "insight_ids": [
+      "a1-006"
+    ],
+    "premise": "UK nutrition labels let 'sugars' read low while total carbs, the number that actually matters, sit much higher on the same label, a gap most people never notice.",
+    "enemy": "reading only the 'sugars' line on a nutrition label",
+    "persona": "label-conscious shopper who trusts the front-of-pack sugar number",
+    "status": "DRAFT"
+  }
+]

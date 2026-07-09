@@ -1,0 +1,156 @@
+[
+  {
+    "id": "vs-002",
+    "hook_id": "hk-002",
+    "format": "check_demo",
+    "spoken_hook": "There's one thing about a totally normal bowl of oatmeal that keeps blood sugar elevated way longer than the oats themselves.",
+    "visual_hook": "It's not the oats",
+    "beats": [
+      "Open on a plain bowl of oatmeal with the on-screen text \"It's not the oats\" as a voiceover teases the curiosity gap.",
+      "B-roll shows a normal morning routine of stirring brown sugar and dried fruit into the oatmeal, the exact moment most people call it \"healthy.\"",
+      "Cut to a real Revora scan of that same topped bowl, capturing the live verdict card loading on screen.",
+      "The verdict flags the added sugar and dried fruit as the reason blood sugar stays elevated longer than the oats alone would cause.",
+      "Voiceover explains that swapping toppings, not the oats, is the lever that actually changes the outcome.",
+      "Voiceover closes by asking viewers to comment \"GUIDE\" to get the full breakdown of smarter oatmeal toppings."
+    ],
+    "asset_list": [
+      "Real Revora app screen recording scanning the topped oatmeal bowl and showing the live verdict card loading (actual check, not mocked)",
+      "AI-generated b-roll of a plain bowl of oatmeal being prepared",
+      "AI-generated b-roll of brown sugar and dried fruit being stirred into the oatmeal",
+      "On-screen text overlay: \"It's not the oats\"",
+      "Verdict card close-up capture highlighting the added-sugar flag",
+      "Voiceover narration track for the explanation and CTA beats",
+      "Caption text overlay for the comment-for-guide CTA"
+    ],
+    "caption_text": "It's not the oats. The toppings you stir in can matter more than the oatmeal itself. Comment GUIDE for the breakdown.",
+    "disclosure_block": "Revora is informational only and is not medical advice. Talk with a doctor or registered dietitian for guidance that is specific to you.",
+    "claims_used": [
+      "Common oatmeal toppings like added sugar and dried fruit can keep blood sugar elevated longer than the oats themselves"
+    ],
+    "duration_s": 20,
+    "status": "DRAFT"
+  },
+  {
+    "id": "vs-006",
+    "hook_id": "hk-006",
+    "format": "check_demo",
+    "spoken_hook": "Two people eat the same bowl of oatmeal. One stays steady. One doesn't. The oats aren't the difference.",
+    "visual_hook": "Same bowl, different result",
+    "beats": [
+      "Open on a bowl of oatmeal being scanned in the Revora app.",
+      "Show the real check card returning for plain oatmeal, verdict visible on screen.",
+      "Cut to text: two people ate this exact bowl and had two different results.",
+      "Explain the variable isn't the oats itself, it's what surrounds them, like protein, fiber, and order of eating.",
+      "Screen-record a second real check: the same oatmeal scanned again, this time with a protein or fiber add-on.",
+      "Show the two verdict cards side by side, highlighting the different outcome.",
+      "Land the takeaway: the food alone doesn't tell the whole story, context does.",
+      "CTA: comment GUIDE and we'll send the oatmeal pairing breakdown."
+    ],
+    "asset_list": [
+      "Screen recording: Revora app scanning plain oatmeal, real check result card",
+      "Screen recording: Revora app scanning oatmeal + protein/fiber add-on, real check result card",
+      "Side-by-side comparison graphic of the two verdict cards",
+      "AI food b-roll: bowl of oatmeal, close-up toppings being added",
+      "On-screen text overlay: 'Same bowl, different result'",
+      "On-screen text overlay: comment-for-guide CTA card"
+    ],
+    "caption_text": "Same oatmeal. Two different outcomes. It's not the food, it's what's around it. Comment GUIDE and we'll send you the pairing breakdown.",
+    "disclosure_block": "Revora is informational only and is not medical advice. Talk with a doctor or registered dietitian for guidance that is specific to you.",
+    "claims_used": [
+      "one person 'stays steady' and one doesn't after eating the same food"
+    ],
+    "duration_s": 22,
+    "status": "DRAFT"
+  },
+  {
+    "id": "vs-016",
+    "hook_id": "hk-016",
+    "format": "check_demo",
+    "spoken_hook": "This is the one breakfast question to ask instead of trying to memorize every food rule at once.",
+    "visual_hook": "One question beats every rule",
+    "beats": [
+      "Open on-screen text \"One question beats every rule\" over b-roll of a supermarket cereal aisle as the voiceover delivers the hook.",
+      "Voiceover says forget memorizing every food rule, just ask one question before you eat: does this have protein or fiber with it?",
+      "Cut to a real Revora screen recording scanning a plain bowl of cereal, the verdict card loading live on screen.",
+      "The verdict flags the plain cereal as fast-digesting with nothing alongside it to slow things down.",
+      "Screen recording continues: the same cereal scanned again, this time with a spoonful of Greek yogurt added, the second verdict card loading.",
+      "The second verdict shows the calmer flag now that protein is in the mix, proving the one question changed the read.",
+      "Voiceover lands the takeaway: same question works on any breakfast, no rulebook required.",
+      "CTA: follow so you have this one question on hand for every meal, not just this one."
+    ],
+    "asset_list": [
+      "Real Revora app screen recording scanning a plain bowl of cereal, live verdict card loading (actual check, not mocked)",
+      "Real Revora app screen recording scanning the same cereal plus a spoonful of Greek yogurt, live verdict card loading (actual check, not mocked)",
+      "AI-generated b-roll of a supermarket cereal aisle",
+      "AI-generated b-roll of Greek yogurt being spooned into the cereal bowl",
+      "On-screen text overlay: \"One question beats every rule\"",
+      "On-screen text overlay: \"Does this have protein or fiber with it?\"",
+      "Voiceover narration track for the explanation and CTA beats",
+      "On-screen text/caption overlay for the follow CTA"
+    ],
+    "caption_text": "Stop trying to memorize every food rule. Ask one question instead: does this have protein or fiber with it? Follow for more one-question swaps.",
+    "disclosure_block": "Revora is informational only and is not medical advice. Talk with a doctor or registered dietitian for guidance that is specific to you.",
+    "claims_used": [
+      "Adding protein or fiber to a fast-digesting breakfast like cereal changes the verdict from a flag to a calmer read"
+    ],
+    "duration_s": 21,
+    "status": "DRAFT"
+  },
+  {
+    "id": "vs-hk-019-01",
+    "hook_id": "hk-019",
+    "format": "myth_label_trap",
+    "spoken_hook": "You flip the bread over, sugars: 0.4g per slice, looks fine. Then you check two lines down.",
+    "visual_hook": "0.4g sugar. Then you look down.",
+    "beats": [
+      "Open the real Revora app and scan the bread's nutrition label live on screen.",
+      "The app reads 0.4g of sugar per slice and it looks low, just like you'd expect.",
+      "You scroll two lines down to the label's serving-size field, right where the app is now pointing.",
+      "Revora flags that the serving size is actually half a slice, quietly halving every number printed above it.",
+      "The real per-slice total is noticeably higher than the front sugar figure made it look.",
+      "Revora explains why serving-size splits like this show up often on packaged bread.",
+      "Follow for more real label checks before you trust what's printed up top."
+    ],
+    "asset_list": [
+      "Screen recording: real Revora app scanning the bread nutrition label (unmodified, live capture)",
+      "Screen recording: Revora UI scrolling down to the serving-size and carb breakdown lines",
+      "On-screen text overlay: '0.4g sugar. Then you look down.'",
+      "On-screen text overlay callout: 'Serving size: 1/2 slice'",
+      "Auto-synced captions for all spoken lines",
+      "Light suspenseful background track, faceless-short pacing"
+    ],
+    "caption_text": "0.4g sugar looked fine—until we checked the serving size two lines down. Always read the whole label. #FoodLabels #LabelLiteracy #Revora",
+    "disclosure_block": "",
+    "claims_used": [],
+    "duration_s": 26,
+    "status": "DRAFT"
+  },
+  {
+    "id": "vs-022",
+    "hook_id": "hk-022",
+    "format": "myth_label_trap",
+    "spoken_hook": "By the end of this you'll know exactly which line on the label to read first, and it's not the one you think.",
+    "visual_hook": "Read this line first",
+    "beats": [
+      "Hold up a snack package and ask viewers which line they'd check first, most say sugar or calories.",
+      "Say the real first line to check is servings per container, because every number below it is scaled to that serving size.",
+      "Cut to a real Revora screen recording scanning the same package, with the serving size line circled before anything else.",
+      "Show how a 'low sugar' front label hides behind a tiny serving size once the real Revora card reveals the per-container total.",
+      "Give the simple rule: always find servings per container before reacting to any other number on the panel.",
+      "Close with a follow prompt for more label-reading tricks like this one."
+    ],
+    "asset_list": [
+      "Real screen recording of the Revora app scanning a packaged snack, serving size line highlighted first",
+      "Close-up B-roll of the physical snack package nutrition panel",
+      "On-screen text overlay: 'Read this line first'",
+      "On-screen text overlay: servings per container callout",
+      "Real Revora verdict card showing per-container sugar total",
+      "End-card follow CTA overlay"
+    ],
+    "caption_text": "The line everyone skips on a nutrition label — and it changes every number below it. Which line do you check first? 👇 #labelreading #nutritionfacts #foodlabels",
+    "disclosure_block": "",
+    "claims_used": [],
+    "duration_s": 25,
+    "status": "DRAFT"
+  }
+]
