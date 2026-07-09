@@ -4,8 +4,8 @@ import path from "node:path";
 import { ROOT } from "./config";
 import type { VideoSpec, Hook, ComplianceReport } from "./schema";
 
-const outDir = (date: string, root: string) => path.join(process.cwd(), root, "output", date);
-const inPath = (date: string, root: string) => path.join(process.cwd(), root, "input", `${date}-voc-dump.md`);
+const outDir = (date: string, root: string) => path.resolve(root, "output", date);
+const inPath = (date: string, root: string) => path.resolve(root, "input", `${date}-voc-dump.md`);
 
 export function loadDump(date: string, root: string = ROOT): string {
   const p = inPath(date, root);
