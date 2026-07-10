@@ -119,6 +119,47 @@ it("400s on an invalid email", async () => {
   expect(await ctx.db.select().from(schema.users)).toHaveLength(0);
 });
 
+it("plan=annual checks out against the annual price with annual metadata", async () => {
+  const stripe = stripeStub();
+  const handler = createTrialCheckoutHandler({
+    db: () => ctx.db,
+    stripeClient: () => stripe as never,
+    sendMagicLink: vi.fn().mockResolvedValue(undefined),
+    env: {
+      ...trialEnv,
+      STRIPE_PRICE_ANNUAL: "price_annual"
+    } as unknown as NodeJS.ProcessEnv
+  });
+
+  const res = await handler(
+    jsonRequest({ email: "year@example.com", plan: "annual" })
+  );
+  expect(res.status).toBe(200);
+
+  const call = stripe.checkout.sessions.create.mock.calls[0][0];
+  expect(call.line_items).toEqual([{ price: "price_annual", quantity: 1 }]);
+  expect(call.subscription_data).toMatchObject({
+    trial_period_days: 7,
+    metadata: { price_variant: "annual" }
+  });
+});
+
+it("503s on plan=annual when STRIPE_PRICE_ANNUAL is unset", async () => {
+  const stripe = stripeStub();
+  const handler = createTrialCheckoutHandler({
+    db: () => ctx.db,
+    stripeClient: () => stripe as never,
+    sendMagicLink: vi.fn(),
+    env: trialEnv
+  });
+
+  const res = await handler(
+    jsonRequest({ email: "year@example.com", plan: "annual" })
+  );
+  expect(res.status).toBe(503);
+  expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
+});
+
 it("503s when the variant price env is unset", async () => {
   const stripe = stripeStub();
   const handler = createTrialCheckoutHandler({

@@ -16,7 +16,10 @@ import {
 } from "../../../lib/server/session";
 import { generateClaimToken } from "../../../lib/server/pantry/claims";
 import { intakeEmailText } from "../../../lib/server/pantry/emails";
-import { resolvePriceVariant } from "../../../lib/server/pricing";
+import {
+  resolveAnnualPrice,
+  resolvePriceVariant
+} from "../../../lib/server/pricing";
 import { sendEmail, type SendEmailResult } from "../../../lib/server/email";
 import {
   emitBillingEvent,
@@ -826,7 +829,12 @@ function mapStripeStatus(
 // ── POST /api/trial/start ───────────────────────────────────────────────────
 
 const TrialStartSchema = z
-  .object({ email: z.string().trim().toLowerCase().email().max(254) })
+  .object({
+    email: z.string().trim().toLowerCase().email().max(254),
+    // 2-plan wall (owner decision 2026-07-10). Absent = monthly, so existing
+    // clients keep working unchanged.
+    plan: z.enum(["monthly", "annual"]).optional()
+  })
   .strict();
 
 /**
@@ -864,7 +872,13 @@ export function createTrialCheckoutHandler(
       return NextResponse.json({ error: "Enter a valid email." }, { status: 400 });
     }
 
-    const { variant, priceId } = resolvePriceVariant(env);
+    const monthly = resolvePriceVariant(env);
+    const plan = parsed.data.plan ?? "monthly";
+    const priceId =
+      plan === "annual" ? resolveAnnualPrice(env).priceId : monthly.priceId;
+    // The metadata drives the pre-charge email's price line; annual rows carry
+    // the plan name instead of a monthly variant.
+    const variant = plan === "annual" ? "annual" : monthly.variant;
     if (!priceId) {
       return NextResponse.json(
         { error: "Billing is not configured." },

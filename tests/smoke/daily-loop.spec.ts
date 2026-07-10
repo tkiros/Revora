@@ -54,7 +54,7 @@ test("checks build the on-device day: today list, streak, action ack", async ({
   await expect(page.getByTestId("today-list")).toContainText(
     "white rice with beans"
   );
-  await expect(page.getByTestId("streak-chip")).toContainText("Day 1");
+  await expect(page.getByTestId("streak-chip")).toContainText("1 day this week");
 
   const stored = await page.evaluate(() =>
     JSON.parse(window.localStorage.getItem("revora.history.v1") ?? "[]")

@@ -39,7 +39,7 @@ That card is the wedge. The **moat** is what happens across days: Revora *rememb
 
 **Category ladder:** *wedge* = "should I eat this, now?" (the meal-moment decision) → *moat* = an honest daily relationship + a prediabetes-only brand identity nobody else owns cleanly.
 
-**Business model:** self-serve consumer subscription, freemium (free daily checks → paid for memory + daily coach + history). **Proposed** pricing $12.99/mo · $99.99/yr · $249.99 lifetime — **[L], to be validated** (see Open Decisions #1).
+**Business model:** self-serve consumer subscription, freemium (free daily checks → paid for memory + daily coach + history). Pricing (founder decision 2026-07-10): **two plans — $12.99/mo · $99.99/yr ($8.33/mo equivalent)**; the $249.99 lifetime tier is dropped. Still **[L] until paying users exist** — the price-ladder smoke test (Open Decisions #1) remains the validation path.
 
 **What's built today (be honest internally):** a stateless, anonymous, text-in single-shot checker powered by a heavily safety-hardened answer engine (`lib/revora/`: A1C-band routing, conservative bias, uncertainty flagging, fail-closed retry, PII scrubbing). The coach layer (memory → nudge → insight → pay) is the roadmap, not yet shipped. The reusable safe engine is the credibility asset; the coach is the product.
 

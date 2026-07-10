@@ -57,12 +57,13 @@ colors decoratively.
 
 - Radius scale: **24px** cards (`surface-card`) · **18px** inputs · **14px** nested cards · **999px** buttons/pills/chips. Pick from the scale, never invent.
 - Card shadow: `0 18px 40px rgba(15,23,42,0.08)` — the only shadow. Nothing else casts one.
-- Layout: single column, `max-width: 480px` (`.page-frame`), 16px grid gap, 20px card padding, page padding `16px 12px 40px`. Mobile-first at 375px; the 480px frame IS the desktop design.
+- Layout (amended 2026-07-10, dashboard plan): mobile-first at 375px, but the 480px frame is NO LONGER the desktop design. App pages live in the `(app)` shell (see §App shell) with real breakpoints; unmigrated pages keep the legacy single-column `max-width: 480px` `.page-frame` until they move. 16px grid gap, 20px card padding.
 - Touch: global `min-height: 44px` on button/input/textarea (already enforced in globals.css). Keep it.
 
 ## Class vocabulary (reuse before writing CSS)
 
-- Structure: `page-shell` → `page-frame` → `surface-card`
+- Structure (legacy pages): `page-shell` → `page-frame` → `surface-card`
+- Structure (app shell, 2026-07-10): `app-root` → `app-sidebar`/`app-topbar` + `app-content` → `dash-card`; nav = `app-nav`/`app-navlink`; billing = `plan-box`; dashboard = `dash-grid`/`dash-cta`/`dash-week`/`dash-bai-*` (see §App shell)
 - Headers: `hero-eyebrow`/`status-eyebrow`/`result-eyebrow` + `page-title` + `page-copy`
 - Forms: `form-card` · `form-grid` · `field-stack` · `field-label` · `text-input` · `field-hint` · `field-error` · `primary-button` · `voice-input-button`
 - Feedback: `request-status` · `status-card` · `result-card` (+ risk border tokens) · `result-disclaimer` · `placeholder-card`
@@ -125,7 +126,31 @@ The calm acknowledgment after a user's first completed check. Rules:
 - Uses `--surface-muted` inset (14px radius, nested-card scale) inside the
   daily-loop card — it is part of the document flow, not a toast/modal.
 - Appears at most once per day, only when the streak is new (streak === 1).
-- The streak chip (`streak-chip`) remains the ONLY ongoing progress ornament.
+  On the dashboard it renders above the greeting; on `/check` it stays inside
+  the daily-loop card.
+- (Amended 2026-07-10, dashboard plan.) The streak chip is no longer the only
+  progress ornament — the dashboard's verdict week strip and weekly progress
+  bars join it. All progress UI obeys §Progress surfaces below.
+
+## Progress surfaces — reassurance, not gamification (added 2026-07-10)
+
+Revora's users are anxious by definition; progress UI manufactures
+reassurance, never streak pressure. Binding rules for ANY progress element:
+
+- Additive framing only: "N days this week", "N meals checked" — counts that
+  grow. Nothing that can visually "break", no loss-aversion mechanics, no
+  "streak at risk" states, ever.
+- Unchecked days render neutral (dashed `--border-strong` mark on
+  `--surface-muted`), never red, never "missed".
+- Verdict colors on the week strip are information, not decoration: each day
+  shows its most careful verdict (worst-of-day, `lib/coach/days.ts
+  verdictWeekView`) with the verdict ICON inside the mark — shape carries the
+  signal for colorblind users — plus a per-day `sr-only` sentence.
+- Illustrative data is always labeled: free-tier progress bars carry the
+  "Example — this is how it looks" tag (`dash-example-tag`). Unlabeled
+  example data on a health surface is banned (credibility is honesty).
+- Weekly progress bars (`dash-bai-*`) are qualitative (labels like "Building"),
+  premium-real or free-example, hidden entirely below 5 checks.
 
 ## Motion (added 2026-07-07 revamp)
 
@@ -143,10 +168,40 @@ A small sanctioned layer — CSS only, no animation libraries:
 
 `components/icons.tsx` is the entire icon vocabulary: Check, Alert, Pause
 (verdicts) · Keyboard, Mic, Camera (input methods) · Lock, Leaf, Heart, EyeOff
-(trust) · ArrowRight. Hand-written 24-viewbox strokes, `stroke: currentColor`,
+(trust) · ArrowRight · Home, Person, CheckCircle (app-shell nav, added
+2026-07-10). Hand-written 24-viewbox strokes, `stroke: currentColor`,
 sized by `--icon-sm` (16px) / `--icon` (20px). Icons always sit next to text,
 never alone, never decorative-only, always `aria-hidden`. Adding a glyph means
 editing that file and this list — no icon libraries.
+
+## App shell (added 2026-07-10, dashboard plan — design ref Revora.dc.html)
+
+The responsive frame for `(app)` routes; the marketing landing keeps its own
+`.landing-*` system. One shell, three widths — the canonical breakpoint table:
+
+| Range | Content column | Navigation | Dashboard grid |
+|---|---|---|---|
+| < 1024px (designed at 375) | `app-content` max 520px | top bar: brand + "Account" pill. NO hamburger — Week/Progress are dashboard sections, not destinations | single column |
+| ≥ 1024px | max 1000px + 280px fixed sidebar | sidebar: Home · Check a meal · Account + plan box (`plan-box`) | `dash-grid` 1fr / 340px |
+| ≥ 1440px | max 1120px | same sidebar | same |
+
+Rules:
+
+- The nav flips top-bar → sidebar at exactly **1024px**. `<nav aria-label="Main">`,
+  `aria-current="page"` on the active link (`--accent-tint` fill +
+  `--accent-strong` text), 44px+ targets, skip-to-content link
+  (`app-skip`) as the shell's first focusable.
+- The plan box shows the plan name AND the billing date ("Renews {date}" /
+  "Trial ends {date}") — a display-only entitlement read; hiding the renewal
+  date from active subscribers is banned.
+- The check CTA (`dash-cta`) is the one Committed color moment on the
+  dashboard (accent-filled card). At <768px it is the first interactive
+  element above the fold — the dashboard never adds friction before the
+  core action.
+- Day-0 empty state is the DEFAULT design, not a fallback: hollow-dot week
+  preview + one CTA + `dash-preview-note`; no fake data, no guilt copy.
+- Everything in the shell is assembled from tokens: no new colors, the one
+  card shadow, radii from the scale.
 
 ## Interaction rules
 

@@ -69,6 +69,46 @@ export function hourInTimezone(timezone: string): (date: Date) => number {
 
 export type WeekDay = { key: string; checked: boolean };
 
+export type WeekRisk = "SAFE" | "MODERATE" | "HIGH";
+
+export type VerdictWeekDay = {
+  key: string;
+  checked: boolean;
+  /** The day's most careful verdict (worst-of-day); absent when unchecked. */
+  risk?: WeekRisk;
+};
+
+const RISK_RANK: Record<WeekRisk, number> = { SAFE: 0, MODERATE: 1, HIGH: 2 };
+
+/**
+ * Last seven calendar days, oldest first, each carrying its most careful
+ * verdict — the strip reads as information, not decoration (risk colors stay
+ * semantic). Extracted from app/history/page.tsx so the dashboard (server,
+ * profile timezone) and history (client, local timezone) share one rule.
+ */
+export function verdictWeekView(
+  checks: Array<{ createdAt: string | Date; risk: WeekRisk }>,
+  dayKey: DayKeyFn,
+  now: Date = new Date()
+): VerdictWeekDay[] {
+  const dayRisk = new Map<string, WeekRisk>();
+  for (const check of checks) {
+    const key = dayKey(new Date(check.createdAt));
+    const prev = dayRisk.get(key);
+    if (!prev || RISK_RANK[check.risk] > RISK_RANK[prev]) {
+      dayRisk.set(key, check.risk);
+    }
+  }
+
+  return Array.from({ length: 7 }, (_, offset) => {
+    const day = new Date(now);
+    day.setDate(day.getDate() - (6 - offset));
+    const key = dayKey(day);
+    const risk = dayRisk.get(key);
+    return risk ? { key, checked: true, risk } : { key, checked: false };
+  });
+}
+
 /** Last seven calendar days, oldest first. */
 export function weekView(
   createdAts: Array<string | Date>,

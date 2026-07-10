@@ -21,6 +21,7 @@ export function PaywallCard() {
   const [playPrices, setPlayPrices] = useState<Record<string, string>>({});
   const [usesPlay, setUsesPlay] = useState(false);
   const [monthlyDisplay, setMonthlyDisplay] = useState<string | null>(null);
+  const [annualDisplay, setAnnualDisplay] = useState<string | null>(null);
 
   useEffect(() => {
     track({ name: "paywall_viewed" });
@@ -29,9 +30,12 @@ export function PaywallCard() {
     // checkout will actually charge) — never a second hard-coded ladder.
     fetch("/api/paywall")
       .then((r) => r.json())
-      .then((cfg: { priceDisplay?: unknown }) => {
+      .then((cfg: { priceDisplay?: unknown; annualDisplay?: unknown }) => {
         if (typeof cfg.priceDisplay === "string") {
           setMonthlyDisplay(cfg.priceDisplay);
+        }
+        if (typeof cfg.annualDisplay === "string") {
+          setAnnualDisplay(cfg.annualDisplay);
         }
       })
       .catch(() => {
@@ -109,17 +113,24 @@ export function PaywallCard() {
   // variant; the literal only as the offline fallback.
   const monthlyLabel =
     playPrices[PLAY_SKUS.monthly] ?? `${monthlyDisplay ?? "$12.99"}/mo`;
-  // FLAG: annual has no server price source yet — hard-coded until a
-  // STRIPE_PRICE_ANNUAL variant exists.
-  const annualLabel = playPrices[PLAY_SKUS.annual] ?? "$99.99/yr";
+  // Annual price comes from the paywall config (single source in
+  // lib/server/pricing.ts); the literal only as the offline fallback.
+  const annualLabel =
+    playPrices[PLAY_SKUS.annual] ?? `${annualDisplay ?? "$99.99"}/yr`;
   // Savings vs 12 months of the live monthly variant; hidden when the math
   // doesn't hold (cheap variants, Play-priced currencies).
   const monthlyNumber = Number.parseFloat(
     (monthlyDisplay ?? "$12.99").replace(/[^0-9.]/g, "")
   );
+  const annualNumber = Number.parseFloat(
+    (annualDisplay ?? "$99.99").replace(/[^0-9.]/g, "")
+  );
   const annualSavingsPct =
-    Number.isFinite(monthlyNumber) && monthlyNumber > 0
-      ? Math.round((1 - 99.99 / (monthlyNumber * 12)) * 100)
+    Number.isFinite(monthlyNumber) &&
+    monthlyNumber > 0 &&
+    Number.isFinite(annualNumber) &&
+    annualNumber > 0
+      ? Math.round((1 - annualNumber / (monthlyNumber * 12)) * 100)
       : 0;
   const annualNote =
     !playPrices[PLAY_SKUS.annual] && annualSavingsPct >= 10

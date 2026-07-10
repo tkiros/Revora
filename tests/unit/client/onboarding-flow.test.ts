@@ -21,7 +21,7 @@ import {
   nextStepAfterSegment,
   STEP_PROGRESS,
   stepCounter
-} from "../../../app/onboarding/page";
+} from "../../../app/(app)/onboarding/page";
 
 describe("nextStepAfterSegment (single-source A1C rule)", () => {
   it("routes a device with a saved A1C straight past the A1C step", () => {
