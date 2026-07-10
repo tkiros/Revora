@@ -6,14 +6,22 @@ import { useEffect, useState } from "react";
 import { track, type PriceVariant } from "../lib/client/analytics";
 import { historyStore } from "../lib/client/history-store";
 
-type Config = { variant: PriceVariant; priceDisplay: string };
+type Config = {
+  variant: PriceVariant;
+  priceDisplay: string;
+  annualDisplay?: string | null;
+  annualMonthlyEquivalent?: string | null;
+};
 // Two steps (was three): the offer, the trial mechanics, and the price all
 // live on the first screen — "7 days free" is never hidden behind a click.
 type Step = "value" | "start";
+type Plan = "monthly" | "annual";
 
 export function TrialWall({ declined = false }: { declined?: boolean }) {
   const [config, setConfig] = useState<Config | null>(null);
   const [step, setStep] = useState<Step>("value");
+  // Annual preselected when offered — it's the plan we flag as best value.
+  const [plan, setPlan] = useState<Plan>("monthly");
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,6 +39,9 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
       .then((r) => r.json())
       .then((cfg: Config & { mode: string }) => {
         setConfig(cfg);
+        if (cfg.annualDisplay) {
+          setPlan("annual");
+        }
         track({ name: "wall_viewed", props: { variant: cfg.variant } });
       })
       .catch(() => setConfig({ variant: "1299", priceDisplay: "$12.99" }));
@@ -46,7 +57,7 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
       const response = await fetch("/api/trial/start", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email, plan })
       });
       const body = (await response.json()) as { url?: string; error?: string };
       if (body.url) {
@@ -60,6 +71,26 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
       setBusy(false);
     }
   }
+
+  // Savings vs 12 months of the live monthly variant — computed from the
+  // paywall config, never a second hard-coded ladder.
+  const monthlyNumber = Number.parseFloat(
+    (config?.priceDisplay ?? "$12.99").replace(/[^0-9.]/g, "")
+  );
+  const annualNumber = Number.parseFloat(
+    (config?.annualDisplay ?? "").replace(/[^0-9.]/g, "")
+  );
+  const annualSavingsPct =
+    Number.isFinite(monthlyNumber) &&
+    monthlyNumber > 0 &&
+    Number.isFinite(annualNumber) &&
+    annualNumber > 0
+      ? Math.round((1 - annualNumber / (monthlyNumber * 12)) * 100)
+      : 0;
+  const chosenPriceLine =
+    plan === "annual" && config?.annualDisplay
+      ? `${config.annualDisplay}/year`
+      : `${config?.priceDisplay ?? "$12.99"}/month`;
 
   return (
     <div className="surface-card hero-card" data-testid="trial-wall">
@@ -97,20 +128,83 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
               </span>
             </li>
           </ol>
-          <div className="plan-card" data-recommended="">
-            <p className="plan-card-flag">7 days free</p>
-            <p className="plan-card-price">
-              {config?.priceDisplay ?? "$12.99"}
-              <span> /month after your free week — cancel anytime</span>
-            </p>
-            <button
-              type="button"
-              className="primary-button"
-              onClick={() => setStep("start")}
-            >
-              Start my free week
-            </button>
-          </div>
+          {config?.annualDisplay ? (
+            <>
+              <div
+                className="plan-grid"
+                role="radiogroup"
+                aria-label="Choose a plan"
+                data-testid="plan-grid"
+              >
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={plan === "annual"}
+                  className="plan-option"
+                  data-selected={plan === "annual" || undefined}
+                  data-testid="plan-annual"
+                  onClick={() => setPlan("annual")}
+                >
+                  <span className="plan-option-flag">
+                    Best value{annualSavingsPct >= 10 ? ` — save ${annualSavingsPct}%` : ""}
+                  </span>
+                  <span className="plan-option-name">Yearly</span>
+                  <span className="plan-option-price">
+                    {config.annualDisplay}
+                    <span> /year</span>
+                  </span>
+                  {config.annualMonthlyEquivalent ? (
+                    <span className="plan-option-note">
+                      that&apos;s {config.annualMonthlyEquivalent} a month
+                    </span>
+                  ) : null}
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={plan === "monthly"}
+                  className="plan-option"
+                  data-selected={plan === "monthly" || undefined}
+                  data-testid="plan-monthly"
+                  onClick={() => setPlan("monthly")}
+                >
+                  <span className="plan-option-name">Monthly</span>
+                  <span className="plan-option-price">
+                    {config.priceDisplay}
+                    <span> /month</span>
+                  </span>
+                  <span className="plan-option-note">cancel any month</span>
+                </button>
+              </div>
+              <button
+                type="button"
+                className="primary-button"
+                data-testid="start-trial"
+                onClick={() => setStep("start")}
+              >
+                Start my free week
+              </button>
+              <p className="field-hint">
+                7 days free with either plan. Nothing is charged today, and we
+                email you before anything is.
+              </p>
+            </>
+          ) : (
+            <div className="plan-card" data-recommended="">
+              <p className="plan-card-flag">7 days free</p>
+              <p className="plan-card-price">
+                {config?.priceDisplay ?? "$12.99"}
+                <span> /month after your free week — cancel anytime</span>
+              </p>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => setStep("start")}
+              >
+                Start my free week
+              </button>
+            </div>
+          )}
           <p className="field-hint">
             Grounded in published research —{" "}
             <Link className="inline-link" href="/how-it-works">
@@ -122,7 +216,7 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
       ) : (
         <form onSubmit={startTrial} className="field-stack">
           <p className="hero-eyebrow">Start your free week</p>
-          <h1 className="page-title">{config?.priceDisplay ?? "$12.99"}/month after 7 free days</h1>
+          <h1 className="page-title">{chosenPriceLine} after 7 free days</h1>
           <p className="page-copy">
             Card required to start. We email you before it is ever charged, and
             cancel is one tap.

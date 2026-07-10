@@ -17,7 +17,7 @@ export function prechargeEmailText(
     text: [
       "A heads-up, as promised:",
       "",
-      `Your free week ends on ${chargeDateText}. If you do nothing, your card will be charged ${amountDisplay}/month starting that day.`,
+      `Your free week ends on ${chargeDateText}. If you do nothing, your card will be charged ${amountDisplay} starting that day.`,
       "",
       "Want to keep going? You don't need to do anything.",
       "",
