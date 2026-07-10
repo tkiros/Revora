@@ -9,8 +9,7 @@ export default async function CanceledPage({
 }) {
   const invalid = (await searchParams)?.invalid === "1";
   return (
-    <main className="page-shell">
-      <div className="page-frame">
+    <div className="app-content--narrow">
         <section className="surface-card hero-card">
           <p className="hero-eyebrow">Billing</p>
           <h1 className="page-title">
@@ -34,7 +33,6 @@ export default async function CanceledPage({
           <Link href="/privacy">Privacy</Link>
           <Link href="/terms">Terms</Link>
         </footer>
-      </div>
-    </main>
+    </div>
   );
 }

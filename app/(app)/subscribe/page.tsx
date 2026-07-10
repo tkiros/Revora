@@ -1,8 +1,8 @@
 import Link from "next/link";
 
-import { PaywallCard } from "../../components/paywall-card";
-import { TrialWall } from "../../components/trial-wall";
-import { paywallMode } from "../../lib/server/pricing";
+import { PaywallCard } from "../../../components/paywall-card";
+import { TrialWall } from "../../../components/trial-wall";
+import { paywallMode } from "../../../lib/server/pricing";
 
 export const metadata = { title: "Premium — Revora" };
 
@@ -14,8 +14,7 @@ export default async function SubscribePage({
   const trial = paywallMode() === "trial";
   const declined = (await searchParams)?.declined === "1";
   return (
-    <main className="page-shell">
-      <div className="page-frame">
+    <div className="app-content--narrow">
         {trial ? (
           <TrialWall declined={declined} />
         ) : (
@@ -39,7 +38,6 @@ export default async function SubscribePage({
           <Link href="/privacy">Privacy</Link>
           <Link href="/terms">Terms</Link>
         </footer>
-      </div>
-    </main>
+    </div>
   );
 }

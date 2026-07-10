@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useEffect } from "react";
 
-import { track } from "../../../lib/client/analytics";
-import type { PriceVariant } from "../../../lib/client/analytics";
+import { track } from "../../../../lib/client/analytics";
+import type { PriceVariant } from "../../../../lib/client/analytics";
 
 export default function TrialStartedPage() {
   useEffect(() => {
@@ -17,8 +17,7 @@ export default function TrialStartedPage() {
   }, []);
 
   return (
-    <main className="page-shell">
-      <div className="page-frame">
+    <div className="app-content--narrow">
         <section className="surface-card hero-card">
           <p className="hero-eyebrow">Your free week</p>
           <h1 className="page-title">You&apos;re in. Your free week starts now.</h1>
@@ -55,7 +54,6 @@ export default function TrialStartedPage() {
           <Link href="/privacy">Privacy</Link>
           <Link href="/terms">Terms</Link>
         </footer>
-      </div>
-    </main>
+    </div>
   );
 }
