@@ -2020,6 +2020,33 @@ button.inline-link {
   transform: scaleX(-1); /* IconArrowRight, mirrored — no new glyph */
 }
 
+/* Mobile shell diet: the topbar + backbar chrome pushed /check's primary CTA
+   below the ~720px fold guard (tests/smoke/mobile-check.spec.ts "cta label
+   and position"). Tighten shell spacing uniformly below the sidebar
+   breakpoint; every interactive target stays ≥44px. */
+@media (max-width: 1023px) {
+  .app-topbar {
+    padding: 6px 16px;
+  }
+
+  .app-content {
+    padding-top: 12px;
+  }
+
+  .backbar {
+    margin-bottom: 8px;
+  }
+
+  .app-content .hero-card {
+    padding: 16px 20px;
+    gap: 8px;
+  }
+
+  .app-content .form-card {
+    padding-top: 16px;
+  }
+}
+
 .app-sidebar-foot {
   margin-top: auto;
   display: flex;
