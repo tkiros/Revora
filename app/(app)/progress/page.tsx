@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { DisclaimerLine } from "../../components/disclaimer-line";
-import { BAI_BAND_COPY, bandOf, type BaiBand } from "../../lib/coach/bai";
+import { DisclaimerLine } from "../../../components/disclaimer-line";
+import { BAI_BAND_COPY, bandOf, type BaiBand } from "../../../lib/coach/bai";
 
 /**
  * Progress / BAI view (plan P6). Fetches the already-premium-gated
@@ -127,8 +127,7 @@ export default function ProgressPage() {
   const bandCopy = band ? BAI_BAND_COPY[band] : null;
 
   return (
-    <main className="page-shell">
-      <div className="page-frame">
+    <div className="app-content--narrow">
         <section className="surface-card hero-card">
           <p className="hero-eyebrow">Progress</p>
           <h1 className="page-title">Your weekly progress</h1>
@@ -226,7 +225,6 @@ export default function ProgressPage() {
           <Link href="/privacy">Privacy</Link>
           <Link href="/terms">Terms</Link>
         </footer>
-      </div>
-    </main>
+    </div>
   );
 }

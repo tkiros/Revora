@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { DisclaimerLine } from "../../components/disclaimer-line";
-import type { StoredCheck } from "../../lib/client/history-store";
-import { loadHistory } from "../../lib/client/remote-history";
-import { dayKeyLocal as localDayKey, verdictWeekView } from "../../lib/coach/days";
+import { DisclaimerLine } from "../../../components/disclaimer-line";
+import type { StoredCheck } from "../../../lib/client/history-store";
+import { loadHistory } from "../../../lib/client/remote-history";
+import { dayKeyLocal as localDayKey, verdictWeekView } from "../../../lib/coach/days";
 
 const RISK_LABELS = {
   SAFE: "Clear",
@@ -53,8 +53,7 @@ export default function HistoryPage() {
   }
 
   return (
-    <main className="page-shell">
-      <div className="page-frame">
+    <div className="app-content--narrow">
         <section className="surface-card hero-card">
           <p className="hero-eyebrow">Your week</p>
           <h1 className="page-title">Meal memory</h1>
@@ -141,7 +140,6 @@ export default function HistoryPage() {
           <Link href="/privacy">Privacy</Link>
           <Link href="/terms">Terms</Link>
         </footer>
-      </div>
-    </main>
+    </div>
   );
 }
