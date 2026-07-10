@@ -1879,6 +1879,32 @@ button.inline-link {
   color: var(--accent-strong);
 }
 
+/* Back-to-dashboard bar on focused pages (design file .backbar/.backlink). */
+.backbar {
+  margin-bottom: 16px;
+}
+
+.backlink {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 8px 14px 8px 10px;
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-weight: 700;
+  font-size: 14.5px;
+}
+
+.backlink:hover {
+  background: var(--surface-muted);
+  color: var(--text-strong);
+}
+
+.backlink svg {
+  transform: scaleX(-1); /* IconArrowRight, mirrored — no new glyph */
+}
+
 .app-sidebar-foot {
   margin-top: auto;
   display: flex;

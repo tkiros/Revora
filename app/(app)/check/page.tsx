@@ -1,20 +1,32 @@
 import Link from "next/link";
 
-import { DailyLoop } from "../../components/daily-loop";
-import { DemoCheckCard } from "../../components/demo-check-card";
-import { FirstRunGate } from "../../components/first-run-gate";
-import { FoodCheckForm } from "../../components/food-check-form";
-import { IconCheck, IconHeart, IconLock } from "../../components/icons";
+import { DailyLoop } from "../../../components/daily-loop";
+import { DemoCheckCard } from "../../../components/demo-check-card";
+import { FirstRunGate } from "../../../components/first-run-gate";
+import { FoodCheckForm } from "../../../components/food-check-form";
+import {
+  IconArrowRight,
+  IconCheck,
+  IconHeart,
+  IconLock
+} from "../../../components/icons";
 
 export const metadata = { title: "Check a meal — Revora" };
 
 // The app's daily surface (moved here from `/` when the marketing landing
-// took over the root, 2026-07-07). Installed PWAs/TWA start here.
+// took over the root, 2026-07-07; into the (app) shell for M2). Stays a
+// focused page (decision #8) — the shell provides nav, the backbar returns
+// to the dashboard.
 export default function CheckPage() {
   return (
-    <main className="page-shell">
-      <div className="page-frame">
-        <FirstRunGate />
+    <div className="app-content--narrow">
+      <FirstRunGate />
+      <div className="backbar">
+        <Link className="backlink" href="/home">
+          <IconArrowRight size={17} />
+          Home
+        </Link>
+      </div>
         <section className="surface-card hero-card">
           <p className="hero-eyebrow">Revora</p>
           <h1 className="page-title">Should I eat this?</h1>
@@ -54,7 +66,6 @@ export default function CheckPage() {
           <Link href="/privacy">Privacy</Link>
           <Link href="/terms">Terms</Link>
         </footer>
-      </div>
-    </main>
+    </div>
   );
 }
