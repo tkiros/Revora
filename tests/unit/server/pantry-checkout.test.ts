@@ -130,5 +130,8 @@ describe("createPantryCheckoutSessionHandler", () => {
     } finally {
       await ctx.close();
     }
-  });
+    // PGlite boots inside the test body (not beforeAll), so the global 120s
+    // hookTimeout doesn't cover it; under full-suite load the boot alone blew
+    // the 60s testTimeout (2026-07-09 E2E-04). Same sizing as hookTimeout.
+  }, 120_000);
 });

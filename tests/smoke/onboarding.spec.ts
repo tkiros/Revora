@@ -112,7 +112,7 @@ test("skip the tour leaves for the escape hatch, never looping back", async ({
   page
 }) => {
   await page.goto("/onboarding");
-  await page.getByRole("button", { name: "Skip the tour" }).click();
+  await page.getByRole("button", { name: "Skip setup and check a meal" }).click();
 
   // ?stay=1 is FirstRunGate's signal to stay on the check page instead of
   // bouncing back (the app moved from / to /check, 2026-07-07).

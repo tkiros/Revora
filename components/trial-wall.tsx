@@ -65,11 +65,11 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
     <div className="surface-card hero-card" data-testid="trial-wall">
       {step === "value" ? (
         <>
-          <p className="hero-eyebrow">Day 2 with Revora</p>
+          <p className="hero-eyebrow">Your free week with Revora</p>
           <h1 className="page-title">Keep your calm answers — 7 days free</h1>
           <p className="page-copy">
-            Yesterday you asked &quot;should I eat this?&quot; and got a
-            straight answer instead of a guess. Your free week keeps that
+            Ask &quot;should I eat this?&quot; and get a straight answer
+            instead of a guess. Your free week keeps that
             going at every meal: unlimited checks, your history on every
             device, weekly patterns from your own meals, and one gentle daily
             reminder.

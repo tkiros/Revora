@@ -4,13 +4,21 @@ import { useEffect, useState } from "react";
 
 import { track } from "../lib/client/analytics";
 
-export function PantryBuyButton({ source }: { source: "landing" | "wall_decline" | "result_card" }) {
+export function PantryBuyButton({
+  source,
+  trackView = true
+}: {
+  source: "landing" | "wall_decline" | "result_card";
+  // The pantry landing renders two buy buttons (hero + after the sample
+  // report); only one may emit pantry_viewed or the funnel double-counts.
+  trackView?: boolean;
+}) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    track({ name: "pantry_viewed", props: { source } });
-  }, [source]);
+    if (trackView) track({ name: "pantry_viewed", props: { source } });
+  }, [source, trackView]);
 
   async function buy() {
     setBusy(true);

@@ -1348,3 +1348,13 @@ git commit -m "test: photo-assist smoke — draft chips to confirmed textarea"
 - **Spec coverage:** D5 requirements → draft-not-verdict (Task 1 prompt + Task 4 flow), editable chips (Task 4), self-flagged doubts blocking blanket accept (Task 4 confirm gate + Task 8 assertion), confirmed text to the trusted engine (Task 4 handoff, Task 5 header), no numbers on screen (Task 1 prompt rules + global constraints). Disclaimer request → Task 6 (already-covered surfaces documented; the two real gaps closed; approved ledger copy chosen over the ad-hoc phrasings).
 - **Type consistency:** `MealDraftItem`/`MealDraft`/`MealVisionTransport` (Task 1) are the only shared types; Tasks 2–4 and 8 consume them by those exact names. `createPhotoDraftHandler` deps mirror `createCheckRouteHandler`'s injection pattern.
 - **Order matters:** Task 2 (eval) is deliberately before any UI — it is the go/no-go gate.
+
+## Launch gate decision (added 2026-07-10, reconciling E2E-03)
+
+**Status: LIVE by default in production.** Owner green-light given 2026-07-07:
+photo is one of the three first-class input methods (text, voice, camera), so
+`lib/photo-input-flag.ts` defaults photo input ON. `NEXT_PUBLIC_PHOTO_INPUT=0`
+is the post-launch kill-switch if the eval/counsel gates (launch audit BUG-10)
+surface a problem. This section is the source-of-truth record the 2026-07-09
+E2E verification report (E2E-03) found missing — the code and this doc now
+agree.

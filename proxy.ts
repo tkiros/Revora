@@ -1,5 +1,6 @@
 /**
- * Revora middleware — pre-model abuse + cost gate (Plans 04-02 + launch-hardening)
+ * Revora proxy (né middleware; Next 16 rename) — pre-model abuse + cost gate
+ * (Plans 04-02 + launch-hardening)
  *
  * Intercepts POST /api/check and /api/check/photo-draft and runs, in order, BEFORE any model spend:
  *   1. Launch-mode pause gate (Edge Config kill-switch).
@@ -73,7 +74,7 @@ function pause503(message: string) {
   );
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (!pathname.startsWith(CHECK_PATH) || request.method !== "POST") {
     return NextResponse.next();

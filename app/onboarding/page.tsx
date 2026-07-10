@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { routeA1C } from "../../lib/revora/a1c";
 import { track } from "../../lib/client/analytics";
@@ -58,6 +58,18 @@ export const STEP_PROGRESS: Record<Step, number> = {
   boundary: 0
 };
 
+// Visible "Step X of N" text beside the goal-gradient bar. N depends on the
+// user's actual path: returning guests with an on-device A1C skip the a1c
+// step, so their tour is 4 steps, not 5 with a hole in the numbering. Pure so
+// it is unit-testable in node without a component harness.
+export function stepCounter(step: Step, skipsA1c: boolean): string {
+  const steps: readonly Step[] = skipsA1c
+    ? ["welcome", "segment", "expectations", "first_check"]
+    : ["welcome", "segment", "a1c", "expectations", "first_check"];
+  const index = steps.indexOf(step);
+  return index === -1 ? "" : `Step ${index + 1} of ${steps.length}`;
+}
+
 // Single-source rule (P3): the tour never re-asks what the device already knows.
 // A guest who has an on-device A1C skips the A1C step entirely. Pure so the
 // branch is unit-testable in node without a component harness.
@@ -73,6 +85,12 @@ export default function OnboardingPage() {
   const [boundaryMessage, setBoundaryMessage] = useState("");
   const [a1cValue, setA1cValue] = useState<number | null>(null);
   const [segment, setSegment] = useState<Segment | null>(null);
+  // Read after mount (not at render) so server HTML and first client paint
+  // agree; a returning guest's counter settles to "of 4" before any tap.
+  const [skipsA1c, setSkipsA1c] = useState(false);
+  useEffect(() => {
+    setSkipsA1c(profileStore.get() !== null);
+  }, []);
 
   function advanceFromSegment(choice?: Segment) {
     if (choice) {
@@ -145,19 +163,24 @@ export default function OnboardingPage() {
           data-step={step}
         >
           {step !== "boundary" ? (
-            <div
-              className="onboarding-progress"
-              role="progressbar"
-              aria-label="Tour progress"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={STEP_PROGRESS[step]}
-            >
+            <>
+              <p className="onboarding-step-count">
+                {stepCounter(step, skipsA1c)} · about 30 seconds
+              </p>
               <div
-                className="onboarding-progress-fill"
-                style={{ width: `${STEP_PROGRESS[step]}%` }}
-              />
-            </div>
+                className="onboarding-progress"
+                role="progressbar"
+                aria-label={`Tour progress — ${stepCounter(step, skipsA1c)}`}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={STEP_PROGRESS[step]}
+              >
+                <div
+                  className="onboarding-progress-fill"
+                  style={{ width: `${STEP_PROGRESS[step]}%` }}
+                />
+              </div>
+            </>
           ) : null}
           {step === "welcome" ? (
             <>
@@ -351,7 +374,7 @@ export default function OnboardingPage() {
               className="inline-link onboarding-skip-tour"
               onClick={skipTour}
             >
-              Skip the tour
+              Skip setup and check a meal
             </button>
           ) : null}
         </section>

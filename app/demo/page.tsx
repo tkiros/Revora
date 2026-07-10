@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { DemoCheckCard } from "../../components/demo-check-card";
 import { ResultCard } from "../../components/result-card";
 import type { RevoraRisk, RevoraUserResponse } from "../../lib/client/ui-state";
@@ -73,10 +75,24 @@ export default function DemoPage() {
   return (
     <main className="page-shell">
       <div className="page-frame">
+        <header className="surface-card hero-card">
+          <p className="hero-eyebrow">Live examples</p>
+          <h1 className="page-title">See a Revora check in action</h1>
+          <p className="page-copy">
+            A few real examples of the answer Revora gives you — one for each
+            kind of result you might see.
+          </p>
+          <Link className="inline-link" href="/check">
+            Back to check a meal
+          </Link>
+        </header>
+
+        <h2>The check</h2>
         <section data-shot="demo-check-card">
           <DemoCheckCard />
         </section>
 
+        <h2>What each answer looks like</h2>
         <section data-shot="result-safe">
           <ResultCard response={SAFE_FIXTURE} />
         </section>
@@ -89,10 +105,12 @@ export default function DemoPage() {
           <ResultCard response={HIGH_FIXTURE} />
         </section>
 
+        <h2>When Revora needs one more detail</h2>
         <section data-shot="clarify">
           <ResultCard response={CLARIFY_FIXTURE} />
         </section>
 
+        <h2>Your first day</h2>
         {/* Day-1 `.first-win` block — the `day1-first-win` ledger row, the same
             static markup the daily loop renders at streak === 1. */}
         <section data-shot="first-win">

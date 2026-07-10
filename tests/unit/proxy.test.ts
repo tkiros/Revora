@@ -1,5 +1,5 @@
 /**
- * Middleware glue tests (launch-hardening Task 1.3).
+ * Proxy (né middleware) glue tests (launch-hardening Task 1.3).
  *
  * Covers the wiring the pure decision logic (rate-limit.test.ts) cannot:
  *  - non-matching requests pass through untouched
@@ -16,7 +16,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-import { middleware } from "../../middleware";
+import { proxy as middleware } from "../../proxy";
 
 function post(path: string, method = "POST"): NextRequest {
   return new NextRequest(new URL(`http://localhost${path}`), { method });

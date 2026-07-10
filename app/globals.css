@@ -1064,6 +1064,14 @@ button.inline-link {
   color: var(--accent-strong);
 }
 
+/* "Step X of N" label above the goal-gradient bar. */
+.onboarding-step-count {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
 /* Onboarding goal-gradient bar — never renders at zero. */
 .onboarding-progress {
   width: 100%;
@@ -1187,11 +1195,20 @@ button.inline-link {
 }
 
 .landing-wordmark {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   font-size: 22px;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: inherit;
   text-decoration: none;
+}
+
+.landing-wordmark:focus-visible {
+  outline: 3px solid rgba(248, 250, 252, 0.45);
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 
 .landing-nav-links {
@@ -1209,10 +1226,25 @@ button.inline-link {
   opacity: 0.85;
 }
 
+/* Tap targets >= 44px tall without changing the nav's height — the ghost
+   pill already sets the row height, so the plain links just centre within it. */
+.landing-nav-links a:not(.landing-cta-ghost) {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 2px;
+}
+
 .landing-nav-links a:hover,
 .landing-nav-links a:focus-visible {
   opacity: 1;
   text-decoration: underline;
+}
+
+.landing-nav-links a:focus-visible {
+  outline: 3px solid rgba(248, 250, 252, 0.45);
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 
 .landing-dark {
@@ -1612,6 +1644,11 @@ button.inline-link {
 }
 
 .landing-footer-col a {
+  display: inline-flex;
+  align-items: center;
+  /* 44px non-overlapping tap targets; the footer simply gets a little taller
+     (negative margins made adjacent targets overlap by 8px). */
+  min-height: 44px;
   color: var(--text-strong);
   font-size: 14.5px;
   font-weight: 600;
@@ -1621,6 +1658,12 @@ button.inline-link {
 .landing-footer-col a:hover,
 .landing-footer-col a:focus-visible {
   text-decoration: underline;
+}
+
+.landing-footer-col a:focus-visible {
+  outline: 3px solid rgba(13, 95, 87, 0.35);
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 
 @media print {

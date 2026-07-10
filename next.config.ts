@@ -6,7 +6,11 @@ const nextConfig: NextConfig = {
   // isolating its build dir + dev lock (Next 16 forbids two dev servers sharing
   // one distDir). Inert in every normal run — NEXT_DIST_DIR is unset, so this is
   // exactly ".next".
-  distDir: process.env.NEXT_DIST_DIR || ".next"
+  distDir: process.env.NEXT_DIST_DIR || ".next",
+  // A stray ~/package-lock.json (unrelated home-dir tooling) makes Next infer
+  // the wrong workspace root and warn about multiple lockfiles (E2E-08).
+  // Pin the root to this repo.
+  turbopack: { root: __dirname }
   // Note: the Video Engine dashboard's run.json writes (~1×/s under
   // video-engine/output/) can churn Fast Refresh, but the run is a DETACHED
   // child and survives HMR regardless, so churn is cosmetic. A webpack

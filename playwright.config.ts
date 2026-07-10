@@ -52,6 +52,9 @@ const trialWebServer = {
   env: {
     NEXT_PUBLIC_VAPID_PUBLIC_KEY:
       "BDd3_hVL9fZi9Ybo2UUmA0mNzLFmwEsuJdyxdCLVQV-XFotN0jkNqp7GQ96_2enX0mUeXBIvBqXAiCveKuMhGJ0",
+    // Test-only secret so Auth.js stops logging MissingSecret in smoke runs
+    // (2026-07-09 E2E-05). Never a production value.
+    AUTH_SECRET: "revora-e2e-smoke-only-secret-0000000000000000",
     PAYWALL_MODE: "trial",
     AUTH_EMAIL_STUB_DIR: "/tmp/revora-trial-smoke-stub",
     // Isolate this server's build dir + dev lock from the :3100 server so
@@ -101,6 +104,9 @@ export default defineConfig({
         // legacy-mode assertions (billing-pages.spec, trial-wall's legacy
         // guard) need this server pinned to legacy explicitly.
         PAYWALL_MODE: "legacy",
+        // Test-only secret so Auth.js stops logging MissingSecret in smoke
+        // runs (2026-07-09 E2E-05). Never a production value.
+        AUTH_SECRET: "revora-e2e-smoke-only-secret-0000000000000000",
         // A syntactically-valid VAPID public key so the nudge opt-in flow can
         // run end-to-end against mocked push APIs (never used to send).
         NEXT_PUBLIC_VAPID_PUBLIC_KEY:

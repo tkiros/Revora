@@ -7,6 +7,10 @@ export const metadata = {
   title: "Pantry Review — Revora"
 };
 
+// One string for the price line so the hero and post-report CTAs can never
+// drift apart when the price or wording changes.
+const PRICE_LINE = "$49, one payment. Nothing renews.";
+
 // Verbatim `result-footer` disclaimer from docs/safety/copy-ledger.md.
 const DISCLAIMER =
   "Revora is informational only and is not medical advice. Talk with a doctor or registered dietitian for guidance that is specific to you.";
@@ -49,8 +53,10 @@ export default function PantryLandingPage() {
             pantry and fridge, confirm the item list, and the same careful
             engine behind Revora&apos;s meal check sorts everything you own
             into enjoy freely, worth a tweak, and handle with care —
-            printable, and yours to keep. One payment. Nothing renews.
+            printable, and yours to keep.
           </p>
+          <PantryBuyButton source="landing" />
+          <p className="field-hint">{PRICE_LINE}</p>
         </section>
 
         <section className="surface-card">
@@ -93,13 +99,15 @@ export default function PantryLandingPage() {
         </section>
 
         <section className="surface-card">
-          <PantryBuyButton source="landing" />
+          {/* trackView off: the hero's button already emits pantry_viewed for
+              this page — two mounts must not double the funnel's view count. */}
+          <PantryBuyButton source="landing" trackView={false} />
           {/*
             ponytail: the pantry price display is a build-time constant "$49"
             here — there is no pantry price-variant test yet, so this stays
             hardcoded rather than wiring up an env/analytics variant.
           */}
-          <p className="field-hint">$49, one payment. Nothing renews.</p>
+          <p className="field-hint">{PRICE_LINE}</p>
         </section>
       </div>
     </main>

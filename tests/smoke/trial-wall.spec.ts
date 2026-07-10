@@ -246,7 +246,10 @@ test("pantry: the landing page shows the sample report + buy button", async ({
   await expect(
     page.getByRole("heading", { name: "Handle with care" })
   ).toBeVisible();
-  await expect(page.getByTestId("pantry-buy")).toBeVisible();
+  // Two buy CTAs since the 2026-07-10 design pass: one in the hero, one after
+  // the sample report.
+  await expect(page.getByTestId("pantry-buy")).toHaveCount(2);
+  await expect(page.getByTestId("pantry-buy").first()).toBeVisible();
 });
 
 test("legacy guard: PAYWALL_MODE=legacy shows the paywall card, never the wall", async ({

@@ -8,10 +8,10 @@
 > is automated-audited — it was written by hand against the same rules and
 > should be re-read against `docs/safety/claims-boundary.md` before paste-in.
 >
-> No calories anywhere. No "reverse" in any inflection except the single
-> approved user-as-agent North-Star line in §4, which is explicitly marked as
-> the one sanctioned carve-out use (mirrors `app/onboarding/page.tsx`'s
-> `CARVE_OUT_FILES` entry in the audit). No predicted/future A1C. No GI/GL/
+> No calories anywhere. No "reverse" in any inflection — the former North-Star
+> carve-out line is **Rejected** in `docs/safety/copy-ledger.md`
+> (`onboarding-reversal-line`, removed from onboarding 2026-07-06, counsel Q8
+> pending) and must not appear here. No predicted/future A1C. No GI/GL/
 > carb-gram numbers. No "AI-powered" lead. No accuracy percentages. No FDA or
 > medical-device implication. Revora is never the agent of an outcome — only
 > the user is. Coach-first framing throughout: "should I eat this, now?", not
@@ -83,8 +83,8 @@ family entirely.
 > offers no clinical guidance of its own — every check simply reflects your
 > own choices back to you in plain language, and it never predicts your next
 > A1C. The weekly progress view measures your own check-in behavior — never
-> a guess about your lab results. Reversal is achieved through your dietary
-> choices — Revora gives you the clarity to make them. Always talk with your
+> a guess about your lab results. Your dietary choices are yours — Revora
+> gives you the clarity to make them. Always talk with your
 > doctor or a registered dietitian about your own care; Revora is not a
 > substitute for either.
 >
@@ -96,11 +96,12 @@ family entirely.
 *(Draft length: well under the 4000-character Play limit — counted at
 paste-in, since Markdown formatting characters above don't ship as typed.)*
 
-**Carve-out note:** the single "Reversal is achieved through your dietary
-choices — Revora gives you the clarity to make them." sentence is the one
-approved reversal-family usage, verbatim, per the same carve-out that covers
-`app/onboarding/page.tsx`. Do not add any other "reverse/reversal/reversing"
-usage to this listing.
+**Reversal-family note:** the former North-Star line ("Reversal is achieved
+through your dietary choices…") is **Rejected** in `docs/safety/copy-ledger.md`
+(`onboarding-reversal-line`) — removed from `app/onboarding/page.tsx` on
+2026-07-06 (launch audit BUG-05), pending counsel Q8. Do not use any
+"reverse/reversal/reversing" language in this listing unless that ledger row
+is changed to Approved with counsel sign-off recorded.
 
 ## 5. Tags / keywords
 
