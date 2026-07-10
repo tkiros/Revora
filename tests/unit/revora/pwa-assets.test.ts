@@ -22,7 +22,10 @@ describe("Phase 7 — web manifest", () => {
   it("declares the installability fields", () => {
     expect(manifest.name).toBe("Revora");
     expect(manifest.short_name).toBe("Revora");
-    expect(manifest.start_url).toBe("/check");
+    // M1 dashboard: start URL flipped to /home; id pins install identity to
+    // the original /check start_url so existing installs aren't orphaned.
+    expect(manifest.start_url).toBe("/home");
+    expect(manifest.id).toBe("/check");
     expect(manifest.display).toBe("standalone");
     expect(manifest.theme_color).toBe("#0d5f57");
     expect(manifest.background_color).toBe("#f3f7fb");

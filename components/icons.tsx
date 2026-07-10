@@ -1,6 +1,6 @@
 // Sanctioned inline icon set (DESIGN.md §Icons). Hand-written 24-viewbox
 // strokes, sized via the --icon tokens, colored via currentColor. No icon
-// library — these eleven glyphs are the whole vocabulary.
+// library — these fourteen glyphs are the whole vocabulary.
 import type { SVGProps } from "react";
 
 type IconProps = SVGProps<SVGSVGElement> & { size?: number };
@@ -117,6 +117,33 @@ export function IconArrowRight(props: IconProps) {
     <svg {...base(props)}>
       <path d="M4 12h16" />
       <path d="M13 5l7 7-7 7" />
+    </svg>
+  );
+}
+
+export function IconHome(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 11l8-6 8 6" />
+      <path d="M6 10v9h12v-9" />
+    </svg>
+  );
+}
+
+export function IconPerson(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="9" r="3.4" />
+      <path d="M5.5 19c1-3 3.6-4.4 6.5-4.4s5.5 1.4 6.5 4.4" />
+    </svg>
+  );
+}
+
+export function IconCheckCircle(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M8 12.5l2.5 2.5L16 9.5" />
     </svg>
   );
 }

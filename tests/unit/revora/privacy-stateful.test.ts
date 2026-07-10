@@ -97,7 +97,7 @@ describe("stateful privacy allowlist", () => {
   });
 
   it("the four lockstep artifacts all describe the stateful posture", () => {
-    const privacyPage = read("app/privacy/page.tsx");
+    const privacyPage = read("app/(app)/privacy/page.tsx");
     const dataFlow = read("docs/privacy/data-flow.md");
     const runbook = read("docs/ops/play-twa-runbook.md");
     const counselBrief = read("docs/legal/counsel-brief.md");
@@ -125,7 +125,7 @@ describe("stateful privacy allowlist", () => {
   });
 
   it("privacy page discloses pantry photos, vision extraction, and deletion-on-delivery", () => {
-    const source = read("app/privacy/page.tsx");
+    const source = read("app/(app)/privacy/page.tsx");
     expect(source).toMatch(/Pantry Review/);
     expect(source).toMatch(/photos/i);
     expect(source).toMatch(/OpenAI/);

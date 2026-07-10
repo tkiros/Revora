@@ -47,7 +47,7 @@ const BANNED: Array<{
     // describing Revora's users (audit-reviewed 2026-07-06; counsel glance
     // recommended, no action forced). Everything else on the page stays
     // audited for this family via the other patterns and files.
-    exemptSources: ["app/how-it-works/page.tsx"]
+    exemptSources: ["app/(app)/how-it-works/page.tsx"]
   }
 ];
 
@@ -64,13 +64,13 @@ function scan(text: string, source?: string): string[] {
 // fixture tests, not by this user-facing audit.
 const COPY_FILES = [
   "app/api/check/route.ts",
-  "app/demo/page.tsx",
-  "app/onboarding/page.tsx",
+  "app/(app)/demo/page.tsx",
+  "app/(app)/onboarding/page.tsx",
   "app/page.tsx",
-  "app/check/page.tsx",
-  "app/privacy/page.tsx",
-  "app/terms/page.tsx",
-  "app/history/page.tsx",
+  "app/(app)/check/page.tsx",
+  "app/(app)/privacy/page.tsx",
+  "app/(app)/terms/page.tsx",
+  "app/(app)/history/page.tsx",
   "components/food-check-form.tsx",
   "components/nudge-opt-in.tsx",
   "components/result-card.tsx",
@@ -86,17 +86,17 @@ const COPY_FILES = [
   "components/reviewer-signin-form.tsx",
   "components/print-button.tsx",
   "app/report/[id]/page.tsx",
-  "app/subscribe/page.tsx",
-  "app/trial/started/page.tsx",
-  "app/get-the-app/page.tsx",
-  "app/account/page.tsx",
-  "app/canceled/page.tsx",
-  "app/account/delete/page.tsx",
-  "app/signin/page.tsx",
-  "app/signin/check-email/page.tsx",
+  "app/(app)/subscribe/page.tsx",
+  "app/(app)/trial/started/page.tsx",
+  "app/(app)/get-the-app/page.tsx",
+  "app/(app)/account/page.tsx",
+  "app/(app)/canceled/page.tsx",
+  "app/(app)/account/delete/page.tsx",
+  "app/(app)/signin/page.tsx",
+  "app/(app)/signin/check-email/page.tsx",
   "app/welcome/page.tsx",
-  "app/progress/page.tsx",
-  "app/how-it-works/page.tsx",
+  "app/(app)/progress/page.tsx",
+  "app/(app)/how-it-works/page.tsx",
   "app/pantry/page.tsx",
   "app/pantry/thanks/page.tsx",
   "components/pantry-buy-button.tsx",

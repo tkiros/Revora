@@ -1,0 +1,59 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect } from "react";
+
+import { track } from "../../../../lib/client/analytics";
+import type { PriceVariant } from "../../../../lib/client/analytics";
+
+export default function TrialStartedPage() {
+  useEffect(() => {
+    fetch("/api/paywall")
+      .then((r) => r.json())
+      .then((cfg: { variant: PriceVariant }) =>
+        track({ name: "trial_started", props: { variant: cfg.variant } })
+      )
+      .catch(() => {});
+  }, []);
+
+  return (
+    <div className="app-content--narrow">
+        <section className="surface-card hero-card">
+          <p className="hero-eyebrow">Your free week</p>
+          <h1 className="page-title">You&apos;re in. Your free week starts now.</h1>
+          <p className="page-copy">
+            We emailed you a sign-in link — tap it to unlock unlimited checks
+            on this and every device. Then do the one thing that matters:
+            check your next meal.
+          </p>
+          <Link className="primary-button link-button" href="/check">
+            Check your next meal
+          </Link>
+          <p className="page-copy">
+            Two days before your trial ends, we&apos;ll email you a reminder
+            with the exact date and amount — and a one-tap cancel link. Cancel
+            any time from your account page, too. On your phone, Revora installs
+            straight to your home screen —{" "}
+            <Link className="inline-link" href="/get-the-app">
+              see how
+            </Link>
+            .
+          </p>
+          <p className="field-hint">
+            No email after a minute? Check spam, or{" "}
+            <Link className="inline-link" href="/signin">
+              request a fresh link
+            </Link>
+            .
+          </p>
+        </section>
+
+        <footer className="page-footer">
+          <Link href="/check">Check a meal</Link>
+          <Link href="/account">Account</Link>
+          <Link href="/privacy">Privacy</Link>
+          <Link href="/terms">Terms</Link>
+        </footer>
+    </div>
+  );
+}
