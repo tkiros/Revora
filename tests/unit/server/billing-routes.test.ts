@@ -79,7 +79,8 @@ describe("POST /api/billing/play/verify", () => {
     expect(body).toEqual({
       tier: "premium",
       source: "play",
-      status: "premium"
+      status: "premium",
+      currentPeriodEnd: "2026-08-03T15:00:00.000Z"
     });
 
     const [row] = await testDb.db.select().from(schema.subscriptions);

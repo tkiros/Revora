@@ -10,7 +10,10 @@ test("manifest is served and installable", async ({ request }) => {
   expect(res.status()).toBe(200);
   const manifest = JSON.parse(await res.text());
   expect(manifest.name).toBe("Revora");
-  expect(manifest.start_url).toBe("/check");
+  // Identity stays pinned to the pre-dashboard start_url so existing
+  // installs are not orphaned (eng amendment #6); start_url moves to /home.
+  expect(manifest.id).toBe("/check");
+  expect(manifest.start_url).toBe("/home");
   expect(manifest.display).toBe("standalone");
   expect(manifest.icons.length).toBeGreaterThanOrEqual(3);
 });

@@ -16,6 +16,13 @@ export type Entitlement = {
   tier: "free" | "premium";
   source: "play" | "stripe" | null;
   status: "trialing" | "premium" | "lapsed" | "none";
+  /**
+   * Paid-through / trial-end date of the granting row; null when free.
+   * Display data, not grant data — callers that only DISPLAY the plan
+   * (dashboard plan box, /account) omit `refreshPlaySubscription` so the
+   * read never blocks on the Play API; granting paths keep verify-on-read.
+   */
+  currentPeriodEnd: Date | null;
 };
 
 export type PlayRefreshResult = {
@@ -61,7 +68,8 @@ export async function getEntitlement(
       return {
         tier: "premium",
         source: row.provider,
-        status: row.status === "trialing" ? "trialing" : "premium"
+        status: row.status === "trialing" ? "trialing" : "premium",
+        currentPeriodEnd: row.currentPeriodEnd
       };
     }
 
@@ -89,7 +97,12 @@ export async function getEntitlement(
           (PREMIUM_STATUSES as readonly string[]).includes(fresh.status) &&
           fresh.currentPeriodEnd > now
         ) {
-          return { tier: "premium", source: "play", status: "premium" };
+          return {
+            tier: "premium",
+            source: "play",
+            status: "premium",
+            currentPeriodEnd: fresh.currentPeriodEnd
+          };
         }
       } catch {
         // Play API unreachable: fail toward free — never grant on a guess.
@@ -97,7 +110,12 @@ export async function getEntitlement(
     }
   }
 
-  return { tier: "free", source: null, status: hadRows ? "lapsed" : "none" };
+  return {
+    tier: "free",
+    source: null,
+    status: hadRows ? "lapsed" : "none",
+    currentPeriodEnd: null
+  };
 }
 
 /** Server-side free-tier metering: result-checks stored today (profile tz). */

@@ -12,7 +12,7 @@ export type CoachInsight = {
   text: string;
 };
 
-const MIN_CHECKS_FOR_INSIGHT = 5;
+export const MIN_CHECKS_FOR_INSIGHT = 5;
 const MIN_CAREFUL_FOR_DAYPART = 3;
 const MIN_REPEATS_FOR_MEAL = 3;
 

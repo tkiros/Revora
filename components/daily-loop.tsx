@@ -5,7 +5,12 @@ import { useEffect, useState } from "react";
 
 import { historyStore, type StoredCheck } from "../lib/client/history-store";
 import { loadHistory, syncLocalHistory } from "../lib/client/remote-history";
-import { computeStreak, dayKeyLocal, showFirstWin } from "../lib/coach/days";
+import {
+  computeStreak,
+  dayKeyLocal,
+  showFirstWin,
+  weekView
+} from "../lib/coach/days";
 import { deriveInsight, type CoachInsight } from "../lib/coach/insights";
 import { InsightCard } from "./insight-card";
 import { NudgeOptIn } from "./nudge-opt-in";
@@ -21,6 +26,7 @@ import { TodayList } from "./today-list";
 export function DailyLoop() {
   const [today, setToday] = useState<StoredCheck[]>([]);
   const [streak, setStreak] = useState(0);
+  const [daysThisWeek, setDaysThisWeek] = useState(0);
   const [insight, setInsight] = useState<CoachInsight | null>(null);
   const [hasHistory, setHasHistory] = useState<boolean | null>(null);
 
@@ -56,6 +62,11 @@ export function DailyLoop() {
         )
       );
       setStreak(computeStreak(checks.map((c) => c.createdAt), dayKeyLocal));
+      setDaysThisWeek(
+        weekView(checks.map((c) => c.createdAt), dayKeyLocal).filter(
+          (day) => day.checked
+        ).length
+      );
       setInsight(deriveInsight(checks));
       setHasHistory(checks.length > 0);
     }
@@ -87,7 +98,7 @@ export function DailyLoop() {
     <section className="surface-card daily-loop-card" data-testid="daily-loop">
       <div className="daily-loop-header">
         <h2 className="section-title">Today</h2>
-        <StreakChip streak={streak} />
+        <StreakChip daysThisWeek={daysThisWeek} />
       </div>
       {showFirstWin(streak, today.length) ? (
         <div className="first-win" data-testid="first-win">

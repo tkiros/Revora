@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { DisclaimerLine } from "../../components/disclaimer-line";
 import type { StoredCheck } from "../../lib/client/history-store";
 import { loadHistory } from "../../lib/client/remote-history";
-import { dayKeyLocal as localDayKey } from "../../lib/coach/days";
+import { dayKeyLocal as localDayKey, verdictWeekView } from "../../lib/coach/days";
 
 const RISK_LABELS = {
   SAFE: "Clear",
@@ -36,29 +36,12 @@ export default function HistoryPage() {
     };
   }, []);
 
-  // Verdict-colored dots: a day is tinted by its most careful verdict, so the
-  // strip reads as information, not decoration (risk colors stay semantic).
-  const RISK_RANK = { SAFE: 0, MODERATE: 1, HIGH: 2 } as const;
-  const dayRisk = new Map<string, StoredCheck["risk"]>();
-  for (const check of recent) {
-    const key = localDayKey(new Date(check.createdAt));
-    const prev = dayRisk.get(key);
-    if (!prev || RISK_RANK[check.risk] > RISK_RANK[prev]) {
-      dayRisk.set(key, check.risk);
-    }
-  }
-
-  const weekStrip = Array.from({ length: 7 }, (_, offset) => {
-    const day = new Date();
-    day.setDate(day.getDate() - (6 - offset));
-    const key = localDayKey(day);
-    return {
-      key,
-      label: DAY_LABELS[day.getDay()],
-      checked: dayRisk.has(key),
-      risk: dayRisk.get(key)
-    };
-  });
+  // Verdict-colored dots: shared worst-of-day rule (lib/coach/days.ts) so the
+  // dashboard and this strip can never disagree.
+  const weekStrip = verdictWeekView(recent, localDayKey).map((day) => ({
+    ...day,
+    label: DAY_LABELS[new Date(`${day.key}T00:00:00`).getDay()]
+  }));
 
   function recheck(food: string) {
     try {

@@ -110,7 +110,7 @@ export default function WelcomePage() {
 
       setState("done");
       track({ name: "signin_completed" });
-      router.push("/check");
+      router.push("/home");
     } catch {
       setError("Something went wrong — please try again.");
       setState("ready");
@@ -142,7 +142,7 @@ export default function WelcomePage() {
               <p className="page-copy">
                 Your history and coach follow you across devices now.
               </p>
-              <Link className="primary-button link-button" href="/check">
+              <Link className="primary-button link-button" href="/home">
                 Back to your day
               </Link>
             </>

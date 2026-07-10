@@ -58,7 +58,12 @@ describe("getEntitlement", () => {
   it("free with no subscription rows", async () => {
     const result = await getEntitlement(testDb.db, userId, { now: () => NOW });
 
-    expect(result).toEqual({ tier: "free", source: null, status: "none" });
+    expect(result).toEqual({
+      tier: "free",
+      source: null,
+      status: "none",
+      currentPeriodEnd: null
+    });
   });
 
   it.each([
@@ -94,8 +99,45 @@ describe("getEntitlement", () => {
     expect(result).toEqual({
       tier: "premium",
       source: "stripe",
-      status: "premium"
+      status: "premium",
+      currentPeriodEnd: FUTURE
     });
+  });
+
+  it("exposes the paid-through date for display (premium row)", async () => {
+    await testDb.db
+      .insert(schema.subscriptions)
+      .values(subscription("active", FUTURE, "stripe"));
+
+    const result = await getEntitlement(testDb.db, userId, { now: () => NOW });
+
+    expect(result.currentPeriodEnd?.toISOString()).toBe(FUTURE.toISOString());
+  });
+
+  it("currentPeriodEnd is null when lapsed or free", async () => {
+    await testDb.db
+      .insert(schema.subscriptions)
+      .values(subscription("expired", PAST, "stripe"));
+
+    const result = await getEntitlement(testDb.db, userId, { now: () => NOW });
+
+    expect(result.status).toBe("lapsed");
+    expect(result.currentPeriodEnd).toBeNull();
+  });
+
+  it("display-only read: stale Play row with no refresh dep stays free and never calls Play", async () => {
+    // The dashboard/account read path (eng amendment #4): no
+    // refreshPlaySubscription injected → zero external calls in render,
+    // display may be minutes stale, and nothing throws.
+    await testDb.db
+      .insert(schema.subscriptions)
+      .values(subscription("active", PAST, "play"));
+
+    const result = await getEntitlement(testDb.db, userId, { now: () => NOW });
+
+    expect(result.tier).toBe("free");
+    expect(result.status).toBe("lapsed");
+    expect(result.currentPeriodEnd).toBeNull();
   });
 
   it("verify-on-read: a stale active Play row triggers re-verification", async () => {
