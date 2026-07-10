@@ -12,8 +12,7 @@ export const metadata = {
  */
 export default function DeleteAccountPage() {
   return (
-    <main className="page-shell">
-      <div className="page-frame">
+    <div className="app-content--narrow">
         <section className="surface-card hero-card">
           <p className="hero-eyebrow">Your data, your call</p>
           <h1 className="page-title">Delete your account &amp; data</h1>
@@ -59,7 +58,6 @@ export default function DeleteAccountPage() {
           <Link href="/privacy">Privacy</Link>
           <Link href="/terms">Terms</Link>
         </footer>
-      </div>
-    </main>
+    </div>
   );
 }

@@ -4,15 +4,18 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { signOut } from "next-auth/react";
 
-import { track } from "../../lib/client/analytics";
-import { historyStore } from "../../lib/client/history-store";
-import { profileStore } from "../../lib/client/profile-store";
+import { track } from "../../../lib/client/analytics";
+import { historyStore } from "../../../lib/client/history-store";
+import { profileStore } from "../../../lib/client/profile-store";
 
 type EntitlementInfo = {
   tier: "free" | "premium";
+  status: "trialing" | "premium" | "lapsed" | "none";
   source: "play" | "stripe" | null;
   checksToday: number;
   freeDailyLimit: number;
+  // ISO string over the wire (Date on the server type).
+  currentPeriodEnd: string | null;
 };
 
 export default function AccountPage() {
@@ -163,8 +166,7 @@ export default function AccountPage() {
   }
 
   return (
-    <main className="page-shell">
-      <div className="page-frame">
+    <div className="app-content--narrow">
         <section className="surface-card hero-card">
           <p className="hero-eyebrow">Account</p>
           <h1 className="page-title">Your Revora account</h1>
@@ -191,6 +193,17 @@ export default function AccountPage() {
                       <strong>Premium</strong> — unlimited checks, full
                       history, insights, progress, and the daily reminder.
                     </p>
+                    {entitlement.currentPeriodEnd && !canceled ? (
+                      <p className="field-hint" data-testid="renewal-date">
+                        {entitlement.status === "trialing"
+                          ? `Trial ends ${new Date(
+                              entitlement.currentPeriodEnd
+                            ).toLocaleDateString()}`
+                          : `Renews ${new Date(
+                              entitlement.currentPeriodEnd
+                            ).toLocaleDateString()}`}
+                      </p>
+                    ) : null}
                     {entitlement.source === "play" ? (
                       <a
                         className="recheck-button link-button"
@@ -369,7 +382,6 @@ export default function AccountPage() {
           <Link href="/privacy">Privacy</Link>
           <Link href="/terms">Terms</Link>
         </footer>
-      </div>
-    </main>
+    </div>
   );
 }

@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { routeA1C } from "../../lib/revora/a1c";
-import { track } from "../../lib/client/analytics";
-import { profileStore } from "../../lib/client/profile-store";
-import { IconAlert, IconCheck, IconPause } from "../../components/icons";
+import { routeA1C } from "../../../lib/revora/a1c";
+import { track } from "../../../lib/client/analytics";
+import { profileStore } from "../../../lib/client/profile-store";
+import { IconAlert, IconCheck, IconPause } from "../../../components/icons";
 
 const DISCLAIMER =
   "Revora is informational only and is not medical advice. Talk with a doctor or registered dietitian for guidance that is specific to you.";
@@ -137,8 +137,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <main className="page-shell">
-      <div className="page-frame">
+    <div className="app-content--narrow">
         <section
           className="surface-card hero-card"
           data-testid="onboarding-step"
@@ -360,7 +359,6 @@ export default function OnboardingPage() {
           <Link href="/privacy">Privacy</Link>
           <Link href="/terms">Terms</Link>
         </footer>
-      </div>
-    </main>
+    </div>
   );
 }

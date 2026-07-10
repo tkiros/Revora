@@ -1,7 +1,7 @@
 import Link from "next/link";
 
-import { signIn } from "../../auth";
-import { ReviewerSigninForm } from "../../components/reviewer-signin-form";
+import { signIn } from "../../../auth";
+import { ReviewerSigninForm } from "../../../components/reviewer-signin-form";
 
 export const metadata = { title: "Sign in — Revora" };
 
@@ -23,8 +23,7 @@ export default async function SignInPage({
       : "/welcome";
 
   return (
-    <main className="page-shell">
-      <div className="page-frame">
+    <div className="app-content--narrow">
         <section className="surface-card hero-card">
           <p className="hero-eyebrow">Revora account</p>
           <h1 className="page-title">Sign in with your email</h1>
@@ -80,7 +79,6 @@ export default async function SignInPage({
           <Link href="/privacy">Privacy</Link>
           <Link href="/terms">Terms</Link>
         </footer>
-      </div>
-    </main>
+    </div>
   );
 }

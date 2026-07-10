@@ -17,7 +17,7 @@ const storage = fakeStorage();
 vi.stubGlobal("localStorage", storage);
 vi.stubGlobal("window", { localStorage: storage });
 
-import { nextStepAfterSegment, STEP_PROGRESS } from "../../../app/onboarding/page";
+import { nextStepAfterSegment, STEP_PROGRESS } from "../../../app/(app)/onboarding/page";
 
 describe("nextStepAfterSegment (single-source A1C rule)", () => {
   it("routes a device with a saved A1C straight past the A1C step", () => {

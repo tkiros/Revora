@@ -4,8 +4,7 @@ export const metadata = { title: "Check your email — Revora" };
 
 export default function CheckEmailPage() {
   return (
-    <main className="page-shell">
-      <div className="page-frame">
+    <div className="app-content--narrow">
         <section className="surface-card hero-card">
           <p className="hero-eyebrow">One more step</p>
           <h1 className="page-title">Check your email</h1>
@@ -23,7 +22,6 @@ export default function CheckEmailPage() {
           <Link href="/signin">Try again</Link>
           <Link href="/">Home</Link>
         </footer>
-      </div>
-    </main>
+    </div>
   );
 }
