@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { loadSafetyContract } from "../../lib/revora/safety-contract";
+import { loadSafetyContract } from "../../../lib/revora/safety-contract";
 
 export const metadata: Metadata = {
   title: "Terms · Revora",
@@ -19,8 +19,7 @@ export default function TermsPage() {
   const supportEmail = process.env.SUPPORT_EMAIL ?? "support@revora.app";
 
   return (
-    <main className="page-shell">
-      <div className="page-frame">
+    <div className="app-content--narrow">
         <section className="surface-card hero-card">
           <p className="hero-eyebrow">Terms</p>
           <h1 className="page-title">Terms of Service</h1>
@@ -183,7 +182,6 @@ export default function TermsPage() {
           <Link href="/">Back to Revora</Link>
           <Link href="/privacy">Privacy</Link>
         </footer>
-      </div>
-    </main>
+    </div>
   );
 }

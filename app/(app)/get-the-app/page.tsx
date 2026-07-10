@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { storeWaitlistUrl } from "../../lib/waitlist";
+import { storeWaitlistUrl } from "../../../lib/waitlist";
 
 export const metadata = { title: "Get Revora on your phone — Revora" };
 
@@ -8,8 +8,7 @@ export default function GetTheAppPage() {
   const androidWaitlist = storeWaitlistUrl("android");
   const iosWaitlist = storeWaitlistUrl("ios");
   return (
-    <main className="page-shell">
-      <div className="page-frame">
+    <div className="app-content--narrow">
         <section className="surface-card hero-card">
           <p className="hero-eyebrow">On your phone</p>
           <h1 className="page-title">Revora already works on your phone</h1>
@@ -65,7 +64,6 @@ export default function GetTheAppPage() {
           <Link href="/privacy">Privacy</Link>
           <Link href="/terms">Terms</Link>
         </footer>
-      </div>
-    </main>
+    </div>
   );
 }

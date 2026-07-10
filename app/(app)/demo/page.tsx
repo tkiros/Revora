@@ -1,7 +1,7 @@
-import { DemoCheckCard } from "../../components/demo-check-card";
-import { ResultCard } from "../../components/result-card";
-import type { RevoraRisk, RevoraUserResponse } from "../../lib/client/ui-state";
-import { deriveCoachOutputs } from "../../lib/revora/coach-outputs";
+import { DemoCheckCard } from "../../../components/demo-check-card";
+import { ResultCard } from "../../../components/result-card";
+import type { RevoraRisk, RevoraUserResponse } from "../../../lib/client/ui-state";
+import { deriveCoachOutputs } from "../../../lib/revora/coach-outputs";
 
 /**
  * `/demo` — the marketing-asset fixtures route (Task 8.4). A noindex, inert page
@@ -71,8 +71,7 @@ const CLARIFY_FIXTURE: RevoraUserResponse = {
 
 export default function DemoPage() {
   return (
-    <main className="page-shell">
-      <div className="page-frame">
+    <div className="app-content--narrow">
         <section data-shot="demo-check-card">
           <DemoCheckCard />
         </section>
@@ -105,7 +104,6 @@ export default function DemoPage() {
             </div>
           </div>
         </section>
-      </div>
-    </main>
+    </div>
   );
 }

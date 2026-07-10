@@ -1950,8 +1950,11 @@ button.inline-link {
     padding: 40px 44px 72px;
   }
 
+  /* Prose/legal pages: a page-level wrapper div, not a layout variant —
+     inert below 1024px where .app-content already caps at 520px. */
   .app-content--narrow {
     max-width: 640px;
+    margin-inline: auto;
   }
 }
 

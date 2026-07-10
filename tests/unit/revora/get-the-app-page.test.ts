@@ -9,7 +9,7 @@ import { storeWaitlistUrl } from "../../../lib/waitlist";
 // vars directly and inspect the returned element tree — no jsdom harness needed.
 async function renderText(): Promise<string> {
   vi.resetModules();
-  const mod = await import("../../../app/get-the-app/page");
+  const mod = await import("../../../app/(app)/get-the-app/page");
   const tree = mod.default() as ReactElement;
   return collectText(tree);
 }

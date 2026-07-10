@@ -18,8 +18,7 @@ export const metadata: Metadata = {
  */
 export default function HowItWorksPage() {
   return (
-    <main className="page-shell">
-      <div className="page-frame">
+    <div className="app-content--narrow">
         <section className="surface-card hero-card">
           <p className="hero-eyebrow">How this works</p>
           <h1 className="page-title">What the progress view measures</h1>
@@ -114,7 +113,6 @@ export default function HowItWorksPage() {
           <Link href="/privacy">Privacy</Link>
           <Link href="/terms">Terms</Link>
         </footer>
-      </div>
-    </main>
+    </div>
   );
 }

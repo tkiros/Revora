@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { loadSafetyContract } from "../../lib/revora/safety-contract";
+import { loadSafetyContract } from "../../../lib/revora/safety-contract";
 
 export const metadata: Metadata = {
   title: "Privacy · Revora",
@@ -12,8 +12,7 @@ export default function PrivacyPage() {
   const { copy } = loadSafetyContract();
 
   return (
-    <main className="page-shell">
-      <div className="page-frame">
+    <div className="app-content--narrow">
         <section className="surface-card hero-card">
           <p className="hero-eyebrow">Privacy</p>
           <h1 className="page-title">How Revora handles your data</h1>
@@ -141,7 +140,6 @@ export default function PrivacyPage() {
         <footer className="page-footer">
           <Link href="/">Back to Revora</Link>
         </footer>
-      </div>
-    </main>
+    </div>
   );
 }
