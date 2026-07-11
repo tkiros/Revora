@@ -5,10 +5,15 @@ import { routeA1C } from "../../../lib/revora/a1c";
 import { deriveCoachOutputs } from "../../../lib/revora/coach-outputs";
 import { buildRetryResponse } from "../../../lib/revora/fallback";
 import {
+  activeModelId,
   createOpenAIRevoraModelClient,
   type RevoraModelClient
 } from "../../../lib/revora/openai-client";
-import { loadSafetyContract } from "../../../lib/revora/safety-contract";
+import { PROMPT_VERSION } from "../../../lib/revora/prompt";
+import {
+  CONTRACT_VERSION,
+  loadSafetyContract
+} from "../../../lib/revora/safety-contract";
 import { CheckRequestSchema } from "../../../lib/revora/schemas";
 import { captureServerError } from "../../../lib/revora/sentry-capture";
 import { checkFood } from "../../../lib/revora/service";
@@ -34,16 +39,16 @@ export const runtime = "nodejs";
 
 // Hard ceiling on function execution. Sits above the 10s OpenAI client timeout
 // (server budget) and below/at the Vercel plan's function-duration limit so a
-// stuck call is cut, not left hanging. ponytail: 15 is a safe default; OPS MUST
-// verify it is ≤ the active Vercel plan limit (Hobby has historically capped
-// low — Pro may be required) and ≥ the 12s client abort (plan A1/B7) before
-// production. Adjust here if the plan limit differs.
+// stuck call is cut, not left hanging. REL-03 verified 2026-07-11: the active
+// plan (Hobby, Fluid compute, 300s default limit) accepts 15 — the production
+// deploy builds and serves with this value, and Vercel hard-fails builds that
+// exceed the plan limit. Still ≥ the 12s client abort (plan A1/B7).
 export const maxDuration = 15;
 
 type CheckRouteDeps = {
   checkFoodImpl?: typeof checkFood;
   emitEvent?: typeof emitSafeEvent;
-  modelFactory?: () => RevoraModelClient;
+  modelFactory?: (model?: string) => RevoraModelClient;
   now?: () => number;
   db?: () => Db;
   getSession?: () => Promise<SessionInfo>;
@@ -76,11 +81,34 @@ const FREE_LIMIT_MESSAGE = `You've used today's ${FREE_LIMIT_WORD} free checks. 
 export const TRIAL_WALL_MESSAGE =
   "Your free taste of Revora was yesterday's checks. Start your free week — card required, unlimited everything, and we email you before any charge — to keep going.";
 
-let model: RevoraModelClient | null = null;
+// Model selection (W-02, reversing the 2026-07-11 tiering decision).
+//
+// Every check — guest, trialing, or paying — runs on the primary model
+// (REVORA_MODEL, default gpt-5.4-mini). There is deliberately NO per-user
+// routing here.
+//
+// The removed code downgraded a user to gpt-5.4-nano after 10 stored checks.
+// Because the trial wall 402s every non-premium session upstream of that line,
+// the only sessions that could ever reach it were *paying and trialing* ones —
+// so the downgrade applied exclusively to customers, silently, while the wall
+// sold them "unlimited everything". It also contradicted the repo's own
+// bakeoff, which failed nano on the ≥98% schema-validity threshold and scoped
+// it to provider-outage degradation only.
+//
+// Nano remains reachable as a manual outage fallback by setting REVORA_MODEL
+// (openai-client.ts) — a deliberate, disclosed, whole-fleet decision rather
+// than an invisible per-user one. Any future routing must first pass the full
+// ratified gate on the production provider path, and must be disclosed.
+const modelClients = new Map<string, RevoraModelClient>();
 
-function getModelClient() {
-  model ??= createOpenAIRevoraModelClient();
-  return model;
+function getModelClient(model?: string) {
+  const key = model ?? "default";
+  let client = modelClients.get(key);
+  if (!client) {
+    client = createOpenAIRevoraModelClient(model ? { model } : {});
+    modelClients.set(key, client);
+  }
+  return client;
 }
 
 export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
@@ -173,14 +201,27 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
     }
 
     try {
-      const response = await checkFoodImpl(body, { model: modelFactory() });
+      const response = await checkFoodImpl(body, {
+        model: modelFactory(undefined)
+      });
+
+      const durationMs = now() - startedAt;
 
       emitEvent({
         name: "check_completed",
         environment,
         responseKind: response.kind,
         risk: response.kind === "result" ? response.risk : undefined,
-        latencyBucket: getLatencyBucket(now() - startedAt)
+        // W-01: which clinical class fired — never the text that matched it.
+        clinicalRoute:
+          response.kind === "clinical" ? response.route : undefined,
+        latencyBucket: getLatencyBucket(durationMs),
+        // W-13: raw ms makes p95 computable (the buckets never could); the
+        // model + version stamps make a reported bad answer reproducible.
+        durationMs,
+        model: activeModelId(),
+        promptVersion: PROMPT_VERSION,
+        contractVersion: CONTRACT_VERSION
       });
 
       // 4B: meal memory for signed-in users. Fail-soft by design — a broken
@@ -201,7 +242,19 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
 
       // Decision card v2 (plan P1): coach outputs are derived rule-based from
       // the engine response at the route layer — the engine stays untouched.
-      return NextResponse.json({ ...response, ...deriveCoachOutputs(response) });
+      //
+      // W-17: the food text decides suppression (a drink gets no plate-
+      // sequencing tip) and the rotation counter cycles the phrase bank so a
+      // daily user is not read the same three sentences every day. Both are
+      // used to select AUDITED copy and neither is persisted or logged.
+      return NextResponse.json({
+        ...response,
+        ...deriveCoachOutputs(response, {
+          food: readFood(body),
+          rotation: readRotation(request.headers),
+          seed: request.headers.get("x-revora-client-id") ?? undefined
+        })
+      });
     } catch (error) {
       // Surface schema/infra throws to Sentry (awaited, guarded, no-op without
       // SENTRY_DSN), then keep the existing safe telemetry + calm retry response
@@ -285,6 +338,38 @@ function getEnvironment(
   }
 }
 
+/**
+ * The food text, read defensively off the raw body (which is `unknown` here —
+ * the engine does its own strict parse). Used ONLY to pick which audited coach
+ * sentence to render; never persisted, never logged, never sent to telemetry.
+ */
+function readFood(body: unknown): string | undefined {
+  if (!body || typeof body !== "object" || !("food" in body)) {
+    return undefined;
+  }
+
+  const food = (body as { food: unknown }).food;
+  return typeof food === "string" ? food : undefined;
+}
+
+/**
+ * Monotonic per-client counter that cycles the coach phrase bank (W-17).
+ *
+ * Client-supplied and therefore forgeable — which is fine, because the only
+ * thing it can influence is WHICH pre-approved sentence a user sees. It touches
+ * no verdict, no entitlement, and no safety floor. Absent (older clients,
+ * curl) → the bank falls back to hashing the per-check id.
+ */
+function readRotation(headers: Headers): number | undefined {
+  const raw = headers.get("x-revora-coach-rotation");
+  if (!raw) {
+    return undefined;
+  }
+
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 function getLatencyBucket(
   durationMs: number
 ): NonNullable<SafeTelemetryEvent["latencyBucket"]> {
@@ -317,6 +402,11 @@ function classifyFailureReason(
 
   if (error instanceof SyntaxError) {
     return "schema_error";
+  }
+
+  // Network blip vs provider outage split (REL-01).
+  if (error instanceof Error && error.name === "RevoraConnectionError") {
+    return "connection_blip";
   }
 
   if (error instanceof Error && /schema|zod|json/i.test(error.message)) {

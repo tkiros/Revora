@@ -1,4 +1,4 @@
-import { and, desc, eq, gte } from "drizzle-orm";
+import { and, count, desc, eq, gte } from "drizzle-orm";
 
 import { dayKeyInTimezone } from "../coach/days";
 import { schema, type Db } from "./db";
@@ -117,6 +117,12 @@ export async function getEntitlement(
     currentPeriodEnd: null
   };
 }
+
+// countChecksTotal() lived here and had exactly one caller: the model-tier
+// switch in app/api/check/route.ts, which downgraded a user to a weaker model
+// after 10 lifetime checks. That routing is gone (W-02) and so is this — a
+// lifetime-usage counter with no consumer is an invitation to reintroduce
+// usage-keyed degradation without the evidence gate that should precede it.
 
 /** Server-side free-tier metering: result-checks stored today (profile tz). */
 export async function countChecksToday(
