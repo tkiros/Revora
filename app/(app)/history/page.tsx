@@ -8,12 +8,7 @@ import { DisclaimerLine } from "../../../components/disclaimer-line";
 import type { StoredCheck } from "../../../lib/client/history-store";
 import { loadHistory } from "../../../lib/client/remote-history";
 import { dayKeyLocal as localDayKey, verdictWeekView } from "../../../lib/coach/days";
-
-const RISK_LABELS = {
-  SAFE: "Clear",
-  MODERATE: "Be careful",
-  HIGH: "Hold off"
-} as const;
+import { RISK_LABELS } from "../../../lib/revora/labels";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 

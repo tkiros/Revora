@@ -1,10 +1,5 @@
 import type { StoredCheck } from "../lib/client/history-store";
-
-const RISK_LABELS = {
-  SAFE: "Clear",
-  MODERATE: "Be careful",
-  HIGH: "Hold off"
-} as const;
+import { RISK_LABELS } from "../lib/revora/labels";
 
 export function TodayList({ checks }: { checks: StoredCheck[] }) {
   if (checks.length === 0) {
