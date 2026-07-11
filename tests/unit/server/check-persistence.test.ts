@@ -1,7 +1,10 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createCheckRouteHandler } from "../../../app/api/check/route";
+import {
+  createCheckRouteHandler,
+  PRIMARY_MODEL_CHECKS
+} from "../../../app/api/check/route";
 import { decryptField } from "../../../lib/server/crypto";
 import { schema } from "../../../lib/server/db";
 import { createTestDb } from "../../helpers/test-db";
@@ -280,8 +283,13 @@ describe("trial-mode hard wall (4.4)", () => {
     const response = await POST(checkRequest());
     expect(response.status).toBe(200);
 
-    expect(queriedTables).not.toContain(schema.checks);
+    // Daily metering (profile-timezone lookup) never runs for entitled users.
+    // The checks table IS read once — the lifetime count that drives the
+    // model tier switch applies to every signed-in user, premium included.
     expect(queriedTables).not.toContain(schema.profiles);
+    expect(
+      queriedTables.filter((table) => table === schema.checks)
+    ).toHaveLength(1);
   });
 
   it("legacy mode: the 5/day soft limit still behaves byte-identically", async () => {
@@ -300,6 +308,55 @@ describe("trial-mode hard wall (4.4)", () => {
     expect(limited.status).toBe(402);
     expect(body.message).toMatch(/premium/i);
     expect(body.message).not.toContain("free week");
+  });
+
+  it("model tier: first 10 lifetime checks use the primary model, later checks the cheap one", async () => {
+    // Seeds are dated in the past so the 5/day free cap never fires — only
+    // the lifetime count matters here.
+    const seedCheck = () => ({
+      userId,
+      foodCiphertext: "cipher",
+      risk: "SAFE" as const,
+      a1cBand: "prediabetes_60_62" as const,
+      inputMethod: "text" as const,
+      createdAt: new Date(Date.now() - 72 * 60 * 60 * 1000)
+    });
+
+    const modelFactory = vi.fn(() => ({ generate: vi.fn() }));
+    const POST = createCheckRouteHandler({
+      checkFoodImpl: vi.fn().mockResolvedValue(RESULT_RESPONSE),
+      emitEvent: vi.fn(),
+      modelFactory,
+      db: () => testDb.db,
+      getSession: async () => ({ userId, email: "persist@test.dev" }),
+      paywallMode: () => "legacy" as const
+    });
+
+    // 9 stored checks: still under the threshold → primary model (undefined).
+    await testDb.db
+      .insert(schema.checks)
+      .values(Array.from({ length: PRIMARY_MODEL_CHECKS - 1 }, seedCheck));
+    await POST(checkRequest());
+    expect(modelFactory).toHaveBeenLastCalledWith(undefined);
+
+    // That check persisted the 10th row → the next one flips to nano.
+    await POST(checkRequest());
+    expect(modelFactory).toHaveBeenLastCalledWith("gpt-5.4-nano");
+  });
+
+  it("model tier: guests always get the primary model", async () => {
+    const modelFactory = vi.fn(() => ({ generate: vi.fn() }));
+    const POST = createCheckRouteHandler({
+      checkFoodImpl: vi.fn().mockResolvedValue(RESULT_RESPONSE),
+      emitEvent: vi.fn(),
+      modelFactory,
+      db: () => testDb.db,
+      getSession: async () => null,
+      paywallMode: () => "legacy" as const
+    });
+
+    await POST(checkRequest());
+    expect(modelFactory).toHaveBeenLastCalledWith(undefined);
   });
 
   it("anonymous requests are untouched in both modes", async () => {

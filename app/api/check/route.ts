@@ -20,6 +20,7 @@ import { encryptField } from "../../../lib/server/crypto";
 import { getDb, schema, type Db } from "../../../lib/server/db";
 import {
   countChecksToday,
+  countChecksTotal,
   getEntitlement,
   FREE_DAILY_CHECKS
 } from "../../../lib/server/entitlement";
@@ -43,7 +44,7 @@ export const maxDuration = 15;
 type CheckRouteDeps = {
   checkFoodImpl?: typeof checkFood;
   emitEvent?: typeof emitSafeEvent;
-  modelFactory?: () => RevoraModelClient;
+  modelFactory?: (model?: string) => RevoraModelClient;
   now?: () => number;
   db?: () => Db;
   getSession?: () => Promise<SessionInfo>;
@@ -76,11 +77,25 @@ const FREE_LIMIT_MESSAGE = `You've used today's ${FREE_LIMIT_WORD} free checks. 
 export const TRIAL_WALL_MESSAGE =
   "Your free taste of Revora was yesterday's checks. Start your free week — card required, unlimited everything, and we email you before any charge — to keep going.";
 
-let model: RevoraModelClient | null = null;
+// Model tiering (owner decision 2026-07-11): a user's first N stored checks
+// run on the primary model (REVORA_MODEL, default gpt-5.4-mini — best safety
+// and guidance in the 2026-07-09 benchmark); from check N+1 on, the cheaper
+// gpt-5.4-nano. Guests and count-lookup failures stay on the primary model.
+// Nano was less reliable on strict format/safety in the benchmark, but every
+// output still passes the same fail-closed postprocess contract.
+export const PRIMARY_MODEL_CHECKS = 10;
+const AFTER_PRIMARY_MODEL = "gpt-5.4-nano";
 
-function getModelClient() {
-  model ??= createOpenAIRevoraModelClient();
-  return model;
+const modelClients = new Map<string, RevoraModelClient>();
+
+function getModelClient(model?: string) {
+  const key = model ?? "default";
+  let client = modelClients.get(key);
+  if (!client) {
+    client = createOpenAIRevoraModelClient(model ? { model } : {});
+    modelClients.set(key, client);
+  }
+  return client;
 }
 
 export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
@@ -103,6 +118,9 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
     } catch {
       body = null;
     }
+
+    // Chosen per-request: undefined = primary model (client default).
+    let checkModel: string | undefined;
 
     // 4D free tier, enforced server-side BEFORE any model spend. Signed-in
     // only (guests are metered by the existing IP rate limit); fail-open on
@@ -167,13 +185,23 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
             );
           }
         }
+
+        // Model tier: after the first PRIMARY_MODEL_CHECKS stored checks,
+        // route this user to the cheaper model. Errors fall through to the
+        // catch below and leave the primary model in place (fail-open).
+        const lifetimeChecks = await countChecksTotal(db(), session.userId);
+        if (lifetimeChecks >= PRIMARY_MODEL_CHECKS) {
+          checkModel = AFTER_PRIMARY_MODEL;
+        }
       }
     } catch (error) {
       await captureServerError(error, "route");
     }
 
     try {
-      const response = await checkFoodImpl(body, { model: modelFactory() });
+      const response = await checkFoodImpl(body, {
+        model: modelFactory(checkModel)
+      });
 
       emitEvent({
         name: "check_completed",

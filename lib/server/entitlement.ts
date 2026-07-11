@@ -1,4 +1,4 @@
-import { and, desc, eq, gte } from "drizzle-orm";
+import { and, count, desc, eq, gte } from "drizzle-orm";
 
 import { dayKeyInTimezone } from "../coach/days";
 import { schema, type Db } from "./db";
@@ -116,6 +116,19 @@ export async function getEntitlement(
     status: hadRows ? "lapsed" : "none",
     currentPeriodEnd: null
   };
+}
+
+/** Lifetime result-checks stored for a user (drives the model tier switch). */
+export async function countChecksTotal(
+  db: Db,
+  userId: string
+): Promise<number> {
+  const [row] = await db
+    .select({ total: count() })
+    .from(schema.checks)
+    .where(eq(schema.checks.userId, userId));
+
+  return row?.total ?? 0;
 }
 
 /** Server-side free-tier metering: result-checks stored today (profile tz). */

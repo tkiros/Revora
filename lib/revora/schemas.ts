@@ -127,13 +127,18 @@ export const revoraModelJsonSchema = {
       type: ["string", "null"],
       enum: ["SAFE", "MODERATE", "HIGH", null]
     },
-    reason: { type: ["string", "null"] },
-    adjustment: { type: ["string", "null"] },
-    swap: { type: ["string", "null"] },
-    question: { type: ["string", "null"] },
+    // Length bounds mirror the Zod schema (TrimmedResponseTextSchema /
+    // ExamplesSchema) so locally invalid strings — e.g. the benchmarked
+    // examples:[""] failure — are rejected by the provider's constrained
+    // decoding instead of falling to the retry fallback. Verified accepted by
+    // the OpenAI Responses API in strict mode (2026-07-11 probe).
+    reason: { type: ["string", "null"], minLength: 1, maxLength: 280 },
+    adjustment: { type: ["string", "null"], minLength: 1, maxLength: 280 },
+    swap: { type: ["string", "null"], minLength: 1, maxLength: 280 },
+    question: { type: ["string", "null"], minLength: 1, maxLength: 280 },
     examples: {
       type: "array",
-      items: { type: "string" }
+      items: { type: "string", minLength: 1, maxLength: 160 }
     },
     policy_flags: {
       type: "array",

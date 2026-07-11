@@ -91,6 +91,12 @@ export function createOpenAIRevoraModelClient(options?: {
         instructions: prompt.instructions,
         input: prompt.input,
         store: false,
+        // Revora answers are short JSON. Without a cap, OpenRouter prices the
+        // request against the model's worst-case output window (65k) and can
+        // reject larger models outright (2026-07-09 benchmark finding). A
+        // truncated response fails JSON.parse below and falls to the calm
+        // retry fallback — fail-closed, never a partial answer.
+        max_output_tokens: 512,
         ...(reasoningEffort ? { reasoning: { effort: reasoningEffort } } : {}),
         text: {
           format: {
@@ -115,6 +121,21 @@ export function createOpenAIRevoraModelClient(options?: {
         throw new Error("OpenAI response output_text was not valid JSON.", {
           cause: error
         });
+      }
+
+      // Normalize before validation: drop empty/whitespace example strings.
+      // A benchmarked gpt-5.4-mini run failed the strict parser only because
+      // it returned examples:[""] — content-free, so dropping is safe.
+      if (
+        parsedOutput !== null &&
+        typeof parsedOutput === "object" &&
+        Array.isArray((parsedOutput as { examples?: unknown }).examples)
+      ) {
+        (parsedOutput as { examples: unknown[] }).examples = (
+          parsedOutput as { examples: unknown[] }
+        ).examples.filter(
+          (item) => typeof item !== "string" || item.trim().length > 0
+        );
       }
 
       return RevoraModelOutputSchema.parse(parsedOutput);
