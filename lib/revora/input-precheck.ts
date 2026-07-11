@@ -49,6 +49,12 @@ const AMBIGUOUS_PROTEIN_OR_VEG = [
   "pasta"
 ];
 
+// Matched with substring semantics (containsAnyLoose), which is why singulars
+// cover most plurals for free ("cookie" ⊂ "cookies") — but NOT irregular ones:
+// "pastry" is not a substring of "pastries", so both forms must be listed.
+// N-17 named three foods that slipped through; two of them ("jelly beans",
+// "eggnog") were never on these lists at all, so no amount of matching-semantics
+// work would have caught them. Sugar has to be *named* to be floored.
 const CARBS_ONLY_PATTERNS = [
   "plain bagel",
   "bagel",
@@ -58,27 +64,41 @@ const CARBS_ONLY_PATTERNS = [
   "tortilla",
   "cereal",
   "candy",
+  "candies",
   "pastry",
+  "pastries",
   "donut",
-  "cookie",
-  "cake",
-  "brownie",
-  "milkshake",
-  "soda",
-  "juice"
-] as const;
-
-const HIGH_RISK_PATTERNS = [
-  "candy",
-  "pastry",
-  "donut",
+  "doughnut",
   "cookie",
   "cake",
   "brownie",
   "milkshake",
   "soda",
   "juice",
-  "frappuccino"
+  "jelly bean",
+  "jellybean",
+  "eggnog",
+  "ice cream"
+] as const;
+
+const HIGH_RISK_PATTERNS = [
+  "candy",
+  "candies",
+  "pastry",
+  "pastries",
+  "donut",
+  "doughnut",
+  "cookie",
+  "cake",
+  "brownie",
+  "milkshake",
+  "soda",
+  "juice",
+  "frappuccino",
+  "jelly bean",
+  "jellybean",
+  "eggnog",
+  "ice cream"
 ] as const;
 
 const PROTEIN_TOKENS = [
@@ -145,13 +165,24 @@ export function classifyInputBeforeModel(food: string): InputPrecheck {
 
   if (isCarbsOnlyMeal(normalized)) {
     const flags: RevoraPolicyFlag[] = ["carbs_only", "borderline"];
-    if (containsAny(normalized, HIGH_RISK_PATTERNS)) {
+    if (containsAnyLoose(normalized, HIGH_RISK_PATTERNS)) {
       flags[1] = "high_risk";
     }
 
     return {
       kind: "carbs_only",
       flags
+    };
+  }
+
+  // Carb-forward but buffered (protein/veg present): NOT carbs-only, so it goes
+  // to the model as normal — but it now carries a deterministic `borderline`
+  // flag the model cannot veto. In the top band that flag is what fires the
+  // SAFE→MODERATE floor; in the lower bands it is inert. See isCarbForward.
+  if (isCarbForward(normalized)) {
+    return {
+      kind: "ok",
+      flags: ["borderline"]
     };
   }
 
@@ -185,16 +216,212 @@ function getAmbiguousQuestion(food: string): string | null {
 }
 
 function isCarbsOnlyMeal(food: string): boolean {
-  return containsAny(food, CARBS_ONLY_PATTERNS) && !hasBufferContext(food);
+  return containsAnyLoose(food, CARBS_ONLY_PATTERNS) && !hasBufferContext(food);
 }
 
+/**
+ * Carb-FORWARD, as distinct from carbs-ONLY (2026-07-11 live-eval finding).
+ *
+ * A meal can be built on refined carbs and still carry protein — a salmon
+ * avocado roll, a chicken sandwich with fries. `isCarbsOnlyMeal` deliberately
+ * says no to those, because the buffer is real. But "not carbs-only" is not the
+ * same as "unremarkable", and in the top A1C band (6.3–6.4) the difference
+ * decides whether a conservatism floor fires at all.
+ *
+ * WHY THIS EXISTS — the defect it closes is worth stating plainly:
+ *
+ *   postprocess's upper-band floor triggers on
+ *     band === "prediabetes_63_64" && (flags.has("borderline") || flags.has("carbs_only"))
+ *   where `flags` is precheckFlags ∪ **the model's own policy_flags**.
+ *
+ *   For "salmon avocado roll" the precheck contributed NO flags, so the only
+ *   possible source of "borderline" was the model itself. Which means: the
+ *   safety floor whose entire job is to catch a model that wrongly answers SAFE
+ *   required that same model to volunteer that it was unsure. A model confident
+ *   enough to return SAFE does not flag itself borderline — so the floor was
+ *   unreachable in precisely the case it was built for.
+ *
+ *   The live eval proved it: gpt-5.4-mini returned SAFE for a salmon avocado
+ *   roll at A1C 6.4, nothing floored it, and it shipped as "Clear" — a
+ *   harmful-SAFE, the one hard P0 gate. Every mock eval was green, because the
+ *   mocks supply the borderline flag the real model does not.
+ *
+ * This detector gives the floor a trigger the model cannot veto. It is
+ * word-boundary matched (so "roll" does not fire on "rolled oats") and its only
+ * consequence is the SAFE→MODERATE floor in the top band — it can never raise a
+ * verdict to HIGH, and it is inert in the lower bands.
+ *
+ * The VOCABULARY below is a dietary judgment and belongs to the RD panel
+ * (W-05), not to engineering. It is deliberately conservative: at the top of the
+ * prediabetes range, "Be careful" instead of "Clear" on a carb-forward plate is
+ * the documented meaning of conservativeLevel "high".
+ */
+const CARB_FORWARD_TOKENS = [
+  "sushi",
+  "maki",
+  "roll",
+  "rolls",
+  "sandwich",
+  "sandwiches",
+  "burger",
+  "bun",
+  "buns",
+  "wrap",
+  "wraps",
+  "burrito",
+  "taco",
+  "tacos",
+  "pizza",
+  "fries",
+  "chips",
+  "crisps",
+  "noodles",
+  "ramen",
+  "udon",
+  "spaghetti",
+  "lasagna",
+  "bread",
+  "toast",
+  "baguette",
+  "naan",
+  "roti",
+  "pita",
+  "tortilla",
+  "potato",
+  "potatoes",
+  "rice",
+  "pasta",
+  "bagel",
+  "cereal",
+  "croissant",
+  "muffin",
+  "waffle",
+  "waffles",
+  "pancake",
+  "pancakes",
+  "congee",
+  "couscous"
+] as const;
+
+/** Low-carb impostors that contain a carb word but are not carb-forward. */
+const CARB_FORWARD_EXCLUSIONS = [
+  "cauliflower rice",
+  "konjac rice",
+  "shirataki",
+  "cauliflower crust",
+  "lettuce wrap",
+  "lettuce wraps",
+  "sweet potato"
+] as const;
+
+export function isCarbForward(food: string): boolean {
+  let text = food;
+  for (const phrase of CARB_FORWARD_EXCLUSIONS) {
+    text = text.replace(termPattern(phrase, "gu"), " ");
+  }
+
+  return containsAny(text, CARB_FORWARD_TOKENS);
+}
+
+/**
+ * Compound foods that CONTAIN a buffer token but are not buffered foods
+ * (N-17). This is the other half of the word-boundary fix, and the half that
+ * boundaries alone cannot solve: "jelly beans" contains the whole word "beans",
+ * and "protein bar" the whole word "protein", so both satisfy the protein
+ * buffer under any boundary rule — and satisfying the buffer SUPPRESSES the
+ * carbs-only floor. Sugar was disabling a safety floor by claiming to be a
+ * legume.
+ *
+ * These phrases are removed from the text before the buffer test runs, so the
+ * confection can no longer vouch for itself.
+ */
+const BUFFER_EXCLUSIONS = [
+  "jelly bean",
+  "jelly beans",
+  "jellybean",
+  "jellybeans",
+  "protein bar",
+  "protein bars",
+  "protein shake",
+  "protein shakes",
+  "protein cookie",
+  "protein cookies",
+  "protein ball",
+  "protein balls",
+  "egg roll",
+  "egg rolls",
+  "egg tart",
+  "egg tarts",
+  "candy bean",
+  "vanilla bean",
+  "vanilla beans",
+  "coffee bean",
+  "coffee beans",
+  "cocoa bean",
+  "cocoa beans",
+  "pepper jelly",
+  "candied pepper"
+] as const;
+
 function hasBufferContext(food: string): boolean {
+  let text = food;
+  for (const phrase of BUFFER_EXCLUSIONS) {
+    text = text.replace(termPattern(phrase, "gu"), " ");
+  }
+
   return (
-    containsAny(food, PROTEIN_TOKENS) ||
-    containsAny(food, NONSTARCHY_VEGETABLE_TOKENS)
+    containsAny(text, PROTEIN_TOKENS) ||
+    containsAny(text, NONSTARCHY_VEGETABLE_TOKENS)
   );
 }
 
+/**
+ * Word-boundary term matching (N-17 / W-21).
+ *
+ * Used for the BUFFER lists only, and the asymmetry is the whole point.
+ *
+ * The two kinds of list in this file err in opposite directions:
+ *
+ *  - CARBS_ONLY / HIGH_RISK are risk-RAISING. An over-match only ever floors a
+ *    verdict upward, so loose substring matching there is safe-erring — and it
+ *    is what makes "cookies", "cupcake" and "brownies" match at all. Tightening
+ *    those to word boundaries would silently DROP every plural from the safety
+ *    floors, which is a regression dressed up as a fix.
+ *
+ *  - PROTEIN / NONSTARCHY_VEGETABLE are risk-SUPPRESSING: matching one disables
+ *    the carbs-only floor. Here an over-match is the hazard, so these are
+ *    anchored — "eggnog" no longer reads as "egg".
+ *
+ * Boundaries alone do not finish the job (a whole-word "beans" still hides
+ * inside "jelly beans"), which is what BUFFER_EXCLUSIONS above handles.
+ */
+const BOUNDARY_CACHE = new Map<string, RegExp>();
+
+function termPattern(term: string, flags = "iu"): RegExp {
+  const key = `${flags}:${term}`;
+  let pattern = BOUNDARY_CACHE.get(key);
+
+  if (!pattern) {
+    const escaped = term
+      .trim()
+      .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+      .replace(/\s+/g, "\\s+");
+    pattern = new RegExp(
+      `(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`,
+      flags
+    );
+    BOUNDARY_CACHE.set(key, pattern);
+  }
+
+  return pattern;
+}
+
+/** Word-boundary matching — for the risk-suppressing buffer lists. */
 function containsAny(food: string, terms: readonly string[]): boolean {
+  return terms.some((term) => termPattern(term).test(food));
+}
+
+/** Substring matching — for the risk-raising lists, where over-matching is safe. */
+function containsAnyLoose(food: string, terms: readonly string[]): boolean {
   return terms.some((term) => food.includes(term));
 }
