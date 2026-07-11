@@ -1,4 +1,8 @@
-import type { RevoraRisk, RevoraUserResponse } from "./ui-state";
+import type {
+  ClinicalRoute,
+  RevoraRisk,
+  RevoraUserResponse
+} from "./ui-state";
 
 /**
  * Umami analytics (plan P7; docs/adr/analytics-umami.md). A typed, closed
@@ -28,7 +32,28 @@ export type AnalyticsEvent =
         risk: RevoraRisk;
         kind: CheckResponseKind;
         input_method: "text" | "voice" | "photo";
+        // W-10/N-12: without a first-check marker the activation funnel is not
+        // computable end-to-end — the north-star metric could not be measured
+        // at all, only asserted.
+        first_check: boolean;
       };
+    }
+  // W-10/N-12. The product could not measure its own three biggest risks:
+  // whether people activate, whether the advice is any good, and why they
+  // leave. These are the events that make each of those answerable.
+  | { name: "onboarding_started" }
+  | {
+      // Advice quality. F-12's repetition problem is INVISIBLE in production
+      // today because no feedback event exists — which is why W-17's variant
+      // bank ships together with this, not before it.
+      name: "result_helpful";
+      props: { helpful: boolean; risk: RevoraRisk };
+    }
+  | {
+      // W-01: which clinical class fired. The route id only — never the text
+      // that matched it, which would be health data.
+      name: "clinical_route";
+      props: { route: ClinicalRoute };
     }
   | { name: "onboarding_completed" }
   | { name: "signin_completed" }
@@ -50,8 +75,15 @@ export type AnalyticsEvent =
 
 // Runtime belt-over-type-belt guard: even if a caller bypasses the type
 // system (e.g. `track(untyped)`), only these names are ever forwarded.
+//
+// NOTE this Set and the union above are two hand-maintained copies of the same
+// list: an event added to the union but not here typechecks fine and then
+// silently drops at runtime. analytics.test.ts asserts the two agree.
 const ALLOWED_EVENT_NAMES: ReadonlySet<AnalyticsEvent["name"]> = new Set([
   "check_completed",
+  "onboarding_started",
+  "result_helpful",
+  "clinical_route",
   "onboarding_completed",
   "signin_completed",
   "nudge_opened",

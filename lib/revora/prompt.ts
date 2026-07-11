@@ -8,6 +8,17 @@ export type RevoraPromptPayload = {
   input: string;
 };
 
+/**
+ * Version stamp for the prompt (W-13 / Phase 0.1, closing N-18).
+ *
+ * Before this existed there was no way to attribute a reported bad answer to
+ * the prompt that produced it — telemetry carried neither a model name nor any
+ * version, and two models served the same endpoint. Bump this on ANY change to
+ * the rules below; `tests/unit/revora/prompt-version.test.ts` pins the version
+ * to a hash of the rule text, so an un-bumped edit turns the suite red.
+ */
+export const PROMPT_VERSION = "2026-07-11.1";
+
 export function buildRevoraPrompt(options: {
   request: CheckRequest;
   contract: SafetyContract;
@@ -40,8 +51,18 @@ export function buildRevoraPrompt(options: {
       "Allowed response kinds: result, clarify, not_food, carbs_only.",
       "Do not classify out-of-scope A1C, non-food, or ambiguous input with invented details.",
       "SAFE results keep adjustment and swap null.",
+      'SAFE result reasons must begin with one of: "This looks", "This seems", "This is", "You can", or "You likely".',
       "MODERATE and HIGH require exactly one adjustment and one swap.",
+      // W-17 Tier 2.1. The per-meal specificity a user actually feels comes
+      // from these two fields — they are the only part of the card that varies
+      // with the meal. Requiring them to NAME something the user typed is what
+      // makes a result feel read rather than looked-up, and it costs nothing:
+      // the field already exists, is schema-bounded, and is postprocessed.
+      "The adjustment and swap must each refer to a concrete component of the food the user actually described — name it. Do not give advice that would read identically for any other meal.",
+      "All result reasons, adjustments, and swaps must each be exactly one sentence.",
       "Ask at most one clarifying question.",
+      "For clarify outputs, set risk, reason, adjustment, and swap to null.",
+      'Use examples: [] unless kind is "not_food"; never include empty strings in examples.',
       "Carbs-only meals must add protein or nonstarchy vegetables.",
       "Stay informational-only and qualitative. Do not diagnose, treat, prevent, cure, or reverse prediabetes or diabetes.",
       `Never produce exact numeric glycemic claims or future predictions, including: ${qualitativeRuleLabels}, ${bannedPredictionLabels}.`,
