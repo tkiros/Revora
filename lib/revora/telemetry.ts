@@ -10,7 +10,17 @@ const SafeTelemetryEventSchema = z
     risk: z.enum(["SAFE", "MODERATE", "HIGH"]).optional(),
     latencyBucket: z.enum(["<2s", "2-5s", "5-12s", ">12s"]).optional(),
     reasonCode: z
-      .enum(["rate_limited", "daily_cap", "provider_error", "schema_error", "paused"])
+      .enum([
+        "rate_limited",
+        "daily_cap",
+        "provider_error",
+        "schema_error",
+        "paused",
+        // Connection never reached the provider (nothing billed) and one
+        // retry also failed — split from provider_error so ops can tell a
+        // network blip from a real outage (QA round 2026-07-10, REL-01).
+        "connection_blip"
+      ])
       .optional()
   })
   .strict();

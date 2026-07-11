@@ -35,10 +35,10 @@ export const runtime = "nodejs";
 
 // Hard ceiling on function execution. Sits above the 10s OpenAI client timeout
 // (server budget) and below/at the Vercel plan's function-duration limit so a
-// stuck call is cut, not left hanging. ponytail: 15 is a safe default; OPS MUST
-// verify it is ≤ the active Vercel plan limit (Hobby has historically capped
-// low — Pro may be required) and ≥ the 12s client abort (plan A1/B7) before
-// production. Adjust here if the plan limit differs.
+// stuck call is cut, not left hanging. REL-03 verified 2026-07-11: the active
+// plan (Hobby, Fluid compute, 300s default limit) accepts 15 — the production
+// deploy builds and serves with this value, and Vercel hard-fails builds that
+// exceed the plan limit. Still ≥ the 12s client abort (plan A1/B7).
 export const maxDuration = 15;
 
 type CheckRouteDeps = {
@@ -345,6 +345,11 @@ function classifyFailureReason(
 
   if (error instanceof SyntaxError) {
     return "schema_error";
+  }
+
+  // Network blip vs provider outage split (REL-01).
+  if (error instanceof Error && error.name === "RevoraConnectionError") {
+    return "connection_blip";
   }
 
   if (error instanceof Error && /schema|zod|json/i.test(error.message)) {

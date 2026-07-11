@@ -86,17 +86,19 @@ export function createOpenAIRevoraModelClient(options?: {
 
   return {
     async generate(prompt) {
-      const response = await client.responses.create({
+      const response = await createWithConnectionRetry(client, {
         model,
         instructions: prompt.instructions,
         input: prompt.input,
         store: false,
         // Revora answers are short JSON. Without a cap, OpenRouter prices the
         // request against the model's worst-case output window (65k) and can
-        // reject larger models outright (2026-07-09 benchmark finding). A
-        // truncated response fails JSON.parse below and falls to the calm
-        // retry fallback — fail-closed, never a partial answer.
-        max_output_tokens: 512,
+        // reject larger models outright (2026-07-09 benchmark finding). 1024
+        // (not 512) because GPT-5.x reasoning tokens bill against this cap and
+        // could truncate the JSON on complex meals. A truncated response fails
+        // JSON.parse below and falls to the calm retry — fail-closed, never a
+        // partial answer.
+        max_output_tokens: 1024,
         ...(reasoningEffort ? { reasoning: { effort: reasoningEffort } } : {}),
         text: {
           format: {
@@ -141,6 +143,48 @@ export function createOpenAIRevoraModelClient(options?: {
       return RevoraModelOutputSchema.parse(parsedOutput);
     }
   };
+}
+
+/** Connection never reached (or lost) the provider and one retry also failed.
+ * Surfaced as its own type so the route can log "connection_blip" instead of
+ * "provider_error" (REL-01). */
+export class RevoraConnectionError extends Error {
+  constructor(cause: unknown) {
+    super("Model provider unreachable after one connection retry.", { cause });
+    this.name = "RevoraConnectionError";
+  }
+}
+
+/**
+ * REL-01: one retry on CONNECTION-level failures only. HTTP errors (4xx/5xx)
+ * mean the provider processed the request — never retried, preserving the
+ * single-paid-attempt invariant. Timeouts are also never retried: a timed-out
+ * request may still be running (and billing) provider-side. The SDK's own
+ * maxRetries stays 0 so retry policy lives in exactly one place.
+ */
+async function createWithConnectionRetry(
+  client: OpenAIResponsesTransport,
+  params: ResponseCreateParamsNonStreaming
+): Promise<ResponsesCreateResult> {
+  const isRetriableConnectionError = (error: unknown) =>
+    error instanceof OpenAI.APIConnectionError &&
+    !(error instanceof OpenAI.APIConnectionTimeoutError);
+
+  try {
+    return await client.responses.create(params);
+  } catch (firstError) {
+    if (!isRetriableConnectionError(firstError)) {
+      throw firstError;
+    }
+
+    try {
+      return await client.responses.create(params);
+    } catch (secondError) {
+      throw isRetriableConnectionError(secondError)
+        ? new RevoraConnectionError(secondError)
+        : secondError;
+    }
+  }
 }
 
 function createTransport(
