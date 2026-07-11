@@ -66,6 +66,23 @@ export default async function ReportPage({
       </main>
     );
   }
+  if (view.kind === "unavailable") {
+    return (
+      <main className="page-shell">
+        <div className="page-frame">
+          <section className="surface-card">
+            <p className="hero-eyebrow">Pantry Review</p>
+            <h1 className="page-title">We can&apos;t open this report</h1>
+            <p className="request-status" aria-live="polite">
+              Your report was generated, but we can&apos;t read it back right
+              now. This is on us, not on you — email {SUPPORT_EMAIL} and
+              we&apos;ll rebuild it or refund you.
+            </p>
+          </section>
+        </div>
+      </main>
+    );
+  }
 
   const { report } = view;
   return (

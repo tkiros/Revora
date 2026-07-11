@@ -119,6 +119,41 @@ describe("runPantrySweep", () => {
     expect(outOfWindow.alerted).toBe(0);
   });
 
+  /**
+   * The GC phase (N-23). Before it, blobs were deleted on exactly one path —
+   * successful delivery — so canceled/manual/abandoned orders kept their
+   * photos forever, and a Blob-API outage orphaned them permanently.
+   */
+  it("reaps photos of terminal orders and retries what an outage left behind", async () => {
+    const canceled = await makeOrder({ status: "canceled" });
+    const manual = await makeOrder({ status: "needs_manual" });
+    const inFlight = await makeOrder({ status: "awaiting_confirm" });
+    for (const order of [canceled, manual, inFlight]) {
+      await testDb.db.insert(schema.pantryPhotos).values({
+        orderId: order.id,
+        blobUrl: `https://blob.test/${order.id}.jpg`,
+        status: "extracted"
+      });
+    }
+
+    // Blob API is down this hour: nothing is marked deleted, so nothing is lost.
+    const downDeps = makeDeps();
+    downDeps.deleteBlobs = vi.fn().mockRejectedValue(new Error("blob down"));
+    expect((await runPantrySweep(downDeps)).blobsReaped).toBe(0);
+
+    // Next hour it is healthy — the same two orders are still claimable.
+    const deps = makeDeps();
+    const result = await runPantrySweep(deps);
+
+    expect(result.blobsReaped).toBe(2);
+    const surviving = await testDb.db
+      .select()
+      .from(schema.pantryPhotos)
+      .where(eq(schema.pantryPhotos.status, "extracted"));
+    // Only the in-flight order still holds a photo — it may yet need it.
+    expect(surviving.map((photo) => photo.orderId)).toEqual([inFlight.id]);
+  });
+
   it("writes the pantry-sweep heartbeat", async () => {
     await runPantrySweep(makeDeps());
     const [beat] = await testDb.db

@@ -124,12 +124,29 @@ describe("stateful privacy allowlist", () => {
     expect(counselBrief).toMatch(/Imaging input/i);
   });
 
-  it("privacy page discloses pantry photos, vision extraction, and deletion-on-delivery", () => {
-    const source = read("app/(app)/privacy/page.tsx");
+  it("privacy page discloses pantry photos, vision extraction, and the WHOLE deletion lifecycle", () => {
+    // JSX wraps prose across lines — match on the rendered sentence, not the
+    // source's line breaks, so a reflow can't silently drop a promise.
+    const source = read("app/(app)/privacy/page.tsx").replace(/\s+/g, " ");
     expect(source).toMatch(/Pantry Review/);
     expect(source).toMatch(/photos/i);
     expect(source).toMatch(/OpenAI/);
     expect(source).toMatch(/deleted/i);
     expect(source).toMatch(/encrypted/i);
+
+    // Deletion-on-delivery was never the whole truth (N-23): canceled, refunded
+    // and needs_manual orders kept their photos forever, and abandoned orders
+    // are covered by nothing but the retention ceiling. Every one of those end
+    // states now runs code (lib/server/blob.ts + the sweep's GC phase), so the
+    // page must disclose every one of them — that is the promise this asserts.
+    expect(source).toMatch(/report is delivered/i);
+    expect(source).toMatch(/canceled, refunded, or sent for manual review/i);
+    expect(source).toMatch(/when you delete your account/i);
+    expect(source).toMatch(/seven days/i);
+
+    // The photos are public-read at an unguessable address, NOT private storage
+    // (@vercel/blob supports private, but OpenAI's vision fetch cannot present
+    // our token). The page must never claim otherwise again.
+    expect(source).not.toMatch(/stored privately/i);
   });
 });

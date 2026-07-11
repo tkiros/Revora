@@ -76,6 +76,17 @@ export function PantryIntakeFlow({
         if (jpeg.size > MAX_BYTES) {
           throw new Error("That photo is too large even after resizing.");
         }
+        // `public` is a deliberate, documented choice, not an oversight
+        // (N-23). @vercel/blob 2.5 does support access: "private", but the
+        // only reader of these photos is OpenAI's vision API, which fetches
+        // `image_url` from its own servers and cannot present our Blob token —
+        // private storage breaks extraction outright. Going private therefore
+        // means first changing lib/pantry/extract.ts to pull the bytes through
+        // get(url, { access: "private" }) and inline them as a data URL. Until
+        // that lands, the protection is the unguessable address
+        // (addRandomSuffix, never linked or listed) plus a hard deletion
+        // lifecycle — and app/(app)/privacy/page.tsx says exactly that, rather
+        // than claiming the photos are "stored privately".
         const result = await upload(`pantry/${orderId}/photo.jpg`, jpeg, {
           access: "public",
           handleUploadUrl: "/api/pantry/upload",

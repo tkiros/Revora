@@ -92,15 +92,24 @@ export default function PrivacyPage() {
 
           <h2>Pantry Review photos</h2>
           <p>
-            If you buy a Pantry Review, the photos you upload are stored
-            privately while your report is prepared and are deleted when it
-            is delivered. A vision model (via OpenAI&apos;s API, with{" "}
-            <code>store: false</code>) is used only to read the food items in
-            your photos into a list — you review and correct that list
-            yourself before anything is assessed. The item names, any notes
-            you add, your A1C range, and the finished report are stored
-            encrypted, the same way as your checks, and are removed if you
-            delete your account.
+            If you buy a Pantry Review, the photos you upload are held by
+            Revora&apos;s storage provider at a long, random, unlisted address.
+            They are never linked to, listed, or indexed anywhere — but the
+            address itself is the only thing protecting them, so Revora handles
+            it as a secret and the photo is deleted as soon as it has done its
+            job. That means the moment your report is delivered; within the
+            hour if your order is canceled, refunded, or sent for manual
+            review; when you delete your account; and, for anything else, no
+            later than seven days after upload, when a scheduled cleanup
+            deletes whatever is left.
+          </p>
+          <p>
+            A vision model (via OpenAI&apos;s API, with <code>store: false</code>
+            ) is used only to read the food items in your photos into a list —
+            you review and correct that list yourself before anything is
+            assessed. The item names, any notes you add, your A1C range, and
+            the finished report are stored encrypted, the same way as your
+            checks, and are deleted when you delete your account.
           </p>
           <p>
             Meal photos you snap for a check are processed in memory to draft
@@ -123,7 +132,12 @@ export default function PrivacyPage() {
             <li>sell or share your personal data,</li>
             <li>show ads,</li>
             <li>store your health data without your explicit consent,</li>
-            <li>keep anything after you delete your account.</li>
+            <li>
+              keep your data after you delete your account — your checks,
+              profile, Pantry Review orders, and any photos still held are
+              deleted; all that remains is an identity-free record that a
+              deletion happened.
+            </li>
           </ul>
 
           <h2>An honest caveat</h2>
