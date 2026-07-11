@@ -405,6 +405,62 @@ textarea.text-input {
   color: var(--text-muted);
 }
 
+/* W-30 "Was this practical?" — quiet by design. It sits below the disclaimer,
+   asks about Revora rather than the meal, and must never compete with the
+   verdict for attention. */
+.result-feedback {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.feedback-prompt {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.feedback-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.feedback-button {
+  min-height: 36px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 4px 14px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.feedback-button:hover {
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+.feedback-thanks {
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+/* W-01 clinical route. Deliberately NOT styled like a verdict — no risk colour,
+   no verdict glyph. A user in a medical situation must not read this as a
+   grading of their meal. */
+.result-card[data-kind="clinical"] {
+  border-left: 4px solid var(--border-strong);
+}
+
 .insight-card {
   border: 1px dashed var(--border-strong);
   border-radius: 14px;
@@ -2044,6 +2100,27 @@ button.inline-link {
 
   .app-content .form-card {
     padding-top: 16px;
+  }
+
+  /* A11Y-01 (QA 2026-07-10): WebKit renders the shell ~40px taller than
+     Chromium (the c04d713 diet was verified on Chromium only; iPhone 12 put
+     the CTA at y≈753). Trim engine-independent slack so BOTH engines clear
+     the 720px fold with margin. Textarea stays well above the 44px target. */
+  .app-content .page-title {
+    font-size: clamp(1.8rem, 6.5vw, 2.3rem);
+  }
+
+  .app-content .page-copy {
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  .app-content textarea.text-input {
+    min-height: 96px;
+  }
+
+  .app-content .form-grid {
+    gap: 12px;
   }
 }
 

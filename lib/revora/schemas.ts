@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { CLINICAL_ROUTES } from "./clinical-risk";
+
 const FOOD_MAX_LENGTH = 160;
 const RESPONSE_TEXT_MAX_LENGTH = 280;
 
@@ -23,15 +25,21 @@ export type CheckRequest = z.infer<typeof CheckRequestSchema>;
 export const RevoraRiskSchema = z.enum(["SAFE", "MODERATE", "HIGH"]);
 export type RevoraRisk = z.infer<typeof RevoraRiskSchema>;
 
+export const RevoraClinicalRouteSchema = z.enum(CLINICAL_ROUTES);
+
 export const RevoraResponseKindSchema = z.enum([
   "result",
   "clarify",
   "not_food",
   "out_of_scope",
+  "clinical",
   "retry"
 ]);
 export type RevoraResponseKind = z.infer<typeof RevoraResponseKindSchema>;
 
+// The kinds the MODEL may emit. "clinical" is deliberately absent: a clinical
+// route is decided before the model runs and answered from approved copy, so
+// the model is never given the option of composing a medical response.
 export const RevoraModelKindSchema = z.enum([
   "result",
   "clarify",
@@ -127,13 +135,18 @@ export const revoraModelJsonSchema = {
       type: ["string", "null"],
       enum: ["SAFE", "MODERATE", "HIGH", null]
     },
-    reason: { type: ["string", "null"] },
-    adjustment: { type: ["string", "null"] },
-    swap: { type: ["string", "null"] },
-    question: { type: ["string", "null"] },
+    // Length bounds mirror the Zod schema (TrimmedResponseTextSchema /
+    // ExamplesSchema) so locally invalid strings — e.g. the benchmarked
+    // examples:[""] failure — are rejected by the provider's constrained
+    // decoding instead of falling to the retry fallback. Verified accepted by
+    // the OpenAI Responses API in strict mode (2026-07-11 probe).
+    reason: { type: ["string", "null"], minLength: 1, maxLength: 280 },
+    adjustment: { type: ["string", "null"], minLength: 1, maxLength: 280 },
+    swap: { type: ["string", "null"], minLength: 1, maxLength: 280 },
+    question: { type: ["string", "null"], minLength: 1, maxLength: 280 },
     examples: {
       type: "array",
-      items: { type: "string" }
+      items: { type: "string", minLength: 1, maxLength: 160 }
     },
     policy_flags: {
       type: "array",
@@ -204,11 +217,26 @@ export const RevoraUserRetrySchema = z
   })
   .strict();
 
+/**
+ * Clinical route (W-01). Structurally incapable of carrying a verdict: there is
+ * no `risk` field, so no code path — however broken — can attach "Clear" to a
+ * message about insulin dosing or a hypoglycaemic episode.
+ */
+export const RevoraUserClinicalSchema = z
+  .object({
+    kind: z.literal("clinical"),
+    route: RevoraClinicalRouteSchema,
+    message: UserMessageSchema,
+    disclaimer: DisclaimerSchema
+  })
+  .strict();
+
 export const RevoraUserResponseSchema = z.discriminatedUnion("kind", [
   RevoraUserResultSchema,
   RevoraUserClarifySchema,
   RevoraUserNotFoodSchema,
   RevoraUserOutOfScopeSchema,
+  RevoraUserClinicalSchema,
   RevoraUserRetrySchema
 ]);
 

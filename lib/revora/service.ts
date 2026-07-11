@@ -1,6 +1,8 @@
 import { routeA1C } from "./a1c";
+import { classifyClinicalRisk } from "./clinical-risk";
 import {
   buildClarifyResponse,
+  buildClinicalResponse,
   buildInvalidRequestResponse,
   buildNotFoodResponse,
   buildOutOfScopeResponse,
@@ -8,7 +10,7 @@ import {
 } from "./fallback";
 import { classifyInputBeforeModel } from "./input-precheck";
 import type { RevoraModelClient } from "./openai-client";
-import { postprocessModelOutput } from "./postprocess";
+import { assertNoForbiddenClaims, postprocessModelOutput } from "./postprocess";
 import { buildRevoraPrompt } from "./prompt";
 import { captureServerError } from "./sentry-capture";
 import {
@@ -41,6 +43,26 @@ export async function checkFood(
   }
 
   const request = parsedRequest.data;
+
+  // Clinical risk is checked FIRST — before the A1C route, before the food
+  // precheck, before any prompt is built (W-01).
+  //
+  // The ordering is the policy. "Medical precedence over meal classification"
+  // is not a rule enforced somewhere downstream; it is a consequence of asking
+  // the clinical question before the food question. A message carrying both a
+  // valid meal and a medical one ("2 slices of pizza — how much insulin?")
+  // therefore cannot reach the meal model, and an emergency reported by someone
+  // whose A1C is out of range gets urgent-care copy rather than the calmer
+  // out-of-scope route.
+  //
+  // No model call, no spend, no timeout, and no verdict: the clinical schema
+  // has no `risk` field to put one in.
+  const clinical = classifyClinicalRisk(request.food);
+
+  if (clinical) {
+    return buildClinicalResponse(contract, clinical.route);
+  }
+
   const route = routeA1C(request.a1c);
 
   if (route.kind === "out_of_scope") {
@@ -69,7 +91,13 @@ export async function checkFood(
   for (let attempt = 0; attempt < MAX_MODEL_ATTEMPTS; attempt += 1) {
     try {
       const modelOutput = await deps.model.generate(prompt);
-      return mapModelOutput(modelOutput, contract, route, precheckFlags);
+      return mapModelOutput(
+        modelOutput,
+        contract,
+        route,
+        precheckFlags,
+        request.food
+      );
     } catch (error) {
       // Single attempt: fail closed to controlled retry copy. The provider error
       // is otherwise invisible (we return retry, not check_failed) — surface it to
@@ -86,7 +114,8 @@ function mapModelOutput(
   modelOutput: RevoraModelOutput,
   contract: ReturnType<typeof loadSafetyContract>,
   route: ReturnType<typeof routeA1C>,
-  precheckFlags: RevoraPolicyFlag[]
+  precheckFlags: RevoraPolicyFlag[],
+  food: string
 ): RevoraUserResponse {
   switch (modelOutput.kind) {
     case "result":
@@ -94,9 +123,20 @@ function mapModelOutput(
       return postprocessModelOutput(modelOutput, {
         contract,
         route,
-        precheckFlags
+        precheckFlags,
+        food
       });
     case "clarify":
+      // The clarify and not_food arms bypass postprocess entirely, so before
+      // W-06 they were the one model-authored path with NO output-side claims
+      // check at all — a banned claim smuggled into a clarifying question
+      // ("Is that the version that spikes your glucose by 40 mg/dL?") would
+      // have shipped. Same fail-closed contract as every other field.
+      assertNoForbiddenClaims(contract, [
+        modelOutput.question,
+        ...modelOutput.examples
+      ]);
+
       return RevoraUserResponseSchema.parse(
         RevoraUserClarifySchema.parse({
           kind: "clarify",
@@ -106,6 +146,7 @@ function mapModelOutput(
         })
       );
     case "not_food":
+      assertNoForbiddenClaims(contract, modelOutput.examples);
       return buildNotFoodResponse(contract, modelOutput.examples);
   }
 }

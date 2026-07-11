@@ -1,5 +1,7 @@
+import type { ClinicalRoute } from "./clinical-risk";
 import {
   RevoraUserClarifySchema,
+  RevoraUserClinicalSchema,
   RevoraUserNotFoodSchema,
   RevoraUserOutOfScopeSchema,
   RevoraUserResultSchema,
@@ -41,6 +43,23 @@ export function buildRetryResponse(
   return RevoraUserRetrySchema.parse({
     kind: "retry",
     message: RETRY_MESSAGE,
+    disclaimer: contract.copy.disclaimer
+  });
+}
+
+/**
+ * The clinical route (W-01). Every word comes from the approved copy ledger —
+ * no model is consulted, so there is nothing here to hallucinate, and the
+ * response is identical every time for a given route.
+ */
+export function buildClinicalResponse(
+  contract: SafetyContract,
+  route: ClinicalRoute
+): RevoraUserResponse {
+  return RevoraUserClinicalSchema.parse({
+    kind: "clinical",
+    route,
+    message: contract.copy.clinicalRoutes[route],
     disclaimer: contract.copy.disclaimer
   });
 }
