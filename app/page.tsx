@@ -3,18 +3,34 @@ import Link from "next/link";
 
 import { DemoCheckCard } from "../components/demo-check-card";
 import { IconAlert, IconArrowRight, IconLeaf } from "../components/icons";
+import { TASTER_LIMIT } from "../lib/client/taster-store";
+import { RISK_LABELS } from "../lib/revora/labels";
 import { storeWaitlistUrl } from "../lib/waitlist";
 
 export const metadata: Metadata = {
-  title: "Revora — Should I eat this? One calm answer at every meal",
+  title: "Revora — Should I eat this? One calm verdict at every meal",
   description:
-    "For the prediabetes A1C range (5.7%–6.4%). Snap a photo, say it, or type it — Revora answers with one calm verdict, one reason, and one safer swap. Informational only, not medical advice."
+    "For the prediabetes A1C range (5.7%–6.4%). Snap a photo, say it, or type it — Revora answers with one calm verdict, one reason, and — when there's one — an adjustment and a safer swap. General guidance for your A1C range, not medical advice."
 };
 
 // Marketing landing (DESIGN.md §Marketing landing). The app lives at /check;
 // this page's one job is credibility + the first check. No fabricated social
 // proof — the trust section carries the honest proof points instead. All copy
 // here is scanned by the claims-boundary audit.
+//
+// Two hard rules this file must keep (F-04 / F-07, 2026-07-11 claims
+// reconciliation):
+//  - The adjustment and the swap are CONDITIONAL. A SAFE ("Clear") result is
+//    structurally forbidden either one (lib/revora/postprocess.ts
+//    assertNoUnsafeSafeFields throws), so no surface may promise them
+//    unconditionally. Always hedge: "when there's one".
+//  - The free tier is TASTER_LIMIT checks on day one only, device-local. The
+//    number is interpolated from lib/client/taster-store.ts — never retyped —
+//    so the store listing, the landing page, and the meter can't drift apart.
+//    (Importing the constant is safe from a server component: taster-store
+//    touches `window` only inside function bodies.)
+//
+// Verdict words come from lib/revora/labels.ts (RISK_LABELS) — never retyped.
 export default function LandingPage() {
   const androidWaitlist = storeWaitlistUrl("android");
   const iosWaitlist = storeWaitlistUrl("ios");
@@ -43,13 +59,14 @@ export default function LandingPage() {
                 Built for the prediabetes A1C range (5.7%–6.4%)
               </p>
               <h1 className="landing-h1">
-                Should I eat this? Answered in seconds.
+                Should I eat this? One calm verdict, in seconds.
               </h1>
               <p className="landing-sub">
                 Snap a photo of the meal, say it, or type it. Revora gives you
-                one calm verdict — Clear, Be careful, or Hold off — with one
-                reason, one adjustment, and one safer swap. Never a calorie
-                count, never a lecture.
+                one calm verdict — {RISK_LABELS.SAFE}, {RISK_LABELS.MODERATE},
+                or {RISK_LABELS.HIGH} — with one reason and, when there&apos;s
+                one, an adjustment and a safer swap. General guidance for your
+                A1C range. Never a calorie count, never a lecture.
               </p>
               <div className="landing-cta-row">
                 <Link className="landing-cta" href="/check">
@@ -57,7 +74,8 @@ export default function LandingPage() {
                 </Link>
               </div>
               <p className="landing-cta-hint">
-                No login. No card. Your first day of checks is free.
+                No login. No card. {TASTER_LIMIT} free checks on your first
+                day.
               </p>
               <div className="landing-store-row">
                 {androidWaitlist ? (
@@ -89,7 +107,7 @@ export default function LandingPage() {
                   <p className="result-eyebrow">Revora result</p>
                   <p className="result-title verdict-title" data-risk="MODERATE">
                     <IconAlert size={26} />
-                    Be careful
+                    {RISK_LABELS.MODERATE}
                   </p>
                   <p className="result-copy">
                     Oatmeal on its own is a carb-heavy start, so it can have a
@@ -143,9 +161,10 @@ export default function LandingPage() {
               <p className="landing-step-num">Step 2</p>
               <h3>Get one clear verdict</h3>
               <p>
-                Clear, Be careful, or Hold off — tuned to your A1C, with one
-                reason, one adjustment, and one safer swap. Plain words, no
-                numbers to decode.
+                {RISK_LABELS.SAFE}, {RISK_LABELS.MODERATE}, or{" "}
+                {RISK_LABELS.HIGH} — tuned to your A1C range, with one reason
+                and, when there&apos;s one, an adjustment and a safer swap.
+                Plain words, no numbers to decode.
               </p>
             </div>
             <div className="landing-step">
@@ -264,18 +283,20 @@ export default function LandingPage() {
           <div className="landing-section-head">
             <h2 className="landing-h2">Try it before you pay a cent</h2>
             <p className="landing-section-lede">
-              The funnel is the promise: a free first day, a free week, and a
-              cancel button that lives on your account page — not behind an
-              email.
+              The funnel is the promise: {TASTER_LIMIT} free checks on day one,
+              a free week, and a cancel button that lives on your account page
+              — not behind an email.
             </p>
           </div>
           <div className="landing-price-tiles">
             <div className="landing-price-tile">
               <p className="landing-price-day">Day 1</p>
-              <p className="landing-price-what">Free taste</p>
+              <p className="landing-price-what">
+                {TASTER_LIMIT} free checks
+              </p>
               <p>
-                Check your meals all day — no login, no card. See how the
-                answers feel at your own table.
+                Check up to {TASTER_LIMIT} meals on your first day — no login,
+                no card. See how the answers feel at your own table.
               </p>
             </div>
             <div className="landing-price-tile">
@@ -323,9 +344,10 @@ export default function LandingPage() {
             <details>
               <summary>Do I need an account or a card to try it?</summary>
               <p>
-                No. Your first day of checks needs no login and no card. The
-                7-day free trial needs a card but charges nothing for a week —
-                and we email you before any charge.
+                No. Your first {TASTER_LIMIT} checks, on your first day, need
+                no login and no card — they live on this device only. The 7-day
+                free trial needs a card but charges nothing for a week — and we
+                email you before any charge.
               </p>
             </details>
             <details>

@@ -146,8 +146,17 @@ export function PaywallCard() {
         <li>The progress view</li>
         <li>One gentle daily reminder (optional)</li>
       </ul>
+      {/* F-24: this card used to carry a popularity flag claiming it was the
+          most-chosen plan. Revora has not launched and has zero subscribers, so
+          that was fabricated social proof — a claim about other users we cannot
+          make (PRODUCT.md §Design Principles 4, "No fabricated data").
+          `data-recommended` still drives the visual emphasis; it just no longer
+          lies about why. The annual card's "Best value" flag stays: it is
+          computed from the live prices (annualSavingsPct above), not asserted
+          about a user base. Enforced by the "social-proof" family in
+          claims-boundary-copy.test.ts — which is why this comment describes the
+          old flag rather than quoting it. */}
       <div className="plan-card" data-recommended="">
-        <p className="plan-card-flag">Most popular</p>
         <p className="plan-card-price">
           {monthlyDisplay ?? "$12.99"}
           <span> /month</span>
