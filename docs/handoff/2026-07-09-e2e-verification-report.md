@@ -152,3 +152,96 @@ Playwright notes: Next emitted multiple-lockfile and middleware-deprecation warn
 - The OpenAI billing blocker is treated as a launch blocker, not worked around.
 - No deploy, push, Stripe write, email send, or intentional live OpenAI spend occurred.
 - Safety-frozen files were not modified.
+
+
+*********************************
+
+## Verdict
+
+  Revora’s calm, permission-first health tone is strong. I would not call the public experience fully polished yet: the paywall is unusually clear about price and
+  cancellation, but a public “working draft” Terms page and several cross-app rendering/usability issues materially weaken trust.
+
+  Pencil was installed and authenticated, but this checkout contains no .pen file and no Pencil desktop canvas was running, so its MCP could not return a real node tree or
+  design variables. I used the documented token contract in DESIGN.md:1 plus rendered desktop/mobile captures instead. Pencil’s interactive MCP requires an active .pen
+  document for batch_get and get_variables. Pencil CLI documentation (https://docs.pencil.dev/for-developers/pencil-cli)
+
+  ### Highest-priority findings
+
+   Severity               Surface                       Issue and recommendation
+  ━━━━━━━━━━━━━━━━━━━━━  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Critical               /terms + paywall              The public Terms page says it is a “working draft, pending counsel review,” while users can start a paid trial.
+                                                        Finalize and publish approved terms, legal entity, effective date, billing/cancellation terms, and governing law
+                                                        before sending users through checkout. Do not conceal the draft status.
+  ─────────────────────  ────────────────────────────  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   Major                  All screens                   Rendered pages resolved to Times New Roman, although the design contract specifies Plus Jakarta Sans. Fix the global
+                                                        font-variable wiring and verify computed font-family is Plus Jakarta Sans with an intentional sans-serif fallback.
+                                                        This is a cross-app credibility problem, especially at checkout.
+  ─────────────────────  ────────────────────────────  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   Major                  All screens                   Runtime computed transition: all broadly, contradicting the documented 150/200 ms property-specific motion system.
+                                                        Replace it with explicit color, background-color, border-color, box-shadow, and transform transitions; keep entry
+                                                        motion to opacity/transform and preserve reduced-motion behavior.
+  ─────────────────────  ────────────────────────────  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   Major                  Mobile header/footer          Core navigation and footer links render at roughly 15–18 px high. Root has 16 undersized interactive targets. Make
+                                                        all tappable links at least 44×44 px, with padding and visible :focus-visible treatment.
+  ─────────────────────  ────────────────────────────  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   Major                  /subscribe, /trial/started    /subscribe assumes “Day 2 with Revora” even when reached directly. After checkout, “You’re in” conflicts with “tap
+                                                        the email link to unlock,” while the CTA says “Check your next meal.” Make copy conditional on real trial state; use
+                                                        a post-checkout CTA that matches the required sign-in step.
+  ─────────────────────  ────────────────────────────  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   Major                  /pantry                       The $49, one-time purchase CTA appears only after a long sample report. Put “$49 one payment, nothing renews” and
+                                                        the same primary CTA in the hero, retaining the detailed proof below.
+  ─────────────────────  ────────────────────────────  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   Major                  /demo                         The linked live-example page starts mid-content without a page title or clear orientation, then becomes a long stack
+                                                        of nearly identical verdict cards. Add a clear H1, “Back to check a meal” action, and show one example at a time or
+                                                        group examples by state.
+  ─────────────────────  ────────────────────────────  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   Major, desktop only    App-shell pages               The intentional 480 px frame leaves most desktop screens nearly empty. If desktop is supported, add purposeful
+                                                        secondary context at ≥768 px or use a wider reading frame for non-task pages.
+
+  ### Per-surface review
+
+   Surface                                                  Findings
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   /                                                        Major: mobile nav is too small; landing repeats several similar card grids and carries ~808 visible words. Keep
+                                                            the calm hero, but reduce proof/trial cards into fewer editorial bands.
+  ───────────────────────────────────────────────────────  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   /check                                                   The shell and example result are clear. The isolated review environment could not settle the entitlement-
+                                                            dependent live form, so I did not rate its loading placeholder as a production defect. Recheck this state
+                                                            against a configured runtime.
+  ───────────────────────────────────────────────────────  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   /onboarding                                              Major: progress is a thin bar with no “Step 1 of N,” and “Skip the tour” does not say where it goes. Use “Step 1
+                                                            of 4 · about 30 seconds” and “Skip setup and check a meal.”
+  ───────────────────────────────────────────────────────  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   /subscribe                                               Strong price/cancellation timeline, but fix the contextual “Day 2” claim. Put $0 today, exact first-charge date,
+                                                            price, and cancellation path in one compact block beside the CTA. Only mention a payment provider/security fact
+                                                            if it is literally true.
+  ───────────────────────────────────────────────────────  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   /trial/started                                           Major: confirmation and next action disagree, as above.
+  ───────────────────────────────────────────────────────  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   /canceled                                                Good, reassuring cancellation language. A first capture briefly clipped the heading before settling, another
+                                                            symptom of unsafe global transitions/font instability.
+  ───────────────────────────────────────────────────────  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   /pantry, /pantry/thanks                                  The semantic green/amber/red sample is clear and credible. Move the buying decision higher; the thank-you page
+                                                            appropriately avoids a forced extra action.
+  ───────────────────────────────────────────────────────  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   /pantry/intake, /signin, /signin/check-email             Clear labels and email-first sign-in. Minor: add a resend countdown/status and a more explicit recovery path
+                                                            than bare “Try again.”
+  ───────────────────────────────────────────────────────  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   /history, /progress, /account, /welcome, /report/[id]    Data/auth-dependent states were only available as signed-out/loading states in the isolated runtime. Their
+                                                            global typography, motion, and touch-target issues still apply.
+  ───────────────────────────────────────────────────────  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   /account/delete                                          Strong trust surface: direct, specific disclosure of deleted data and no-retention language. Preserve this
+                                                            pattern.
+  ───────────────────────────────────────────────────────  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   /get-the-app                                             Minor: manual installation instructions are understandable but passive. Where browser support permits, offer an
+                                                            explicit install action; otherwise visually distinguish “coming soon” store text from links.
+  ───────────────────────────────────────────────────────  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   /how-it-works, /privacy                                  Accurate, cautious language builds trust. Minor: long-form pages need a wider desktop reading measure and jump
+                                                            links/table of contents.
+  ───────────────────────────────────────────────────────  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   /terms                                                   Critical: unfinished legal status, as above.
+
+
+*********
+
+

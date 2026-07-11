@@ -56,6 +56,11 @@ export async function renderSpec(spec: VideoSpec, outFile: string): Promise<stri
       inputProps,
       puppeteerInstance: browser,
       chromiumOptions,
+      // Cap concurrency to fit the memory budget. Remotion defaults to ~(cores) tabs; at
+      // 1080x1920 each tab needs ~1GB, so 4 tabs starve a memory-constrained host and the
+      // per-tab page (incl. the font delayRender) hangs → render aborts. One tab renders
+      // reliably (slower). Raise via REMOTION_CONCURRENCY on a host with more free RAM.
+      concurrency: Number(process.env.REMOTION_CONCURRENCY) || 1,
     });
     return outFile;
   } finally {

@@ -16,7 +16,8 @@ export function templateFor(spec: VideoSpec): Template {
     inputProps: {
       durationS: spec.duration_s,
       hookText: spec.visual_hook,
-      beats: spec.beats,
+      // Prefer short on-screen copy; `beats` holds production/shot directions, not screen text.
+      beats: spec.visual_beats && spec.visual_beats.length ? spec.visual_beats : spec.beats,
       disclosureText: d.required ? d.onScreenText : null,
       disclosureHoldS: d.required ? d.holdSeconds : 0,
     },

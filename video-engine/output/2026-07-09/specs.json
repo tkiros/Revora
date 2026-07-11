@@ -28,7 +28,13 @@
       "Common oatmeal toppings like added sugar and dried fruit can keep blood sugar elevated longer than the oats themselves"
     ],
     "duration_s": 20,
-    "status": "DRAFT"
+    "status": "DRAFT",
+    "visual_beats": [
+      "A normal bowl of oatmeal.",
+      "The toppings are the lever.",
+      "Swap them, change the read.",
+      "Comment GUIDE for the breakdown."
+    ]
   },
   {
     "id": "vs-006",
@@ -119,7 +125,7 @@
       "Auto-synced captions for all spoken lines",
       "Light suspenseful background track, faceless-short pacing"
     ],
-    "caption_text": "0.4g sugar looked fine—until we checked the serving size two lines down. Always read the whole label. #FoodLabels #LabelLiteracy #Revora",
+    "caption_text": "0.4g sugar looked fine\u2014until we checked the serving size two lines down. Always read the whole label. #FoodLabels #LabelLiteracy #Revora",
     "disclosure_block": "",
     "claims_used": [],
     "duration_s": 26,
@@ -147,7 +153,7 @@
       "Real Revora verdict card showing per-container sugar total",
       "End-card follow CTA overlay"
     ],
-    "caption_text": "The line everyone skips on a nutrition label — and it changes every number below it. Which line do you check first? 👇 #labelreading #nutritionfacts #foodlabels",
+    "caption_text": "The line everyone skips on a nutrition label \u2014 and it changes every number below it. Which line do you check first? \ud83d\udc47 #labelreading #nutritionfacts #foodlabels",
     "disclosure_block": "",
     "claims_used": [],
     "duration_s": 25,
