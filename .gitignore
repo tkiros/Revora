@@ -9,6 +9,10 @@ out/
 test-results/
 playwright-report/
 coverage/
+artifacts/
+
+# plaintext key files must never be committed (QA 2026-07-10 finding SEC-01)
+openr.md
 
 # generated marketing captures (Task 8.4 — regenerated on demand)
 marketing/screenshots/
@@ -17,6 +21,16 @@ marketing/screenshots/
 .env
 .env.*
 !.env.example
+
+# Vercel CLI env dumps (N-21). `vercel env pull`-style output is an env file
+# wearing a .txt name, so it slipped straight past the .env* rules above and got
+# committed (213ab8a). It carried a live VERCEL_OIDC_TOKEN — see
+# docs/qa/05-known-risks-and-blockers.md N-21. Match on content-shape, not one
+# filename, so the next dump doesn't find a new hole.
+prod-env-check.txt
+*env-check.txt
+*env-dump.txt
+vercel-env*.txt
 
 # misc
 .DS_Store

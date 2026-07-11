@@ -10,7 +10,47 @@ const nextConfig: NextConfig = {
   // A stray ~/package-lock.json (unrelated home-dir tooling) makes Next infer
   // the wrong workspace root and warn about multiple lockfiles (E2E-08).
   // Pin the root to this repo.
-  turbopack: { root: __dirname }
+  turbopack: { root: __dirname },
+  // SEC-04 (QA round 2026-07-10): baseline security headers. CSP notes:
+  // - script/style 'unsafe-inline' is required by Next's inline runtime unless
+  //   we move to nonce-based CSP via middleware — revisit if we ever embed
+  //   third-party scripts (today there are none).
+  // - connect-src includes Vercel Blob because pantry photos upload directly
+  //   from the browser (@vercel/blob/client, components/pantry-intake-flow.tsx).
+  // - camera/microphone stay self-allowed: photo check input + voice input.
+  headers: async () => [
+    {
+      source: "/(.*)",
+      headers: [
+        {
+          key: "Content-Security-Policy",
+          value: [
+            "default-src 'self'",
+            "script-src 'self' 'unsafe-inline'",
+            "style-src 'self' 'unsafe-inline'",
+            "img-src 'self' blob: data: https://*.blob.vercel-storage.com https://*.public.blob.vercel-storage.com",
+            "font-src 'self' data:",
+            "connect-src 'self' https://*.blob.vercel-storage.com https://blob.vercel-storage.com",
+            "frame-ancestors 'none'",
+            "base-uri 'self'",
+            "form-action 'self'",
+            "object-src 'none'"
+          ].join("; ")
+        },
+        { key: "X-Content-Type-Options", value: "nosniff" },
+        { key: "X-Frame-Options", value: "DENY" },
+        { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+        {
+          key: "Permissions-Policy",
+          value: "camera=(self), microphone=(self), geolocation=()"
+        },
+        {
+          key: "Strict-Transport-Security",
+          value: "max-age=63072000; includeSubDomains"
+        }
+      ]
+    }
+  ]
   // Note: the Video Engine dashboard's run.json writes (~1×/s under
   // video-engine/output/) can churn Fast Refresh, but the run is a DETACHED
   // child and survives HMR regardless, so churn is cosmetic. A webpack

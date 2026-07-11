@@ -3,6 +3,7 @@ import NextAuth from "next-auth";
 import Resend from "next-auth/providers/resend";
 
 import { getDb, schema } from "./lib/server/db";
+import { checkEmailCooldown } from "./lib/revora/rate-limit";
 
 /**
  * Auth.js v5 — email magic-link via Resend, database sessions in Railway
@@ -42,6 +43,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       apiKey: process.env.RESEND_API_KEY,
       from: EMAIL_FROM,
       async sendVerificationRequest(params) {
+        // Per-email cooldown (W-11). The Edge proxy limits POST /api/auth/* per
+        // IP, but per-IP cannot see the attack that matters most here: a flood
+        // spread across many IPs aimed at ONE victim's mailbox. This is the
+        // single choke point every magic link passes through — the sign-in form
+        // AND the trial funnel's signIn() call both land here. Throwing aborts
+        // the send (Auth.js surfaces its error page); trial start swallows it
+        // and still returns a checkout url, which is correct: a cooled-down
+        // inbox must never block a paying customer.
+        const cooldown = await checkEmailCooldown("auth_email", params.identifier);
+        if (!cooldown.ok) {
+          throw new Error("Too many sign-in emails requested for this address.");
+        }
+
         // Test/dev mailbox stub: write the magic link to disk instead of
         // sending. Set AUTH_EMAIL_STUB_DIR only in dev/preview test setups.
         const stubDir = process.env.AUTH_EMAIL_STUB_DIR;

@@ -8,11 +8,17 @@
     "typecheck": "rm -rf .next/dev/types .next/types && tsc --noEmit",
     "build": "next build",
     "test": "vitest run",
+    "e2e": "playwright test",
+    "lint": "eslint .",
+    "contract": "node scripts/validate-safety-contract.mjs",
     "test:revora": "vitest run tests/unit/revora",
     "eval:revora": "vitest run tests/evals/revora-safety-eval.test.ts",
     "eval:revora:live": "node scripts/run-graded-evals.mjs",
     "eval:pantry-extract": "vitest run tests/evals/pantry-extract-eval.test.ts",
     "eval:meal-photo": "vitest run tests/evals/meal-photo-eval.test.ts",
+    "eval:model-bakeoff": "tsx scripts/model-bakeoff.ts --dry-run",
+    "eval:model-bakeoff:mock": "tsx scripts/model-bakeoff.ts --mock",
+    "eval:model-bakeoff:live": "tsx scripts/model-bakeoff.ts --live",
     "video-engine": "tsx video-engine/run.ts"
   },
   "dependencies": {
@@ -20,13 +26,14 @@
     "@fontsource/plus-jakarta-sans": "^5.2.8",
     "@remotion/bundler": "^4.0.487",
     "@remotion/renderer": "^4.0.487",
-    "@sentry/node": "^10.60.0",
+    "@sentry/browser": "^10.65.0",
+    "@sentry/node": "10.65.0",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.0",
     "@vercel/blob": "^2.5.0",
     "@vercel/edge-config": "^1.4.3",
     "drizzle-orm": "^0.45.2",
-    "next": "16.2.4",
+    "next": "16.2.10",
     "next-auth": "^5.0.0-beta.31",
     "openai": "6.36.0",
     "pg": "^8.22.0",
@@ -40,6 +47,7 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
     "@electric-sql/pglite": "^0.5.3",
+    "@eslint/eslintrc": "^3.3.6",
     "@playwright/test": "^1.60.0",
     "@types/node": "^24.10.1",
     "@types/pg": "^8.20.0",
@@ -47,8 +55,13 @@
     "@types/react-dom": "^19.2.2",
     "@types/web-push": "^3.6.4",
     "drizzle-kit": "^0.31.10",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.2.10",
     "tsx": "^4.21.0",
     "typescript": "6.0.3",
     "vitest": "4.1.5"
+  },
+  "overrides": {
+    "postcss": "^8.5.10"
   }
 }

@@ -1,8 +1,10 @@
+import OpenAI from "openai";
 import { describe, expect, it, vi } from "vitest";
 
 import {
   DEFAULT_REVORA_MODEL,
   REVORA_JSON_SCHEMA_NAME,
+  RevoraConnectionError,
   createOpenAIRevoraModelClient
 } from "../../../lib/revora/openai-client";
 import { revoraModelJsonSchema } from "../../../lib/revora/schemas";
@@ -50,6 +52,66 @@ describe("createOpenAIRevoraModelClient", () => {
         }
       })
     );
+  });
+
+  const VALID_OUTPUT = {
+    output_text: JSON.stringify({
+      kind: "result",
+      risk: "SAFE",
+      reason: "This looks balanced.",
+      adjustment: null,
+      swap: null,
+      question: null,
+      examples: [],
+      policy_flags: ["safe_food"]
+    })
+  };
+
+  it("retries exactly once on a connection-level error (REL-01)", async () => {
+    const create = vi
+      .fn()
+      .mockRejectedValueOnce(new OpenAI.APIConnectionError({ message: "boom" }))
+      .mockResolvedValueOnce(VALID_OUTPUT);
+
+    const client = createOpenAIRevoraModelClient({
+      client: { responses: { create } }
+    });
+
+    const result = await client.generate({ instructions: "i", input: "f" });
+    expect(result.kind).toBe("result");
+    expect(create).toHaveBeenCalledTimes(2);
+  });
+
+  it("surfaces RevoraConnectionError when the retry also fails", async () => {
+    const create = vi
+      .fn()
+      .mockRejectedValue(new OpenAI.APIConnectionError({ message: "down" }));
+
+    const client = createOpenAIRevoraModelClient({
+      client: { responses: { create } }
+    });
+
+    await expect(
+      client.generate({ instructions: "i", input: "f" })
+    ).rejects.toBeInstanceOf(RevoraConnectionError);
+    expect(create).toHaveBeenCalledTimes(2);
+  });
+
+  it("never retries timeouts or provider HTTP errors (single paid attempt)", async () => {
+    for (const error of [
+      new OpenAI.APIConnectionTimeoutError({ message: "slow" }),
+      Object.assign(new Error("http 500"), { status: 500 })
+    ]) {
+      const create = vi.fn().mockRejectedValue(error);
+      const client = createOpenAIRevoraModelClient({
+        client: { responses: { create } }
+      });
+
+      await expect(
+        client.generate({ instructions: "i", input: "f" })
+      ).rejects.toBe(error);
+      expect(create).toHaveBeenCalledTimes(1);
+    }
   });
 
   it("omits the reasoning parameter by default (behavior-neutral)", async () => {
