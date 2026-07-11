@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { runBaiWeeklyCron } from "../../../../lib/server/bai-cron";
 import { getDb, type Db } from "../../../../lib/server/db";
 import { captureServerError } from "../../../../lib/revora/sentry-capture";
+import { isAuthorizedCron } from "../../../../lib/server/timing-safe";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -15,9 +16,9 @@ export function createBaiCronHandler(deps: Deps = {}) {
   const db = deps.db ?? getDb;
 
   return async function GET(request: Request) {
-    const secret = process.env.CRON_SECRET;
-    const auth = request.headers.get("authorization");
-    if (!secret || auth !== `Bearer ${secret}`) {
+    // Constant-time (N-29): a plain !== on the bearer token leaks its length and
+    // matching prefix through response timing.
+    if (!isAuthorizedCron(request.headers.get("authorization"))) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
 

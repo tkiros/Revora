@@ -26,6 +26,10 @@ import {
   type BillingTelemetryEvent
 } from "../../../lib/server/billing/telemetry";
 import { verifyCancelToken } from "../../../lib/server/billing/cancel-token";
+import { paymentFailedEmailText } from "../../../lib/server/billing/emails";
+import { deleteOrderBlobs } from "../../../lib/server/blob";
+import { timingSafeEqualSecret } from "../../../lib/server/timing-safe";
+import { checkEmailCooldown } from "../../../lib/revora/rate-limit";
 
 /**
  * Billing (plan 4D / docs/adr/billing.md): Play Billing verified server-side
@@ -40,6 +44,7 @@ export type BillingDeps = {
   stripeClient?: () => Stripe;
   now?: () => Date;
   email?: PantryEmailSender;
+  env?: NodeJS.ProcessEnv;
 };
 
 export type PantryEmailSender = {
@@ -74,6 +79,29 @@ function defaultStripe(): Stripe {
   }
   stripeSingleton ??= new Stripe(key);
   return stripeSingleton;
+}
+
+/**
+ * W-04 — the legal gate. /terms still renders counsel placeholders, and taking
+ * money against a placeholder contract is the one failure we cannot undo with a
+ * hotfix. So NO paid-checkout entry point opens until the deploy explicitly
+ * declares the terms final: LEGAL_TERMS_FINAL=1.
+ *
+ * Default-blocked on purpose (env unset ⇒ 503): forgetting the flag can only
+ * ever cost a sale, while forgetting the reverse gate would take real money.
+ * The failure is loud in staging and impossible to miss in QA.
+ *
+ * Deliberately NOT applied to the portal or the cancel paths — an existing
+ * subscriber must ALWAYS be able to manage and leave, terms or no terms.
+ */
+function checkoutGate(env: NodeJS.ProcessEnv = process.env): NextResponse | null {
+  if (env.LEGAL_TERMS_FINAL === "1") {
+    return null;
+  }
+  return NextResponse.json(
+    { error: "Checkout is temporarily unavailable. Please try again soon." },
+    { status: 503 }
+  );
 }
 
 // ── GET /api/entitlement ────────────────────────────────────────────────────
@@ -179,8 +207,14 @@ export function createPlayRtdnHandler(deps: BillingDeps = {}) {
 
   return async function POST(request: Request) {
     const url = new URL(request.url);
-    const expected = process.env.RTDN_SHARED_TOKEN;
-    if (!expected || url.searchParams.get("token") !== expected) {
+    // Constant-time (N-29): a plain !== on the shared token leaks its length and
+    // matching prefix through response timing, and this door is unauthenticated.
+    if (
+      !timingSafeEqualSecret(
+        url.searchParams.get("token"),
+        process.env.RTDN_SHARED_TOKEN
+      )
+    ) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
 
@@ -253,8 +287,14 @@ const CheckoutSchema = z
 export function createStripeCheckoutHandler(deps: BillingDeps = {}) {
   const getSession = deps.getSession ?? getSessionInfo;
   const stripe = deps.stripeClient ?? defaultStripe;
+  const env = deps.env ?? process.env;
 
   return async function POST(request: Request) {
+    const blocked = checkoutGate(env);
+    if (blocked) {
+      return blocked;
+    }
+
     const session = await getSession();
     if (!session) {
       return unauthorized();
@@ -265,11 +305,17 @@ export function createStripeCheckoutHandler(deps: BillingDeps = {}) {
       return NextResponse.json({ error: "Invalid request." }, { status: 400 });
     }
 
+    // W-20 — the legacy (PAYWALL_MODE=legacy) rollback path used to read its own
+    // STRIPE_PRICE_MONTHLY env var, a DIFFERENT variable from the trial funnel's
+    // variant ladder. That silently unenforced the one invariant pricing.ts
+    // exists to hold — "the wall can never show a price checkout won't charge" —
+    // precisely on the path we'd be running during an incident. Both plans now
+    // derive from the same resolvers as every other surface.
     const price =
       parsed.data.plan === "monthly"
-        ? process.env.STRIPE_PRICE_MONTHLY
-        : process.env.STRIPE_PRICE_ANNUAL;
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+        ? resolvePriceVariant(env).priceId
+        : resolveAnnualPrice(env).priceId;
+    const appUrl = env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
     if (!price) {
       return NextResponse.json(
@@ -295,10 +341,16 @@ export function createStripeCheckoutHandler(deps: BillingDeps = {}) {
 
 export function createPantryCheckoutSessionHandler(deps: BillingDeps = {}) {
   const stripe = deps.stripeClient ?? defaultStripe;
+  const env = deps.env ?? process.env;
 
   return async function POST() {
-    const price = process.env.STRIPE_PRICE_PANTRY;
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const blocked = checkoutGate(env);
+    if (blocked) {
+      return blocked;
+    }
+
+    const price = env.STRIPE_PRICE_PANTRY;
+    const appUrl = env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
     if (!price) {
       return NextResponse.json({ error: "The Pantry Review is not available right now." }, { status: 503 });
     }
@@ -328,12 +380,21 @@ export function createStripePortalHandler(deps: BillingDeps = {}) {
       return unauthorized();
     }
 
+    // W-20 — filter on provider, exactly as the cancel path below does. Without
+    // it a user who has BOTH a Play row and a Stripe row gets whichever row the
+    // planner happens to return first (there is no ORDER BY), so a legitimate
+    // Stripe subscriber intermittently gets a 404 from their own manage button.
     const [row] = await db()
       .select()
       .from(schema.subscriptions)
-      .where(eq(schema.subscriptions.userId, session.userId));
+      .where(
+        and(
+          eq(schema.subscriptions.userId, session.userId),
+          eq(schema.subscriptions.provider, "stripe")
+        )
+      );
 
-    if (!row || row.provider !== "stripe") {
+    if (!row) {
       return NextResponse.json(
         { error: "No Stripe subscription to manage." },
         { status: 404 }
@@ -449,6 +510,11 @@ export function createCancelHandlers(deps: BillingDeps = {}) {
 }
 
 // ── POST /api/billing/stripe/webhook ────────────────────────────────────────
+
+// How long a declined card keeps premium after the FIRST failed charge (W-18).
+// Long enough to genuinely fix a card (expired, bank hold), far short of the
+// ~3 weeks Stripe's dunning would otherwise hand out for free.
+const DUNNING_GRACE_MS = 3 * 24 * 60 * 60 * 1000;
 
 export function createStripeWebhookHandler(deps: BillingDeps = {}) {
   const db = deps.db ?? getDb;
@@ -609,6 +675,59 @@ export async function applyStripeEvent(
     return;
   }
 
+  if (event.type === "invoice.payment_failed") {
+    const invoice = event.data.object as Stripe.Invoice;
+    const subscriptionId = resolveInvoiceSubscriptionId(invoice);
+    if (!subscriptionId) {
+      return; // Not a subscription invoice (e.g. the one-time Pantry charge).
+    }
+
+    const [found] = await db
+      .select({ sub: schema.subscriptions, email: schema.users.email })
+      .from(schema.subscriptions)
+      .innerJoin(schema.users, eq(schema.subscriptions.userId, schema.users.id))
+      .where(eq(schema.subscriptions.providerRef, subscriptionId));
+    if (!found || found.sub.status === "refunded") {
+      return; // "refunded" is terminal — see the guard in subscription.updated.
+    }
+    const row = found.sub;
+
+    // Cap the grace window (N-07). Stripe's dunning retries a declined card for
+    // ~3 weeks; mapStripeStatus turns past_due into "grace", which IS entitled,
+    // and currentPeriodEnd stayed weeks out — so a card that will never clear
+    // bought three more weeks of premium at zero revenue, and the user was never
+    // told. Access now ends DUNNING_GRACE_MS from the first failure (or at the
+    // period end already stored, whichever comes first — never extend it).
+    const graceEnd = new Date(now.getTime() + DUNNING_GRACE_MS);
+    const currentPeriodEnd =
+      row.currentPeriodEnd < graceEnd ? row.currentPeriodEnd : graceEnd;
+
+    // Every dunning retry re-fires this event. Once the row is capped, a later
+    // retry recomputes a graceEnd LATER than the stored end — that is the
+    // idempotence signal, and it costs no schema column: cap and email once.
+    if (row.status === "grace" && row.currentPeriodEnd <= graceEnd) {
+      return;
+    }
+
+    await db
+      .update(schema.subscriptions)
+      .set({ status: "grace", currentPeriodEnd, updatedAt: now })
+      .where(eq(schema.subscriptions.id, row.id));
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    await (email?.send ?? sendEmail)({
+      to: found.email,
+      ...paymentFailedEmailText(
+        appUrl,
+        currentPeriodEnd.toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric"
+        })
+      )
+    });
+    return;
+  }
+
   if (
     event.type === "customer.subscription.updated" ||
     event.type === "customer.subscription.deleted"
@@ -617,16 +736,22 @@ export async function applyStripeEvent(
     const item = subscription.items?.data[0];
     const status = mapStripeStatus(subscription.status, event.type);
 
-    // Read the stored row BEFORE the upsert — its pre-update status drives both
-    // the cancel and the conversion telemetry decisions below. (deleted events
-    // need no telemetry, so skip the read for them.)
-    const [existing] =
-      event.type === "customer.subscription.updated"
-        ? await db
-            .select()
-            .from(schema.subscriptions)
-            .where(eq(schema.subscriptions.providerRef, subscription.id))
-        : [undefined];
+    // Read the stored row BEFORE the update — its pre-update status drives the
+    // refund guard below as well as the cancel and conversion telemetry.
+    const [existing] = await db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.providerRef, subscription.id));
+
+    // "refunded" is TERMINAL (N-06). Stripe does not guarantee webhook ordering,
+    // so a customer.subscription.updated emitted before the refund can be
+    // delivered after it — and this handler used to write `status` and
+    // `currentPeriodEnd` unconditionally, which resurrected a refunded
+    // subscription to "active" and handed back the premium we just refunded.
+    // charge.refunded is the only writer of this status; nothing may undo it.
+    if (existing?.status === "refunded") {
+      return;
+    }
 
     // Trial cancellation telemetry: a trial flagged to cancel at period end
     // keeps status "trialing" (entitled until it lapses); we only surface the
@@ -657,13 +782,19 @@ export async function applyStripeEvent(
       status === "active" &&
       existing?.status === "trialing";
 
+    // A payload that omits current_period_end must LEAVE the stored one alone.
+    // Writing `now` (the old fallback) set the paid-through date to this instant,
+    // and getEntitlement requires currentPeriodEnd > now — so any such update
+    // silently revoked premium from a paying, fully-active subscriber.
+    const periodEnd = item?.current_period_end
+      ? new Date(item.current_period_end * 1000)
+      : undefined;
+
     await db
       .update(schema.subscriptions)
       .set({
         status,
-        currentPeriodEnd: item?.current_period_end
-          ? new Date(item.current_period_end * 1000)
-          : now,
+        ...(periodEnd ? { currentPeriodEnd: periodEnd } : {}),
         updatedAt: now
       })
       .where(eq(schema.subscriptions.providerRef, subscription.id));
@@ -686,10 +817,20 @@ export async function applyStripeEvent(
         ? charge.payment_intent
         : charge.payment_intent?.id;
     if (paymentIntent) {
-      await db
+      const canceled = await db
         .update(schema.pantryOrders)
         .set({ status: "canceled", updatedAt: now })
-        .where(eq(schema.pantryOrders.stripePaymentIntent, paymentIntent));
+        .where(eq(schema.pantryOrders.stripePaymentIntent, paymentIntent))
+        .returning({ id: schema.pantryOrders.id });
+
+      // W-33 — a refunded order is over, so its photos must go. Nothing else
+      // ever revisits a canceled order (the sweep only walks live states), so
+      // without this the buyer's food photos would live in blob storage
+      // forever, against the privacy promise. Must run here, while the
+      // pantry_photos rows still hold the only pointers to the objects.
+      for (const order of canceled) {
+        await deleteOrderBlobs(db, order.id);
+      }
     }
 
     // Subscription refund (launch audit BUG-17). Policy: a FULL refund of a
@@ -847,12 +988,14 @@ const TrialStartSchema = z
 export function createTrialCheckoutHandler(
   deps: BillingDeps & {
     sendMagicLink?: (email: string) => Promise<void>;
-    env?: NodeJS.ProcessEnv;
+    emailCooldown?: (email: string) => Promise<{ ok: boolean }>;
   } = {}
 ) {
   const db = deps.db ?? getDb;
   const stripe = deps.stripeClient ?? defaultStripe;
   const env = deps.env ?? process.env;
+  const emailCooldown =
+    deps.emailCooldown ?? ((email: string) => checkEmailCooldown("trial_email", email));
   const sendMagicLink =
     deps.sendMagicLink ??
     (async (email: string) => {
@@ -867,9 +1010,26 @@ export function createTrialCheckoutHandler(
     });
 
   return async function POST(request: Request) {
+    const blocked = checkoutGate(env);
+    if (blocked) {
+      return blocked;
+    }
+
     const parsed = TrialStartSchema.safeParse(await readJson(request));
     if (!parsed.success) {
       return NextResponse.json({ error: "Enter a valid email." }, { status: 400 });
+    }
+
+    // Per-email cooldown (W-11). The proxy already limits this route per IP;
+    // this is the half per-IP cannot see — a distributed flood pointed at ONE
+    // stranger's inbox. Runs BEFORE the users row, the magic link, and the
+    // Stripe session, so a blocked request costs us nothing at all.
+    const cooldown = await emailCooldown(parsed.data.email);
+    if (!cooldown.ok) {
+      return NextResponse.json(
+        { error: "Too many attempts. Please try again in a little while." },
+        { status: 429 }
+      );
     }
 
     const monthly = resolvePriceVariant(env);
@@ -913,13 +1073,26 @@ export function createTrialCheckoutHandler(
       // Non-fatal: /trial/started offers a resend; checkout must not block on email.
     }
 
+    // W-16 — one free week per account, ever. Every checkout used to carry a
+    // fresh trial_period_days, so cancel → re-subscribe → cancel bought free
+    // premium forever. ANY prior subscriptions row disqualifies the trial,
+    // whatever its status: canceled, expired and refunded all mean the free week
+    // was already taken. The row itself is the flag, so this needs no migration
+    // and no new column to keep in sync. A user who merely abandoned checkout
+    // never got a row — they still get the week they never used. Correct.
+    const [priorSubscription] = await db()
+      .select({ id: schema.subscriptions.id })
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.userId, user.id))
+      .limit(1);
+
     const appUrl = env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
     const checkout = await stripe().checkout.sessions.create({
       mode: "subscription",
       line_items: [{ price: priceId, quantity: 1 }],
       payment_method_collection: "always",
       subscription_data: {
-        trial_period_days: 7,
+        ...(priorSubscription ? {} : { trial_period_days: 7 }),
         metadata: { price_variant: variant }
       },
       client_reference_id: user.id,

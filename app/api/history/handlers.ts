@@ -2,6 +2,7 @@ import { and, desc, eq, gte, lt } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import type { A1CBand } from "../../../lib/revora/a1c";
 import { decryptField, encryptField } from "../../../lib/server/crypto";
 import { getDb, schema, type Db } from "../../../lib/server/db";
 import { getEntitlement, type Entitlement } from "../../../lib/server/entitlement";
@@ -28,15 +29,63 @@ const MAX_MIGRATE_BATCH = 500;
 // premium (plan 4D: premium = history + insights + progress + nudge).
 const FREE_HISTORY_DAYS = 7;
 
+/**
+ * N-27 — history-migrate imports rows the CLIENT authored. `createdAt`, `risk`
+ * and `a1cBand` all come out of localStorage, which the owner can edit freely,
+ * and the server used to store whatever arrived. The blast radius is self-only
+ * (every row is stamped with the caller's own userId), but a forged timeline
+ * still corrupts the streak and BAI series the coach reasons over — and those
+ * are numbers we hand back to the user as if we had observed them.
+ *
+ * So bound the timeline server-side: nothing from the future beyond ordinary
+ * client-clock skew, and nothing older than the guest history could plausibly
+ * be. `risk` and `a1cBand` are separately constrained to their real enums (the
+ * a1cBand values the app actually writes), so a hand-edited band can no longer
+ * enter the DB at all.
+ */
+const MIGRATE_MAX_SKEW_MS = 5 * 60 * 1000;
+const MIGRATE_MAX_AGE_MS = 2 * 365 * 24 * 60 * 60 * 1000;
+
+// The bands the app itself writes (lib/revora/a1c.ts is the source of truth —
+// `checks.a1c_band` is untyped text, so this schema is the only thing standing
+// between a hand-edited localStorage entry and the DB). Both directions are
+// asserted at compile time: `satisfies` rejects a value that is not a band, and
+// the Exclude check fails the build if a NEW band is added upstream and not
+// listed here — which would otherwise reject a legitimate migration silently.
+const A1C_BANDS = [
+  "below_prediabetes_range",
+  "prediabetes_57_59",
+  "prediabetes_60_62",
+  "prediabetes_63_64",
+  "diabetes_range_out_of_scope"
+] as const satisfies readonly A1CBand[];
+
+type UncoveredBand = Exclude<A1CBand, (typeof A1C_BANDS)[number]>;
+const _allBandsCovered: UncoveredBand extends never ? true : never = true;
+void _allBandsCovered;
+
+function boundedTimestamp() {
+  return z.iso.datetime().refine(
+    (value) => {
+      const at = new Date(value).getTime();
+      const now = Date.now();
+      return (
+        at <= now + MIGRATE_MAX_SKEW_MS && at >= now - MIGRATE_MAX_AGE_MS
+      );
+    },
+    { message: "Timestamp outside the acceptable range." }
+  );
+}
+
 const StoredCheckSchema = z
   .object({
     clientId: z.string().trim().min(1).max(64),
     food: z.string().trim().min(1).max(160),
     risk: z.enum(["SAFE", "MODERATE", "HIGH"]),
-    a1cBand: z.string().trim().min(1).max(32),
+    a1cBand: z.enum(A1C_BANDS),
     inputMethod: z.enum(["text", "voice"]),
-    createdAt: z.iso.datetime(),
-    actionDoneAt: z.iso.datetime().optional()
+    createdAt: boundedTimestamp(),
+    actionDoneAt: boundedTimestamp().optional()
   })
   .strict();
 
