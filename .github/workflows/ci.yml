@@ -1,0 +1,99 @@
+# CI — the gates that were claimed but never ran.
+#
+# `docs/qa/05-known-risks-and-blockers.md` marked QA-01 ("no lint config; no CI
+# workflow") as **Fixed**. It was not. This file existed only as an UNTRACKED
+# local file — `git ls-tree origin/main` showed no `.github/` at all — so GitHub
+# had never executed it, and the original finding's condition ("test gates run
+# only by hand") was still literally true on every branch, including main.
+#
+# Everything below except typecheck/test/bakeoff is a gate that did not
+# previously exist anywhere:
+#   lint      — there was no eslint config and eslint was not even a dependency
+#               (QA-01's second half, never addressed at all)
+#   build     — never gated; a build break could reach main
+#   contract  — scripts/validate-safety-contract.mjs existed but was wired to
+#               NOTHING: no npm script, no CI step. It validates the copy ledger
+#               and runs the forbidden-claim regexes over every approved string.
+#   secrets   — no secret scan, in a repo whose own QA record carries two
+#               unrotated key exposures (SEC-01/SEC-02)
+#   e2e       — 15 Playwright specs (incl. axe a11y) were unreachable from any
+#               npm script: vitest.config.ts only matches *.test.ts and there was
+#               no `e2e` script. They could only ever be run by hand.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # Fast gates first — fail in ~2 minutes rather than after a 10-minute E2E run.
+  static:
+    name: typecheck · lint · contract · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run contract
+      - run: npm run build
+        env:
+          # lib/server/crypto fails CLOSED without a key rather than handling
+          # health data unencrypted, so the build needs one. A throwaway CI value
+          # exercises that path and never touches real data.
+          HEALTH_DATA_KEY: ${{ secrets.CI_HEALTH_DATA_KEY || 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=' }}
+
+  test:
+    name: unit · evals (mock — no keys, no spend)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run test
+      - run: npm run eval:model-bakeoff:mock
+
+  e2e:
+    name: playwright (incl. axe a11y)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
+        env:
+          HEALTH_DATA_KEY: ${{ secrets.CI_HEALTH_DATA_KEY || 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=' }}
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  secrets:
+    name: secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # gitleaks needs history: SEC-02 is a set of live keys in commit 213ab8a.
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
