@@ -104,7 +104,16 @@ test("fresh users and guests never see the nudge ask", async ({ page }) => {
     await route.fulfill({ status: 401, contentType: "application/json", body: "{}" });
   });
 
+  // DailyLoop renders null until loadHistory() resolves, and that awaits
+  // fetch("/api/history"). Under `next dev` the route is compiled on first
+  // request, so asserting straight after goto() races a cold compile — this
+  // test failed, passed, then failed again across three CI runs. Wait for the
+  // response the component is actually blocked on instead of widening a timeout
+  // and hoping.
+  const history = page.waitForResponse((r) => r.url().includes("/api/history"));
   await page.goto("/check");
+  await history;
+
   await expect(page.getByTestId("daily-loop-empty")).toBeVisible();
   await expect(page.getByTestId("nudge-opt-in")).toHaveCount(0);
 });
