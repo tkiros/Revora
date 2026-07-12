@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { createCoachRouteHandler } from "../../../app/api/coach/route";
 import { encryptField } from "../../../lib/server/crypto";
@@ -75,6 +75,10 @@ afterAll(async () => {
   await testDb.close();
 });
 
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+
 describe("GET /api/coach", () => {
   it("401s signed-out requests", async () => {
     const GET = createCoachRouteHandler({
@@ -86,7 +90,22 @@ describe("GET /api/coach", () => {
     expect((await GET()).status).toBe(401);
   });
 
-  it("returns streak, week view, daypart insight, and the latest BAI — no food, no exact a1c", async () => {
+  it("returns no longitudinal insight unless the counsel-gated feature is explicitly enabled", async () => {
+    const GET = createCoachRouteHandler({
+      db: () => testDb.db,
+      getSession: async () => ({ userId, email: "coach@test.dev" }),
+      now: () => NOW
+    });
+
+    const body = await (await GET()).json();
+
+    expect(body.insight).toBeNull();
+    expect(body.streak).toBe(3);
+    expect(body.weekView).toHaveLength(7);
+  });
+
+  it("returns streak, week view, daypart insight, and the latest BAI when explicitly enabled — no food, no exact a1c", async () => {
+    vi.stubEnv("NEXT_PUBLIC_LONGITUDINAL_INSIGHTS", "1");
     const GET = createCoachRouteHandler({
       db: () => testDb.db,
       getSession: async () => ({ userId, email: "coach@test.dev" }),

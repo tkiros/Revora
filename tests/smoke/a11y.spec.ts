@@ -49,7 +49,7 @@ async function blockingViolations(page: Page) {
 test("home page has no critical or serious a11y violations", async ({ page }) => {
   await page.goto("/check?stay=1");
   await expect(
-    page.getByRole("button", { name: "Should I eat this?" })
+    page.getByRole("button", { name: "Check this meal" })
   ).toBeVisible();
 
   expect(await blockingViolations(page)).toEqual([]);
@@ -137,7 +137,7 @@ test("result state has no critical or serious a11y violations", async ({
   await page.goto("/check?stay=1");
   await page.getByLabel(/what are you thinking about eating/i).fill("white rice");
   await page.getByLabel(/latest a1c/i).fill("6.1");
-  await page.getByRole("button", { name: "Should I eat this?" }).click();
+  await page.getByRole("button", { name: "Check this meal" }).click();
   await expect(page.getByTestId("result-card")).toBeVisible();
 
   expect(await blockingViolations(page)).toEqual([]);
@@ -163,7 +163,7 @@ test("error/status surface has no critical or serious a11y violations", async ({
   await page.goto("/check?stay=1");
   await page.getByLabel(/what are you thinking about eating/i).fill("white rice");
   await page.getByLabel(/latest a1c/i).fill("6.1");
-  await page.getByRole("button", { name: "Should I eat this?" }).click();
+  await page.getByRole("button", { name: "Check this meal" }).click();
   await expect(page.getByTestId("request-status")).toBeVisible();
 
   expect(await blockingViolations(page)).toEqual([]);

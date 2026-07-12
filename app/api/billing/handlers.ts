@@ -30,6 +30,8 @@ import { paymentFailedEmailText } from "../../../lib/server/billing/emails";
 import { deleteOrderBlobs } from "../../../lib/server/blob";
 import { timingSafeEqualSecret } from "../../../lib/server/timing-safe";
 import { checkEmailCooldown } from "../../../lib/revora/rate-limit";
+import { TERMS_VERSION } from "../../../lib/legal/terms";
+import { playBillingEnabled } from "../../../lib/play-billing-flag";
 
 /**
  * Billing (plan 4D / docs/adr/billing.md): Play Billing verified server-side
@@ -56,7 +58,11 @@ export type PantryEmailSender = {
 };
 
 const PlayVerifySchema = z
-  .object({ purchaseToken: z.string().trim().min(1).max(512) })
+  .object({
+    purchaseToken: z.string().trim().min(1).max(512),
+    termsAccepted: z.literal(true),
+    termsVersion: z.literal(TERMS_VERSION)
+  })
   .strict();
 
 function unauthorized() {
@@ -82,14 +88,14 @@ function defaultStripe(): Stripe {
 }
 
 /**
- * W-04 — the legal gate. /terms still renders counsel placeholders, and taking
- * money against a placeholder contract is the one failure we cannot undo with a
- * hotfix. So NO paid-checkout entry point opens until the deploy explicitly
- * declares the terms final: LEGAL_TERMS_FINAL=1.
+ * W-04 — the paid-launch gate. No paid-checkout entry point opens until the
+ * deploy explicitly declares the reviewed Terms final: LEGAL_TERMS_FINAL=1.
  *
  * Default-blocked on purpose (env unset ⇒ 503): forgetting the flag can only
  * ever cost a sale, while forgetting the reverse gate would take real money.
- * The failure is loud in staging and impossible to miss in QA.
+ * The failure is loud in staging and impossible to miss in QA. A separately
+ * validated HTTPS return URL is also required before Stripe can create a
+ * customer session.
  *
  * Deliberately NOT applied to the portal or the cancel paths — an existing
  * subscriber must ALWAYS be able to manage and leave, terms or no terms.
@@ -100,6 +106,30 @@ function checkoutGate(env: NodeJS.ProcessEnv = process.env): NextResponse | null
   }
   return NextResponse.json(
     { error: "Checkout is temporarily unavailable. Please try again soon." },
+    { status: 503 }
+  );
+}
+
+function paymentReturnUrl(env: NodeJS.ProcessEnv): string | null {
+  const configured = env.NEXT_PUBLIC_APP_URL?.trim();
+  if (!configured) {
+    return null;
+  }
+
+  try {
+    const url = new URL(configured);
+    return url.protocol === "https:" ? url.origin : null;
+  } catch {
+    return null;
+  }
+}
+
+function paymentReturnUrlGate(env: NodeJS.ProcessEnv): NextResponse | null {
+  if (paymentReturnUrl(env)) {
+    return null;
+  }
+  return NextResponse.json(
+    { error: "Billing is not configured." },
     { status: 503 }
   );
 }
@@ -150,8 +180,12 @@ export function createPlayVerifyHandler(deps: BillingDeps = {}) {
   const getSession = deps.getSession ?? getSessionInfo;
   const playLookup = deps.playLookup ?? fetchPlaySubscription;
   const now = deps.now ?? (() => new Date());
+  const env = deps.env ?? process.env;
 
   return async function POST(request: Request) {
+    if (!playBillingEnabled({ NEXT_PUBLIC_PLAY_BILLING: env.NEXT_PUBLIC_PLAY_BILLING })) {
+      return NextResponse.json({ error: "Google Play billing is not available." }, { status: 503 });
+    }
     const session = await getSession();
     if (!session) {
       return unauthorized();
@@ -181,6 +215,8 @@ export function createPlayVerifyHandler(deps: BillingDeps = {}) {
         providerRef: parsed.data.purchaseToken,
         productId: info.productId ?? "premium_monthly",
         status: info.status,
+        termsVersion: parsed.data.termsVersion,
+        termsAcceptedAt: now(),
         currentPeriodEnd: info.currentPeriodEnd,
         updatedAt: now()
       })
@@ -188,6 +224,8 @@ export function createPlayVerifyHandler(deps: BillingDeps = {}) {
         target: schema.subscriptions.providerRef,
         set: {
           status: info.status,
+          termsVersion: parsed.data.termsVersion,
+          termsAcceptedAt: now(),
           currentPeriodEnd: info.currentPeriodEnd,
           updatedAt: now()
         }
@@ -281,7 +319,11 @@ function extractPurchaseToken(
 // ── POST /api/billing/stripe/checkout ───────────────────────────────────────
 
 const CheckoutSchema = z
-  .object({ plan: z.enum(["monthly", "annual"]) })
+  .object({
+    plan: z.enum(["monthly", "annual"]),
+    termsAccepted: z.literal(true),
+    termsVersion: z.literal(TERMS_VERSION)
+  })
   .strict();
 
 export function createStripeCheckoutHandler(deps: BillingDeps = {}) {
@@ -294,7 +336,6 @@ export function createStripeCheckoutHandler(deps: BillingDeps = {}) {
     if (blocked) {
       return blocked;
     }
-
     const session = await getSession();
     if (!session) {
       return unauthorized();
@@ -303,6 +344,10 @@ export function createStripeCheckoutHandler(deps: BillingDeps = {}) {
     const parsed = CheckoutSchema.safeParse(await readJson(request));
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+    }
+    const invalidReturnUrl = paymentReturnUrlGate(env);
+    if (invalidReturnUrl) {
+      return invalidReturnUrl;
     }
 
     // W-20 — the legacy (PAYWALL_MODE=legacy) rollback path used to read its own
@@ -315,7 +360,7 @@ export function createStripeCheckoutHandler(deps: BillingDeps = {}) {
       parsed.data.plan === "monthly"
         ? resolvePriceVariant(env).priceId
         : resolveAnnualPrice(env).priceId;
-    const appUrl = env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const appUrl = paymentReturnUrl(env)!;
 
     if (!price) {
       return NextResponse.json(
@@ -329,6 +374,10 @@ export function createStripeCheckoutHandler(deps: BillingDeps = {}) {
       line_items: [{ price, quantity: 1 }],
       client_reference_id: session.userId,
       customer_email: session.email,
+      metadata: { terms_version: parsed.data.termsVersion },
+      subscription_data: {
+        metadata: { terms_version: parsed.data.termsVersion }
+      },
       success_url: `${appUrl}/account?subscribed=1`,
       cancel_url: `${appUrl}/subscribe`
     });
@@ -339,18 +388,37 @@ export function createStripeCheckoutHandler(deps: BillingDeps = {}) {
 
 // ── POST /api/billing/stripe/pantry-checkout ────────────────────────────────
 
+const PantryCheckoutSchema = z
+  .object({
+    termsAccepted: z.literal(true),
+    termsVersion: z.literal(TERMS_VERSION)
+  })
+  .strict();
+
 export function createPantryCheckoutSessionHandler(deps: BillingDeps = {}) {
   const stripe = deps.stripeClient ?? defaultStripe;
   const env = deps.env ?? process.env;
 
-  return async function POST() {
+  return async function POST(request: Request) {
     const blocked = checkoutGate(env);
     if (blocked) {
       return blocked;
     }
+    const invalidReturnUrl = paymentReturnUrlGate(env);
+    if (invalidReturnUrl) {
+      return invalidReturnUrl;
+    }
+
+    const parsed = PantryCheckoutSchema.safeParse(await readJson(request));
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Accept the Terms and Privacy Notice before checkout." },
+        { status: 400 }
+      );
+    }
 
     const price = env.STRIPE_PRICE_PANTRY;
-    const appUrl = env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const appUrl = paymentReturnUrl(env)!;
     if (!price) {
       return NextResponse.json({ error: "The Pantry Review is not available right now." }, { status: 503 });
     }
@@ -360,6 +428,7 @@ export function createPantryCheckoutSessionHandler(deps: BillingDeps = {}) {
     const checkout = await stripe().checkout.sessions.create({
       mode: "payment",
       line_items: [{ price, quantity: 1 }],
+      metadata: { terms_version: parsed.data.termsVersion },
       success_url: `${appUrl}/pantry/thanks`,
       cancel_url: `${appUrl}/pantry`
     });
@@ -580,6 +649,10 @@ export async function applyStripeEvent(
     const isTrialing = subscription?.status === "trialing";
     const status = isTrialing ? "trialing" : "active";
     const priceVariant = subscription?.metadata?.price_variant ?? null;
+    const termsVersion =
+      subscription?.metadata?.terms_version ??
+      session.metadata?.terms_version ??
+      null;
     const currentPeriodEnd =
       isTrialing && subscription?.trial_end
         ? new Date(subscription.trial_end * 1000)
@@ -599,12 +672,20 @@ export async function applyStripeEvent(
             : "premium_monthly",
         status,
         priceVariant,
+        termsVersion,
+        termsAcceptedAt: termsVersion ? now : null,
         currentPeriodEnd,
         updatedAt: now
       })
       .onConflictDoUpdate({
         target: schema.subscriptions.providerRef,
-        set: { status, priceVariant, updatedAt: now }
+        set: {
+          status,
+          priceVariant,
+          termsVersion,
+          termsAcceptedAt: termsVersion ? now : null,
+          updatedAt: now
+        }
       });
 
     if (isTrialing) {
@@ -940,6 +1021,8 @@ async function applyPantryCheckout(
           ? session.payment_intent
           : (session.payment_intent?.id ?? null),
       claimToken: tokenHash,
+      termsVersion: session.metadata?.terms_version ?? null,
+      termsAcceptedAt: session.metadata?.terms_version ? now : null,
       updatedAt: now
     })
     .onConflictDoNothing({ target: schema.pantryOrders.stripeSessionId })
@@ -994,7 +1077,9 @@ const TrialStartSchema = z
     email: z.string().trim().toLowerCase().email().max(254),
     // 2-plan wall (owner decision 2026-07-10). Absent = monthly, so existing
     // clients keep working unchanged.
-    plan: z.enum(["monthly", "annual"]).optional()
+    plan: z.enum(["monthly", "annual"]).optional(),
+    termsAccepted: z.literal(true),
+    termsVersion: z.literal(TERMS_VERSION)
   })
   .strict();
 
@@ -1033,6 +1118,10 @@ export function createTrialCheckoutHandler(
     const blocked = checkoutGate(env);
     if (blocked) {
       return blocked;
+    }
+    const invalidReturnUrl = paymentReturnUrlGate(env);
+    if (invalidReturnUrl) {
+      return invalidReturnUrl;
     }
 
     const parsed = TrialStartSchema.safeParse(await readJson(request));
@@ -1106,15 +1195,19 @@ export function createTrialCheckoutHandler(
       .where(eq(schema.subscriptions.userId, user.id))
       .limit(1);
 
-    const appUrl = env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const appUrl = paymentReturnUrl(env)!;
     const checkout = await stripe().checkout.sessions.create({
       mode: "subscription",
       line_items: [{ price: priceId, quantity: 1 }],
       payment_method_collection: "always",
       subscription_data: {
         ...(priorSubscription ? {} : { trial_period_days: 7 }),
-        metadata: { price_variant: variant }
+        metadata: {
+          price_variant: variant,
+          terms_version: parsed.data.termsVersion
+        }
       },
+      metadata: { terms_version: parsed.data.termsVersion },
       client_reference_id: user.id,
       customer_email: email,
       success_url: `${appUrl}/trial/started`,

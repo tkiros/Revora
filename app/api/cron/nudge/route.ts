@@ -30,7 +30,7 @@ async function defaultSend(
       return "error";
     }
     webpush.setVapidDetails(
-      `mailto:${process.env.SUPPORT_EMAIL ?? "support@revora.app"}`,
+      `mailto:${process.env.SUPPORT_EMAIL ?? "support@revora.bio"}`,
       publicKey,
       privateKey
     );

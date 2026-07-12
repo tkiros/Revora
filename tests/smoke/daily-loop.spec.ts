@@ -29,7 +29,7 @@ async function stubModerate(page: Page) {
 async function runCheck(page: Page, food: string) {
   await page.getByLabel(/what are you thinking about eating/i).fill(food);
   await page.getByLabel(/latest a1c/i).fill("6.1");
-  await page.getByRole("button", { name: "Should I eat this?" }).click();
+  await page.getByRole("button", { name: "Check this meal" }).click();
   await expect(page.getByTestId("result-card")).toBeVisible();
 }
 
@@ -105,7 +105,7 @@ test("empty history page is calm and passes axe", async ({ page }) => {
   expect(serious).toEqual([]);
 });
 
-test("insight appears after five checks with a daypart pattern", async ({
+test("longitudinal insight stays absent after five checks when the gate is off", async ({
   page
 }) => {
   await page.goto("/check?stay=1");
@@ -145,6 +145,6 @@ test("insight appears after five checks with a daypart pattern", async ({
 
   await page.reload();
 
-  await expect(page.getByTestId("insight-card")).toContainText("breakfast");
-  await expect(page.getByTestId("insight-card")).toContainText("swap");
+  await expect(page.getByTestId("insight-card")).toHaveCount(0);
+  await expect(page.getByText(/weekly insights from your own meals/i)).toHaveCount(0);
 });

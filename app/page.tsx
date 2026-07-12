@@ -4,13 +4,15 @@ import Link from "next/link";
 import { DemoCheckCard } from "../components/demo-check-card";
 import { IconAlert, IconArrowRight, IconLeaf } from "../components/icons";
 import { TASTER_LIMIT } from "../lib/client/taster-store";
+import { longitudinalInsightsEnabled } from "../lib/longitudinal-insights-flag";
+import { photoInputEnabled } from "../lib/photo-input-flag";
 import { RISK_LABELS } from "../lib/revora/labels";
 import { storeWaitlistUrl } from "../lib/waitlist";
 
 export const metadata: Metadata = {
-  title: "Revora — Should I eat this? One calm verdict at every meal",
+  title: "Revora — A cautious educational read on your meal",
   description:
-    "For the prediabetes A1C range (5.7%–6.4%). Snap a photo, say it, or type it — Revora answers with one calm verdict, one reason, and — when there's one — an adjustment and a safer swap. General guidance for your A1C range, not medical advice."
+    "For adults using a prediabetes-range A1C. Describe a meal and get general meal-composition information, cautious labels, and practical alternatives."
 };
 
 // Marketing landing (DESIGN.md §Marketing landing). The app lives at /check;
@@ -34,6 +36,8 @@ export const metadata: Metadata = {
 export default function LandingPage() {
   const androidWaitlist = storeWaitlistUrl("android");
   const iosWaitlist = storeWaitlistUrl("ios");
+  const photoEnabled = photoInputEnabled();
+  const insightsEnabled = longitudinalInsightsEnabled();
   return (
     <main className="landing">
       {/* ── Dark band: nav + hero ─────────────────────────────── */}
@@ -59,14 +63,17 @@ export default function LandingPage() {
                 Built for the prediabetes A1C range (5.7%–6.4%)
               </p>
               <h1 className="landing-h1">
-                Should I eat this? One calm verdict, in seconds.
+                Check a meal. Understand its balance in seconds.
               </h1>
               <p className="landing-sub">
-                Snap a photo of the meal, say it, or type it. Revora gives you
-                one calm verdict — {RISK_LABELS.SAFE}, {RISK_LABELS.MODERATE},
-                or {RISK_LABELS.HIGH} — with one reason and, when there&apos;s
-                one, an adjustment and a safer swap. General guidance for your
-                A1C range. Never a calorie count, never a lecture.
+                {photoEnabled
+                  ? "Snap a photo of the meal, say it, or type it. "
+                  : "Say what is in the meal or type it. "}
+                Revora gives you one cautious educational label —{" "}
+                {RISK_LABELS.SAFE}, {RISK_LABELS.MODERATE}, or {RISK_LABELS.HIGH}
+                — with one reason and, when appropriate, an adjustment and one
+                practical alternative. The labels describe general meal
+                patterns, not your individual glucose response.
               </p>
               <div className="landing-cta-row">
                 <Link className="landing-cta" href="/check">
@@ -102,7 +109,7 @@ export default function LandingPage() {
             {/* Phone mockup: the real result-card markup, pixel-true. */}
             <div className="landing-phone" aria-hidden="true">
               <div className="landing-phone-inner">
-                <p className="status-eyebrow">You snap: oatmeal</p>
+                <p className="status-eyebrow">You enter: oatmeal</p>
                 <div className="result-card" data-risk="MODERATE">
                   <p className="result-eyebrow">Revora result</p>
                   <p className="result-title verdict-title" data-risk="MODERATE">
@@ -110,9 +117,9 @@ export default function LandingPage() {
                     {RISK_LABELS.MODERATE}
                   </p>
                   <p className="result-copy">
-                    Oatmeal on its own is a carb-heavy start, so it can have a
-                    higher blood-sugar impact than its healthy reputation
-                    suggests.
+                    Oatmeal on its own leans heavily on carbohydrates and has
+                    less protein or nonstarchy-vegetable balance than a mixed
+                    meal.
                   </p>
                   <div className="result-list">
                     <p className="result-row">
@@ -144,8 +151,8 @@ export default function LandingPage() {
             <h2 className="landing-h2">Three ways in. One calm answer out.</h2>
             <p className="landing-section-lede">
               Revora is built for the moment of the meal — when you&apos;re
-              standing in the kitchen or staring at a menu, and you just need
-              to know.
+              standing in the kitchen or staring at a menu and want a clearer
+              description of its overall balance.
             </p>
           </div>
           <div className="landing-grid-3">
@@ -153,27 +160,31 @@ export default function LandingPage() {
               <p className="landing-step-num">Step 1</p>
               <h3>Show Revora the meal</h3>
               <p>
-                Snap a photo, dictate it, or type it. You review the text
-                before anything is checked — you stay in control.
+                {photoEnabled
+                  ? "Snap a photo, dictate it, or type it. "
+                  : "Dictate it or type it. "}
+                You review the text before anything is checked — you stay in
+                control.
               </p>
             </div>
             <div className="landing-step">
               <p className="landing-step-num">Step 2</p>
-              <h3>Get one clear verdict</h3>
+              <h3>Get one cautious label</h3>
               <p>
                 {RISK_LABELS.SAFE}, {RISK_LABELS.MODERATE}, or{" "}
-                {RISK_LABELS.HIGH} — tuned to your A1C range, with one reason
-                and, when there&apos;s one, an adjustment and a safer swap.
-                Plain words, no numbers to decode.
+                {RISK_LABELS.HIGH} — using broad A1C-range context only to
+                avoid over-reassurance, with one reason and, when appropriate,
+                an adjustment and one practical alternative. It is not an
+                individual-response prediction.
               </p>
             </div>
             <div className="landing-step">
               <p className="landing-step-num">Step 3</p>
               <h3>Keep the habit</h3>
               <p>
-                Your checks become a streak, your week becomes patterns, and
-                one gentle daily reminder keeps it going. One honest check a
-                day is the whole habit.
+                Your checks become a saved history and week view
+                {insightsEnabled ? ", with a weekly pattern when one stands out" : ""}.
+                One optional daily reminder keeps the habit going.
               </p>
             </div>
           </div>
@@ -201,23 +212,20 @@ export default function LandingPage() {
               telling you exactly what it measures and where it stops.
             </p>
           </div>
-          {/* Research proof, honestly framed: a citation for the approach,
-              never a promise about this user's numbers. */}
+          {/* Evidence boundary: sources support educational statements, not a
+              product outcome claim. */}
           <div className="landing-proof-band">
-            <p className="landing-proof-stat">58%</p>
+            <p className="landing-proof-stat">Sources</p>
             <div>
               <p>
-                In the landmark CDC DPP trial (NEJM, 2002), participants who
-                made sustained diet and activity changes saw a 58% reduction
-                in progression to type 2 diabetes. Revora&apos;s daily check
-                is built around the same idea that trial studied: small,
-                consistent food decisions, made at the meal.
+                Revora&apos;s general meal-planning principles are mapped to
+                public-health guidance and cited nutrition research. Those
+                sources support narrow educational statements; they are not
+                evidence that Revora produces a particular health result.
               </p>
               <p className="landing-proof-note">
-                A citation for the approach — not a result from Revora&apos;s
-                users, and not a promise about your numbers.{" "}
                 <Link className="inline-link" href="/how-it-works">
-                  Read the research disclosure
+                  Read the evidence and limitations
                 </Link>
                 .
               </p>
@@ -311,8 +319,8 @@ export default function LandingPage() {
               <p className="landing-price-day">After</p>
               <p className="landing-price-what">$12.99/month</p>
               <p>
-                Unlimited checks, your history on every device, weekly
-                patterns, one gentle reminder. Cancel in one tap.
+                Unlimited checks, your history on every device, progress you
+                can see, and one gentle reminder. Cancel in one tap.
               </p>
             </div>
           </div>
@@ -328,9 +336,11 @@ export default function LandingPage() {
               <summary>Is Revora medical advice?</summary>
               <p>
                 No. Revora is informational only and is not medical advice.
-                It gives general guidance for your A1C range — your own
-                response to a food can differ. Talk with a doctor or
-                registered dietitian for guidance specific to you.
+                Its labels describe general meal patterns. Broad A1C-range
+                context only makes the presentation more cautious; it does not
+                predict your response or decide whether a meal is medically
+                appropriate. Talk with a doctor or registered dietitian for
+                guidance specific to you.
               </p>
             </details>
             <details>
@@ -350,14 +360,16 @@ export default function LandingPage() {
                 email you before any charge.
               </p>
             </details>
-            <details>
-              <summary>How does the photo check work?</summary>
-              <p>
-                Your photo becomes a draft list of what&apos;s on the plate.
-                You review and confirm the words before anything is checked —
-                the photo never skips your judgment. Photos are not kept.
-              </p>
-            </details>
+            {photoEnabled ? (
+              <details>
+                <summary>How does the photo check work?</summary>
+                <p>
+                  Your photo becomes a draft list of what&apos;s on the plate.
+                  You review and confirm the words before anything is checked —
+                  the photo never skips your judgment. Photos are not kept.
+                </p>
+              </details>
+            ) : null}
             <details>
               <summary>How do I cancel?</summary>
               <p>
@@ -376,8 +388,8 @@ export default function LandingPage() {
           <section className="landing-final">
             <h2 className="landing-h2">Your next meal is the start.</h2>
             <p className="landing-sub">
-              Ask the question you&apos;ve been carrying around. It takes
-              about ten seconds.
+              Describe the meal and see the general pattern Revora notices. It
+              takes about ten seconds.
             </p>
             <Link className="landing-cta" href="/check">
               Check your first meal — free

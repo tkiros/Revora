@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   computeStreak,
@@ -9,6 +9,10 @@ import {
 } from "../../../lib/coach/days";
 import { computeCoachView } from "../../../lib/coach/compute";
 import { deriveInsight } from "../../../lib/coach/insights";
+
+beforeEach(() => {
+  vi.stubEnv("NEXT_PUBLIC_LONGITUDINAL_INSIGHTS", "1");
+});
 import type { StoredCheck } from "../../../lib/client/history-store";
 
 // 2026-07-03 02:00 UTC — evening of 07-02 in Denver, morning of 07-03 in UTC.

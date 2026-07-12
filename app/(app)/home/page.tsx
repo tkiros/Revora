@@ -19,6 +19,7 @@ import {
   MIN_CHECKS_FOR_INSIGHT,
   type CoachInsight
 } from "../../../lib/coach/insights";
+import { longitudinalInsightsEnabled } from "../../../lib/longitudinal-insights-flag";
 import { safeDecrypt } from "../../../lib/server/crypto";
 import { getDb, schema } from "../../../lib/server/db";
 import { getPlanBox } from "../../../lib/server/plan-box";
@@ -153,9 +154,10 @@ export default async function HomePage() {
     }
   }
 
-  const insight =
-    coach.insight ??
-    (rows.length >= MIN_CHECKS_FOR_INSIGHT ? INSIGHT_FALLBACK : null);
+  const insight = longitudinalInsightsEnabled()
+    ? coach.insight ??
+      (rows.length >= MIN_CHECKS_FOR_INSIGHT ? INSIGHT_FALLBACK : null)
+    : null;
 
   const data: DashboardData = {
     todayLabel: now.toLocaleDateString("en-US", {

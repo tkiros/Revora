@@ -22,9 +22,10 @@ describe("PantryBuyButton contract", () => {
   });
 
   it("POSTs to the pantry checkout endpoint and redirects to the returned url", () => {
-    expect(SOURCE).toContain(
-      'fetch("/api/billing/stripe/pantry-checkout", { method: "POST" })'
-    );
+    expect(SOURCE).toContain('fetch("/api/billing/stripe/pantry-checkout", {');
+    expect(SOURCE).toContain('method: "POST"');
+    expect(SOURCE).toContain("termsAccepted");
+    expect(SOURCE).toContain("termsVersion: TERMS_VERSION");
     expect(SOURCE).toContain("window.location.assign(body.url)");
   });
 

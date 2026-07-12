@@ -301,6 +301,17 @@ async function persistCheck(input: {
     return;
   }
 
+  // A signed-in session is not consent. Persist only while the consent-bearing
+  // profile exists; withdrawing stored-health-data consent deletes that row.
+  const [profile] = await input
+    .db()
+    .select({ consentedAt: schema.profiles.consentedAt })
+    .from(schema.profiles)
+    .where(eq(schema.profiles.userId, session.userId));
+  if (!profile?.consentedAt) {
+    return;
+  }
+
   const methodHeader = input.headers.get("x-revora-input-method");
   const clientId = input.headers.get("x-revora-client-id");
 

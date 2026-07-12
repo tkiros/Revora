@@ -7,7 +7,11 @@ Reconciled 2026-07-04 against docs/handoff/2026-07-04-unified-completion-plan.md
 
 ## ⚠ Longest-lead items — start these today
 
-1. ⏳ **Counsel engagement** (Track B B1). Questions: the four in `docs/legal/counsel-brief.md` **plus** Q5 insights-SaMD, Q6 Art. 9 consent wording, Q7 refund adequacy, Q8 the 3 "reversal" lines (Brand Positioning L240/287/295), Q9 forward-looking imaging-SaMD (D5 gate), Q10 review of the `app/terms/page.tsx` draft (P9 — subscription/refund/liability/governing-law language and the two bracketed placeholders it still carries). Sign-off must be on file before Play submission (P9).
+1. ✅ **Owner-risk launch decision recorded for the exact candidate.** The owner
+   waived professional counsel on 2026-07-12 because of budget and launch-speed
+   constraints. `docs/legal/owner-risk-launch-decision-5f6abcb.md` records the
+   scope and residual risk. Automated GREEN remains engineering evidence, not a
+   legal opinion or counsel clearance.
 2. ⏳ **Google Play Developer account ($25)** — ID verification takes days. Decide **account type** (individual vs business) first.
 3. ⏳ **Trademark clearance "Revora"** (2–4 weeks).
 4. ⏳ **Domain decision + purchase** — everything in P7–P9 (DNS, Resend deliverability, assetlinks, deletion URL, listing URLs) hangs off the final domain.
@@ -20,7 +24,7 @@ Reconciled 2026-07-04 against docs/handoff/2026-07-04-unified-completion-plan.md
 - ☐ Launch SKUs/prices — default **$12.99/mo · $99.99/yr**, lifetime deferred
 - ☐ Free-tier daily check count — default **5**
 - ☐ Support email — default `support@<domain>`
-- ☐ Refund policy stance
+- ✅ Refund policy stance — first web subscription charge refundable within seven calendar days; duplicate/unauthorized/mandatory-law cases covered; Pantry refundable until processing begins
 - ☐ US-only vs EU launch — default **US-only**
 - ☐ Approve app name/icon/brand as final
 
@@ -66,6 +70,9 @@ Reconciled 2026-07-04 against docs/handoff/2026-07-04-unified-completion-plan.md
 · `NEXT_PUBLIC_APP_URL` 
 · ⚙`REVIEWER_TEST_SECRET` (**preview only**) 
 · `NEXT_PUBLIC_REVIEWER_MODE` (**preview only, never production**)
+· keep `NEXT_PUBLIC_PHOTO_INPUT` and
+  `NEXT_PUBLIC_LONGITUDINAL_INSIGHTS` unset in preview/production until each
+  function has completed evidence review and explicit written owner approval
 
 ## §3 Money
 
@@ -75,13 +82,18 @@ Reconciled 2026-07-04 against docs/handoff/2026-07-04-unified-completion-plan.md
 · OpenAI usage 
 · Railway/Resend/Umami-hosting/Upstash tiers 
 · Stripe fees 
-· counsel fees
+· optional future counsel fees
 
-## §4 Legal / counsel / compliance
+## §4 Legal / owner-risk / compliance
 
-- ⏳ Counsel sign-off per Track B B1 (see top)
+- ✅ Professional review waived/deferred by owner; the candidate is explicitly
+  not counsel-cleared
+- ☐ Owner supplies entity, address, market, venue, refund/merchant choices,
+  monitored support inbox, and named refund/incident owners
+- ✅ Owner accepted the documented residual risk of launching without an
+  independent legal opinion
 - ☐ OpenAI DPA executed
-- ☐ GDPR Art. 9 consent wording approved (blocks 4A sign-up copy finalization; build uses draft wording marked `COUNSEL-DRAFT`)
+- ✅ Purpose-bound health-data consent implemented; names OpenAI, links Privacy, and is separately revocable without deleting login/subscription
 - ⏳ Trademark clearance "Revora"
 - ☐ Company entity confirmed (payouts/tax)
 - ☐ Privacy policy + ToS live on prod domain
@@ -168,10 +180,10 @@ provisioning (`docs/adr/hosting-hybrid.md`, `docs/adr/analytics-umami.md`):
 Both Play-submission-readiness artifacts are implemented and tested; three
 manual steps remain before Play review can use them:
 
-- ☐ **Counsel review of the `/terms` draft** — folded into item 1 (Q10)
-  above. The page is marked `COUNSEL-DRAFT` in-app and carries a visible
-  "Last updated" date; it has two bracketed placeholders (operating-entity
-  name, governing law/venue) that need a real answer before this is final.
+- ☐ **Capture the deployed operator identity** — the owner WTP decision
+  authorizes the public name `Revora` and `support@revora.bio` for the limited
+  Stripe scope. Set both explicitly in production and capture `/terms` and
+  `/privacy`; do not add a fictional legal identity or address.
 - ☐ **Run the reviewer-account seed script against the preview database**
   once Railway Postgres is provisioned (§1):
   `DATABASE_URL=<preview-url> HEALTH_DATA_KEY=<preview-key> node
@@ -245,19 +257,14 @@ business decision:
   `docs/ops/play-listing.md` (title, descriptions, tags, content-rating
   answers, health-apps declaration, Data Safety form per
   `docs/ops/play-twa-runbook.md` §9.2) once the domain, `<...>` placeholders,
-  and counsel sign-off (next item) are resolved.
+  and the real operator/commercial facts (next item) are resolved.
 - ☐ **Capture the screenshots** per `docs/ops/play-listing.md` §9's
   shot-list, signed in as the seeded `reviewer@revora.test` account so no
   real user's data appears in a public store asset.
-- ⏳ **Counsel sign-offs Q1–Q10** (`docs/legal/counsel-brief.md`) —
-  including Q10 (the `/terms` draft) and Q8 specifically (the three
-  "reversal" lines in `Revora_Brand_Positioning_v2.md` — now softened
-  toward the user-as-agent North-Star framing and marked inline
-  `<!-- counsel Q8: pending confirmation -->` at the App Store subtitle
-  tagline row (§11) and both Screen 1/Screen 3 onboarding lines (§13); still
-  needs an actual counsel answer, not just the softened wording). Must be
-  on file before Play submission and before any benefit-implying marketing
-  (Gate 2, `docs/production-implementation-plan-2026-07-01.md` §11).
+- ✅ **Owner-risk decision** — professional review was waived/deferred. The
+  SHA-bound decision is recorded in
+  `docs/legal/owner-risk-launch-decision-5f6abcb.md`; it does not claim counsel
+  clearance. Photo-assist and longitudinal insights remain off.
 - ☐ **Create the `support@<domain>` inbox** and route it to whoever owns
   Tier 1/2 in `docs/ops/support-playbook.md`'s escalation ladder.
 - ☐ **Stand up an uptime monitor** against `https://<domain>/api/health`

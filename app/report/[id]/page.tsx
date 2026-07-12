@@ -13,7 +13,7 @@ export const metadata = {
   robots: { index: false, follow: false }
 };
 
-const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL ?? "support@revora.app";
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL ?? "support@revora.bio";
 
 const BAND_LABEL: Record<string, string> = {
   prediabetes_57_59: "5.7% – 5.9%",

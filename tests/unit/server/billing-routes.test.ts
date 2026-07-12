@@ -18,6 +18,7 @@ import {
 import { encryptField } from "../../../lib/server/crypto";
 import { schema } from "../../../lib/server/db";
 import { createTestDb } from "../../helpers/test-db";
+import { TERMS_VERSION } from "../../../lib/legal/terms";
 
 const TEST_KEY = Buffer.alloc(32, 6).toString("base64");
 const NOW = new Date("2026-07-03T15:00:00.000Z");
@@ -29,6 +30,7 @@ let userId: string;
 beforeAll(async () => {
   process.env.HEALTH_DATA_KEY = TEST_KEY;
   process.env.RTDN_SHARED_TOKEN = "rtdn-secret";
+  process.env.NEXT_PUBLIC_PLAY_BILLING = "1";
   // W-04: every paid-checkout entry point 503s unless the deploy declares the
   // terms final. These suites exercise the real paths, so they declare it; the
   // gate itself is proven by its own describe block below.
@@ -51,6 +53,7 @@ beforeAll(async () => {
 afterAll(async () => {
   delete process.env.HEALTH_DATA_KEY;
   delete process.env.RTDN_SHARED_TOKEN;
+  delete process.env.NEXT_PUBLIC_PLAY_BILLING;
   delete process.env.LEGAL_TERMS_FINAL;
   await testDb.close();
 });
@@ -69,11 +72,31 @@ function post(url: string, body: unknown) {
   return new Request(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(body)
+    body: JSON.stringify({
+      ...(body as Record<string, unknown>),
+      termsAccepted: true,
+      termsVersion: TERMS_VERSION
+    })
   });
 }
 
 describe("POST /api/billing/play/verify", () => {
+  it("fails closed while Play billing is not explicitly enabled", async () => {
+    const playLookup = vi.fn();
+    const POST = createPlayVerifyHandler({
+      ...baseDeps(),
+      playLookup,
+      env: { NEXT_PUBLIC_PLAY_BILLING: undefined } as unknown as NodeJS.ProcessEnv
+    });
+
+    const response = await POST(
+      post("http://t/api/billing/play/verify", { purchaseToken: "tok-disabled" })
+    );
+
+    expect(response.status).toBe(503);
+    expect(playLookup).not.toHaveBeenCalled();
+  });
+
   it("verifies server-side, upserts the subscription, returns premium", async () => {
     const playLookup = vi.fn().mockResolvedValue({
       status: "active",
@@ -128,6 +151,62 @@ describe("POST /api/billing/play/verify", () => {
     await POST(request());
 
     expect(await testDb.db.select().from(schema.subscriptions)).toHaveLength(1);
+  });
+});
+
+describe("POST /api/billing/stripe/checkout terms acceptance", () => {
+  it("rejects checkout without affirmative current-version acceptance", async () => {
+    const stripe = {
+      checkout: { sessions: { create: vi.fn() } }
+    };
+    const POST = createStripeCheckoutHandler({
+      ...baseDeps(),
+      stripeClient: () => stripe as never
+    });
+    const response = await POST(
+      new Request("http://t/api/billing/stripe/checkout", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ plan: "monthly" })
+      })
+    );
+    expect(response.status).toBe(400);
+    expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
+  });
+
+  it("records the accepted Terms version in Stripe metadata", async () => {
+    const previousPrice = process.env.STRIPE_PRICE_MONTHLY_1299;
+    const previousUrl = process.env.NEXT_PUBLIC_APP_URL;
+    process.env.STRIPE_PRICE_MONTHLY_1299 = "price_monthly";
+    process.env.NEXT_PUBLIC_APP_URL = "https://revora.bio";
+    const stripe = {
+      checkout: {
+        sessions: { create: vi.fn().mockResolvedValue({ url: "https://stripe/x" }) }
+      }
+    };
+    try {
+      const POST = createStripeCheckoutHandler({
+        ...baseDeps(),
+        stripeClient: () => stripe as never
+      });
+      const response = await POST(
+        post("http://t/api/billing/stripe/checkout", { plan: "monthly" })
+      );
+      expect(response.status).toBe(200);
+      expect(stripe.checkout.sessions.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: { terms_version: TERMS_VERSION },
+          subscription_data: {
+            metadata: { terms_version: TERMS_VERSION }
+          }
+        })
+      );
+    } finally {
+      if (previousPrice === undefined) delete process.env.STRIPE_PRICE_MONTHLY_1299;
+      else process.env.STRIPE_PRICE_MONTHLY_1299 = previousPrice;
+      if (previousUrl === undefined) delete process.env.NEXT_PUBLIC_APP_URL;
+      else process.env.NEXT_PUBLIC_APP_URL = previousUrl;
+    }
   });
 });
 
@@ -1352,6 +1431,19 @@ describe("POST /api/billing/stripe/checkout (W-20b price unification, W-04 gate)
     const response = await POST(post("http://t/api/billing/stripe/checkout", { plan: "monthly" }));
     expect(response.status).toBe(503);
     expect((await response.json()).error).toMatch(/unavailable/i);
+    expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
+  });
+
+  it("503s rather than creating a live checkout with an invalid return URL", async () => {
+    const stripe = stripeStub();
+    const POST = createStripeCheckoutHandler({
+      ...baseDeps(),
+      stripeClient: () => stripe as never,
+      env: { ...checkoutEnv, NEXT_PUBLIC_APP_URL: "http://localhost:3000" } as NodeJS.ProcessEnv
+    });
+
+    const response = await POST(post("http://t/api/billing/stripe/checkout", { plan: "monthly" }));
+    expect(response.status).toBe(503);
     expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
   });
 });

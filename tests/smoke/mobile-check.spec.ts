@@ -110,13 +110,13 @@ async function fillValidForm(page: Page, overrides?: Partial<{ food: string; a1c
 test("public no-login form", async ({ page }) => {
   await page.goto("/check?stay=1");
 
-  await expect(page.getByRole("heading", { name: /should i eat this/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /check this meal/i })).toBeVisible();
   await expect(
     page.getByLabel(/what are you thinking about eating/i)
   ).toBeVisible();
   await expect(page.getByLabel(/latest a1c/i)).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Should I eat this?" })
+    page.getByRole("button", { name: "Check this meal" })
   ).toBeVisible();
 });
 
@@ -133,7 +133,7 @@ test("invalid submit does not POST", async ({ page }) => {
   });
 
   await page.goto("/check?stay=1");
-  await page.getByRole("button", { name: "Should I eat this?" }).click();
+  await page.getByRole("button", { name: "Check this meal" }).click();
 
   await expect(page.getByText("Enter a food or meal.")).toBeVisible();
   await expect(page.getByText("Enter your A1C with one decimal.")).toBeVisible();
@@ -143,7 +143,7 @@ test("invalid submit does not POST", async ({ page }) => {
 test("cta label and position", async ({ page }) => {
   await page.goto("/check?stay=1");
 
-  const button = page.getByRole("button", { name: "Should I eat this?" });
+  const button = page.getByRole("button", { name: "Check this meal" });
   await expect(button).toBeVisible();
 
   // A11Y-01. This used to be a flat `expect(box.y).toBeLessThan(720)` for both
@@ -182,11 +182,11 @@ test("single screen flow", async ({ page }) => {
   await page.goto("/check?stay=1");
   await fillValidForm(page);
 
-  await page.getByRole("button", { name: "Should I eat this?" }).click();
+  await page.getByRole("button", { name: "Check this meal" }).click();
 
   await expect(page).toHaveURL(/\/check\?stay=1$/);
   await expect(page.getByTestId("result-card")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Should I eat this?" })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Check this meal" })).toHaveCount(1);
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
@@ -196,7 +196,7 @@ test("decision card v2 blocks render for MODERATE and not for SAFE", async ({
   await stubCheckRoute(page, { kind: "moderate" });
   await page.goto("/check?stay=1");
   await fillValidForm(page);
-  await page.getByRole("button", { name: "Should I eat this?" }).click();
+  await page.getByRole("button", { name: "Check this meal" }).click();
 
   // W-17 reframed this from the imperative "Eat it in this order:" — the tip is
   // a general strategy, not a reading of the user's plate, and saying otherwise
@@ -212,7 +212,7 @@ test("decision card v2 blocks render for MODERATE and not for SAFE", async ({
   await page.unrouteAll();
   await stubCheckRoute(page, { kind: "result" });
   await fillValidForm(page, { food: "egg scramble with spinach" });
-  await page.getByRole("button", { name: "Should I eat this?" }).click();
+  await page.getByRole("button", { name: "Check this meal" }).click();
 
   await expect(page.getByTestId("result-card")).toBeVisible();
   await expect(page.getByTestId("sequencing-tip")).toHaveCount(0);
@@ -224,7 +224,7 @@ test("loading state", async ({ page }) => {
   await page.goto("/check?stay=1");
   await fillValidForm(page);
 
-  await page.getByRole("button", { name: "Should I eat this?" }).click();
+  await page.getByRole("button", { name: "Check this meal" }).click();
 
   await expect(page.getByRole("button", { name: "Checking..." })).toBeVisible();
   await expect(page.getByTestId("request-status")).toContainText("Checking your food");
@@ -235,7 +235,7 @@ test("slow state after five seconds", async ({ page }) => {
   await page.goto("/check?stay=1");
   await fillValidForm(page);
 
-  await page.getByRole("button", { name: "Should I eat this?" }).click();
+  await page.getByRole("button", { name: "Check this meal" }).click();
 
   await expect(page.getByText(/still checking/i)).toBeVisible({ timeout: 7_000 });
   await expect(page.getByText(/taking a little longer/i)).toBeVisible();
@@ -246,7 +246,7 @@ test("friendly retry states", async ({ page }) => {
   await page.goto("/check?stay=1");
   await fillValidForm(page);
 
-  await page.getByRole("button", { name: "Should I eat this?" }).click();
+  await page.getByRole("button", { name: "Check this meal" }).click();
 
   await expect(page.getByText("Try again on this page")).toBeVisible();
   await expect(page.getByText(/a lot of people right now/i)).toBeVisible();
@@ -287,7 +287,7 @@ test("offline submit short-circuits before any network call", async ({
 
   await page.goto("/check?stay=1");
   await fillValidForm(page);
-  await page.getByRole("button", { name: "Should I eat this?" }).click();
+  await page.getByRole("button", { name: "Check this meal" }).click();
 
   await expect(page.getByText(/check your connection/i)).toBeVisible();
   await expect(page.getByText("Clear", { exact: true })).toHaveCount(0);
@@ -299,7 +299,7 @@ test("normal response before five seconds", async ({ page }) => {
   await page.goto("/check?stay=1");
   await fillValidForm(page);
 
-  await page.getByRole("button", { name: "Should I eat this?" }).click();
+  await page.getByRole("button", { name: "Check this meal" }).click();
 
   await expect(page.getByText("Clear", { exact: true })).toBeVisible();
   await expect(
@@ -315,7 +315,7 @@ test("result readability", async ({ page }) => {
   await page.goto("/check?stay=1");
   await fillValidForm(page);
 
-  await page.getByRole("button", { name: "Should I eat this?" }).click();
+  await page.getByRole("button", { name: "Check this meal" }).click();
 
   const resultCard = page.getByTestId("result-card");
   const reason = page.getByText("This looks balanced enough for your usual plan.");
@@ -338,7 +338,7 @@ test("useful response states", async ({ page }) => {
   await page.goto("/check?stay=1");
   await fillValidForm(page);
 
-  await page.getByRole("button", { name: "Should I eat this?" }).click();
+  await page.getByRole("button", { name: "Check this meal" }).click();
 
   await expect(
     page.getByText("Can you share the main portion or sides?")
@@ -348,7 +348,7 @@ test("useful response states", async ({ page }) => {
   await stubCheckRoute(page, { kind: "not_food" });
   await page.reload();
   await fillValidForm(page, { food: "glass vase" });
-  await page.getByRole("button", { name: "Should I eat this?" }).click();
+  await page.getByRole("button", { name: "Check this meal" }).click();
 
   await expect(page.getByText(/turkey sandwich/i)).toBeVisible();
 
@@ -356,7 +356,7 @@ test("useful response states", async ({ page }) => {
   await stubCheckRoute(page, { kind: "out_of_scope" });
   await page.reload();
   await fillValidForm(page, { a1c: "7.0" });
-  await page.getByRole("button", { name: "Should I eat this?" }).click();
+  await page.getByRole("button", { name: "Check this meal" }).click();
 
   await expect(
     page.getByText(/prediabetes-range a1c checks right now/i)

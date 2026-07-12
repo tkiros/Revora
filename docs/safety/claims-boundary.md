@@ -16,6 +16,33 @@ expands.
 - Revora must stay qualitative when it talks about blood-sugar impact.
 - Any copy outside this boundary is out of scope for the MVP.
 
+## Intended Use Statement
+
+> Revora provides general educational information about meal composition for
+> adults using an A1C in the prediabetes range. It uses a user-provided A1C
+> range only to apply a more cautious educational presentation. Its labels
+> describe general meal patterns; they do not determine whether a meal is
+> medically appropriate for an individual and do not predict an individual
+> glucose response or future laboratory result.
+
+This factual intended-use statement replaces any claim that Revora has a
+particular regulatory status. Product behavior, store copy, support, and
+marketing must all remain consistent with it.
+
+## Verdict Semantics
+
+The internal `SAFE` / `MODERATE` / `HIGH` classes render as educational labels,
+not findings about an individual's physiology:
+
+| Label | Meaning | Must never imply |
+| --- | --- | --- |
+| `Clear` | The described meal appears generally balanced under the documented meal-composition rules. | Safe for the user, guaranteed response, or clinical suitability. |
+| `Be careful` | The description leans toward a concentrated or less-balanced pattern where a practical adjustment may help. | A measured glucose response or individualized risk finding. |
+| `Hold off` | The description is unusually concentrated, materially incomplete, or otherwise warrants the most cautious educational presentation. | A medical prohibition, emergency warning, or care instruction. |
+
+The words `safe`, `risk`, and `verdict` may remain internal identifiers, but
+public copy must call the output a label, read, or educational result.
+
 ## Allowed Claim Classes
 
 | Claim Class | Applies To | Allowed Language | Not Allowed Yet | Notes |
@@ -41,6 +68,10 @@ expands.
 - Exact GI or GL number claims
 - FDA approval or clearance claims
 - Unsupported clinical proof or clinical-outcome guarantee claims
+- Claims that a label establishes personal safety, clinical suitability, or an
+  individual physiologic response
+- Population study outcomes used as evidence that Revora itself produces the
+  same outcome
 
 ## Reusable Disclaimer
 

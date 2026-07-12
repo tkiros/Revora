@@ -21,7 +21,7 @@ const OPEN_STATUSES = [
   "ready"
 ] as const;
 
-const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL ?? "support@revora.app";
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL ?? "support@revora.bio";
 
 export default async function PantryIntakePage() {
   const session = await getSessionInfo();

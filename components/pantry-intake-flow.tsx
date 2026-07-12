@@ -238,18 +238,20 @@ export function PantryIntakeFlow({
               />
             </div>
             <div className="field-stack">
-              {/* COUNSEL-DRAFT (Track B Q6): Art. 9 explicit-consent wording
-                  pending counsel sign-off; structure (unchecked-by-default,
-                  blocking, revocable) is final. */}
+              {/* Purpose-bound health-data consent: unchecked by default,
+                  blocking for the report, and revocable through Account. */}
               <label className="field-label pantry-consent">
                 <input
                   type="checkbox"
                   checked={consented}
                   onChange={(event) => setConsented(event.target.checked)}
                 />{" "}
-                I consent to Revora storing my A1C range, my food details, and
-                my pantry photos to prepare my Pantry Review. Photos are
-                deleted when the report is delivered.{" "}
+                I explicitly consent to Revora collecting and using my A1C
+                range, food details, notes, and pantry photos to prepare my
+                Pantry Review. OpenAI processes the photos and confirmed item
+                text; Revora encrypts the saved health details. Photos are
+                deleted after use. I can withdraw consent and erase claimed
+                report data from Account.{" "}
                 <a href="/privacy">How Revora handles health data</a>.
               </label>
             </div>

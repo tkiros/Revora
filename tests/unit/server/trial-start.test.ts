@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTrialCheckoutHandler } from "../../../app/api/billing/handlers";
 import { schema } from "../../../lib/server/db";
 import { createTestDb } from "../../helpers/test-db";
+import { TERMS_VERSION } from "../../../lib/legal/terms";
 
 /**
  * Task 2.6 — email-first trial checkout. Account is created at trial start
@@ -26,7 +27,11 @@ function jsonRequest(body: unknown) {
   return new Request("http://t/api/trial/start", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(body)
+    body: JSON.stringify({
+      ...(body as Record<string, unknown>),
+      termsAccepted: true,
+      termsVersion: TERMS_VERSION
+    })
   });
 }
 
@@ -74,11 +79,29 @@ it("creates the user, sends the magic link, and returns a trial checkout url", a
     line_items: [{ price: "price_1299", quantity: 1 }],
     subscription_data: {
       trial_period_days: 7,
-      metadata: { price_variant: "1299" }
+      metadata: {
+        price_variant: "1299",
+        terms_version: TERMS_VERSION
+      }
     },
+    metadata: { terms_version: TERMS_VERSION },
     success_url: "https://app/trial/started",
     cancel_url: "https://app/subscribe?declined=1"
   });
+});
+
+it("503s rather than creating a trial checkout with an invalid return URL", async () => {
+  const stripe = stripeStub();
+  const handler = createTrialCheckoutHandler({
+    db: () => ctx.db,
+    stripeClient: () => stripe as never,
+    sendMagicLink: vi.fn(),
+    env: { ...trialEnv, NEXT_PUBLIC_APP_URL: "http://localhost:3000" } as NodeJS.ProcessEnv
+  });
+
+  const res = await handler(jsonRequest({ email: "invalid-return@example.com" }));
+  expect(res.status).toBe(503);
+  expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
 });
 
 it("is idempotent for an existing user (no duplicate users row)", async () => {
@@ -144,7 +167,10 @@ it("plan=annual checks out against the annual price with annual metadata", async
   expect(call.line_items).toEqual([{ price: "price_annual", quantity: 1 }]);
   expect(call.subscription_data).toMatchObject({
     trial_period_days: 7,
-    metadata: { price_variant: "annual" }
+    metadata: {
+      price_variant: "annual",
+      terms_version: TERMS_VERSION
+    }
   });
 });
 
@@ -237,7 +263,10 @@ describe("repeat-trial guard (W-16)", () => {
 
       const call = stripe.checkout.sessions.create.mock.calls[0][0];
       expect(call.subscription_data.trial_period_days).toBeUndefined();
-      expect(call.subscription_data.metadata).toEqual({ price_variant: "1299" });
+      expect(call.subscription_data.metadata).toEqual({
+        price_variant: "1299",
+        terms_version: TERMS_VERSION
+      });
     });
   }
 

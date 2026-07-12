@@ -115,7 +115,7 @@ test("taster: first-run walk lands a guided oatmeal check and meters used===1", 
       )
   );
 
-  await page.getByRole("button", { name: "Should I eat this?" }).click();
+  await page.getByRole("button", { name: "Check this meal" }).click();
 
   const card = page.getByTestId("result-card");
   await expect(card).toHaveAttribute("data-kind", "result");
@@ -143,7 +143,7 @@ test("exhaustion: a spent taster is walled on the next submit", async ({ page })
   await expect(page).toHaveURL(/\/check$/);
   await settlePaywallMode(page);
 
-  await page.getByRole("button", { name: "Should I eat this?" }).click();
+  await page.getByRole("button", { name: "Check this meal" }).click();
   await expect(page).toHaveURL(/\/subscribe$/);
   await expect(page.getByTestId("trial-wall")).toBeVisible();
 });
@@ -160,7 +160,7 @@ test("day 2: an aged-out taster is walled on the next submit", async ({ page }) 
   await expect(page).toHaveURL(/\/check$/);
   await settlePaywallMode(page);
 
-  await page.getByRole("button", { name: "Should I eat this?" }).click();
+  await page.getByRole("button", { name: "Check this meal" }).click();
   await expect(page).toHaveURL(/\/subscribe$/);
   await expect(page.getByTestId("trial-wall")).toBeVisible();
 });
@@ -197,6 +197,7 @@ test("wall → checkout: value → start POSTs the trial and navigates", async (
   // one click reaches the email step.
   await page.getByRole("button", { name: "Start my free week" }).click();
   await page.getByLabel("Your email").fill("wall@revora.test");
+  await page.getByTestId("trial-terms-consent").check();
   await page
     .getByRole("button", { name: "Continue to checkout — $0 due today" })
     .click();
@@ -275,7 +276,7 @@ test("legacy guard: PAYWALL_MODE=legacy shows the paywall card, never the wall",
   // Waiting on the hydrated check form proves FirstRunGate's effect ran: had it
   // redirected, we'd be on /onboarding (no such button there).
   await expect(
-    page.getByRole("button", { name: "Should I eat this?" })
+    page.getByRole("button", { name: "Check this meal" })
   ).toBeVisible();
   await expect(page).toHaveURL(/\/check$/);
   await expect(page.getByTestId("onboarding-step")).toHaveCount(0);
