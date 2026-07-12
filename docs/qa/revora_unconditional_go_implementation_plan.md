@@ -1,5 +1,17 @@
 # Revora — Unconditional-Go Implementation Plan
 
+> **Execution status (2026-07-12).** Phases 0–2 are executed and merged (`8f3557d`, PR #7, tag
+> `rc-2026-07-12`), CI green, deployed to production. A line-by-line audit of this plan against the
+> merged tree found **eight gaps**; seven are closed and one (the live eval, W-07) was **waived by
+> the owner** and remains unmeasured. Read **`docs/qa/14-plan-vs-tree-gap-audit.md`** before citing
+> anything here as done, and **`docs/qa/revora_release_scorecard.md`** for the verdict
+> (**CONDITIONAL GO** — four human conditions, none of them engineering).
+>
+> Three clauses below are now stale and are corrected in the audit rather than silently rewritten
+> here: W-01 ships **fail-closed**, not fail-open (safer than specified); W-16 uses the existing
+> `subscriptions` row as the trial-used flag rather than a **schema migration** (no new column to
+> desync); and W-13's `model` field is a bounded string, not an enum.
+
 **Date:** 2026-07-11 · **Input:** `docs/qa/sol_deep_analysis_validation.md` (finding IDs F-xx/N-xx referenced throughout) · **Goal:** move the release verdict from today's honest **NO-GO (broad paid launch)** through **CONDITIONAL GO** to **UNCONDITIONAL GO** with evidence, not assertions.
 
 **Effort scale:** XS <1d · S 1–3d · M 3–7d · L 1–2wk · XL >2wk.

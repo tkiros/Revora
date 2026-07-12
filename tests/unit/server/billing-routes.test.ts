@@ -973,6 +973,155 @@ describe("applyStripeEvent — refund ordering (W-12)", () => {
 });
 
 /**
+ * W-10 — churn was uninstrumented. The two event names existed on the REVORA
+ * telemetry enum, which the webhook does not import and whose .strict() schema
+ * could never have accepted them: a signal that was documented but structurally
+ * incapable of firing. These tests exist so it cannot go quiet again.
+ */
+describe("applyStripeEvent — churn telemetry (W-10)", () => {
+  type Emitted = { name: string; priceVariant?: string };
+
+  const emitted = (
+    info: { mock: { calls: unknown[][] } },
+    name: string
+  ): Emitted[] =>
+    info.mock.calls
+      .map((call): Emitted | null => {
+        try {
+          return JSON.parse(String(call[0])) as Emitted;
+        } catch {
+          return null;
+        }
+      })
+      .filter((event): event is Emitted => event?.name === name);
+
+  it("a PAYING subscriber who cancels emits subscription_canceled, not trial_canceled", async () => {
+    await testDb.db.insert(schema.subscriptions).values({
+      userId,
+      provider: "stripe",
+      providerRef: "sub_churn",
+      productId: "premium_monthly",
+      status: "active",
+      priceVariant: "1299",
+      currentPeriodEnd: FUTURE
+    });
+
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    await applyStripeEvent(
+      testDb.db,
+      {
+        type: "customer.subscription.updated",
+        data: {
+          object: {
+            id: "sub_churn",
+            status: "active",
+            cancel_at_period_end: true,
+            items: {
+              data: [
+                { current_period_end: Math.floor(FUTURE.getTime() / 1000) }
+              ]
+            }
+          }
+        }
+      } as unknown as Stripe.Event,
+      NOW
+    );
+
+    const churned = emitted(info, "subscription_canceled");
+    expect(churned).toHaveLength(1);
+    expect(churned[0].priceVariant).toBe("1299");
+    // A paying customer leaving is not a trial expiring. Conflating the two is
+    // how a churn number quietly becomes a trial number.
+    expect(emitted(info, "trial_canceled")).toHaveLength(0);
+
+    // Cancel-at-period-end keeps the entitlement until it lapses.
+    const [row] = await testDb.db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.providerRef, "sub_churn"));
+    expect(row.status).toBe("active");
+    info.mockRestore();
+  });
+
+  it("a full refund emits subscription_refunded with the price variant", async () => {
+    await testDb.db.insert(schema.subscriptions).values({
+      userId,
+      provider: "stripe",
+      providerRef: "sub_refund_evt",
+      productId: "premium_monthly",
+      status: "active",
+      priceVariant: "999",
+      currentPeriodEnd: FUTURE
+    });
+
+    const stripeClient = {
+      invoices: {
+        retrieve: vi.fn().mockResolvedValue({
+          parent: { subscription_details: { subscription: "sub_refund_evt" } }
+        })
+      }
+    } as unknown as Stripe;
+
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    await applyStripeEvent(
+      testDb.db,
+      {
+        type: "charge.refunded",
+        data: {
+          object: {
+            payment_intent: "pi_refund_evt",
+            refunded: true,
+            invoice: "in_refund_evt"
+          }
+        }
+      } as unknown as Stripe.Event,
+      NOW,
+      () => stripeClient
+    );
+
+    const refunded = emitted(info, "subscription_refunded");
+    expect(refunded).toHaveLength(1);
+    expect(refunded[0].priceVariant).toBe("999");
+    info.mockRestore();
+  });
+
+  it("a refund for a subscription we do not hold emits NOTHING", async () => {
+    const stripeClient = {
+      invoices: {
+        retrieve: vi.fn().mockResolvedValue({
+          parent: { subscription_details: { subscription: "sub_unknown" } }
+        })
+      }
+    } as unknown as Stripe;
+
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    await applyStripeEvent(
+      testDb.db,
+      {
+        type: "charge.refunded",
+        data: {
+          object: {
+            payment_intent: "pi_unknown",
+            refunded: true,
+            invoice: "in_unknown"
+          }
+        }
+      } as unknown as Stripe.Event,
+      NOW,
+      () => stripeClient
+    );
+
+    // The event fires off the RETURNING rows, so no revoked entitlement means
+    // no churn event — the metric counts revocations, not webhooks.
+    expect(emitted(info, "subscription_refunded")).toHaveLength(0);
+    info.mockRestore();
+  });
+});
+
+/**
  * W-18 — a declined card used to ride Stripe's ~3-week dunning schedule with
  * premium fully on, zero revenue, and no word to the user.
  */

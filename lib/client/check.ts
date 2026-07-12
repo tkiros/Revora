@@ -1,3 +1,4 @@
+import { daypartOfHour } from "../coach/insights";
 import type { CheckRequest } from "../revora/schemas";
 import { nextCoachRotation } from "./coach-rotation";
 import type {
@@ -50,7 +51,13 @@ export async function submitCheck(
         // is not shown the same three sentences every day.
         ...(rotation !== undefined
           ? { "x-revora-coach-rotation": String(rotation) }
-          : {})
+          : {}),
+        // W-17: the device's own clock, bucketed to three values before it
+        // leaves the browser. The server has no other way to know it is 8am
+        // where the user is without a profile round-trip, and "walk it off
+        // after dinner" at breakfast is the tell that the tip was never about
+        // this meal. Bucketed, not the raw hour: nothing here identifies anyone.
+        "x-revora-daypart": daypartOfHour(new Date().getHours())
       },
       body: JSON.stringify(input),
       signal: getRequestSignal(init?.signal)

@@ -11,7 +11,16 @@ const BillingTelemetryEventSchema = z
       "trial_converted",
       "trial_canceled",
       "pantry_purchased",
-      "precharge_email_sent"
+      "precharge_email_sent",
+      // Churn, server-side (W-10). These live HERE, not in lib/revora/telemetry,
+      // because the webhook is the only thing that can see them: a canceled or
+      // refunded user is precisely the user who is no longer running our
+      // client-side analytics. They were previously declared on the revora
+      // SafeTelemetryEvent enum, which the webhook does not import and whose
+      // .strict() schema could never have accepted them — two dead enum
+      // entries documenting a signal that did not exist.
+      "subscription_canceled",
+      "subscription_refunded"
     ]),
     priceVariant: z.enum(["999", "1299", "1999"]).optional(),
     environment: z

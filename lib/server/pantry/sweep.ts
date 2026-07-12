@@ -1,6 +1,6 @@
 import { and, eq, gte, inArray, isNull, lt, or } from "drizzle-orm";
 
-import { reapPantryBlobs } from "../blob";
+import { reapOrphanBlobs, reapPantryBlobs, type BlobLister } from "../blob";
 import { schema } from "../db";
 import { generateClaimToken } from "./claims";
 import { intakeEmailText } from "./emails";
@@ -26,6 +26,8 @@ const RESUME_BUDGET_MS = 240_000;
 
 export type SweepDeps = ProcessDeps & {
   processOrder?: typeof processPantryOrder;
+  /** Injectable so tests never hit the Blob store. Absent → the real lister. */
+  listBlobs?: BlobLister;
 };
 
 export async function runPantrySweep(deps: SweepDeps): Promise<{
@@ -33,6 +35,7 @@ export async function runPantrySweep(deps: SweepDeps): Promise<{
   resumed: number;
   redelivered: number;
   blobsReaped: number;
+  orphansReaped: number;
   alerted: number;
 }> {
   const now = deps.now();
@@ -123,6 +126,20 @@ export async function runPantrySweep(deps: SweepDeps): Promise<{
   // deleteOrderBlobs leaves the rows unmarked, so they match again next hour.
   const blobsReaped = await reapPantryBlobs(deps.db, now, deps.deleteBlobs);
 
+  // 5b. ORPHAN GC: objects the database cannot account for at all. Every phase
+  // above starts from `pantry_photos`; an orphan is the object whose row is
+  // already gone — the exact thing `DELETE users` used to leave behind, and the
+  // exact thing no query over that table can ever find. This walks the store
+  // instead, which is why it reclaims the pre-fix orphans nothing else can see.
+  // Runs last so the rows the phases above just deleted are already accounted
+  // for and never race this pass.
+  const orphansReaped = await reapOrphanBlobs(
+    deps.db,
+    now,
+    deps.listBlobs,
+    deps.deleteBlobs
+  );
+
   // 6. Founder alert for anything stuck >2h (once, via the window check).
   const stuck = await deps.db
     .select()
@@ -162,5 +179,12 @@ export async function runPantrySweep(deps: SweepDeps): Promise<{
       set: { lastRunAt: now }
     });
 
-  return { intakeResent, resumed, redelivered, blobsReaped, alerted };
+  return {
+    intakeResent,
+    resumed,
+    redelivered,
+    blobsReaped,
+    orphansReaped,
+    alerted
+  };
 }

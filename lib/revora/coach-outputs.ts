@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import type { Daypart } from "../coach/insights";
 import {
   RevoraUserClarifySchema,
   RevoraUserClinicalSchema,
@@ -64,6 +65,44 @@ const POST_MEAL_ACTIONS = [
   "A brief walk after eating is one of the simplest habits to keep, whenever it fits your day.",
   "Standing up and moving for ten minutes after a meal is a small, repeatable step."
 ] as const;
+
+/**
+ * Daypart-conditioned post-meal actions (W-17 Tier 1, item 3).
+ *
+ * "A short walk after this meal" is fine at 7pm and slightly absurd at 7am on
+ * the way out of the door. The daypart is a signal already in hand — the same
+ * three-way split the insights engine uses (`daypartOfHour`, imported rather
+ * than re-derived) — and it costs no new data collection, no DB round-trip and
+ * no model call: the client sends the bucket it already computes locally.
+ *
+ * Unknown daypart (older clients, curl, the demo page) falls back to the
+ * general bank above, so this can only ever ADD specificity, never remove a
+ * tip. Every variant is audited copy scanned by claims-boundary-copy.test.ts,
+ * exactly like the general bank.
+ */
+const POST_MEAL_ACTIONS_BY_DAYPART = {
+  breakfast: [
+    "If the morning allows it, walk part of the way somewhere after this — ten minutes counts.",
+    "A short walk before the day takes over is the easiest one to actually do.",
+    "If you are heading out anyway, a slightly longer way there does the job.",
+    "Ten minutes on your feet this morning — the school run, the commute, the stairs — is enough.",
+    "Starting the day with a little movement after eating is a habit that tends to stick."
+  ],
+  lunch: [
+    "A short walk before you sit back down is a calm way to break up the afternoon.",
+    "If you get a break after this, ten minutes outside is enough to count.",
+    "A lap of the block, or the long way back to your desk, does the job.",
+    "Ten minutes of walking after lunch is one of the simplest habits to keep.",
+    "If the afternoon allows it, stay on your feet for a little while after eating."
+  ],
+  dinner: [
+    "A gentle 10–15 minute walk after dinner is a calm end to the day.",
+    "An evening walk after this meal is an easy one, if you have the time.",
+    "Ten minutes on your feet after dinner — a walk, the washing-up, a lap of the block — is enough.",
+    "If you can, move a little before you settle in for the evening.",
+    "A short stroll after the evening meal is a small, repeatable step."
+  ]
+} as const;
 
 // "Enjoy it anyway" (Approach B): address the pain WITHOUT taking the food
 // away. Qualitative, DO-framed, MODERATE/HIGH only — SAFE gets nothing (no
@@ -192,6 +231,8 @@ export type CoachOptions = {
   rotation?: number;
   /** Per-check id, the hash fallback's seed. */
   seed?: string;
+  /** Which part of the day the user is eating in; absent → the general bank. */
+  daypart?: Daypart;
 };
 
 export function deriveCoachOutputs(
@@ -205,13 +246,17 @@ export function deriveCoachOutputs(
     return { sequencingTip: null, postMealAction: null, keepMost: null };
   }
 
-  const { food = "", rotation, seed = food } = options;
+  const { food = "", rotation, seed = food, daypart } = options;
+
+  const postMealBank = daypart
+    ? POST_MEAL_ACTIONS_BY_DAYPART[daypart]
+    : POST_MEAL_ACTIONS;
 
   return {
     sequencingTip: isDrinkOnly(food)
       ? null
       : pick(SEQUENCING_TIPS, rotation, `seq:${seed}`),
-    postMealAction: pick(POST_MEAL_ACTIONS, rotation, `act:${seed}`),
+    postMealAction: pick(postMealBank, rotation, `act:${seed}`),
     keepMost: pick(KEEP_MOST_LINES, rotation, `keep:${seed}`)
   };
 }
@@ -220,6 +265,9 @@ export function deriveCoachOutputs(
 export const COACH_PHRASE_BANK = {
   sequencingTip: SEQUENCING_TIPS,
   postMealAction: POST_MEAL_ACTIONS,
+  postMealActionBreakfast: POST_MEAL_ACTIONS_BY_DAYPART.breakfast,
+  postMealActionLunch: POST_MEAL_ACTIONS_BY_DAYPART.lunch,
+  postMealActionDinner: POST_MEAL_ACTIONS_BY_DAYPART.dinner,
   keepMost: KEEP_MOST_LINES
 } as const;
 

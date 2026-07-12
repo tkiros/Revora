@@ -48,6 +48,21 @@ npx vitest run      → 819 passed | 2 skipped (821)
                       duration 470s
 ```
 
+**After Phases 0–2 + the 2026-07-12 gap-closing round** (measured, not estimated):
+
+```
+npm run typecheck   → clean
+npm run lint        → 0 errors (12 warnings)
+npm run contract    → passes (9 checks)
+npx vitest run      → 1099 passed | 2 skipped (1101)
+                      113 files passed | 1 skipped (114)
+npx playwright test → 15 specs × 2 device projects
+```
+
+The `rc-2026-07-12` tag is the immutable ref for all of the above. Phase 0.1 asked for one and none
+was ever cut — "the frozen baseline" was a commit sha in a prose document that HEAD had already
+moved 24 commits past.
+
 Corrects F-23, which claimed "110 test files, 86 safety/claims tests, 19 mobile smoke" — none of
 which is reproducible. Mobile smoke is 13 tests × 2 devices = 26. The "86" and "19" appear nowhere.
 
@@ -90,6 +105,39 @@ re-validation **has no passing artifact on disk** (N-02) — the only attempt
 without credentials and proved nothing. The remediation record nonetheless marked it "live-verified".
 
 **Target: ≥90%.**
+
+## 6b. Accessibility and performance (added 2026-07-12 — Phase 0.4 was missing these)
+
+Phase 0.4 asked for an axe and a Lighthouse baseline and neither was ever recorded, so criteria 9
+and the performance work had no "before" column to be measured against. Both are now real
+measurements, not estimates.
+
+**axe** — `@axe-core/playwright`, run inside the E2E suite against `/`, `/privacy`, `/terms`,
+`/signin`, `/check` and the result card, across both device projects. **0 violations**, and it is
+now gated in CI (it was previously unreachable from any npm script).
+
+**Lighthouse** — run 2026-07-12 against the live production deployment
+(`https://revora-lovat.vercel.app`, commit `8f3557d`), desktop preset:
+
+| Category | Score |
+|---|---|
+| Performance | **71** |
+| Accessibility | **100** |
+| Best practices | **100** |
+| SEO | **100** |
+
+| Web vital | Measured |
+|---|---|
+| First contentful paint | 0.8 s |
+| Largest contentful paint | 1.0 s |
+| Total blocking time | **580 ms** |
+| Cumulative layout shift | 0 |
+| Speed index | 2.0 s |
+
+Performance is the one number below par, and TBT is the whole of it — paint and layout stability are
+good (LCP 1.0s, CLS 0). That is a main-thread/hydration cost, not a rendering one. It is **not** a
+launch blocker and it is **not** silently fine either: it is the perf baseline the next round is
+measured against, which is precisely what this section existed to provide and did not.
 
 ## 7. What this baseline does NOT contain
 

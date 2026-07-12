@@ -753,16 +753,23 @@ export async function applyStripeEvent(
       return;
     }
 
-    // Trial cancellation telemetry: a trial flagged to cancel at period end
-    // keeps status "trialing" (entitled until it lapses); we only surface the
+    // Cancellation telemetry: a subscription flagged to cancel at period end
+    // keeps its current status (entitled until it lapses); we only surface the
     // signal. Telemetry duplicates on repeated updates are tolerable.
+    //
+    // The two names are NOT interchangeable — a trial that never converted and
+    // a paying customer who left are different business events, and W-10's
+    // churn metric wants the second one. A trial cancels; a subscriber churns.
     if (
       event.type === "customer.subscription.updated" &&
       subscription.cancel_at_period_end === true &&
-      existing?.status === "trialing"
+      (existing?.status === "trialing" || existing?.status === "active")
     ) {
       emitBillingEvent({
-        name: "trial_canceled",
+        name:
+          existing.status === "trialing"
+            ? "trial_canceled"
+            : "subscription_canceled",
         priceVariant:
           (existing.priceVariant as BillingTelemetryEvent["priceVariant"]) ??
           undefined
@@ -856,10 +863,23 @@ export async function applyStripeEvent(
     if (!subscriptionId) {
       return;
     }
-    await db
+    const refunded = await db
       .update(schema.subscriptions)
       .set({ status: "refunded", updatedAt: now })
-      .where(eq(schema.subscriptions.providerRef, subscriptionId));
+      .where(eq(schema.subscriptions.providerRef, subscriptionId))
+      .returning({ priceVariant: schema.subscriptions.priceVariant });
+
+    // W-10 churn signal. Emitted off the RETURNING rows, not the incoming
+    // event, so a refund for a subscription we do not hold emits nothing —
+    // the event fires if and only if a real entitlement was revoked.
+    for (const row of refunded) {
+      emitBillingEvent({
+        name: "subscription_refunded",
+        priceVariant:
+          (row.priceVariant as BillingTelemetryEvent["priceVariant"]) ??
+          undefined
+      });
+    }
   }
 }
 

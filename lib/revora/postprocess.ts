@@ -62,8 +62,18 @@ const COMPONENT_STOPWORDS = new Set([
  * retry cards at an unknown rate — which is precisely the shape of the mistake
  * F-21 made (ship a model-behaviour change whose own evidence said "not yet").
  * The prompt instruction ships enabled and does the work; this assertion is the
- * enforcement, and it turns on when W-07's live run has measured the retry-rate
- * delta against the ≤2pt budget.
+ * enforcement.
+ *
+ * UNBLOCK CONDITION (read this before flipping the flag). The original note here
+ * said it turns on "when W-07's live run has measured the retry-rate delta" —
+ * and W-07's live run was WAIVED by the owner on 2026-07-12. As written, that
+ * made this flag unflippable forever: a gate whose key was thrown away. The
+ * condition is therefore restated in terms of something that can actually
+ * happen: enable it when ANY run against a real model measures the retry-rate
+ * delta at ≤2pts on the eval corpus. A green MOCK run does not qualify and never
+ * will — the fixtures author the very adjustments this rule grades, which is
+ * exactly how N-30 stayed hidden. Until then it stays off, and the pure function
+ * below is unit-tested regardless (tests/unit/revora/postprocess.test.ts).
  */
 export function mentionsMealComponent(food: string, advice: string): boolean {
   const tokens = food

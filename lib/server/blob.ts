@@ -34,6 +34,36 @@ export const deleteBlobUrls: BlobDeleter = async (urls) => {
   await del(urls);
 };
 
+/** One object as the Blob store itself sees it — the store is the source of truth. */
+export type BlobObject = { url: string; uploadedAt: Date };
+
+/** List every object in the store, following pagination to the end. */
+export type BlobLister = () => Promise<BlobObject[]>;
+
+export const listBlobObjects: BlobLister = async () => {
+  const { list } = await import("@vercel/blob");
+
+  const objects: BlobObject[] = [];
+  let cursor: string | undefined;
+
+  do {
+    const page = await list({ cursor, limit: 1000 });
+    for (const blob of page.blobs) {
+      objects.push({ url: blob.url, uploadedAt: new Date(blob.uploadedAt) });
+    }
+    cursor = page.hasMore ? page.cursor : undefined;
+  } while (cursor);
+
+  return objects;
+};
+
+/**
+ * An upload is live in the store before its `pantry_photos` row is written.
+ * Anything younger than this could simply be mid-flight, and deleting it would
+ * yank a photo out from under a user who is still filling in the form.
+ */
+export const ORPHAN_MIN_AGE_MS = 60 * 60 * 1000;
+
 /**
  * Photos are needed only while a photo is being read into an item list
  * (minutes; the stuck-order alert fires at 2h). Anything still alive after
@@ -192,4 +222,76 @@ export async function reapPantryBlobs(
     deleted += await deleteOrderBlobs(db, orderId, deleteBlobs);
   }
   return deleted;
+}
+
+/**
+ * The ORPHAN reaper — the one deletion path that cannot start from the database.
+ *
+ * Every other function here walks `pantry_photos` to find objects. A true orphan
+ * is precisely the object whose row is already GONE: before the account-delete
+ * fix, `DELETE users` cascaded the row away and destroyed the only pointer to a
+ * still-live, public-read object. No query over that table can ever see one
+ * again — the evidence was deleted along with the pointer.
+ *
+ * So this walks the other way: the STORE is the source of truth, and any object
+ * the database cannot account for is garbage. That inversion is the whole point.
+ * It is what reclaims the blobs orphaned by deletions that happened before the
+ * fix landed, and it is the backstop for any future path that forgets to clean
+ * up after itself.
+ *
+ * Two safety rails, because this deletes objects the DB knows nothing about:
+ *  1. an age floor (ORPHAN_MIN_AGE_MS) — an upload is live in the store before
+ *     its row is written, so a young unmatched object is a race, not an orphan;
+ *  2. the known-URL set is built from EVERY row regardless of status, so a row
+ *     that merely failed to delete is never mistaken for an orphan and stays on
+ *     the normal retry path.
+ *
+ * Returns the number of orphans deleted.
+ */
+export async function reapOrphanBlobs(
+  db: Db,
+  now: Date,
+  listBlobs: BlobLister = listBlobObjects,
+  deleteBlobs: BlobDeleter = deleteBlobUrls
+): Promise<number> {
+  let objects: BlobObject[];
+  try {
+    objects = await listBlobs();
+  } catch (error) {
+    // A listing failure must not take the whole sweep down with it — the
+    // DB-driven GC above has already run and is the load-bearing half.
+    await captureServerError(error, "route");
+    return 0;
+  }
+
+  if (objects.length === 0) {
+    return 0;
+  }
+
+  const known = new Set(
+    (
+      await db
+        .select({ blobUrl: schema.pantryPhotos.blobUrl })
+        .from(schema.pantryPhotos)
+    ).map((row) => row.blobUrl)
+  );
+
+  const cutoff = now.getTime() - ORPHAN_MIN_AGE_MS;
+  const orphans = objects
+    .filter((object) => !known.has(object.url))
+    .filter((object) => object.uploadedAt.getTime() < cutoff)
+    .map((object) => object.url);
+
+  if (orphans.length === 0) {
+    return 0;
+  }
+
+  try {
+    await deleteBlobs(orphans);
+  } catch (error) {
+    await captureServerError(error, "route");
+    return 0;
+  }
+
+  return orphans.length;
 }

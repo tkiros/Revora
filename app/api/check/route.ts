@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
+import type { Daypart } from "../../../lib/coach/insights";
 import { routeA1C } from "../../../lib/revora/a1c";
 import { deriveCoachOutputs } from "../../../lib/revora/coach-outputs";
 import { buildRetryResponse } from "../../../lib/revora/fallback";
@@ -252,7 +253,8 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
         ...deriveCoachOutputs(response, {
           food: readFood(body),
           rotation: readRotation(request.headers),
-          seed: request.headers.get("x-revora-client-id") ?? undefined
+          seed: request.headers.get("x-revora-client-id") ?? undefined,
+          daypart: readDaypart(request.headers)
         })
       });
     } catch (error) {
@@ -368,6 +370,20 @@ function readRotation(headers: Headers): number | undefined {
 
   const parsed = Number.parseInt(raw, 10);
   return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+const DAYPARTS: readonly Daypart[] = ["breakfast", "lunch", "dinner"];
+
+/**
+ * The client's local daypart (W-17). Same trust model as the rotation counter:
+ * forgeable, and harmless if forged — the only thing it can steer is WHICH
+ * pre-approved sentence appears. Validated against the closed set anyway, so a
+ * junk header falls back to the general phrase bank instead of indexing into
+ * nothing.
+ */
+function readDaypart(headers: Headers): Daypart | undefined {
+  const raw = headers.get("x-revora-daypart");
+  return DAYPARTS.find((daypart) => daypart === raw);
 }
 
 function getLatencyBucket(
