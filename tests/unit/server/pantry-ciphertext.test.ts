@@ -56,7 +56,24 @@ describe("pantry health data at rest", () => {
   it("no plaintext health-adjacent string appears in any pantry row", async () => {
     for (const table of ["pantry_orders", "pantry_items", "pantry_photos"]) {
       const result = await testDb.raw.query(`SELECT * FROM ${table}`);
-      const dump = JSON.stringify(result.rows);
+
+      // Drop timestamp columns before the substring scan. They come back as
+      // Date objects from a timestamptz column, so they cannot physically hold
+      // health text — but serialising them made this a CLOCK-DEPENDENT test:
+      // SECRETS.a1c is "6.1", and an ISO timestamp written at 04:36:06.177Z
+      // contains "...06.177Z" — i.e. the substring "6.1". The assertion failed
+      // in CI on a row it had itself just inserted, and passed on the earlier
+      // runs purely because of what second they happened to start on.
+      //
+      // Every column that could actually carry health data is still scanned.
+      const dump = JSON.stringify(
+        result.rows.map((row: Record<string, unknown>) =>
+          Object.fromEntries(
+            Object.entries(row).filter(([, value]) => !(value instanceof Date))
+          )
+        )
+      );
+
       for (const secret of Object.values(SECRETS)) {
         expect(dump).not.toContain(secret);
       }
