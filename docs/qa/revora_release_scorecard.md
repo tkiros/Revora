@@ -19,6 +19,16 @@ proven. A sixth — new, and worse than any of them — was discovered by runnin
 real, and is closed. The two that remain open are the two that were always going to remain open:
 counsel, and clinical validation.
 
+> ⛔ **One condition was WAIVED by the owner on 2026-07-12: the confirming live eval was not re-run.**
+> `harmfulSafe: 0` has never been observed. The N-30 *mechanism* is closed and pinned by a regression
+> test that models an adversarial model; the *corpus* has not been re-graded against a real model
+> since the fix. See **"⛔ WAIVED BY OWNER"** under the four conditions. This is a knowing, recorded
+> decision — not an oversight, and not a pass.
+
+**Updated 2026-07-12.** CI has now executed for the first time in this repository's history (4/4
+green). Its first runs found five defects that every local suite had reported green, including a P0
+that `main` had silently merged back through a **clean** merge. See **`docs/qa/13`**.
+
 ---
 
 ## P0 ledger
@@ -67,10 +77,14 @@ than the real one). Full write-up: `docs/qa/12-live-eval-finding-model-gated-flo
 | Runtime banned-claims check | **never ran** — the regexes were prompt labels only | **enforced, fail-closed** |
 | `build` | never gated | **gated, passing** |
 | `lint` | no config, no script; eslint not even installed | **gated, 0 errors** |
-| E2E (15 specs incl. axe) | **unreachable from any npm script** | **`npm run e2e`, gated in CI** |
+| E2E (15 specs incl. axe) | **unreachable from any npm script** | **130 passing across 2 device projects, gated in CI** |
 | Safety-contract validator | existed; wired to nothing | **gated in CI** |
-| Secret scan | none | **gitleaks, full history** |
-| CI | **never ran** — the workflow was never committed | **committed; 4 jobs** |
+| Secret scan | none | **gitleaks; was 403'ing and scanning nothing until `pull-requests: read`** |
+| CI | **never ran — this repo had ZERO Actions runs in its entire history** | **4 jobs, all green** — run [29180291815](https://github.com/tkiros/Revora/actions/runs/29180291815) |
+
+> **CI's first runs found five defects that every local suite reported green** — including a P0 that
+> `main` had silently merged back through a *clean* merge, a fold test that never measured the fold,
+> and a privacy scan that failed on its own timestamp. Full account: **`docs/qa/13`**.
 
 ## The twelve criteria
 
@@ -80,12 +94,12 @@ than the real one). Full write-up: `docs/qa/12-live-eval-finding-model-gated-flo
 | 2 | Food analysis useful within stated limits | FAIL (no evidence) | **PARTIAL** — the accuracy gate finally runs; the dietitian panel has not |
 | 3 | AI output safe; no unsupported claims | PARTIAL | **PASS** — contract enforced at runtime; DPP claim gone; steady-choice fixed |
 | 4 | Ambiguity → clarify, never fabricated certainty | PASS | **PASS** |
-| 5 | Model meets approved thresholds | FAIL | **PARTIAL** — real-model evidence exists at last, but via OpenRouter, not the prod path |
+| 5 | Model meets approved thresholds | FAIL | **FAIL — unmeasured.** The only live run ever executed returned **`harmfulSafe: 1`**, and it was *before* the fix. The re-run was **waived by the owner** on 2026-07-12, so `harmfulSafe: 0` has never been observed. The N-30 mechanism is closed and pinned; the corpus is not re-graded. Mock runs pass trivially and prove nothing |
 | 6 | Paywall/entitlements correct, tamper-resistant | PARTIAL | **PASS** — refund ordering, repeat trials, payment_failed, portal filter all closed |
 | 7 | Sensitive data, photos, keys protected | FAIL | **PARTIAL** — blobs fixed; **key rotations still owed (SEC-01/02)** |
 | 8 | Privacy controls work as documented | FAIL | **PASS** — deletion now does what the page promises; export stays a counsel decision |
-| 9 | Accessible; risk never colour-only | PASS / PARTIAL | **PASS (automated)** — axe actually runs now; device passes still owed |
-| 10 | Monitoring, analytics, CI sufficient | FAIL | **PASS** — CI real; funnel/feedback/clinical events shipped; p95 computable |
+| 9 | Accessible; risk never colour-only | PASS / PARTIAL | **PARTIAL** — axe actually runs now (130 E2E across 2 device projects). But **A11Y-01 was never fixed**: its "fold" was 720px on a 664px viewport, so the CTA sat off-screen on iPhone while the test reported green. Corrected 2026-07-12; the CTA's *top edge* is now on the first screen. The **whole** button still does not fit on either device — that is a form redesign, and it is open. See `docs/qa/13` §3 |
+| 10 | Monitoring, analytics, CI sufficient | FAIL | **PASS** — CI is real *and has now actually run* (4/4 green, first time ever); funnel/feedback/clinical events shipped; p95 computable |
 | 11 | Claims aligned with capability | PARTIAL | **PASS** — swap promise, free-tier number, DPP, "Most popular" all reconciled |
 | 12 | P0s resolved | FAIL | **PARTIAL** — 5 of 6 closed, +1 new found and closed; 2 external remain |
 
@@ -118,10 +132,43 @@ Nothing below is blocked on engineering.
    a funded OpenAI key closes it: ~$0.10, five minutes.
 
    ⚠️ **The OpenRouter account is exhausted** ($7.997 of $8.00 used), so the *confirming* re-run of
-   the N-30 fix could not be executed. The fix is proven deterministically — the regression test
-   models a model that returns SAFE and flags nothing, strictly worse than the real one's observed
-   behaviour — but a live `harmfulSafe: 0` **has not been observed**. Top up and re-run
-   `eval:revora:live` before launch. This is the single most important remaining check.
+   the N-30 fix could not be executed.
+
+### ⛔ WAIVED BY OWNER, 2026-07-12 — the live eval was NOT re-run
+
+**Status: `harmfulSafe: 0` has never been observed. It is not "passing". It is unmeasured.**
+
+The owner elected to skip the confirming live run and proceed. This is recorded here rather than
+quietly omitted, because the entire point of this branch is that **a gate nobody ran is not a gate
+that passed**, and a scorecard that blurs the two is how N-30 survived two reviews.
+
+What *is* proven, and what is not:
+
+| | |
+|---|---|
+| **Proven — deterministically** | `tests/unit/revora/upper-band-floor.test.ts` models an adversarial model: it returns **SAFE** and flags **nothing**. That is strictly *worse* than the real model's observed behaviour. The floor fires anyway, because `isCarbForward()` gives it a trigger the model cannot veto. The N-30 mechanism is closed and cannot regress silently. |
+| **NOT proven — empirically** | That the *live* model, on the 88-case corpus, now returns `harmfulSafe: 0`. The only live run ever executed returned **`harmfulSafe: 1`** — the salmon avocado roll rated "Clear" at A1C 6.4 — and that was *before* the fix. No live run has happened since. |
+
+**The residual risk in one sentence:** the specific hole N-30 found is closed and pinned, but the
+corpus has never been re-run against reality, so a *different* harmful-SAFE in the remaining 87 cases
+would not have been caught by anything in this branch.
+
+Note the mock eval **passes trivially** — `npx vitest run tests/evals/revora-graded-eval.test.ts`
+without `REVORA_LIVE_EVAL=1` grades the fixtures, not the system. That is precisely how N-30 hid.
+Do not read a green mock run as closing this.
+
+**To close it** (~$2 and five minutes):
+
+```bash
+REVORA_LIVE_EVAL=1 OPENAI_API_KEY="<funded key>" \
+REVORA_MODEL="openai/gpt-5.4-mini" \
+HEALTH_DATA_KEY="$(head -c 32 /dev/zero | base64)" \
+npx vitest run tests/evals/revora-graded-eval.test.ts --reporter=verbose 2>&1 | grep graded_eval_summary
+# expect: {"harmfulSafe":0, ..., "passed":true}
+```
+
+Leaving `OPENAI_BASE_URL` unset runs OpenAI-direct — production's path — which closes **both** this
+waiver and condition 4's provider-parity gap in the same run.
 
 ## Deferred, with reasons
 

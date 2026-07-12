@@ -1,5 +1,35 @@
 # Handoff — Unconditional-Go plan, Phases 0–2 executed
 
+> ## ✅ SUPERSEDED 2026-07-12 — all three blockers resolved. Read this header before the body.
+>
+> The body below is preserved as the historical record and is **stale from §3 (BLOCKERS) onward.**
+>
+> | Blocker | Outcome |
+> |---|---|
+> | **1 — branch not pushed** | **DONE.** `workflow` scope granted; branch pushed; **PR #7** open and MERGEABLE. The push was never the real problem — see below. |
+> | **2 — no live confirmation of the N-30 fix** | **⛔ WAIVED BY OWNER.** The live eval was **not** re-run. `harmfulSafe: 0` has **never been observed**. The N-30 *mechanism* is closed and pinned by a regression test that models an adversarial model (returns SAFE, flags nothing); the *corpus* has not been re-graded against a real model. See the **"⛔ WAIVED BY OWNER"** section of `docs/qa/revora_release_scorecard.md`. Mock runs pass trivially — that is how N-30 hid. |
+> | **3 — unfinished tamper-test of the claims audit** | **DONE.** Injecting `"Revora cures prediabetes and will lower your A1C."` into the rendered hero turns the audit **red** on both `cure` and `future-claim`. The audit is not hollowed out. |
+>
+> ### What the push actually uncovered
+>
+> CI would not run. Not billing, not the `workflow` scope, not the YAML: **`main` had moved.** PR #5
+> and #6 merged while this branch was open, leaving PR #7 `CONFLICTING`, and GitHub does not run
+> `pull_request` workflows on a PR it cannot build a merge ref for.
+>
+> Once merged and green, **CI's first-ever runs found five defects that every local suite had
+> reported green** — including a **P0 that `main` had silently merged back through a clean merge
+> with no conflict marker** (this branch closed F-21 by *deleting* code, and a deletion is invisible
+> to a three-way merge). Full account: **`docs/qa/13-what-ci-found-on-its-first-run.md`**.
+>
+> **Current state:** 21 commits, working tree clean, PR #7 MERGEABLE, CI **4/4 green**
+> ([run 29180291815](https://github.com/tkiros/Revora/actions/runs/29180291815)) — the first
+> successful GitHub Actions run in this repository's history.
+>
+> **Still open:** the four human conditions in §5 below (counsel, dietitian panel, key rotation,
+> OpenAI-direct eval) — all unchanged, none blocked on engineering — plus the waived live eval.
+
+---
+
 **Date:** 2026-07-11 · **Branch:** `feat/video-engine-renderer` · **Base:** `origin/main` (`c04d713`)
 **Commits:** 11, ahead of `origin/main`. **Not pushed** (see BLOCKER 1).
 **Verdict reached:** **CONDITIONAL GO** (was: NO-GO for broad paid launch)
