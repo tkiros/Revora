@@ -184,11 +184,15 @@ test("decision card v2 blocks render for MODERATE and not for SAFE", async ({
   await fillValidForm(page);
   await page.getByRole("button", { name: "Should I eat this?" }).click();
 
+  // W-17 reframed this from the imperative "Eat it in this order:" — the tip is
+  // a general strategy, not a reading of the user's plate, and saying otherwise
+  // overstated what the engine knows. Assert the constant framing rather than
+  // the tip itself: the tip now rotates through 6 audited variants.
   await expect(page.getByTestId("sequencing-tip")).toContainText(
-    "Eat it in this order:"
+    "A pattern that helps many people:"
   );
   await expect(page.getByTestId("post-meal-action")).toContainText(
-    "After this meal:"
+    "A calm next step:"
   );
 
   await page.unrouteAll();

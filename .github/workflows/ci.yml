@@ -98,7 +98,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx drizzle-kit migrate
-      - run: npx playwright install --with-deps chromium
+      # playwright.config.ts runs two projects: Mobile Chrome (Pixel 5, chromium)
+      # and Mobile Safari (iPhone 12, webkit). Installing chromium alone failed
+      # all 110 Mobile Safari tests at browser launch.
+      - run: npx playwright install --with-deps chromium webkit
       - run: npm run e2e
       - uses: actions/upload-artifact@v4
         if: failure()
