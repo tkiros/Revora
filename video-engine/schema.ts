@@ -55,6 +55,9 @@ export const VideoSpecSchema = z
     spoken_hook: z.string(),
     visual_hook: z.string().refine(maxSevenWords, "visual_hook must be <= 7 words"),
     beats: z.array(z.string()),
+    // Short on-screen copy for the beat cards, distinct from `beats` (which are production/shot
+    // directions). When present, the renderer shows these; else it falls back to `beats`.
+    visual_beats: z.array(z.string()).optional(),
     asset_list: z.array(z.string()),
     caption_text: z.string(),
     disclosure_block: z.string(),

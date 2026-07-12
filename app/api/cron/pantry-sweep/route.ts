@@ -4,6 +4,7 @@ import { captureServerError } from "../../../../lib/revora/sentry-capture";
 import { getDb, type Db } from "../../../../lib/server/db";
 import { defaultProcessDeps } from "../../../../lib/server/pantry/process";
 import { runPantrySweep } from "../../../../lib/server/pantry/sweep";
+import { isAuthorizedCron } from "../../../../lib/server/timing-safe";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -15,9 +16,9 @@ export function createPantrySweepHandler(deps: Deps = {}) {
   const sweep = deps.sweep ?? runPantrySweep;
 
   return async function GET(request: Request) {
-    const secret = process.env.CRON_SECRET;
-    const auth = request.headers.get("authorization");
-    if (!secret || auth !== `Bearer ${secret}`) {
+    // Constant-time (N-29): a plain !== on the bearer token leaks its length and
+    // matching prefix through response timing.
+    if (!isAuthorizedCron(request.headers.get("authorization"))) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
     try {

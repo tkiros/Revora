@@ -2,8 +2,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  createCheckRouteHandler,
-  PRIMARY_MODEL_CHECKS
+  createCheckRouteHandler
 } from "../../../app/api/check/route";
 import { decryptField } from "../../../lib/server/crypto";
 import { schema } from "../../../lib/server/db";
@@ -284,12 +283,14 @@ describe("trial-mode hard wall (4.4)", () => {
     expect(response.status).toBe(200);
 
     // Daily metering (profile-timezone lookup) never runs for entitled users.
-    // The checks table IS read once — the lifetime count that drives the
-    // model tier switch applies to every signed-in user, premium included.
+    //
+    // Neither does ANY read of the checks table. It used to be read exactly
+    // once, for the lifetime count that drove the model downgrade (F-21) — so
+    // removing that routing (W-02) also removed a per-check database query from
+    // the hot path of every signed-in user. The tiering cost the paying customer
+    // twice: a weaker model, and a DB round-trip to decide to give it to them.
     expect(queriedTables).not.toContain(schema.profiles);
-    expect(
-      queriedTables.filter((table) => table === schema.checks)
-    ).toHaveLength(1);
+    expect(queriedTables).not.toContain(schema.checks);
   });
 
   it("legacy mode: the 5/day soft limit still behaves byte-identically", async () => {
@@ -310,9 +311,16 @@ describe("trial-mode hard wall (4.4)", () => {
     expect(body.message).not.toContain("free week");
   });
 
-  it("model tier: first 10 lifetime checks use the primary model, later checks the cheap one", async () => {
+  // F-21 / W-02. This test previously asserted the OPPOSITE: that the 11th
+  // lifetime check flipped the session to "gpt-5.4-nano". Because the trial
+  // wall 402s every non-premium session before this line, the only users who
+  // could ever reach the downgrade were paying and trialing ones — the product
+  // served its customers a model its own bakeoff had rejected, while the wall
+  // promised them "unlimited everything". The expectation is now inverted, so
+  // reintroducing usage-keyed routing turns this red.
+  it("model: a heavy user is NEVER downgraded — every check uses the primary model", async () => {
     // Seeds are dated in the past so the 5/day free cap never fires — only
-    // the lifetime count matters here.
+    // the lifetime count would have mattered to the old tiering rule.
     const seedCheck = () => ({
       userId,
       foodCiphertext: "cipher",
@@ -322,7 +330,7 @@ describe("trial-mode hard wall (4.4)", () => {
       createdAt: new Date(Date.now() - 72 * 60 * 60 * 1000)
     });
 
-    const modelFactory = vi.fn(() => ({ generate: vi.fn() }));
+    const modelFactory = vi.fn((_model?: string) => ({ generate: vi.fn() }));
     const POST = createCheckRouteHandler({
       checkFoodImpl: vi.fn().mockResolvedValue(RESULT_RESPONSE),
       emitEvent: vi.fn(),
@@ -332,19 +340,24 @@ describe("trial-mode hard wall (4.4)", () => {
       paywallMode: () => "legacy" as const
     });
 
-    // 9 stored checks: still under the threshold → primary model (undefined).
+    // Well past the old 10-check threshold.
     await testDb.db
       .insert(schema.checks)
-      .values(Array.from({ length: PRIMARY_MODEL_CHECKS - 1 }, seedCheck));
+      .values(Array.from({ length: 25 }, seedCheck));
+
     await POST(checkRequest());
     expect(modelFactory).toHaveBeenLastCalledWith(undefined);
 
-    // That check persisted the 10th row → the next one flips to nano.
     await POST(checkRequest());
-    expect(modelFactory).toHaveBeenLastCalledWith("gpt-5.4-nano");
+    expect(modelFactory).toHaveBeenLastCalledWith(undefined);
+
+    // No call anywhere in this session may name a cheaper model.
+    for (const call of modelFactory.mock.calls) {
+      expect(call[0]).toBeUndefined();
+    }
   });
 
-  it("model tier: guests always get the primary model", async () => {
+  it("model: guests get the primary model", async () => {
     const modelFactory = vi.fn(() => ({ generate: vi.fn() }));
     const POST = createCheckRouteHandler({
       checkFoodImpl: vi.fn().mockResolvedValue(RESULT_RESPONSE),

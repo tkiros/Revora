@@ -3,6 +3,7 @@ import { and, asc, eq, isNull, lt, or } from "drizzle-orm";
 import { createOpenAIRevoraModelClient, type RevoraModelClient } from "../../revora/openai-client";
 import { checkFood } from "../../revora/service";
 import { captureServerError } from "../../revora/sentry-capture";
+import { deleteBlobUrls, deleteOrderBlobs } from "../blob";
 import { decryptField, encryptField } from "../crypto";
 import { schema, type Db } from "../db";
 import { sendEmail, type SendEmailResult } from "../email";
@@ -58,10 +59,7 @@ export function defaultProcessDeps(db: Db): ProcessDeps {
     db,
     model: createOpenAIRevoraModelClient(),
     email: { send: sendEmail },
-    deleteBlobs: async (urls) => {
-      const { del } = await import("@vercel/blob");
-      await del(urls);
-    },
+    deleteBlobs: deleteBlobUrls,
     now: () => new Date()
   };
 }
@@ -223,24 +221,10 @@ export async function deliverReport(
     .set({ deliveredAt: deps.now(), updatedAt: deps.now() })
     .where(eq(schema.pantryOrders.id, order.id));
 
-  const photos = await deps.db
-    .select()
-    .from(schema.pantryPhotos)
-    .where(eq(schema.pantryPhotos.orderId, order.id));
-  const urls = photos
-    .filter((photo) => photo.status !== "deleted")
-    .map((photo) => photo.blobUrl);
-  if (urls.length > 0) {
-    try {
-      await deps.deleteBlobs(urls);
-    } catch (error) {
-      await captureServerError(error, "route");
-    }
-    await deps.db
-      .update(schema.pantryPhotos)
-      .set({ status: "deleted" })
-      .where(eq(schema.pantryPhotos.orderId, order.id));
-  }
+  // Delivery is the happy-path deletion trigger, but no longer the only one
+  // (N-23) — and deleteOrderBlobs is what stops a Blob-API outage from marking
+  // the rows deleted anyway, which used to orphan the objects forever.
+  await deleteOrderBlobs(deps.db, order.id, deps.deleteBlobs);
   return true;
 }
 
@@ -257,6 +241,10 @@ async function finishNeedsManual(
       updatedAt: deps.now()
     })
     .where(eq(schema.pantryOrders.id, orderId));
+  // Terminal for the photos too: manual handling re-judges the extracted item
+  // *text* (/admin/pantry has no photo view) — nothing downstream reads them,
+  // so retaining them would only break the privacy promise (N-23).
+  await deleteOrderBlobs(deps.db, orderId, deps.deleteBlobs);
   await deps.email.send({
     to: process.env.SUPPORT_EMAIL ?? "support@revora.app",
     subject: `Pantry order needs manual review: ${orderId}`,

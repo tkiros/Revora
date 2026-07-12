@@ -218,7 +218,8 @@ export function DashboardView({
             <h2>Should I eat this?</h2>
             <p>
               Describe what you&apos;re about to eat. You&apos;ll get a calm
-              verdict, one reason, one thing to do, and a safer swap.
+              verdict, one reason, and — when there&apos;s one — something to
+              adjust and a safer swap.
             </p>
             <Link className="dash-cta-button" href="/check" data-testid="dash-check-cta">
               Check a meal

@@ -1,4 +1,8 @@
+import type { ClinicalRoute } from "../revora/clinical-risk";
+
 export type RevoraRisk = "SAFE" | "MODERATE" | "HIGH";
+
+export type { ClinicalRoute };
 
 export type RevoraUserResponse =
   | {
@@ -25,6 +29,15 @@ export type RevoraUserResponse =
   | {
       kind: "out_of_scope";
       reason: string;
+      disclaimer: string;
+    }
+  | {
+      // Clinical route (W-01). Carries no `risk` — by construction there is
+      // nowhere to put a verdict, so no rendering bug can attach "Clear" to a
+      // message about an insulin dose.
+      kind: "clinical";
+      route: ClinicalRoute;
+      message: string;
       disclaimer: string;
     }
   | {

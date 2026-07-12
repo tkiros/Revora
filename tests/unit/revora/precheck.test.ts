@@ -52,11 +52,21 @@ describe("classifyInputBeforeModel", () => {
       flags: ["carbs_only", "borderline"]
     });
 
+    // A buffered carb meal is still NOT carbs-only — the protein and veg are
+    // real, and `kind` stays "ok" so it goes to the model as normal.
+    //
+    // But it now carries a deterministic `borderline` flag (2026-07-11
+    // live-eval finding). Being "not carbs-only" was previously the same as
+    // being unremarkable: the precheck contributed no flags at all, which left
+    // the model as the ONLY possible source of the "borderline" flag that fires
+    // the upper-band SAFE→MODERATE floor. A safety floor that a mistaken model
+    // must volunteer to trigger is not a floor. See lib/revora/input-precheck.ts
+    // (isCarbForward) and tests/unit/revora/upper-band-floor.test.ts.
     expect(
       classifyInputBeforeModel("white rice with grilled chicken and broccoli")
     ).toEqual({
       kind: "ok",
-      flags: []
+      flags: ["borderline"]
     });
   });
 

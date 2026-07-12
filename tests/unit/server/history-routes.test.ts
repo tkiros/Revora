@@ -168,6 +168,97 @@ describe("POST /api/history/migrate", () => {
     expect(rows).toHaveLength(1);
   });
 
+  /**
+   * N-27 — migrate imports rows the CLIENT authored (localStorage is freely
+   * editable). Self-affecting only, but a forged timeline still corrupts the
+   * streak and BAI series we later hand back as if we had observed them.
+   */
+  describe("server-side sanity bounds (N-27)", () => {
+    const iso = (offsetMs: number) => new Date(Date.now() + offsetMs).toISOString();
+    const DAY = 24 * 60 * 60 * 1000;
+
+    async function migrate(check: Record<string, unknown>) {
+      const POST = createHistoryMigrateHandler(asUser(ownerId));
+      return POST(
+        jsonRequest("http://test/api/history/migrate", { checks: [check] })
+      );
+    }
+
+    it("rejects a createdAt in the future — nobody ate tomorrow's lunch", async () => {
+      const response = await migrate({
+        ...storedCheck("future-1"),
+        createdAt: iso(2 * DAY)
+      });
+
+      expect(response.status).toBe(400);
+      const rows = await testDb.db
+        .select()
+        .from(schema.checks)
+        .where(eq(schema.checks.userId, ownerId));
+      expect(rows).toHaveLength(0);
+    });
+
+    it("rejects an absurdly old createdAt", async () => {
+      const response = await migrate({
+        ...storedCheck("ancient-1"),
+        createdAt: iso(-3 * 365 * DAY)
+      });
+
+      expect(response.status).toBe(400);
+    });
+
+    it("tolerates ordinary client-clock skew (a few minutes fast)", async () => {
+      // Real devices drift. Rejecting them would silently drop honest history.
+      const response = await migrate({
+        ...storedCheck("skew-1"),
+        createdAt: iso(60 * 1000)
+      });
+
+      expect(response.status).toBe(200);
+      expect((await response.json()).imported).toBe(1);
+    });
+
+    it("rejects a future actionDoneAt (it forges the BAI follow-through metric)", async () => {
+      const response = await migrate({
+        ...storedCheck("future-action"),
+        actionDoneAt: iso(5 * DAY)
+      });
+
+      expect(response.status).toBe(400);
+    });
+
+    it("rejects an a1cBand the app itself would never write", async () => {
+      const response = await migrate({
+        ...storedCheck("bad-band"),
+        a1cBand: "totally_healthy_lol"
+      });
+
+      expect(response.status).toBe(400);
+    });
+
+    it("still accepts every band the app DOES write", async () => {
+      const bands = [
+        "below_prediabetes_range",
+        "prediabetes_57_59",
+        "prediabetes_60_62",
+        "prediabetes_63_64",
+        "diabetes_range_out_of_scope"
+      ];
+      const POST = createHistoryMigrateHandler(asUser(ownerId));
+      const response = await POST(
+        jsonRequest("http://test/api/history/migrate", {
+          checks: bands.map((band, i) => ({
+            ...storedCheck(`band-${i}`),
+            a1cBand: band
+          }))
+        })
+      );
+
+      expect(response.status).toBe(200);
+      expect((await response.json()).imported).toBe(bands.length);
+    });
+  });
+
   it("rejects oversized payloads", async () => {
     const POST = createHistoryMigrateHandler(asUser(ownerId));
     const response = await POST(

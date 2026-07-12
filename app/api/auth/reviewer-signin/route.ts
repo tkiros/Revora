@@ -1,9 +1,10 @@
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { getDb, schema, type Db } from "../../../../lib/server/db";
+import { timingSafeEqualSecret } from "../../../../lib/server/timing-safe";
 
 /**
  * Play-reviewer test-login bypass (P9, docs/handoff/human-actions-required.md).
@@ -84,19 +85,6 @@ function notFound(): NextResponse {
 
 function sha256Hex(input: string): string {
   return createHash("sha256").update(input, "utf8").digest("hex");
-}
-
-/**
- * Constant-time secret comparison. Both sides are SHA-256'd first so the
- * buffers `timingSafeEqual` compares are always the same fixed length (32
- * bytes) regardless of the raw secret's length — `timingSafeEqual` itself
- * throws on a length mismatch, and a plain `!==` on the raw strings would
- * leak the correct secret's length/prefix through response timing.
- */
-function timingSafeEqualSecret(a: string, b: string): boolean {
-  const hashA = createHash("sha256").update(a, "utf8").digest();
-  const hashB = createHash("sha256").update(b, "utf8").digest();
-  return timingSafeEqual(hashA, hashB);
 }
 
 export function createReviewerSigninHandler(deps: ReviewerSigninDeps = {}) {

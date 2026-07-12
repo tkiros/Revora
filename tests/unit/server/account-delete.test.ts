@@ -128,4 +128,83 @@ describe("POST /api/account/delete", () => {
     );
     expect((rows.rows[0] as { n: number }).n).toBe(0);
   });
+
+  /**
+   * N-23, the P0 this route existed to violate: `DELETE users` cascades
+   * pantry_photos away, and blob_url is the ONLY pointer to a live object.
+   * Deleting the blobs afterwards is impossible — so it must happen before,
+   * and it must happen for orders in every state, not just delivered ones.
+   */
+  it("deletes the user's pantry photos from Blob BEFORE the cascade destroys the URLs", async () => {
+    const user = await seedFullUser("delete-photos@test.dev");
+    const urls: string[] = [];
+    for (const status of ["ready", "needs_manual", "awaiting_confirm"] as const) {
+      const [order] = await testDb.db
+        .insert(schema.pantryOrders)
+        .values({
+          userId: user.id,
+          email: user.email,
+          stripeSessionId: `cs_${status}_${user.id}`,
+          claimToken: `hash_${status}_${user.id}`,
+          status
+        })
+        .returning();
+      const url = `https://blob.test/${status}-${user.id}.jpg`;
+      urls.push(url);
+      await testDb.db
+        .insert(schema.pantryPhotos)
+        .values({ orderId: order.id, blobUrl: url, status: "extracted" });
+    }
+
+    const deleteBlobs = vi.fn().mockResolvedValue(undefined);
+    const POST = createAccountDeleteHandler({
+      db: () => testDb.db,
+      getSession: async () => ({ userId: user.id, email: user.email }),
+      cancelStripeSubscription: vi.fn().mockResolvedValue(undefined),
+      deleteBlobs
+    });
+
+    expect((await POST()).status).toBe(200);
+
+    expect(deleteBlobs).toHaveBeenCalledTimes(1);
+    expect(deleteBlobs).toHaveBeenCalledWith(expect.arrayContaining(urls));
+
+    const rows = await testDb.raw.query(
+      `SELECT count(*)::int AS n FROM pantry_orders WHERE user_id = '${user.id}'`
+    );
+    expect((rows.rows[0] as { n: number }).n).toBe(0);
+  });
+
+  it("deletes the account even if the Blob API is down (the user asked)", async () => {
+    const user = await seedFullUser("delete-blob-down@test.dev");
+    const [order] = await testDb.db
+      .insert(schema.pantryOrders)
+      .values({
+        userId: user.id,
+        email: user.email,
+        stripeSessionId: `cs_down_${user.id}`,
+        claimToken: `hash_down_${user.id}`,
+        status: "ready"
+      })
+      .returning();
+    await testDb.db.insert(schema.pantryPhotos).values({
+      orderId: order.id,
+      blobUrl: `https://blob.test/down-${user.id}.jpg`,
+      status: "extracted"
+    });
+
+    const POST = createAccountDeleteHandler({
+      db: () => testDb.db,
+      getSession: async () => ({ userId: user.id, email: user.email }),
+      cancelStripeSubscription: vi.fn().mockResolvedValue(undefined),
+      deleteBlobs: vi.fn().mockRejectedValue(new Error("blob api down"))
+    });
+
+    expect((await POST()).status).toBe(200);
+
+    const rows = await testDb.raw.query(
+      `SELECT count(*)::int AS n FROM users WHERE id = '${user.id}'`
+    );
+    expect((rows.rows[0] as { n: number }).n).toBe(0);
+  });
 });

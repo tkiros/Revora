@@ -118,18 +118,11 @@ export async function getEntitlement(
   };
 }
 
-/** Lifetime result-checks stored for a user (drives the model tier switch). */
-export async function countChecksTotal(
-  db: Db,
-  userId: string
-): Promise<number> {
-  const [row] = await db
-    .select({ total: count() })
-    .from(schema.checks)
-    .where(eq(schema.checks.userId, userId));
-
-  return row?.total ?? 0;
-}
+// countChecksTotal() lived here and had exactly one caller: the model-tier
+// switch in app/api/check/route.ts, which downgraded a user to a weaker model
+// after 10 lifetime checks. That routing is gone (W-02) and so is this — a
+// lifetime-usage counter with no consumer is an invitation to reintroduce
+// usage-keyed degradation without the evidence gate that should precede it.
 
 /** Server-side free-tier metering: result-checks stored today (profile tz). */
 export async function countChecksToday(

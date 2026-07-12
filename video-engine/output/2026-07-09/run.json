@@ -9,9 +9,9 @@
     "hk-016"
   ],
   "progress": {
-    "stage": "awaiting_g1",
-    "done": 5,
-    "total": 5
+    "stage": "rendering",
+    "done": 1,
+    "total": 1
   },
   "specs": {
     "hk-002": {
@@ -35,6 +35,12 @@
       "specId": "vs-022"
     }
   },
-  "pid": 1172729,
-  "heartbeat": "2026-07-09T17:13:54.414Z"
+  "pid": 1976570,
+  "heartbeat": "2026-07-10T03:03:56.397Z",
+  "render": {
+    "vs-002": {
+      "status": "READY",
+      "assetDir": "/home/tefera/Desktop/Revora/video-engine/output/2026-07-09/assets/vs-002"
+    }
+  }
 }

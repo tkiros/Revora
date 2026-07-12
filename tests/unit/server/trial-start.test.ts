@@ -33,7 +33,11 @@ function jsonRequest(body: unknown) {
 const trialEnv = {
   STRIPE_PRICE_MONTHLY_1299: "price_1299",
   TRIAL_PRICE_VARIANT: "1299",
-  NEXT_PUBLIC_APP_URL: "https://app"
+  NEXT_PUBLIC_APP_URL: "https://app",
+  // W-04: checkout is 503'd unless the deploy declares the terms final. These
+  // suites exercise the real path, so they declare it; the gate has its own
+  // describe block below.
+  LEGAL_TERMS_FINAL: "1"
 } as unknown as NodeJS.ProcessEnv;
 
 function stripeStub() {
@@ -187,5 +191,130 @@ describe("magic-link delivery is non-fatal", () => {
     const res = await handler(jsonRequest({ email: "new@example.com" }));
     expect(res.status).toBe(200);
     expect((await res.json()).url).toBe("https://stripe/x");
+  });
+});
+
+/**
+ * W-16 — one free week per account, ever. Every checkout used to carry a fresh
+ * trial_period_days, so cancel → re-subscribe → cancel bought unbounded free
+ * premium. The `subscriptions` row IS the flag (no migration, nothing to keep
+ * in sync): any prior row, in any status, means the week was already taken.
+ */
+describe("repeat-trial guard (W-16)", () => {
+  async function seedUserWithSubscription(email: string, status: string) {
+    const [user] = await ctx.db.insert(schema.users).values({ email }).returning();
+    await ctx.db.insert(schema.subscriptions).values({
+      userId: user.id,
+      provider: "stripe",
+      providerRef: `sub_${status}_${user.id}`,
+      productId: "premium_monthly",
+      status: status as "active",
+      currentPeriodEnd: new Date("2026-08-01T00:00:00.000Z")
+    });
+    return user;
+  }
+
+  function handlerFor(stripe: ReturnType<typeof stripeStub>) {
+    return createTrialCheckoutHandler({
+      db: () => ctx.db,
+      stripeClient: () => stripe as never,
+      sendMagicLink: vi.fn().mockResolvedValue(undefined),
+      env: trialEnv
+    });
+  }
+
+  // Every terminal state a churned subscriber can be in. Each one already
+  // consumed the free week, so none of them may be handed another.
+  for (const status of ["canceled", "expired", "refunded", "active"]) {
+    it(`grants NO trial period to a user with a prior '${status}' subscription`, async () => {
+      await seedUserWithSubscription(`${status}@example.com`, status);
+      const stripe = stripeStub();
+
+      const res = await handlerFor(stripe)(
+        jsonRequest({ email: `${status}@example.com` })
+      );
+      expect(res.status).toBe(200); // they can still subscribe — just not free
+
+      const call = stripe.checkout.sessions.create.mock.calls[0][0];
+      expect(call.subscription_data.trial_period_days).toBeUndefined();
+      expect(call.subscription_data.metadata).toEqual({ price_variant: "1299" });
+    });
+  }
+
+  it("still grants the trial to a user who merely ABANDONED checkout (row exists, no subscription)", async () => {
+    // The trial handler creates the users row before Stripe, so an abandoned
+    // checkout leaves a user with no subscriptions row. They never used their
+    // week — they must still get it.
+    await ctx.db.insert(schema.users).values({ email: "abandoned@example.com" });
+    const stripe = stripeStub();
+
+    const res = await handlerFor(stripe)(
+      jsonRequest({ email: "abandoned@example.com" })
+    );
+    expect(res.status).toBe(200);
+
+    const call = stripe.checkout.sessions.create.mock.calls[0][0];
+    expect(call.subscription_data.trial_period_days).toBe(7);
+  });
+});
+
+/**
+ * W-11 — the per-email cooldown. The proxy limits this route per IP; this is
+ * the half per-IP cannot see, a flood spread over many IPs at one inbox.
+ */
+describe("per-email cooldown (W-11)", () => {
+  it("429s a cooled-down address BEFORE creating a user, sending mail, or opening Stripe", async () => {
+    const stripe = stripeStub();
+    const sendMagicLink = vi.fn();
+    const handler = createTrialCheckoutHandler({
+      db: () => ctx.db,
+      stripeClient: () => stripe as never,
+      sendMagicLink,
+      emailCooldown: async () => ({ ok: false }),
+      env: trialEnv
+    });
+
+    const res = await handler(jsonRequest({ email: "victim@example.com" }));
+
+    expect(res.status).toBe(429);
+    // A blocked request must cost us nothing at all.
+    expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
+    expect(sendMagicLink).not.toHaveBeenCalled();
+    expect(await ctx.db.select().from(schema.users)).toHaveLength(0);
+  });
+
+  it("checks the cooldown against the normalised address", async () => {
+    const emailCooldown = vi.fn().mockResolvedValue({ ok: true });
+    const handler = createTrialCheckoutHandler({
+      db: () => ctx.db,
+      stripeClient: () => stripeStub() as never,
+      sendMagicLink: vi.fn().mockResolvedValue(undefined),
+      emailCooldown,
+      env: trialEnv
+    });
+
+    await handler(jsonRequest({ email: "  MixedCase@Example.com " }));
+    expect(emailCooldown).toHaveBeenCalledWith("mixedcase@example.com");
+  });
+});
+
+describe("legal gate (W-04)", () => {
+  it("503s and takes no money when LEGAL_TERMS_FINAL is unset", async () => {
+    const stripe = stripeStub();
+    const sendMagicLink = vi.fn();
+    const handler = createTrialCheckoutHandler({
+      db: () => ctx.db,
+      stripeClient: () => stripe as never,
+      sendMagicLink,
+      env: { ...trialEnv, LEGAL_TERMS_FINAL: undefined } as NodeJS.ProcessEnv
+    });
+
+    const res = await handler(jsonRequest({ email: "new@example.com" }));
+
+    expect(res.status).toBe(503);
+    expect((await res.json()).error).toMatch(/unavailable/i);
+    expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
+    expect(sendMagicLink).not.toHaveBeenCalled();
+    expect(await ctx.db.select().from(schema.users)).toHaveLength(0);
   });
 });

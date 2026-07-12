@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   CheckApiResponseSchema,
+  COACH_PHRASE_BANK,
   deriveCoachOutputs
 } from "../../../lib/revora/coach-outputs";
 import type { RevoraUserResponse } from "../../../lib/revora/schemas";
@@ -47,15 +48,97 @@ const NON_RESULT_RESPONSES: RevoraUserResponse[] = [
 ];
 
 describe("deriveCoachOutputs", () => {
-  it("returns both outputs for MODERATE results", () => {
-    const outputs = deriveCoachOutputs(resultResponse("MODERATE"));
+  it("returns both outputs for MODERATE results, drawn from the audited bank", () => {
+    const outputs = deriveCoachOutputs(resultResponse("MODERATE"), {
+      food: "pasta with tomato sauce",
+      rotation: 0
+    });
 
-    expect(outputs.sequencingTip).toBe(
-      "If practical, start with the vegetables or protein on your plate and save the carb-heavy part for last."
-    );
-    expect(outputs.postMealAction).toBe(
-      "A short 10–15 minute walk after this meal is a calm next step."
-    );
+    // The exact sentence is no longer pinned — the BANK is. Pinning one string
+    // is what let the product ship the same three sentences to every user
+    // forever (F-12) while the test suite reported it as correct.
+    expect(COACH_PHRASE_BANK.sequencingTip).toContain(outputs.sequencingTip);
+    expect(COACH_PHRASE_BANK.postMealAction).toContain(outputs.postMealAction);
+  });
+
+  it("every slot offers at least 5 audited variants", () => {
+    expect(COACH_PHRASE_BANK.sequencingTip.length).toBeGreaterThanOrEqual(5);
+    expect(COACH_PHRASE_BANK.postMealAction.length).toBeGreaterThanOrEqual(5);
+    expect(COACH_PHRASE_BANK.keepMost.length).toBeGreaterThanOrEqual(5);
+  });
+
+  it("rotation is deterministic — the same counter always yields the same card", () => {
+    const once = deriveCoachOutputs(resultResponse("HIGH"), {
+      food: "cake",
+      rotation: 3
+    });
+    const twice = deriveCoachOutputs(resultResponse("HIGH"), {
+      food: "cake",
+      rotation: 3
+    });
+
+    expect(once).toEqual(twice);
+  });
+
+  it("never repeats a coach sentence on consecutive checks", () => {
+    // The whole point of W-17: a daily user must not be read the same lines
+    // every day. Walk a full lap of the bank and then some.
+    let previous = deriveCoachOutputs(resultResponse("HIGH"), {
+      food: "pasta bake",
+      rotation: 0
+    });
+
+    for (let rotation = 1; rotation <= 20; rotation += 1) {
+      const current = deriveCoachOutputs(resultResponse("HIGH"), {
+        food: "pasta bake",
+        rotation
+      });
+
+      expect(current.sequencingTip).not.toBe(previous.sequencingTip);
+      expect(current.postMealAction).not.toBe(previous.postMealAction);
+      expect(current.keepMost).not.toBe(previous.keepMost);
+
+      previous = current;
+    }
+  });
+
+  it("a drink gets no plate-sequencing tip", () => {
+    // "Start with the vegetables on your plate" attached to a milkshake was a
+    // real shipped output — the tell that the tip was never about the meal.
+    for (const drink of ["milkshake", "large orange juice", "iced latte"]) {
+      const outputs = deriveCoachOutputs(resultResponse("HIGH"), {
+        food: drink,
+        rotation: 1
+      });
+
+      expect(outputs.sequencingTip).toBeNull();
+      // The other two still apply — a drink can still be moderated and walked off.
+      expect(outputs.postMealAction).not.toBeNull();
+      expect(outputs.keepMost).not.toBeNull();
+    }
+  });
+
+  it("a plate that merely includes a drink still gets the sequencing tip", () => {
+    const outputs = deriveCoachOutputs(resultResponse("HIGH"), {
+      food: "chicken salad and a juice",
+      rotation: 1
+    });
+
+    expect(outputs.sequencingTip).not.toBeNull();
+  });
+
+  it("falls back to a stable hash when the client sends no rotation counter", () => {
+    const a = deriveCoachOutputs(resultResponse("HIGH"), {
+      food: "cake",
+      seed: "client-abc"
+    });
+    const b = deriveCoachOutputs(resultResponse("HIGH"), {
+      food: "cake",
+      seed: "client-abc"
+    });
+
+    expect(a).toEqual(b);
+    expect(COACH_PHRASE_BANK.keepMost).toContain(a.keepMost);
   });
 
   it("returns both outputs for HIGH results", () => {
@@ -84,13 +167,26 @@ describe("deriveCoachOutputs", () => {
     }
   );
 
-  it("keepMost is the approved keep-most phrase for MODERATE and HIGH", () => {
-    const phrase =
-      "Enjoy a smaller portion now and set the rest aside for later — same food, gentler pace.";
+  it("keepMost comes from the audited bank for MODERATE and HIGH", () => {
+    for (const risk of ["MODERATE", "HIGH"] as const) {
+      const keepMost = deriveCoachOutputs(resultResponse(risk), {
+        food: "chocolate cake",
+        rotation: 2
+      }).keepMost;
 
-    expect(deriveCoachOutputs(resultResponse("MODERATE")).keepMost).toBe(phrase);
-    expect(deriveCoachOutputs(resultResponse("HIGH")).keepMost).toBe(phrase);
-    expect(deriveCoachOutputs(resultResponse("HIGH")).keepMost).toBeTruthy();
+      expect(keepMost).toBeTruthy();
+      expect(COACH_PHRASE_BANK.keepMost).toContain(keepMost);
+    }
+  });
+
+  it("no coach sentence names a meal component — whole-portion moderation must stay true for every meal", () => {
+    // These sentences attach to meals the derivation never sees, so any one
+    // that named a food would eventually be wrong about the plate it landed on.
+    for (const phrase of COACH_PHRASE_BANK.keepMost) {
+      expect(phrase).not.toMatch(
+        /\b(rice|bread|pasta|cake|potato|chicken|pizza)\b/i
+      );
+    }
   });
 
   it("keepMost is null for SAFE and every non-result kind", () => {

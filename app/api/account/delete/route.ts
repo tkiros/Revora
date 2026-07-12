@@ -4,6 +4,11 @@ import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
+import {
+  deleteBlobUrls,
+  deleteUserBlobs,
+  type BlobDeleter
+} from "../../../../lib/server/blob";
 import { getDb, schema, type Db } from "../../../../lib/server/db";
 import {
   getSessionInfo,
@@ -14,15 +19,17 @@ export const runtime = "nodejs";
 
 /**
  * Account + data deletion (plan 4E). Cancels provider subscriptions
- * best-effort, deletes the user row (every user-linked table cascades),
- * writes an identity-free audit row, and ends the session (DB sessions
- * cascade with the user). Declared publicly at /account/delete.
+ * best-effort, deletes the user's pantry photos from Blob, deletes the user
+ * row (every user-linked table cascades), writes an identity-free audit row,
+ * and ends the session (DB sessions cascade with the user). Declared publicly
+ * at /account/delete.
  */
 
 type DeleteDeps = {
   db?: () => Db;
   getSession?: () => Promise<SessionInfo>;
   cancelStripeSubscription?: (subscriptionId: string) => Promise<void>;
+  deleteBlobs?: BlobDeleter;
   now?: () => Date;
 };
 
@@ -38,6 +45,7 @@ export function createAccountDeleteHandler(deps: DeleteDeps = {}) {
   const db = deps.db ?? getDb;
   const getSession = deps.getSession ?? getSessionInfo;
   const cancelStripe = deps.cancelStripeSubscription ?? defaultCancelStripe;
+  const deleteBlobs = deps.deleteBlobs ?? deleteBlobUrls;
   const now = deps.now ?? (() => new Date());
 
   return async function POST() {
@@ -66,7 +74,15 @@ export function createAccountDeleteHandler(deps: DeleteDeps = {}) {
       }
     }
 
-    // One delete; profiles/checks/subscriptions/push/sessions cascade.
+    // MUST precede the cascade (N-23): pantry_photos.blob_url is the only
+    // pointer to a live Blob object, and `DELETE users` cascades those rows
+    // away — after that the photos are unreachable and undeletable forever,
+    // which is exactly the "we keep nothing" promise this route exists to keep.
+    // Failure is captured, never thrown: the user asked to be deleted and a
+    // Blob outage must not block that.
+    await deleteUserBlobs(db(), session.userId, deleteBlobs);
+
+    // One delete; profiles/checks/subscriptions/push/sessions/pantry cascade.
     await db().delete(schema.users).where(eq(schema.users.id, session.userId));
 
     await db()

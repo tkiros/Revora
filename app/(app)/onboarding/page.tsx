@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { routeA1C } from "../../../lib/revora/a1c";
+import { RISK_LABELS } from "../../../lib/revora/labels";
 import { track } from "../../../lib/client/analytics";
 import { profileStore } from "../../../lib/client/profile-store";
 import { IconAlert, IconCheck, IconPause } from "../../../components/icons";
@@ -90,6 +91,10 @@ export default function OnboardingPage() {
   const [skipsA1c, setSkipsA1c] = useState(false);
   useEffect(() => {
     setSkipsA1c(profileStore.get() !== null);
+    // W-10/N-12: the top of the activation funnel. Without a *_started event
+    // there is no denominator, so the onboarding drop-off — the single number
+    // that decides whether the funnel works — was not computable at all.
+    track({ name: "onboarding_started" });
   }, []);
 
   function advanceFromSegment(choice?: Segment) {
@@ -188,23 +193,25 @@ export default function OnboardingPage() {
                 Should I eat this, now? Get a calm answer.
               </h1>
               <p className="page-copy">
-                At the moment of a meal, Revora gives you one clear answer —
-                Clear, Be careful, or Hold off — with one reason, one
-                adjustment, and one safer swap. Never a calorie, never a
+                At the moment of a meal, Revora gives you one clear verdict —
+                {" "}
+                {RISK_LABELS.SAFE}, {RISK_LABELS.MODERATE}, or{" "}
+                {RISK_LABELS.HIGH} — with one reason and, when there&apos;s
+                one, an adjustment and a safer swap. Never a calorie, never a
                 number to track.
               </p>
               <div className="chip-row" aria-hidden="true">
                 <span className="verdict-badge" data-risk="SAFE">
                   <IconCheck size={16} />
-                  Clear
+                  {RISK_LABELS.SAFE}
                 </span>
                 <span className="verdict-badge" data-risk="MODERATE">
                   <IconAlert size={16} />
-                  Be careful
+                  {RISK_LABELS.MODERATE}
                 </span>
                 <span className="verdict-badge" data-risk="HIGH">
                   <IconPause size={16} />
-                  Hold off
+                  {RISK_LABELS.HIGH}
                 </span>
               </div>
               <button

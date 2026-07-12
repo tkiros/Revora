@@ -1,7 +1,13 @@
 import Link from "next/link";
 
-import type { RevoraRisk, RevoraUserResponse } from "../lib/client/ui-state";
+import type {
+  ClinicalRoute,
+  RevoraRisk,
+  RevoraUserResponse
+} from "../lib/client/ui-state";
+import { RISK_LABELS } from "../lib/revora/labels";
 import { DisclaimerLine } from "./disclaimer-line";
+import { ResultFeedback } from "./result-feedback";
 import {
   IconAlert,
   IconArrowRight,
@@ -29,13 +35,22 @@ export function showPantryEntry(
   return kind === "result" && risk !== "SAFE";
 }
 
-// §6.1 verdict mapping: the card speaks calm decisions, the engine speaks
-// risk classes. data-risk keeps the raw class for tests and styling.
-const RISK_LABELS = {
-  SAFE: "Clear",
-  MODERATE: "Be careful",
-  HIGH: "Hold off"
-} as const;
+// §6.1 verdict mapping lives in lib/revora/labels — one map, three surfaces.
+// data-risk keeps the raw class for tests and styling.
+
+// Clinical-route eyebrows (W-01). The message body itself is approved ledger
+// copy; these are the short framing lines above it. Kept neutral and
+// non-diagnostic — Revora names what it CANNOT do, never what the user has.
+const CLINICAL_EYEBROWS: Record<ClinicalRoute, string> = {
+  urgent_symptoms: "Please get help now",
+  possible_hypoglycemia: "Follow your plan",
+  medication_dosing: "Ask your prescriber",
+  eating_disorder: "Support, not a verdict",
+  pregnancy: "Outside Revora's scope",
+  organ_disease: "Outside Revora's scope",
+  allergy: "Revora cannot confirm this",
+  diagnosed_diabetes: "Outside Revora's scope"
+};
 
 // §4D upsell variants. The branch renders the server `message` verbatim in
 // both cases and only picks its own eyebrow/CTA/data-wall. The server now
@@ -135,11 +150,18 @@ export function ResultCard({
               </span>
             </p>
           ) : null}
+          {/* W-17 honest framing. These two rows used to read "Eat it in this
+              order:" and "After this meal:", which implied Revora had picked
+              them FOR this meal. It had not — they were the same two sentences
+              on every flagged result. The labels now say what is true: these
+              are general strategies, not a reading of your plate. The reason,
+              adjustment, and swap above are the meal-specific parts. */}
           {response.sequencingTip ? (
             <p className="result-row" data-testid="sequencing-tip">
               <IconArrowRight size={16} />
               <span>
-                <strong>Eat it in this order:</strong> {response.sequencingTip}
+                <strong>A pattern that helps many people:</strong>{" "}
+                {response.sequencingTip}
               </span>
             </p>
           ) : null}
@@ -148,7 +170,7 @@ export function ResultCard({
               <p className="result-row">
                 <IconCheck size={16} />
                 <span>
-                  <strong>After this meal:</strong> {response.postMealAction}
+                  <strong>A calm next step:</strong> {response.postMealAction}
                 </span>
               </p>
               {onActionDone ? (
@@ -181,6 +203,9 @@ export function ResultCard({
           </p>
           <DisclaimerLine disclaimer={response.disclaimer} />
         </div>
+        {/* W-30. Sits below the disclaimer, outside the guidance itself — the
+            question is about Revora, not about the meal. */}
+        <ResultFeedback risk={response.risk} />
       </section>
     );
   }
@@ -203,6 +228,30 @@ export function ResultCard({
         <Link className="primary-button link-button" href="/subscribe">
           {variant.cta}
         </Link>
+        <DisclaimerLine disclaimer={response.disclaimer} />
+      </section>
+    );
+  }
+
+  // Clinical route (W-01). Rendered as its own branch, deliberately BEFORE the
+  // generic ternary below — an unhandled kind falls through that chain to the
+  // "Try this check again" retry card, which would invite a user reporting
+  // hypoglycaemia symptoms to rephrase their meal description.
+  //
+  // aria-live="assertive": every other card is "polite" and waits for the
+  // screen reader to finish its current utterance. This one interrupts.
+  if (response.kind === "clinical") {
+    return (
+      <section
+        aria-live="assertive"
+        className="result-card"
+        data-testid="result-card"
+        data-kind="clinical"
+        data-route={response.route}
+      >
+        <p className="result-eyebrow">{CLINICAL_EYEBROWS[response.route]}</p>
+        <p className="status-title">This needs a person, not an app</p>
+        <p className="result-copy">{response.message}</p>
         <DisclaimerLine disclaimer={response.disclaimer} />
       </section>
     );

@@ -27,7 +27,7 @@ export default function CheckPage() {
           Home
         </Link>
       </div>
-        <section className="surface-card hero-card">
+        <section className="surface-card hero-card check-hero">
           <p className="hero-eyebrow">Revora</p>
           <h1 className="page-title">Should I eat this?</h1>
           <p className="page-copy">

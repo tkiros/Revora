@@ -20,12 +20,150 @@ export type PostprocessContext = {
   contract: SafetyContract;
   route: A1CRoute;
   precheckFlags: RevoraPolicyFlag[];
+  /** The food the user described — for the component-mention rule (W-17). */
+  food?: string;
 };
+
+/** Words too common to count as "naming a component of the meal". */
+const COMPONENT_STOPWORDS = new Set([
+  "with",
+  "and",
+  "the",
+  "a",
+  "an",
+  "of",
+  "or",
+  "some",
+  "my",
+  "from",
+  "for",
+  "plain",
+  "large",
+  "small",
+  "fresh",
+  "hot",
+  "cold",
+  "meal",
+  "food",
+  "lunch",
+  "dinner",
+  "breakfast",
+  "snack"
+]);
+
+/**
+ * W-17 Tier 2.1 — does the advice name something the user actually typed?
+ *
+ * SHIPPED OFF BY DEFAULT (`REVORA_ENFORCE_COMPONENT_MENTION=1` to enable), and
+ * that is a deliberate call, not timidity.
+ *
+ * This rule is fail-closed: a violation becomes a retry card. Turning it on
+ * without first measuring its false-positive rate would degrade real users to
+ * retry cards at an unknown rate — which is precisely the shape of the mistake
+ * F-21 made (ship a model-behaviour change whose own evidence said "not yet").
+ * The prompt instruction ships enabled and does the work; this assertion is the
+ * enforcement, and it turns on when W-07's live run has measured the retry-rate
+ * delta against the ≤2pt budget.
+ */
+export function mentionsMealComponent(food: string, advice: string): boolean {
+  const tokens = food
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((token) => token.length > 2 && !COMPONENT_STOPWORDS.has(token));
+
+  if (tokens.length === 0) {
+    return true; // Nothing nameable — do not punish the model for it.
+  }
+
+  const lowered = advice.toLowerCase();
+  return tokens.some((token) => {
+    // Match the stem so "rice" hits "rice", and "potatoes" hits "potato".
+    const stem = token.replace(/(?:es|s)$/, "");
+    return lowered.includes(stem.length > 2 ? stem : token);
+  });
+}
+
+function componentMentionEnforced(): boolean {
+  return process.env.REVORA_ENFORCE_COMPONENT_MENTION === "1";
+}
 
 export class RevoraContractError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "RevoraContractError";
+  }
+}
+
+/**
+ * Instruction/prompt leakage. Kept here (not in eval-rubric) because it must
+ * run in PRODUCTION, not only in the eval harness — the eval-only copy was
+ * half of finding N-01.
+ */
+const LEAK_PATTERN =
+  /\b(system prompt|you are revora|allowed response kinds|policy[_ ]flags|json[_ ]schema|instructions:)\b/i;
+
+/**
+ * Compiled banned-output patterns, cached per contract (the regex strings live
+ * as JSON in tests/fixtures/safety-contract.json and never change at runtime).
+ */
+const BANNED_PATTERN_CACHE = new WeakMap<SafetyContract, RegExp[]>();
+
+function bannedOutputPatterns(contract: SafetyContract): RegExp[] {
+  const cached = BANNED_PATTERN_CACHE.get(contract);
+  if (cached) {
+    return cached;
+  }
+
+  const { fixture } = contract;
+  const patterns = [
+    ...fixture.forbiddenClaims.map((entry) => new RegExp(entry.pattern, "i")),
+    ...fixture.forbiddenPredictions.map(
+      (entry) => new RegExp(entry.pattern, "i")
+    ),
+    ...fixture.qualitativeOnly.forbiddenPatterns.map(
+      (entry) => new RegExp(entry.pattern, "i")
+    ),
+    LEAK_PATTERN
+  ];
+
+  BANNED_PATTERN_CACHE.set(contract, patterns);
+  return patterns;
+}
+
+/**
+ * The safety contract, actually enforced (N-01 / W-06).
+ *
+ * The contract has always defined regexes for banned claims ("cure",
+ * "reverses"), banned predictions ("your A1C will drop to…"), and
+ * quantitative claims ("spikes your glucose by 32 mg/dL"). They ran in the eval
+ * harness. They never ran on a real model response — production injected only
+ * the *labels* of these patterns into the prompt and then trusted the model to
+ * obey. So the single control that was supposed to make a banned claim
+ * structurally unable to reach a user was, in production, an instruction and a
+ * hope.
+ *
+ * Fail-closed: a violation throws, which the service catches and turns into the
+ * calm retry card. A retry card cannot carry a verdict, so the worst case of a
+ * false positive is a user asked to rephrase — never a wrong answer shown.
+ */
+export function assertNoForbiddenClaims(
+  contract: SafetyContract,
+  fields: Array<string | null | undefined>
+): void {
+  const patterns = bannedOutputPatterns(contract);
+
+  for (const text of fields) {
+    if (!text) {
+      continue;
+    }
+
+    for (const pattern of patterns) {
+      if (pattern.test(text)) {
+        throw new RevoraContractError(
+          `Model output matched a banned pattern (${pattern.source}).`
+        );
+      }
+    }
   }
 }
 
@@ -65,10 +203,29 @@ export function postprocessModelOutput(
 
   assertOneSentence("reason", result.reason);
 
+  // Runs on the FLOORED draft, i.e. the exact strings the user would read —
+  // not on the raw model output, so a floor cannot reintroduce banned text.
+  assertNoForbiddenClaims(context.contract, [
+    result.reason,
+    result.adjustment,
+    result.swap
+  ]);
+
   if (result.risk === "SAFE") {
     assertNoUnsafeSafeFields(result);
   } else {
     assertModerateHighFields(result, mergedFlags);
+
+    if (
+      componentMentionEnforced() &&
+      context.food &&
+      result.adjustment &&
+      !mentionsMealComponent(context.food, result.adjustment)
+    ) {
+      throw new RevoraContractError(
+        "Adjustment must name a component of the described meal."
+      );
+    }
   }
 
   return RevoraUserResultSchema.parse({

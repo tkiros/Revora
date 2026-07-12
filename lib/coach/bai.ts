@@ -117,9 +117,22 @@ export type BaiBandCopy = { label: string; message: string };
  *
  * Adapted from Amendment 1's bands, but rewritten to stay inside the locked
  * claims boundary: no predicted/future A1C, no banned-verb claim, no "on
- * track to reach X by day Y". The "excellent" band's ceiling is a
- * consistency-profile comparison to the CDC DPP trial (cited in full on
- * /how-it-works) — never a promise about this user's own outcome.
+ * track to reach X by day Y".
+ *
+ * F-14 (2026-07-11): the "excellent" band used to tell the user their
+ * check-ins "match the consistency profile studied in the CDC DPP trial".
+ * That trial studied an intensive, year-long, in-person lifestyle programme —
+ * not app check-in consistency — and its headline result is a 58% reduction in
+ * progression to type 2 diabetes. Naming it here, in the one place the user
+ * reads about their OWN behavior and with none of the framing that surrounds
+ * it on /how-it-works, built exactly the implied-efficacy bridge the landing
+ * page explicitly refuses to build ("not a result from Revora's users, and not
+ * a promise about your numbers"). The trial citation now lives ONLY on
+ * /how-it-works and the landing proof band, where it is fully hedged and
+ * attributed; this copy is now about the user's behavior and nothing else.
+ * The rule is enforced by the "study-association" family in
+ * claims-boundary-copy.test.ts.
+ *
  * "Building"/"Getting started" keep the calm, permission-first tone of the
  * amendment's originals (their scanning-specific language became "check" —
  * this product has no scanning).
@@ -128,7 +141,7 @@ export const BAI_BAND_COPY: Record<BaiBand, BaiBandCopy> = {
   excellent: {
     label: "Excellent",
     message:
-      "Your check-ins and follow-through this week match the consistency profile studied in the CDC DPP trial. Keep checking in before your next meal — that's the whole habit."
+      "You checked in and followed through nearly every day this week — that's the habit doing its work. Keep checking in before your next meal; steady beats perfect."
   },
   on_track: {
     label: "On track",

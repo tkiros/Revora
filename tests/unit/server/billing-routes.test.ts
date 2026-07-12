@@ -2,11 +2,18 @@ import { eq } from "drizzle-orm";
 import type Stripe from "stripe";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+// W-33 — deleteOrderBlobs dynamically imports the Blob SDK. Stub the network
+// away; the assertion is that the refund path asks for the right objects.
+const blobDel = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+vi.mock("@vercel/blob", () => ({ del: blobDel }));
+
 import {
   applyStripeEvent,
   createEntitlementHandler,
   createPlayRtdnHandler,
-  createPlayVerifyHandler
+  createPlayVerifyHandler,
+  createStripeCheckoutHandler,
+  createStripePortalHandler
 } from "../../../app/api/billing/handlers";
 import { encryptField } from "../../../lib/server/crypto";
 import { schema } from "../../../lib/server/db";
@@ -22,6 +29,10 @@ let userId: string;
 beforeAll(async () => {
   process.env.HEALTH_DATA_KEY = TEST_KEY;
   process.env.RTDN_SHARED_TOKEN = "rtdn-secret";
+  // W-04: every paid-checkout entry point 503s unless the deploy declares the
+  // terms final. These suites exercise the real paths, so they declare it; the
+  // gate itself is proven by its own describe block below.
+  process.env.LEGAL_TERMS_FINAL = "1";
   testDb = await createTestDb();
   const [user] = await testDb.db
     .insert(schema.users)
@@ -40,6 +51,7 @@ beforeAll(async () => {
 afterAll(async () => {
   delete process.env.HEALTH_DATA_KEY;
   delete process.env.RTDN_SHARED_TOKEN;
+  delete process.env.LEGAL_TERMS_FINAL;
   await testDb.close();
 });
 
@@ -804,5 +816,393 @@ describe("GET /api/entitlement", () => {
       freeDailyLimit: 5
     });
     expect(typeof body.checksToday).toBe("number");
+  });
+});
+
+/**
+ * W-33 — a refunded Pantry order is over, so its photos must go. Nothing else
+ * ever revisits a canceled order (the sweep only walks live states), so without
+ * this the buyer's food photos live in blob storage forever.
+ */
+describe("applyStripeEvent — charge.refunded deletes the order's photos (W-33)", () => {
+  it("cancels the order AND deletes its still-live photo blobs", async () => {
+    blobDel.mockClear();
+
+    const [order] = await testDb.db
+      .insert(schema.pantryOrders)
+      .values({
+        email: "buyer@test.dev",
+        stripeSessionId: "cs_blob_1",
+        stripePaymentIntent: "pi_blob_1",
+        claimToken: "hash_blob_1",
+        updatedAt: NOW
+      })
+      .returning();
+
+    await testDb.db.insert(schema.pantryPhotos).values([
+      { orderId: order.id, blobUrl: "https://blob/live-1.jpg", status: "uploaded" },
+      { orderId: order.id, blobUrl: "https://blob/live-2.jpg", status: "extracted" },
+      // Already reclaimed — must not be deleted twice.
+      { orderId: order.id, blobUrl: "https://blob/gone.jpg", status: "deleted" }
+    ]);
+
+    await applyStripeEvent(
+      testDb.db,
+      {
+        type: "charge.refunded",
+        data: { object: { payment_intent: "pi_blob_1", refunded: true } }
+      } as unknown as Stripe.Event,
+      NOW,
+      () => ({}) as unknown as Stripe
+    );
+
+    const [row] = await testDb.db
+      .select()
+      .from(schema.pantryOrders)
+      .where(eq(schema.pantryOrders.id, order.id));
+    expect(row.status).toBe("canceled");
+
+    expect(blobDel).toHaveBeenCalledTimes(1);
+    expect(blobDel).toHaveBeenCalledWith([
+      "https://blob/live-1.jpg",
+      "https://blob/live-2.jpg"
+    ]);
+
+    const photos = await testDb.db
+      .select()
+      .from(schema.pantryPhotos)
+      .where(eq(schema.pantryPhotos.orderId, order.id));
+    expect(photos.every((photo) => photo.status === "deleted")).toBe(true);
+  });
+});
+
+/**
+ * W-12 — "refunded" is terminal. Stripe does not guarantee webhook ordering, so
+ * an update emitted before a refund can be delivered after it.
+ */
+describe("applyStripeEvent — refund ordering (W-12)", () => {
+  const updatedEvent = (id: string, status: string, periodEnd?: Date) =>
+    ({
+      type: "customer.subscription.updated",
+      data: {
+        object: {
+          id,
+          status,
+          items: {
+            data: [
+              periodEnd
+                ? { current_period_end: Math.floor(periodEnd.getTime() / 1000) }
+                : {}
+            ]
+          }
+        }
+      }
+    }) as unknown as Stripe.Event;
+
+  it("an out-of-order subscription.updated(active) AFTER a refund does NOT resurrect premium", async () => {
+    await testDb.db.insert(schema.subscriptions).values({
+      userId,
+      provider: "stripe",
+      providerRef: "sub_ooo",
+      productId: "premium_monthly",
+      status: "refunded",
+      currentPeriodEnd: FUTURE
+    });
+
+    await applyStripeEvent(
+      testDb.db,
+      updatedEvent("sub_ooo", "active", FUTURE),
+      NOW
+    );
+
+    const [row] = await testDb.db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.providerRef, "sub_ooo"));
+    // Before the fix this wrote "active" and handed back the premium we refunded.
+    expect(row.status).toBe("refunded");
+  });
+
+  it("a late subscription.deleted also cannot overwrite refunded", async () => {
+    await testDb.db.insert(schema.subscriptions).values({
+      userId,
+      provider: "stripe",
+      providerRef: "sub_ooo_del",
+      productId: "premium_monthly",
+      status: "refunded",
+      currentPeriodEnd: FUTURE
+    });
+
+    await applyStripeEvent(
+      testDb.db,
+      {
+        type: "customer.subscription.deleted",
+        data: { object: { id: "sub_ooo_del", status: "canceled", items: { data: [] } } }
+      } as unknown as Stripe.Event,
+      NOW
+    );
+
+    const [row] = await testDb.db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.providerRef, "sub_ooo_del"));
+    expect(row.status).toBe("refunded");
+  });
+
+  it("a payload with NO current_period_end leaves the stored period end alone (never revokes a paying subscriber)", async () => {
+    await testDb.db.insert(schema.subscriptions).values({
+      userId,
+      provider: "stripe",
+      providerRef: "sub_no_pe",
+      productId: "premium_monthly",
+      status: "active",
+      currentPeriodEnd: FUTURE
+    });
+
+    await applyStripeEvent(testDb.db, updatedEvent("sub_no_pe", "active"), NOW);
+
+    const [row] = await testDb.db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.providerRef, "sub_no_pe"));
+    // The old fallback wrote `now`, and getEntitlement needs currentPeriodEnd >
+    // now — so this update alone used to silently revoke a live subscription.
+    expect(row.currentPeriodEnd.toISOString()).toBe(FUTURE.toISOString());
+    expect(row.status).toBe("active");
+  });
+});
+
+/**
+ * W-18 — a declined card used to ride Stripe's ~3-week dunning schedule with
+ * premium fully on, zero revenue, and no word to the user.
+ */
+describe("applyStripeEvent — invoice.payment_failed (W-18)", () => {
+  const failedEvent = (subscriptionId: string) =>
+    ({
+      type: "invoice.payment_failed",
+      data: {
+        object: {
+          parent: { subscription_details: { subscription: subscriptionId } }
+        }
+      }
+    }) as unknown as Stripe.Event;
+
+  it("caps grace to 3 days, flips to grace, and emails the user", async () => {
+    await testDb.db.insert(schema.subscriptions).values({
+      userId,
+      provider: "stripe",
+      providerRef: "sub_dunning",
+      productId: "premium_monthly",
+      status: "active",
+      currentPeriodEnd: FUTURE // weeks out — the free ride we are closing
+    });
+    const send = vi.fn().mockResolvedValue({ ok: true });
+
+    await applyStripeEvent(
+      testDb.db,
+      failedEvent("sub_dunning"),
+      NOW,
+      undefined,
+      { send }
+    );
+
+    const [row] = await testDb.db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.providerRef, "sub_dunning"));
+    expect(row.status).toBe("grace");
+    expect(row.currentPeriodEnd.toISOString()).toBe(
+      new Date(NOW.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString()
+    );
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send.mock.calls[0][0].to).toBe("billing@test.dev");
+    expect(send.mock.calls[0][0].text).toMatch(/update your card/i);
+  });
+
+  it("never EXTENDS access — a period end sooner than the grace cap wins", async () => {
+    const soon = new Date(NOW.getTime() + 24 * 60 * 60 * 1000);
+    await testDb.db.insert(schema.subscriptions).values({
+      userId,
+      provider: "stripe",
+      providerRef: "sub_soon",
+      productId: "premium_monthly",
+      status: "active",
+      currentPeriodEnd: soon
+    });
+
+    await applyStripeEvent(testDb.db, failedEvent("sub_soon"), NOW, undefined, {
+      send: vi.fn().mockResolvedValue({ ok: true })
+    });
+
+    const [row] = await testDb.db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.providerRef, "sub_soon"));
+    expect(row.currentPeriodEnd.toISOString()).toBe(soon.toISOString());
+  });
+
+  it("is idempotent across dunning retries — one cap, ONE email", async () => {
+    await testDb.db.insert(schema.subscriptions).values({
+      userId,
+      provider: "stripe",
+      providerRef: "sub_retry",
+      productId: "premium_monthly",
+      status: "active",
+      currentPeriodEnd: FUTURE
+    });
+    const send = vi.fn().mockResolvedValue({ ok: true });
+
+    await applyStripeEvent(testDb.db, failedEvent("sub_retry"), NOW, undefined, { send });
+    // Stripe retries the charge (and re-fires the event) days later.
+    const later = new Date(NOW.getTime() + 2 * 24 * 60 * 60 * 1000);
+    await applyStripeEvent(testDb.db, failedEvent("sub_retry"), later, undefined, { send });
+
+    expect(send).toHaveBeenCalledTimes(1);
+    const [row] = await testDb.db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.providerRef, "sub_retry"));
+    // The cap from the FIRST failure stands — a retry cannot push access out.
+    expect(row.currentPeriodEnd.toISOString()).toBe(
+      new Date(NOW.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString()
+    );
+  });
+
+  it("ignores an unknown subscription", async () => {
+    const send = vi.fn();
+    await applyStripeEvent(testDb.db, failedEvent("sub_nobody"), NOW, undefined, {
+      send
+    });
+    expect(send).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * W-20 — the portal 404'd for users who own both a Play row and a Stripe row,
+ * and the legacy checkout priced itself off a different env var than the wall.
+ */
+describe("POST /api/billing/stripe/portal (W-20)", () => {
+  it("finds the Stripe row even when a Play row exists for the same user", async () => {
+    // Insert the Play row FIRST — with no provider filter and no ORDER BY this
+    // is exactly the row the unfixed query hands back, 404ing a real subscriber.
+    await testDb.db.insert(schema.subscriptions).values({
+      userId,
+      provider: "play",
+      providerRef: "play_tok",
+      productId: "premium_monthly",
+      status: "active",
+      currentPeriodEnd: FUTURE
+    });
+    await testDb.db.insert(schema.subscriptions).values({
+      userId,
+      provider: "stripe",
+      providerRef: "sub_portal",
+      productId: "premium_monthly",
+      status: "active",
+      currentPeriodEnd: FUTURE
+    });
+
+    const stripe = {
+      subscriptions: {
+        retrieve: vi.fn().mockResolvedValue({ customer: "cus_1" })
+      },
+      billingPortal: {
+        sessions: {
+          create: vi.fn().mockResolvedValue({ url: "https://stripe/portal" })
+        }
+      }
+    } as unknown as Stripe;
+
+    const POST = createStripePortalHandler({
+      ...baseDeps(),
+      stripeClient: () => stripe
+    });
+
+    const response = await POST();
+    expect(response.status).toBe(200);
+    expect((await response.json()).url).toBe("https://stripe/portal");
+    expect(stripe.subscriptions.retrieve).toHaveBeenCalledWith("sub_portal");
+  });
+
+  it("404s when the user has no Stripe row at all", async () => {
+    await testDb.db.insert(schema.subscriptions).values({
+      userId,
+      provider: "play",
+      providerRef: "play_only",
+      productId: "premium_monthly",
+      status: "active",
+      currentPeriodEnd: FUTURE
+    });
+
+    const POST = createStripePortalHandler({
+      ...baseDeps(),
+      stripeClient: () => ({}) as unknown as Stripe
+    });
+
+    expect((await POST()).status).toBe(404);
+  });
+});
+
+describe("POST /api/billing/stripe/checkout (W-20b price unification, W-04 gate)", () => {
+  const checkoutEnv = {
+    LEGAL_TERMS_FINAL: "1",
+    TRIAL_PRICE_VARIANT: "1999",
+    STRIPE_PRICE_MONTHLY_1999: "price_ladder_1999",
+    STRIPE_PRICE_ANNUAL: "price_annual",
+    // The env var the legacy path used to read. It must no longer be consulted:
+    // a checkout priced off this while the wall advertises the ladder is exactly
+    // the "shows a price checkout won't charge" failure pricing.ts exists to stop.
+    STRIPE_PRICE_MONTHLY: "price_STALE_legacy",
+    NEXT_PUBLIC_APP_URL: "https://app"
+  } as unknown as NodeJS.ProcessEnv;
+
+  const stripeStub = () => ({
+    checkout: {
+      sessions: { create: vi.fn().mockResolvedValue({ url: "https://stripe/legacy" }) }
+    }
+  });
+
+  it("prices monthly off the SAME variant ladder the wall renders — never STRIPE_PRICE_MONTHLY", async () => {
+    const stripe = stripeStub();
+    const POST = createStripeCheckoutHandler({
+      ...baseDeps(),
+      stripeClient: () => stripe as never,
+      env: checkoutEnv
+    });
+
+    const response = await POST(post("http://t/api/billing/stripe/checkout", { plan: "monthly" }));
+    expect(response.status).toBe(200);
+    expect(stripe.checkout.sessions.create.mock.calls[0][0].line_items).toEqual([
+      { price: "price_ladder_1999", quantity: 1 }
+    ]);
+  });
+
+  it("prices annual off resolveAnnualPrice", async () => {
+    const stripe = stripeStub();
+    const POST = createStripeCheckoutHandler({
+      ...baseDeps(),
+      stripeClient: () => stripe as never,
+      env: checkoutEnv
+    });
+
+    await POST(post("http://t/api/billing/stripe/checkout", { plan: "annual" }));
+    expect(stripe.checkout.sessions.create.mock.calls[0][0].line_items).toEqual([
+      { price: "price_annual", quantity: 1 }
+    ]);
+  });
+
+  it("W-04: 503s and never opens a Stripe session when LEGAL_TERMS_FINAL is unset", async () => {
+    const stripe = stripeStub();
+    const POST = createStripeCheckoutHandler({
+      ...baseDeps(),
+      stripeClient: () => stripe as never,
+      env: { ...checkoutEnv, LEGAL_TERMS_FINAL: undefined } as NodeJS.ProcessEnv
+    });
+
+    const response = await POST(post("http://t/api/billing/stripe/checkout", { plan: "monthly" }));
+    expect(response.status).toBe(503);
+    expect((await response.json()).error).toMatch(/unavailable/i);
+    expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
   });
 });

@@ -1,14 +1,21 @@
 import type { StoredCheck } from "../client/history-store";
+import { RISK_LABELS } from "../revora/labels";
 
 /**
  * Rule-based insights (plan P3, F11). Pure rules over StoredCheck[] — no
  * model, no numbers, and forward-permission framing only: the insight always
  * points at the easiest next win, never back at a failure. Reused verbatim
  * by the server-side coach compute in 4C.
+ *
+ * Every rule here MUST read `check.risk`. The repeat-meal rule originally did
+ * not (F-13), so it congratulated a user on "a steady choice" for a meal the
+ * app had just told them to hold off on — the product affirmatively endorsing
+ * a habit it classified high-risk. A rule that speaks about a user's meals
+ * without consulting the verdict attached to them can always invert like that.
  */
 
 export type CoachInsight = {
-  id: "daypart" | "repeat_meal";
+  id: "daypart" | "repeat_meal" | "repeat_meal_risk";
   text: string;
 };
 
@@ -79,13 +86,51 @@ function deriveDaypartInsight(
     return null;
   }
 
+  // The set counted above is MODERATE ∪ HIGH, but the copy used to call all of
+  // them "'be careful' meals" — which is the MODERATE label. A user whose
+  // flagged meals were all HIGH ("Hold off") was told they were merely
+  // be-careful ones, so the insight under-reported its own severity. Naming
+  // both labels, from the single label source, keeps the sentence true through
+  // any future relabel (W-15).
+  const moderate = RISK_LABELS.MODERATE.toLowerCase();
+  const high = RISK_LABELS.HIGH.toLowerCase();
+
   return {
     id: "daypart",
-    text: `Most of your 'be careful' meals are ${topPart} — that's where one swap helps most this week.`
+    text: `Most of your '${moderate}' and '${high}' meals are ${topPart} — that's where one swap helps most this week.`
   };
 }
 
 function deriveRepeatMealInsight(checks: StoredCheck[]): CoachInsight | null {
+  const repeatedSafe = topRepeat(checks.filter((check) => check.risk === "SAFE"));
+
+  if (repeatedSafe) {
+    return {
+      id: "repeat_meal",
+      text: `${capitalize(repeatedSafe)} is one of your go-to meals — a steady choice you already know makes the daily decision easy.`
+    };
+  }
+
+  // A meal that keeps coming back AND keeps getting flagged is the single
+  // highest-leverage thing this user could change — so it earns an insight,
+  // just never a compliment. Forward-permission framing: points at the next
+  // win, does not scold the past.
+  const repeatedFlagged = topRepeat(
+    checks.filter((check) => check.risk === "MODERATE" || check.risk === "HIGH")
+  );
+
+  if (repeatedFlagged) {
+    return {
+      id: "repeat_meal_risk",
+      text: `${capitalize(repeatedFlagged)} keeps coming up — this is where one swap pays off most.`
+    };
+  }
+
+  return null;
+}
+
+/** Most-frequent food among the given checks, if any hits the repeat floor. */
+function topRepeat(checks: StoredCheck[]): string | null {
   const counts = new Map<string, number>();
   for (const check of checks) {
     const key = check.food.trim().toLowerCase();
@@ -99,14 +144,7 @@ function deriveRepeatMealInsight(checks: StoredCheck[]): CoachInsight | null {
     .filter(([, count]) => count >= MIN_REPEATS_FOR_MEAL)
     .sort((a, b) => b[1] - a[1])[0];
 
-  if (!repeated) {
-    return null;
-  }
-
-  return {
-    id: "repeat_meal",
-    text: `${capitalize(repeated[0])} is one of your go-to meals — a steady choice you already know makes the daily decision easy.`
-  };
+  return repeated ? repeated[0] : null;
 }
 
 function capitalize(text: string): string {

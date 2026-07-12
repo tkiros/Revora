@@ -200,7 +200,41 @@ describe("processPantryOrder", () => {
     expect(updated.deliveredAt).toBeNull();
     expect(deps.email.send).toHaveBeenCalledTimes(1);
     expect(deps.email.send.mock.calls[0][0].to).not.toBe("buyer@example.com");
-    expect(deps.deleteBlobs).not.toHaveBeenCalled();
+    // needs_manual is terminal for the photos (N-23): manual handling re-judges
+    // item TEXT, never photos, so retaining them would only break the promise.
+    // (This assertion previously required the opposite — that was the bug.)
+    expect(deps.deleteBlobs).toHaveBeenCalledWith([
+      "https://blob.test/photo1.jpg"
+    ]);
+    const [photo] = await testDb.db
+      .select()
+      .from(schema.pantryPhotos)
+      .where(eq(schema.pantryPhotos.orderId, order.id));
+    expect(photo.status).toBe("deleted");
+  });
+
+  it("a Blob-API outage at delivery does NOT mark the photos deleted (they are still live)", async () => {
+    const order = await makeProcessingOrder(["steel cut oats"]);
+    const deps = {
+      ...makeDeps(modelReturning("SAFE")),
+      deleteBlobs: vi.fn().mockRejectedValue(new Error("blob api down"))
+    };
+
+    await processPantryOrder(deps, order.id);
+
+    const [updated] = await testDb.db
+      .select()
+      .from(schema.pantryOrders)
+      .where(eq(schema.pantryOrders.id, order.id));
+    expect(updated.status).toBe("ready");
+    expect(updated.deliveredAt).not.toBeNull(); // the buyer still got the report
+    const [photo] = await testDb.db
+      .select()
+      .from(schema.pantryPhotos)
+      .where(eq(schema.pantryPhotos.orderId, order.id));
+    // Marking this "deleted" would orphan a live public object forever — every
+    // retry path skips deleted rows. It stays claimable by the sweep's GC.
+    expect(photo.status).not.toBe("deleted");
   });
 
   it("lease contention: a live lease blocks a second run (no double-processing)", async () => {

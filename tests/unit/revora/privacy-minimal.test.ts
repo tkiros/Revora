@@ -110,13 +110,28 @@ describe("privacy-minimal audit", () => {
       kind: "result",
       risk: "SAFE"
     });
-    expect(emitEvent).toHaveBeenCalledWith({
-      name: "check_completed",
-      environment: "test",
-      responseKind: "result",
-      risk: "SAFE",
-      latencyBucket: "<2s"
-    });
+    expect(emitEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "check_completed",
+        environment: "test",
+        responseKind: "result",
+        risk: "SAFE",
+        latencyBucket: "<2s",
+        // W-13: model + versions make a reported bad answer reproducible, and
+        // durationMs makes p95 computable (the buckets never could). All four
+        // are bounded, non-PII values.
+        durationMs: expect.any(Number),
+        model: expect.any(String),
+        promptVersion: expect.any(String),
+        contractVersion: expect.any(String)
+      })
+    );
+
+    // The point of this whole file: the new attribution fields must not have
+    // opened a channel for health data. Nothing emitted may echo the input.
+    const emitted = JSON.stringify(emitEvent.mock.calls);
+    expect(emitted).not.toMatch(/lentil/i);
+    expect(emitted).not.toMatch(/6\.1/);
   });
 
   it("emits coarse failure telemetry and returns a safe retry response", async () => {

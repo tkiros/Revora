@@ -23,11 +23,19 @@ const PRICE = "price_pantry_25";
 let savedPrice: string | undefined;
 let savedAppUrl: string | undefined;
 
+let savedLegal: string | undefined;
+
 beforeEach(() => {
   savedPrice = process.env.STRIPE_PRICE_PANTRY;
   savedAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+  savedLegal = process.env.LEGAL_TERMS_FINAL;
   process.env.STRIPE_PRICE_PANTRY = PRICE;
   process.env.NEXT_PUBLIC_APP_URL = "https://revora.test";
+  // W-04: this is a paid-checkout entry point, so it 503s unless the deploy
+  // declares the terms final. Declared here so the suite exercises the real
+  // path — and so the "no price configured" 503 below can't pass for the wrong
+  // reason. The gate itself is proven in its own test.
+  process.env.LEGAL_TERMS_FINAL = "1";
 });
 
 afterEach(() => {
@@ -35,6 +43,8 @@ afterEach(() => {
   else process.env.STRIPE_PRICE_PANTRY = savedPrice;
   if (savedAppUrl === undefined) delete process.env.NEXT_PUBLIC_APP_URL;
   else process.env.NEXT_PUBLIC_APP_URL = savedAppUrl;
+  if (savedLegal === undefined) delete process.env.LEGAL_TERMS_FINAL;
+  else process.env.LEGAL_TERMS_FINAL = savedLegal;
 });
 
 function stripeStub() {
@@ -78,6 +88,19 @@ describe("createPantryCheckoutSessionHandler", () => {
 
     const res = await handler();
     expect(res.status).toBe(503);
+    expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
+  });
+
+  it("W-04: 503s and never opens a Stripe session when LEGAL_TERMS_FINAL is unset", async () => {
+    delete process.env.LEGAL_TERMS_FINAL;
+    const stripe = stripeStub();
+    const handler = createPantryCheckoutSessionHandler({
+      stripeClient: () => stripe as never
+    });
+
+    const res = await handler();
+    expect(res.status).toBe(503);
+    expect((await res.json()).error).toMatch(/unavailable/i);
     expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
   });
 

@@ -7,6 +7,11 @@ import { track, type AnalyticsEvent } from "../../../lib/client/analytics";
 
 const ALLOWED_NAMES = [
   "check_completed",
+  // W-10/N-12: activation funnel, advice quality, and clinical routing were all
+  // uninstrumented — the product could not measure its own biggest risks.
+  "onboarding_started",
+  "result_helpful",
+  "clinical_route",
   "onboarding_completed",
   "signin_completed",
   "nudge_opened",
@@ -44,6 +49,9 @@ function assertExhaustive(name: AnalyticsEvent["name"]): void {
     case "pantry_viewed":
     case "pantry_checkout_started":
     case "photo_draft":
+    case "onboarding_started":
+    case "result_helpful":
+    case "clinical_route":
       return;
     default: {
       const exhaustiveCheck: never = name;
@@ -61,7 +69,16 @@ describe("AnalyticsEvent allowlist", () => {
     const oneOfEach: AnalyticsEvent[] = [
       {
         name: "check_completed",
-        props: { risk: "SAFE", kind: "result", input_method: "text" }
+        props: { risk: "SAFE", kind: "result", input_method: "text", first_check: false }
+      },
+      { name: "onboarding_started" },
+      {
+        name: "result_helpful",
+        props: { helpful: true, risk: "MODERATE" }
+      },
+      {
+        name: "clinical_route",
+        props: { route: "possible_hypoglycemia" }
       },
       { name: "onboarding_completed" },
       { name: "signin_completed" },
@@ -115,7 +132,7 @@ describe("track()", () => {
     track(
       {
         name: "check_completed",
-        props: { risk: "MODERATE", kind: "result", input_method: "voice" }
+        props: { risk: "MODERATE", kind: "result", input_method: "voice", first_check: false }
       },
       host
     );
@@ -123,7 +140,12 @@ describe("track()", () => {
     expect(calls).toEqual([
       [
         "check_completed",
-        { risk: "MODERATE", kind: "result", input_method: "voice" }
+        {
+          risk: "MODERATE",
+          kind: "result",
+          input_method: "voice",
+          first_check: false
+        }
       ]
     ]);
   });
@@ -226,14 +248,14 @@ describe("AnalyticsEvent props stay closed unions (no free-text props)", () => {
     expect(typeBlock).not.toMatch(/:\s*string(?!\w)/);
   });
 
-  it("check_completed's props are exactly risk / kind / input_method, each a closed union", () => {
+  it("check_completed's props are exactly risk / kind / input_method / first_check, each a closed union", () => {
     const sample: Extract<AnalyticsEvent, { name: "check_completed" }> = {
       name: "check_completed",
-      props: { risk: "HIGH", kind: "clarify", input_method: "text" }
+      props: { risk: "HIGH", kind: "clarify", input_method: "text", first_check: false }
     };
 
     expect(Object.keys(sample.props).sort()).toEqual(
-      ["input_method", "kind", "risk"].sort()
+      ["first_check", "input_method", "kind", "risk"].sort()
     );
   });
 });

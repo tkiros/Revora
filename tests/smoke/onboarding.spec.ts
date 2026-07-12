@@ -23,8 +23,14 @@ test("a new user walks welcome→segment→a1c→expectations→first_check into
     "data-step",
     "welcome"
   );
+  // W-09: the welcome step used to promise "one reason, one adjustment, and one
+  // safer swap" unconditionally. A SAFE verdict is structurally forbidden from
+  // carrying either an adjustment or a swap, so that promise was false for every
+  // Clear result. The copy is now hedged and this assertion follows it.
   await expect(
-    page.getByText(/one reason, one adjustment, and one safer swap/)
+    page.getByText(
+      /one reason and, when there.s one, an adjustment and a safer swap/
+    )
   ).toBeVisible();
   await expectNoSeriousViolations(page);
   await page.getByRole("button", { name: "Get started" }).click();

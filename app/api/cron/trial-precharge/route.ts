@@ -4,6 +4,7 @@ import { captureServerError } from "../../../../lib/revora/sentry-capture";
 import { runPrechargeSweep } from "../../../../lib/server/billing/precharge";
 import { getDb, type Db } from "../../../../lib/server/db";
 import { sendEmail } from "../../../../lib/server/email";
+import { isAuthorizedCron } from "../../../../lib/server/timing-safe";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -15,9 +16,9 @@ export function createPrechargeSweepHandler(deps: Deps = {}) {
   const sweep = deps.sweep ?? runPrechargeSweep;
 
   return async function GET(request: Request) {
-    const secret = process.env.CRON_SECRET;
-    const auth = request.headers.get("authorization");
-    if (!secret || auth !== `Bearer ${secret}`) {
+    // Constant-time (N-29): a plain !== on the bearer token leaks its length and
+    // matching prefix through response timing.
+    if (!isAuthorizedCron(request.headers.get("authorization"))) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
     try {

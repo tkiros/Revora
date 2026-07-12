@@ -146,9 +146,23 @@ test("cta label and position", async ({ page }) => {
   const button = page.getByRole("button", { name: "Should I eat this?" });
   await expect(button).toBeVisible();
 
+  // A11Y-01. This used to be a flat `expect(box.y).toBeLessThan(720)` for both
+  // projects. Pixel 5's viewport is 727px tall and iPhone 12's is 664 — so on
+  // Mobile Safari the threshold sat 56px BELOW the fold and the test could not
+  // fail until the CTA was well off-screen. It passed at y=714 for months with
+  // the button invisible, and the QA record read "fold test passes on Mobile
+  // Chrome AND Mobile Safari".
+  //
+  // Measure against the viewport each project actually declares. Asserting the
+  // top edge (not the full button) is deliberate and matches the original
+  // intent: the whole button needs ~695px of content to fit in 664 and does not
+  // fit on either device without redesigning the form.
+  const viewport = page.viewportSize();
+  expect(viewport).not.toBeNull();
+
   const box = await button.boundingBox();
   expect(box).not.toBeNull();
-  expect(box!.y).toBeLessThan(720);
+  expect(box!.y).toBeLessThan(viewport!.height);
 });
 
 test("no autofocus mobile inputs", async ({ page }) => {
@@ -184,11 +198,15 @@ test("decision card v2 blocks render for MODERATE and not for SAFE", async ({
   await fillValidForm(page);
   await page.getByRole("button", { name: "Should I eat this?" }).click();
 
+  // W-17 reframed this from the imperative "Eat it in this order:" — the tip is
+  // a general strategy, not a reading of the user's plate, and saying otherwise
+  // overstated what the engine knows. Assert the constant framing rather than
+  // the tip itself: the tip now rotates through 6 audited variants.
   await expect(page.getByTestId("sequencing-tip")).toContainText(
-    "Eat it in this order:"
+    "A pattern that helps many people:"
   );
   await expect(page.getByTestId("post-meal-action")).toContainText(
-    "After this meal:"
+    "A calm next step:"
   );
 
   await page.unrouteAll();

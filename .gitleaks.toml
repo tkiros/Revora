@@ -1,0 +1,40 @@
+# gitleaks config for the CI secret-scan gate (W-08).
+#
+# Starts from the full upstream ruleset — we add no rules of our own and, more
+# importantly, disable none.
+[extend]
+useDefault = true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Known, remediated, historical exposure — N-21.
+#
+# Commit 213ab8a ("video-engine: local dashboard + two-gate (G0/G1) review
+# flow", 2026-07-09) added `prod-env-check.txt`, a Vercel CLI env dump. Almost
+# every value in it was an empty string, but NOT all of them: it carried a real
+# `VERCEL_OIDC_TOKEN` — a signed JWT, issued 2026-07-06T20:11:50Z for
+# `owner:tkiros-projects:project:revora:environment:development`.
+#
+# Status, stated plainly rather than reassuringly:
+#   - The token is EXPIRED. Vercel OIDC tokens carry a 12h TTL; this one died at
+#     2026-07-07T08:11:50Z, ~4 days before it was found. It cannot be exchanged
+#     for anything now. The exposure was closed by the clock, not by us.
+#   - It IS still in git history, and not only on this branch: the blob is
+#     reachable from `origin/main` and from four other pushed remote branches.
+#     `git rm --cached` (done, 2026-07-11) stops it going forward and .gitignore
+#     stops the next dump — neither rewrites what is already published.
+#   - The only other non-empty values are `BLOB_STORE_ID` (an identifier) and
+#     `BLOB_WEBHOOK_PUBLIC_KEY` (a public key). Neither is a credential.
+#
+# We are therefore NOT rewriting history: it would break five pushed branches to
+# expunge a credential that is already dead. That is a deliberate call, recorded
+# here so it stays a decision and not an oversight. If this repo is ever made
+# public, or if Vercel's OIDC TTL turns out to be longer than assumed, revisit
+# it — and rotate first, then rewrite.
+#
+# The allowlist is scoped to that ONE commit, deliberately. It is not scoped to
+# the path: if `prod-env-check.txt` (or any other env dump) is ever force-added
+# again with a live token, gitleaks WILL fail the build, which is the entire
+# point of the gate.
+[allowlist]
+description = "N-21: expired VERCEL_OIDC_TOKEN in prod-env-check.txt, added by 213ab8a. Untracked + gitignored 2026-07-11. Scoped to the single historical commit — a re-add is still a failure."
+commits = ["213ab8ac4750082627a150f77918697be6c99fac"]

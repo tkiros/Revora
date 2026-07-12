@@ -72,6 +72,7 @@ function userFacingText(response: RevoraUserResponse): string[] {
     case "not_food":
       return [response.message, ...response.examples];
     case "out_of_scope":
+    case "clinical":
     case "retry":
       return [response.message];
   }

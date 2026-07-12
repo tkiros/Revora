@@ -2,11 +2,25 @@
 
 > **Claims boundary applies with FULL force to this file.** This is the public
 > store listing — the text below will be pasted into Play Console verbatim.
-> `docs/ops/play-twa-runbook.md` §9.4 already lists the banned families this
-> copy must avoid; `tests/unit/revora/claims-boundary-copy.test.ts` does **not**
-> scan `docs/` (see its `COPY_FILES`/`CARVE_OUT_FILES` lists), so nothing here
-> is automated-audited — it was written by hand against the same rules and
-> should be re-read against `docs/safety/claims-boundary.md` before paste-in.
+> `docs/ops/play-twa-runbook.md` §9.4 lists the banned families this copy must
+> avoid.
+>
+> **This file IS automated-audited now** (W-09, 2026-07-11). It used not to be,
+> and the gap cost us: §4 shipped a free-tier promise ("five a day, every day")
+> that contradicted the code by a factor the store would have read as a false
+> claim (F-07). `tests/unit/revora/claims-boundary-copy.test.ts` now scans every
+> region of this file fenced by `<!-- claims-audit:start -->` /
+> `<!-- claims-audit:end -->` — i.e. exactly the text that gets pasted into Play
+> Console, and nothing else. The un-fenced prose (this header, the rationale
+> notes, §5's "avoid" list, §7's explanation) discusses the banned words on
+> purpose and is deliberately out of scope; the test asserts the fences are
+> present and balanced, so the audit cannot be silently switched off by deleting
+> them.
+>
+> **The free-tier number is not a free variable.** It is `TASTER_LIMIT` in
+> `lib/client/taster-store.ts` — day-1 only, device-local. The audit pins the
+> number written in §4 to that constant. If the code changes, this file fails
+> the test until it is corrected.
 >
 > No calories anywhere. No "reverse" in any inflection — the former North-Star
 > carve-out line is **Rejected** in `docs/safety/copy-ledger.md`
@@ -26,7 +40,9 @@
 
 ## 1. App title (≤30 characters)
 
+<!-- claims-audit:start -->
 **Revora — Prediabetes Coach**  *(26 characters)*
+<!-- claims-audit:end -->
 
 Rationale: "Coach" (not "Reversal" or "Scan") matches the shipped coach-first
 positioning (`docs/product-marketing.md`) and stays outside the `reverse`
@@ -34,7 +50,9 @@ family entirely.
 
 ## 2. Short description (≤80 characters)
 
+<!-- claims-audit:start -->
 **Should I eat this, now? A calm daily coach for prediabetes-range A1C.**
+<!-- claims-audit:end -->
 *(69 characters)*
 
 ## 3. Category
@@ -43,6 +61,7 @@ family entirely.
 
 ## 4. Full description (≤4000 characters)
 
+<!-- claims-audit:start -->
 > Should I eat this, now?
 >
 > That's the question Revora answers — for the one moment it actually
@@ -66,9 +85,12 @@ family entirely.
 > - The order to eat things in, when it changes the outcome
 > - One small next step after the meal, when there is one
 >
-> **Free, every day**
-> The check itself is free — five a day, no account required to try it.
-> Today's checks stay visible right on the home screen.
+> **Free to try — no account, no card**
+> You get 10 free checks on your first day, with no sign-up and nothing to
+> enter but the meal. They live on your device, and today's checks stay
+> visible right on the home screen. After that, Premium opens with a 7-day
+> free trial — nothing is charged until it ends, and we email you before it
+> does.
 >
 > **Premium — for building the habit, not just the moment**
 > - Unlimited daily checks
@@ -92,9 +114,20 @@ family entirely.
 > Sign in with just an email — no password to lose. Your A1C and meal notes
 > are encrypted at rest, and you can permanently delete your account and
 > everything in it, in-app, at any time.
+<!-- claims-audit:end -->
 
 *(Draft length: well under the 4000-character Play limit — counted at
 paste-in, since Markdown formatting characters above don't ship as typed.)*
+
+**Free-tier note (F-07, 2026-07-11):** §4 previously read "**Free, every day** —
+the check itself is free, five a day, no account required". Every clause of that
+was wrong against the shipped code: the free tier is `TASTER_LIMIT` (=10) checks
+on the **first day only**, held in device-local storage
+(`lib/client/taster-store.ts`), not five a day forever. The "five" came from
+`FREE_DAILY_CHECKS` in `lib/server/entitlement.ts`, which is the **legacy**
+paywall path (`PAYWALL_MODE=legacy`) and is not what a store user would get.
+Shipping the old text would have been a false claim in a public store listing.
+The number above is now pinned to `TASTER_LIMIT` by the copy audit.
 
 **Reversal-family note:** the former North-Star line ("Reversal is achieved
 through your dietary choices…") is **Rejected** in `docs/safety/copy-ledger.md`
@@ -105,11 +138,22 @@ is changed to Approved with counsel sign-off recorded.
 
 ## 5. Tags / keywords
 
+<!-- claims-audit:start -->
 `prediabetes` · `A1C` · `blood sugar` · `food coach` · `meal check` ·
-`glucose-friendly eating` · `health coach` · `diabetes prevention program`
+`glucose-friendly eating` · `health coach` · `prediabetes diet`
+<!-- claims-audit:end -->
 
 Avoid: `diagnosis`, `treatment`, `cure`, `AI`, `scan` (implies a photo feature
 Revora doesn't ship), `CGM`, `glycemic index`/`GI`/`GL` (numeric claim risk).
+
+Also dropped, 2026-07-11: `diabetes prevention program`. Keywords are pasted
+into Play Console as public store text, so they are claim surface, not just a
+lookup hint — and §7 below commits this listing to avoiding the Banned Claim
+Families *vocabulary itself*, not merely its affirmative sense. A health app
+whose store keywords include "prevention" is asserting the thing the rest of
+this listing carefully does not. `prediabetes diet` carries the same search
+intent with none of the exposure. (The keyword list is inside the audit fence,
+so this can't creep back in unnoticed.)
 
 ## 6. Content rating questionnaire — answers
 
@@ -125,6 +169,7 @@ Revora doesn't ship), `CGM`, `glycemic index`/`GI`/`GL` (numeric claim risk).
 
 ## 7. Health-apps declaration text
 
+<!-- claims-audit:start -->
 > Revora is an informational wellness tool for people with a prediabetes-
 > range A1C (5.7–6.4%), self-reported by the user. It offers plain-language,
 > non-numeric guidance about individual meals and tracks the user's own
@@ -133,6 +178,7 @@ Revora doesn't ship), `CGM`, `glycemic index`/`GI`/`GL` (numeric claim risk).
 > not a substitute for professional medical advice. Every result and every
 > progress view carries an in-app reminder to consult a doctor or registered
 > dietitian.
+<!-- claims-audit:end -->
 
 Deliberately avoids the Banned Claim Families vocabulary itself (reverse/
 cure/treat/prevent/diagnose/FDA/guarantee/future-prediction —

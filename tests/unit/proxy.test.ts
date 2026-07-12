@@ -68,3 +68,46 @@ describe("middleware", () => {
     expect(typeof body.message).toBe("string");
   });
 });
+
+/**
+ * W-11 — the abuse doors the matcher used to miss entirely. /api/trial/start
+ * creates a users row, sends a magic-link email and opens a Stripe Checkout
+ * session for any address a stranger types; /api/auth/* is a magic-link flood
+ * and an account-enumeration oracle. Both were unlimited.
+ *
+ * Same split as the check path above: the 429 branch depends on a live Upstash
+ * store (rateLimitDeps is built once at import from process.env), so it is
+ * proven in rate-limit.test.ts against the pure decision logic. What can only be
+ * proven HERE is the wiring — that these paths are matched at all, that GET is
+ * not, and that an unconfigured public deploy fails closed rather than open.
+ */
+describe("middleware — abuse routes (W-11)", () => {
+  it("passes POST /api/trial/start through in dev/test (Upstash unconfigured)", async () => {
+    const response = await middleware(post("/api/trial/start"));
+    expect(isPassthrough(response)).toBe(true);
+  });
+
+  it("fails CLOSED (503) on POST /api/trial/start on a public deploy with no Upstash", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL_ENV", "preview");
+    const response = await middleware(post("/api/trial/start"));
+    expect(response.status).toBe(503);
+    expect((await response.json()).error).toMatch(/try again/i);
+  });
+
+  it("fails CLOSED (503) on POST /api/auth/signin/* on a public deploy with no Upstash", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL_ENV", "preview");
+    const response = await middleware(post("/api/auth/signin/resend"));
+    expect(response.status).toBe(503);
+  });
+
+  it("NEVER limits GET /api/auth/session — the app polls it on every page load", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL_ENV", "preview");
+    const session = await middleware(post("/api/auth/session", "GET"));
+    const csrf = await middleware(post("/api/auth/csrf", "GET"));
+    expect(isPassthrough(session)).toBe(true);
+    expect(isPassthrough(csrf)).toBe(true);
+  });
+});

@@ -178,9 +178,21 @@ export function FoodCheckForm() {
         inputMethod
       });
 
+      // W-10: which clinical class fired. The route id only — never the input
+      // that matched it, which would be health data.
+      if (response.kind === "clinical") {
+        track({ name: "clinical_route", props: { route: response.route } });
+      }
+
       // Meal memory (P3): persist successful verdicts on-device. Non-result
-      // kinds (clarify/not_food/out_of_scope/retry) are moments, not meals.
+      // kinds (clarify/not_food/out_of_scope/clinical/retry) are moments, not
+      // meals.
       if (response.kind === "result") {
+        // W-10/N-12: the activation funnel needs a first-check marker or the
+        // north-star metric is not computable end-to-end. Read BEFORE the add()
+        // below, which is what makes this check the first one.
+        const firstCheck = historyStore.all().length === 0;
+
         historyStore.add({
           clientId,
           food: result.data.food,
@@ -193,7 +205,12 @@ export function FoodCheckForm() {
         setActionDone(false);
         track({
           name: "check_completed",
-          props: { risk: response.risk, kind: response.kind, input_method: inputMethod }
+          props: {
+            risk: response.risk,
+            kind: response.kind,
+            input_method: inputMethod,
+            first_check: firstCheck
+          }
         });
 
         // Day-1 taster meter (trial mode): count this check against the free

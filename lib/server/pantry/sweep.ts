@@ -1,5 +1,6 @@
 import { and, eq, gte, inArray, isNull, lt, or } from "drizzle-orm";
 
+import { reapPantryBlobs } from "../blob";
 import { schema } from "../db";
 import { generateClaimToken } from "./claims";
 import { intakeEmailText } from "./emails";
@@ -31,6 +32,7 @@ export async function runPantrySweep(deps: SweepDeps): Promise<{
   intakeResent: number;
   resumed: number;
   redelivered: number;
+  blobsReaped: number;
   alerted: number;
 }> {
   const now = deps.now();
@@ -113,7 +115,15 @@ export async function runPantrySweep(deps: SweepDeps): Promise<{
     if (ok) redelivered += 1;
   }
 
-  // 5. Founder alert for anything stuck >2h (once, via the window check).
+  // 5. GC: photos whose order is done with them (delivered/canceled/manual) or
+  // that are simply older than the retention ceiling — the abandoned orders no
+  // terminal state ever covers. Runs AFTER phases 3 and 4 so orders that just
+  // became terminal (or just got delivered) are reaped in the same pass, and it
+  // doubles as the retry for anything a Blob-API outage left behind: on failure
+  // deleteOrderBlobs leaves the rows unmarked, so they match again next hour.
+  const blobsReaped = await reapPantryBlobs(deps.db, now, deps.deleteBlobs);
+
+  // 6. Founder alert for anything stuck >2h (once, via the window check).
   const stuck = await deps.db
     .select()
     .from(schema.pantryOrders)
@@ -143,7 +153,7 @@ export async function runPantrySweep(deps: SweepDeps): Promise<{
     alerted = stuck.length;
   }
 
-  // 6. Liveness heartbeat for /api/health.
+  // 7. Liveness heartbeat for /api/health.
   await deps.db
     .insert(schema.cronHeartbeat)
     .values({ name: "pantry-sweep", lastRunAt: now })
@@ -152,5 +162,5 @@ export async function runPantrySweep(deps: SweepDeps): Promise<{
       set: { lastRunAt: now }
     });
 
-  return { intakeResent, resumed, redelivered, alerted };
+  return { intakeResent, resumed, redelivered, blobsReaped, alerted };
 }

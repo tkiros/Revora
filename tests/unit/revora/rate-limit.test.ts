@@ -1,16 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
+  checkEmailCooldown,
   createRateLimitDeps,
+  evaluateAbuseLimit,
   evaluateRateLimit,
   getClientIp,
   isRateLimitConfigured,
+  matchRouteLimit,
   rateLimitConfigState,
   type RateLimitDeps
 } from "../../../lib/revora/rate-limit";
 
 function deps(over: Partial<RateLimitDeps> = {}): RateLimitDeps {
   return {
-    limitIp: async () => ({ success: true, resetMs: Date.now() + 1_000 }),
+    limitBucket: async () => ({ success: true, resetMs: Date.now() + 1_000 }),
     incrDailyCount: async () => 1,
     dailyCap: 2_000,
     ...over
@@ -27,7 +30,7 @@ describe("evaluateRateLimit", () => {
     const decision = await evaluateRateLimit(
       "1.1.1.1",
       deps({
-        limitIp: async () => ({ success: false, resetMs: Date.now() + 30_000 }),
+        limitBucket: async () => ({ success: false, resetMs: Date.now() + 30_000 }),
         incrDailyCount: async () => {
           dailyCalls += 1;
           return 1;
@@ -52,12 +55,26 @@ describe("evaluateRateLimit", () => {
     const decision = await evaluateRateLimit(
       "1.1.1.1",
       deps({
-        limitIp: async () => {
+        limitBucket: async () => {
           throw new Error("redis down");
         }
       })
     );
     expect(decision).toEqual({ ok: true });
+  });
+
+  it("spends the check_ip bucket, never another surface's", async () => {
+    const seen: string[] = [];
+    await evaluateRateLimit(
+      "1.1.1.1",
+      deps({
+        limitBucket: async (bucket) => {
+          seen.push(bucket);
+          return { success: true, resetMs: 0 };
+        }
+      })
+    );
+    expect(seen).toEqual(["check_ip"]);
   });
 
   it("extracts the first x-forwarded-for IP", () => {
@@ -67,6 +84,123 @@ describe("evaluateRateLimit", () => {
 
   it("falls back to 'unknown' with no IP header", () => {
     expect(getClientIp(new Headers())).toBe("unknown");
+  });
+});
+
+/**
+ * W-11 — the route table. Before this, the proxy guard was a hardcoded
+ * `startsWith("/api/check") && POST`, so the two most abusable doors in the app
+ * (unauthenticated trial start; magic-link send) were completely unlimited.
+ */
+describe("matchRouteLimit (W-11)", () => {
+  it("limits POST /api/check and /api/check/photo-draft on the check path", () => {
+    expect(matchRouteLimit("/api/check", "POST")).toEqual({ kind: "check" });
+    expect(matchRouteLimit("/api/check/photo-draft", "POST")).toEqual({
+      kind: "check"
+    });
+  });
+
+  it("limits POST /api/trial/start — unauthenticated, creates a user + sends email + opens Stripe", () => {
+    expect(matchRouteLimit("/api/trial/start", "POST")).toEqual({
+      kind: "abuse",
+      bucket: "trial_ip",
+      failClosed: true
+    });
+  });
+
+  it("limits POST /api/auth/signin/* (magic-link flood + enumeration)", () => {
+    expect(matchRouteLimit("/api/auth/signin/resend", "POST")).toEqual({
+      kind: "abuse",
+      bucket: "auth_signin_ip",
+      failClosed: true
+    });
+  });
+
+  it("limits other auth POSTs on the loose bucket (no email, no cost)", () => {
+    expect(matchRouteLimit("/api/auth/signout", "POST")).toEqual({
+      kind: "abuse",
+      bucket: "auth_other_ip",
+      failClosed: false
+    });
+  });
+
+  it("NEVER limits GET — /api/auth/session and /api/auth/csrf are polled on every page load", () => {
+    expect(matchRouteLimit("/api/auth/session", "GET")).toBeNull();
+    expect(matchRouteLimit("/api/auth/csrf", "GET")).toBeNull();
+    expect(matchRouteLimit("/api/check", "GET")).toBeNull();
+  });
+
+  it("ignores unrelated routes", () => {
+    expect(matchRouteLimit("/api/history", "POST")).toBeNull();
+    expect(matchRouteLimit("/", "POST")).toBeNull();
+  });
+});
+
+describe("evaluateAbuseLimit (W-11)", () => {
+  const blocked = deps({
+    limitBucket: async () => ({ success: false, resetMs: Date.now() + 60_000 })
+  });
+  const broken = deps({
+    limitBucket: async () => {
+      throw new Error("redis down");
+    }
+  });
+
+  it("429s (per_ip) once the bucket is spent", async () => {
+    const decision = await evaluateAbuseLimit("trial_ip", "1.1.1.1", blocked, true);
+    expect(decision.ok).toBe(false);
+    if (!decision.ok) {
+      expect(decision.reason).toBe("per_ip");
+      expect(decision.retryAfterSeconds).toBeGreaterThan(0);
+    }
+  });
+
+  it("fails CLOSED on a store error for the email-sending doors — a torched sender domain is not reversible", async () => {
+    const decision = await evaluateAbuseLimit("trial_ip", "1.1.1.1", broken, true);
+    expect(decision.ok).toBe(false);
+    if (!decision.ok) expect(decision.reason).toBe("store_error");
+  });
+
+  it("fails OPEN on a store error where nothing irreversible is at stake", async () => {
+    expect(
+      await evaluateAbuseLimit("auth_other_ip", "1.1.1.1", broken, false)
+    ).toEqual({ ok: true });
+  });
+});
+
+describe("checkEmailCooldown (W-11)", () => {
+  it("spends the per-email bucket, keyed by the normalised address", async () => {
+    const seen: Array<[string, string]> = [];
+    const decision = await checkEmailCooldown(
+      "trial_email",
+      "  Victim@Example.COM ",
+      deps({
+        limitBucket: async (bucket, key) => {
+          seen.push([bucket, key]);
+          return { success: true, resetMs: 0 };
+        }
+      })
+    );
+    expect(decision).toEqual({ ok: true });
+    // Case/whitespace must not mint a fresh budget for the same mailbox.
+    expect(seen).toEqual([["trial_email", "victim@example.com"]]);
+  });
+
+  it("blocks the address once its bucket is spent (the flood per-IP cannot see)", async () => {
+    const decision = await checkEmailCooldown(
+      "auth_email",
+      "victim@example.com",
+      deps({
+        limitBucket: async () => ({ success: false, resetMs: Date.now() + 60_000 })
+      })
+    );
+    expect(decision.ok).toBe(false);
+  });
+
+  it("skips entirely when Upstash is unconfigured (dev/test)", async () => {
+    expect(await checkEmailCooldown("trial_email", "a@b.com", null)).toEqual({
+      ok: true
+    });
   });
 });
 

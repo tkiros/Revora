@@ -1,4 +1,14 @@
-# 03 — Release Scorecard (QA round 2026-07-10/11)
+# 03 — Release Scorecard (QA round 2026-07-10/11) — ⚠️ RETIRED, DO NOT CITE
+
+> **RETIRED 2026-07-11 (N-22).** This scorecard is stale and contradicts the current record: it
+> reports Security as NO-GO and QA-01 as "no CI" while `05-known-risks-and-blockers.md` marked the
+> same items fixed, and its "AI safety: PASS" line predates the discovery that the safety-contract
+> regexes never ran at runtime (N-01) and that no clinical-risk routing existed at all (F-09).
+>
+> **The current scorecard is `docs/qa/revora_release_scorecard.md`.** Baseline measurements live in
+> `docs/qa/baseline-2026-07.md`. This file is kept only so the historical record is auditable —
+> deleting a wrong report is how a project forgets it was ever wrong.
+
 
 | Domain | Status | P0 | P1 | P2 | Evidence | Release decision |
 |---|---|---:|---:|---:|---|---|

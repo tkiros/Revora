@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { CLINICAL_ROUTES, type ClinicalRoute } from "./clinical-risk";
+
 type SafetyContractFixture = {
   forbiddenClaims: Array<{
     label: string;
@@ -36,7 +38,27 @@ type CopyRowId =
   | "result-non-food-refusal"
   | "result-footer"
   | "below-range-route"
-  | "high-range-route";
+  | "high-range-route"
+  | ClinicalCopyRowId;
+
+/**
+ * Clinical-route copy (W-01). One ledger row per route in
+ * `lib/revora/clinical-risk.ts` — the mapping is asserted below, so adding a
+ * route without approved copy fails the contract load rather than shipping a
+ * clinical response with no words in it.
+ */
+type ClinicalCopyRowId = `clinical-${string}`;
+
+const CLINICAL_COPY_IDS: Record<ClinicalRoute, CopyRowId> = {
+  urgent_symptoms: "clinical-urgent-symptoms",
+  possible_hypoglycemia: "clinical-possible-hypoglycemia",
+  medication_dosing: "clinical-medication-dosing",
+  eating_disorder: "clinical-eating-disorder",
+  pregnancy: "clinical-pregnancy",
+  organ_disease: "clinical-organ-disease",
+  allergy: "clinical-allergy",
+  diagnosed_diabetes: "clinical-diagnosed-diabetes"
+};
 
 type CopyRow = {
   copyId: CopyRowId;
@@ -55,6 +77,8 @@ export type SafetyContract = {
     disclaimer: string;
     belowRangeRoute: string;
     highRangeRoute: string;
+    /** Approved, non-generative response text per clinical route (W-01). */
+    clinicalRoutes: Record<ClinicalRoute, string>;
   };
   docs: {
     claimsBoundary: string;
@@ -80,8 +104,19 @@ const COPY_IDS: CopyRowId[] = [
   "result-non-food-refusal",
   "result-footer",
   "below-range-route",
-  "high-range-route"
+  "high-range-route",
+  ...CLINICAL_ROUTES.map((route) => CLINICAL_COPY_IDS[route])
 ];
+
+/**
+ * Version stamp for the safety contract (W-13 / Phase 0.1).
+ *
+ * Telemetry carries this so a reported bad answer is attributable to the exact
+ * contract that produced it. `tests/unit/revora/contract-version.test.ts` pins
+ * it to a hash of the fixture + ledger, so changing the contract without
+ * bumping the version turns the suite red.
+ */
+export const CONTRACT_VERSION = "2026-07-11.1";
 
 export function loadSafetyContract(options?: {
   rootDir?: string;
@@ -142,7 +177,13 @@ export function loadSafetyContract(options?: {
       nonFoodRefusal: copyRows["result-non-food-refusal"].copy,
       disclaimer: copyRows["result-footer"].copy,
       belowRangeRoute: copyRows["below-range-route"].copy,
-      highRangeRoute: copyRows["high-range-route"].copy
+      highRangeRoute: copyRows["high-range-route"].copy,
+      clinicalRoutes: Object.fromEntries(
+        CLINICAL_ROUTES.map((route) => [
+          route,
+          copyRows[CLINICAL_COPY_IDS[route]].copy
+        ])
+      ) as Record<ClinicalRoute, string>
     },
     docs: {
       claimsBoundary,

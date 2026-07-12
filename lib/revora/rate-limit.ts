@@ -1,25 +1,118 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 
-export type RateLimitReason = "per_ip" | "daily_cap";
+export type RateLimitReason = "per_ip" | "daily_cap" | "store_error";
 
 export type RateLimitDecision =
   | { ok: true }
   | { ok: false; reason: RateLimitReason; retryAfterSeconds: number };
 
+/**
+ * Every limited bucket in the app. Buckets are keyed independently (distinct
+ * Redis prefixes), so a surface can never spend another surface's budget: the
+ * trial funnel fires a magic link of its own, and if it shared the auth bucket
+ * two trial starts would lock the user out of signing in.
+ *
+ * `*_ip` buckets are enforced by the Edge proxy (which only ever sees an IP);
+ * `*_email` buckets are enforced by the Node handlers that have already parsed
+ * the address, and defend the case per-IP cannot: a distributed flood aimed at
+ * ONE victim's mailbox.
+ */
+export type LimitBucket =
+  | "check_ip"
+  | "trial_ip"
+  | "auth_signin_ip"
+  | "auth_other_ip"
+  | "trial_email"
+  | "auth_email";
+
+// >3/h per IP or per email on the abuse-prone doors (docs/qa plan W-11). The
+// looser auth_other budget covers POST /api/auth/signout + /callback, which
+// send no email and cost nothing — holding those to 3/h would lock a shared
+// NAT (household, cafe) out of ordinary session churn for an hour.
+const BUCKETS: Record<
+  LimitBucket,
+  { limit: number; window: `${number} h`; prefix: string }
+> = {
+  check_ip: { limit: 20, window: "1 h", prefix: "revora:ip" },
+  trial_ip: { limit: 3, window: "1 h", prefix: "revora:trial:ip" },
+  auth_signin_ip: { limit: 3, window: "1 h", prefix: "revora:auth:ip" },
+  auth_other_ip: { limit: 30, window: "1 h", prefix: "revora:authx:ip" },
+  trial_email: { limit: 3, window: "1 h", prefix: "revora:trial:email" },
+  auth_email: { limit: 3, window: "1 h", prefix: "revora:auth:email" }
+};
+
 export type RateLimitDeps = {
-  limitIp(ip: string): Promise<{ success: boolean; resetMs: number }>;
+  limitBucket(
+    bucket: LimitBucket,
+    key: string
+  ): Promise<{ success: boolean; resetMs: number }>;
   incrDailyCount(): Promise<number>;
   dailyCap: number;
 };
 
 const DEFAULT_DAILY_CAP = 2_000;
 
+// ── Route → limit table ─────────────────────────────────────────────────────
+
+const CHECK_PATH = "/api/check";
+const TRIAL_START_PATH = "/api/trial/start";
+const AUTH_PREFIX = "/api/auth/";
+const AUTH_SIGNIN_PREFIX = "/api/auth/signin";
+
 /**
- * Pure decision logic — no network. Order: per-IP first; only IP-allowed
- * requests touch the global daily counter (so an IP-blocked flood cannot trip
- * the global pause for everyone). Fails OPEN on any store error — the OpenAI
- * dashboard hard cap is the true cost ceiling.
+ * What a matched route costs and how it must behave when Redis is unreachable.
+ *
+ * `failClosed` is set ONLY on the doors whose unbounded action is externally
+ * irreversible — the two that send email. A magic-link/trial flood burns our
+ * Resend sender reputation, and a burnt domain means NOBODY can sign in for
+ * days; that harm dwarfs the transient unavailability of failing closed during
+ * a (rare, short) Upstash outage. Everything else fails OPEN, matching the
+ * deliberate stance on the check path below: compute is bounded by the OpenAI
+ * dashboard hard cap, so availability wins there.
+ */
+export type RouteLimit =
+  | { kind: "check" }
+  | { kind: "abuse"; bucket: LimitBucket; failClosed: boolean };
+
+/**
+ * The proxy's dispatch table (W-11). Before this, the guard was a hardcoded
+ * `startsWith("/api/check") && POST`, which left /api/trial/start (creates a
+ * users row + sends email + opens a Stripe session, all unauthenticated) and
+ * /api/auth/* (magic-link flood + account enumeration) completely unlimited.
+ *
+ * POST only, deliberately: GET /api/auth/session and /api/auth/csrf are polled
+ * by the app on every page and would 429 a normal user within minutes.
+ */
+export function matchRouteLimit(
+  pathname: string,
+  method: string
+): RouteLimit | null {
+  if (method !== "POST") {
+    return null;
+  }
+  if (pathname.startsWith(CHECK_PATH)) {
+    return { kind: "check" };
+  }
+  if (pathname === TRIAL_START_PATH) {
+    return { kind: "abuse", bucket: "trial_ip", failClosed: true };
+  }
+  if (pathname.startsWith(AUTH_SIGNIN_PREFIX)) {
+    return { kind: "abuse", bucket: "auth_signin_ip", failClosed: true };
+  }
+  if (pathname.startsWith(AUTH_PREFIX)) {
+    return { kind: "abuse", bucket: "auth_other_ip", failClosed: false };
+  }
+  return null;
+}
+
+// ── Decisions ───────────────────────────────────────────────────────────────
+
+/**
+ * Pure decision logic for the check path — no network. Order: per-IP first;
+ * only IP-allowed requests touch the global daily counter (so an IP-blocked
+ * flood cannot trip the global pause for everyone). Fails OPEN on any store
+ * error — the OpenAI dashboard hard cap is the true cost ceiling.
  * ponytail: fail-open trades a small abuse window for availability; tighten to
  * fail-closed here only if logs show the open path is being exploited.
  */
@@ -28,13 +121,9 @@ export async function evaluateRateLimit(
   deps: RateLimitDeps
 ): Promise<RateLimitDecision> {
   try {
-    const ipResult = await deps.limitIp(ip);
+    const ipResult = await deps.limitBucket("check_ip", ip);
     if (!ipResult.success) {
-      const retryAfterSeconds = Math.max(
-        1,
-        Math.ceil((ipResult.resetMs - Date.now()) / 1_000)
-      );
-      return { ok: false, reason: "per_ip", retryAfterSeconds };
+      return { ok: false, reason: "per_ip", retryAfterSeconds: retryAfter(ipResult.resetMs) };
     }
 
     const dailyCount = await deps.incrDailyCount();
@@ -48,6 +137,39 @@ export async function evaluateRateLimit(
   }
 }
 
+/**
+ * Pure decision logic for the abuse buckets (trial start, auth, per-email
+ * cooldowns). Unlike the check path this can fail CLOSED — see RouteLimit's
+ * note on why only the email-sending doors do.
+ */
+export async function evaluateAbuseLimit(
+  bucket: LimitBucket,
+  key: string,
+  deps: RateLimitDeps,
+  failClosed: boolean
+): Promise<RateLimitDecision> {
+  try {
+    const result = await deps.limitBucket(bucket, key);
+    if (result.success) {
+      return { ok: true };
+    }
+    return {
+      ok: false,
+      reason: "per_ip",
+      retryAfterSeconds: retryAfter(result.resetMs)
+    };
+  } catch {
+    if (!failClosed) {
+      return { ok: true };
+    }
+    return { ok: false, reason: "store_error", retryAfterSeconds: 60 };
+  }
+}
+
+function retryAfter(resetMs: number): number {
+  return Math.max(1, Math.ceil((resetMs - Date.now()) / 1_000));
+}
+
 export function getClientIp(headers: Headers): string {
   const forwarded = headers.get("x-forwarded-for");
   if (forwarded) {
@@ -56,6 +178,46 @@ export function getClientIp(headers: Headers): string {
   }
   return headers.get("x-real-ip")?.trim() || "unknown";
 }
+
+// ── Per-email cooldowns (Node handlers) ─────────────────────────────────────
+
+let sharedDeps: RateLimitDeps | null | undefined;
+
+/**
+ * Lazily-built process-wide deps for the Node runtime (the Edge proxy builds
+ * its own at module scope). `undefined` = not yet built; `null` = Upstash is
+ * absent/invalid, which in dev and the test runner means "skip limiting" — the
+ * proxy is the fail-closed gate that guarantees a public deploy never runs
+ * unlimited, so a null here can only mean a surface we already refused to serve.
+ */
+function nodeDeps(): RateLimitDeps | null {
+  if (sharedDeps === undefined) {
+    sharedDeps = createRateLimitDeps();
+  }
+  return sharedDeps;
+}
+
+/**
+ * Per-email cooldown for the two doors that send mail to an address the caller
+ * chose (trial start, magic link). Per-IP limiting cannot see this: a botnet
+ * spread over 500 IPs mailbox-bombs one victim without any single IP tripping.
+ *
+ * Fails CLOSED on a store error, for the same reason those routes do in the
+ * proxy — the harm being prevented (a torched sender domain) is not reversible.
+ * Skips entirely when Upstash is unconfigured (dev/test).
+ */
+export async function checkEmailCooldown(
+  bucket: "trial_email" | "auth_email",
+  email: string,
+  deps: RateLimitDeps | null = nodeDeps()
+): Promise<RateLimitDecision> {
+  if (!deps) {
+    return { ok: true };
+  }
+  return evaluateAbuseLimit(bucket, email.trim().toLowerCase(), deps, true);
+}
+
+// ── Config probes + live deps ───────────────────────────────────────────────
 
 export type RateLimitConfigState = "configured" | "invalid" | "unconfigured";
 
@@ -105,12 +267,20 @@ export function createRateLimitDeps(
 
   try {
     const redis = new Redis({ url, token });
-    const ipLimiter = new Ratelimit({
-      redis,
-      limiter: Ratelimit.slidingWindow(20, "1 h"),
-      prefix: "revora:ip",
-      analytics: false
-    });
+    // One limiter per bucket, built once — the Ratelimit instance is the thing
+    // that carries the window/limit, so they cannot be shared across buckets.
+    const limiters = new Map<LimitBucket, Ratelimit>();
+    for (const [bucket, config] of Object.entries(BUCKETS)) {
+      limiters.set(
+        bucket as LimitBucket,
+        new Ratelimit({
+          redis,
+          limiter: Ratelimit.slidingWindow(config.limit, config.window),
+          prefix: config.prefix,
+          analytics: false
+        })
+      );
+    }
 
     const parsedCap = Number(env.REVORA_DAILY_CHECK_CAP);
     const dailyCap =
@@ -119,8 +289,8 @@ export function createRateLimitDeps(
         : DEFAULT_DAILY_CAP;
 
     return {
-      async limitIp(ip) {
-        const result = await ipLimiter.limit(ip);
+      async limitBucket(bucket, key) {
+        const result = await limiters.get(bucket)!.limit(key);
         return { success: result.success, resetMs: result.reset };
       },
       async incrDailyCount() {

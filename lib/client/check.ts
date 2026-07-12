@@ -1,38 +1,19 @@
 import type { CheckRequest } from "../revora/schemas";
-import type { CheckFailureCode, RevoraUserResponse } from "./ui-state";
+import { nextCoachRotation } from "./coach-rotation";
+import type {
+  CheckFailureCode,
+  ClinicalRoute,
+  RevoraUserResponse
+} from "./ui-state";
 
-type ServerResponse =
-  | {
-      kind: "result";
-      risk: "SAFE" | "MODERATE" | "HIGH";
-      reason: string;
-      adjustment: string | null;
-      swap: string | null;
-      sequencingTip: string | null;
-      postMealAction: string | null;
-      keepMost: string | null;
-      disclaimer: string;
-    }
-  | {
-      kind: "clarify";
-      question: string;
-      disclaimer: string;
-    }
-  | {
-      kind: "not_food";
-      examples: string[];
-      disclaimer: string;
-    }
-  | {
-      kind: "out_of_scope";
-      reason: string;
-      disclaimer: string;
-    }
-  | {
-      kind: "retry";
-      message: string;
-      disclaimer: string;
-    };
+// Everything the check endpoint itself can return: the UI union minus the
+// `upsell` card, which the 402 path constructs rather than normalizing.
+//
+// Derived, not re-declared. This was previously a hand-copy of the same union,
+// which is how a new response kind could be added to the engine and silently
+// fail to reach the card — the normalizer below throws on any kind this type
+// does not admit, and that throw surfaces as a retry card.
+type ServerResponse = Exclude<RevoraUserResponse, { kind: "upsell" }>;
 
 class CheckRequestError extends Error {
   code: CheckFailureCode;
@@ -54,6 +35,7 @@ export async function submitCheck(
   }
 ): Promise<RevoraUserResponse> {
   let response: Response;
+  const rotation = nextCoachRotation();
 
   try {
     response = await fetch("/api/check", {
@@ -63,6 +45,11 @@ export async function submitCheck(
         ...(init?.clientId ? { "x-revora-client-id": init.clientId } : {}),
         ...(init?.inputMethod
           ? { "x-revora-input-method": init.inputMethod }
+          : {}),
+        // W-17: cycles the server's audited coach phrase bank so a daily user
+        // is not shown the same three sentences every day.
+        ...(rotation !== undefined
+          ? { "x-revora-coach-rotation": String(rotation) }
           : {})
       },
       body: JSON.stringify(input),
@@ -225,6 +212,25 @@ function normalizeResponse(payload: unknown): RevoraUserResponse {
         return {
           kind: "out_of_scope",
           reason: response.message,
+          disclaimer: response.disclaimer
+        } satisfies ServerResponse;
+      }
+      break;
+    case "clinical":
+      // A clinical route that fails to normalize would fall through to the
+      // throw below and surface as a retry card — i.e. the user in a medical
+      // situation would be invited to rephrase their meal. Validate only what
+      // the card needs to render, and keep an unrecognised `route` renderable
+      // rather than fatal.
+      if (
+        typeof response.message === "string" &&
+        typeof response.route === "string" &&
+        typeof response.disclaimer === "string"
+      ) {
+        return {
+          kind: "clinical",
+          route: response.route as ClinicalRoute,
+          message: response.message,
           disclaimer: response.disclaimer
         } satisfies ServerResponse;
       }

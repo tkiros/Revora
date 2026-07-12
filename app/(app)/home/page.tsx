@@ -19,7 +19,7 @@ import {
   MIN_CHECKS_FOR_INSIGHT,
   type CoachInsight
 } from "../../../lib/coach/insights";
-import { decryptField } from "../../../lib/server/crypto";
+import { safeDecrypt } from "../../../lib/server/crypto";
 import { getDb, schema } from "../../../lib/server/db";
 import { getPlanBox } from "../../../lib/server/plan-box";
 import { getSessionInfo } from "../../../lib/server/session";
@@ -37,14 +37,6 @@ export const metadata = { title: "Home — Revora" };
  * app/api/coach/route.ts feeds computeCoachView; a shorter window silently
  * caps streaks (eng amendment #2). The 7-day strip derives in JS.
  */
-
-function safeDecrypt(ciphertext: string): string {
-  try {
-    return decryptField(ciphertext);
-  } catch {
-    return "(unreadable entry)";
-  }
-}
 
 function qualitative(percent: number): string {
   if (percent >= 80) return "Strong";
