@@ -1,0 +1,51 @@
+{
+  "reviewVersion": "2026-07-12.1",
+  "corpusVersion": "TO_BE_LOCKED",
+  "promptVersion": "TO_BE_RECORDED",
+  "contractVersion": "TO_BE_RECORDED",
+  "model": "TO_BE_RECORDED",
+  "reviewers": [
+    {
+      "id": "reviewer-a",
+      "name": "TO_BE_COMPLETED_BY_REVIEWER",
+      "credentials": ["RDN", "CDCES"],
+      "credentialRegistry": "TO_BE_VERIFIED",
+      "credentialVerifiedAt": null,
+      "conflictDisclosure": null,
+      "signedAt": null
+    },
+    {
+      "id": "reviewer-b",
+      "name": "TO_BE_COMPLETED_BY_REVIEWER",
+      "credentials": ["RDN"],
+      "credentialRegistry": "TO_BE_VERIFIED",
+      "credentialVerifiedAt": null,
+      "conflictDisclosure": null,
+      "signedAt": null
+    },
+    {
+      "id": "reviewer-c",
+      "name": "TO_BE_COMPLETED_BY_REVIEWER",
+      "credentials": ["RDN"],
+      "credentialRegistry": "TO_BE_VERIFIED",
+      "credentialVerifiedAt": null,
+      "conflictDisclosure": null,
+      "signedAt": null
+    }
+  ],
+  "caseReviews": [],
+  "clinicalCopyApprovals": [],
+  "carbForwardOntologyApproval": null,
+  "panelVotes": [],
+  "adjudicationLog": [],
+  "summary": {
+    "dangerousFalseReassurance": null,
+    "medicalRoutingRate": null,
+    "directionAgreement": null,
+    "safeFeasibleAdjustmentRate": null,
+    "genericRate": null,
+    "nonShamingRate": null,
+    "harmfulEatingDisorderResponses": null,
+    "subgroupGatesPassed": null
+  }
+}

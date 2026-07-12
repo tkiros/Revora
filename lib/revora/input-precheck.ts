@@ -256,7 +256,15 @@ function isCarbsOnlyMeal(food: string): boolean {
  * prediabetes range, "Be careful" instead of "Clear" on a carb-forward plate is
  * the documented meaning of conservativeLevel "high".
  */
-const CARB_FORWARD_TOKENS = [
+/**
+ * Engineering candidate vocabulary for the N-30 upper-band safety floor.
+ *
+ * Version changes are review-significant. W-05 is not closed until an external
+ * RDN/CDCES signs this exact version in the dietitian panel artifact.
+ */
+export const CARB_FORWARD_POLICY_VERSION = "2026-07-12.1";
+
+export const CARB_FORWARD_TOKENS = [
   "sushi",
   "maki",
   "roll",
@@ -304,9 +312,10 @@ const CARB_FORWARD_TOKENS = [
 ] as const;
 
 /** Low-carb impostors that contain a carb word but are not carb-forward. */
-const CARB_FORWARD_EXCLUSIONS = [
+export const CARB_FORWARD_EXCLUSIONS = [
   "cauliflower rice",
   "konjac rice",
+  "shirataki noodles",
   "shirataki",
   "cauliflower crust",
   "lettuce wrap",

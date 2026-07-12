@@ -19,6 +19,8 @@
     "eval:model-bakeoff": "tsx scripts/model-bakeoff.ts --dry-run",
     "eval:model-bakeoff:mock": "tsx scripts/model-bakeoff.ts --mock",
     "eval:model-bakeoff:live": "tsx scripts/model-bakeoff.ts --live",
+    "review:dietitian:validate": "node scripts/validate-dietitian-review.mjs",
+    "review:dietitian:close": "node scripts/validate-dietitian-review.mjs --require-close",
     "video-engine": "tsx video-engine/run.ts"
   },
   "dependencies": {
