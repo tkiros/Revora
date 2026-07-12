@@ -67,9 +67,11 @@ describe("pantry health data at rest", () => {
       //
       // Every column that could actually carry health data is still scanned.
       const dump = JSON.stringify(
-        result.rows.map((row: Record<string, unknown>) =>
+        result.rows.map((row) =>
           Object.fromEntries(
-            Object.entries(row).filter(([, value]) => !(value instanceof Date))
+            Object.entries(row as Record<string, unknown>).filter(
+              ([, value]) => !(value instanceof Date)
+            )
           )
         )
       );
