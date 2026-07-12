@@ -4,14 +4,15 @@
 
 **Gate:** OPEN — written licensed-counsel disposition required
 
-**Current source location:** `feat/app-shell-dashboard`
+**Current source branch:** `feat/counsel-gate-candidate`
 
-**Committed base:** `b80cd67f0011a75a6073a59df3f4ac6d6813ab04`
+**Candidate code SHA:** `32939424850ebc601040b6d9cbc907632efc16ac`
 
-**Candidate status:** NOT YET SENDABLE — this legal package and containment
-patch are uncommitted and must first be integrated with current `main`. The
-external packet must replace this identity with the clean integrated candidate
-SHA and attach evidence produced from that SHA.
+**Candidate status:** CLEANLY INTEGRATED AND LOCALLY VERIFIED; NOT DEPLOYED OR
+COUNSEL-CLEARED. This candidate descends from `main@eb28ef7` and includes the
+legal-remediation package, current-main checkout/eval controls, and the
+fail-closed photo/insight containment patch. The SHA-bound packet is
+`docs/legal/counsel-packet/3293942/`.
 
 This document replaces the obsolete premise that an informational PWA may
 launch while legal review runs in parallel. No public account-based or paid
@@ -132,8 +133,9 @@ and any jurisdiction-specific disclosures. Do not infer them from this brief.
   proof.
 - The current browser smoke environment has no database; signed-out flows may
   emit expected Auth.js `MissingAdapter` logs.
-- The candidate has not yet been integrated with the 38 committed changes by
-  which current `main` is ahead of this worktree base.
+- The candidate has not been merged to `main`, deployed to preview, or tested
+  against production authentication, database, payments, email, or provider
+  configuration.
 - Migrations `0003_hesitant_frog_thor.sql` and
   `0004_aspiring_jocasta.sql` have not yet been proved on preview/production.
 - Real entity, address, launch jurisdiction, venue, support/refund/incident

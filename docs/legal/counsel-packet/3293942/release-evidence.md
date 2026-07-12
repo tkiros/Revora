@@ -1,0 +1,52 @@
+# Release evidence — code candidate `3293942`
+
+## Identity
+
+- Full SHA: `32939424850ebc601040b6d9cbc907632efc16ac`
+- Branch: `feat/counsel-gate-candidate`
+- Integrated base: `eb28ef743749173f3ebb415d7ec4b7febb65d399`
+- Legal-package source commit: `9bc5cf312494491ab467b5537a29ea60958bd33f`
+- Integration commit: `4d23ca3`; lifecycle assertion correction: `3293942`
+- Migrations added: `0003_hesitant_frog_thor.sql`,
+  `0004_aspiring_jocasta.sql`
+
+## Local verification observed on 2026-07-12 EDT
+
+| Command | Result |
+| --- | --- |
+| `npm run typecheck` | PASS, no TypeScript diagnostics |
+| `npm test` | PASS: 114 files passed, 1 skipped; 1111 tests passed, 2 skipped; duration 319.11s |
+| `npm run eval:revora` | PASS: 1 file, 9 tests; mock/code regression evidence only |
+| `npm run build` | PASS with lockfile-pinned local install; 67 routes generated, including health-data deletion, photo-draft, coach, billing and Pantry APIs |
+| `git diff --check` | PASS |
+| focused claims/privacy/billing/consent/deletion/feature-gate tests | PASS after merge reconciliation |
+| Mobile Chrome billing/onboarding/dashboard/photo/daily-loop, one worker | Completed: 18 passed and 1 flaky test passed on retry; the retry was signed-out account-page cold compilation, not represented as a clean first-attempt pass |
+
+The first build attempt is excluded as proof: before `npm ci`, Turbopack
+resolved a home-level Next install and failed workspace-root discovery without
+compiling the candidate. After the lockfile-pinned install, the candidate build
+compiled successfully. `npm ci` reported four existing moderate dependency
+vulnerabilities; no automatic breaking upgrade was applied.
+
+## Launch flag table
+
+| Variable | Candidate requirement |
+| --- | --- |
+| `NEXT_PUBLIC_PHOTO_INPUT` | unset; only exact `1` enables; candidate smoke proved hidden control and route `404` |
+| `NEXT_PUBLIC_LONGITUDINAL_INSIGHTS` | unset; only exact `1` enables; candidate API/unit/browser tests proved no output/promise when off |
+| `LEGAL_TERMS_FINAL` | unset until written clearance and live assent proof; all paid entry points otherwise `503` |
+
+## Explicitly not tested/proved
+
+- No preview or production deployment of this SHA.
+- No application of migrations `0003`/`0004` to preview or production.
+- No authenticated production database, consent withdrawal, erasure, account,
+  email, reminder, Stripe, Play, Pantry processing, cancel, or refund proof.
+- No verification of real `LEGAL_ENTITY_NAME`, `SUPPORT_EMAIL`, jurisdiction,
+  prices, provider contracts, transfers, retention, backups, or incident plan.
+- No live-model safety run, RD/CDCES validation, or clinical correctness proof.
+- No licensed-counsel written opinion and no owner residual-risk acceptance.
+
+Therefore this evidence establishes a locally verified integrated code
+candidate only. It does not establish deployed-runtime truth or counsel-gate
+closure.
