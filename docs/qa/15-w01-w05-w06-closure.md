@@ -100,4 +100,16 @@ npx vitest run \
 
 npm run contract
 → safety contract validation passed
+
+npm run build
+→ production build passed (66 routes)
+
+npm run typecheck
+→ passed
+
+npm run lint
+→ 0 errors, 12 pre-existing warnings outside this remediation
+
+npm test
+→ 115 files passed, 1 skipped; 1119 tests passed, 2 skipped
 ```
