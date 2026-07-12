@@ -1,21 +1,26 @@
 #!/usr/bin/env npx tsx
 /**
- * Model bake-off: compare two OpenRouter model IDs on the FROZEN eval corpus
+ * Model bake-off: compare two model IDs on the FROZEN eval corpus
  * (tests/fixtures/revora-eval-cases.json) through the IDENTICAL production
  * pipeline — buildRevoraPrompt → Responses API w/ strict json_schema →
  * RevoraModelOutputSchema → postprocess floors → fail-closed retry. Parity is
  * structural: both models go through createOpenAIRevoraModelClient with the
  * same instructions, schema, and (absent) reasoning/temperature settings.
  *
+ * Provider parity (N-19): live calls default to OpenAI-direct — production's
+ * own path. Set OPENAI_BASE_URL (e.g. https://openrouter.ai/api/v1) plus
+ * provider-prefixed model ids via REVORA_MODEL_NANO/MINI to test elsewhere;
+ * that is a deviation from production and the artifact records the base URL.
+ *
  * Documented deviation from the production call (applied to BOTH models):
- * max_output_tokens=512 — without it OpenRouter rejects gpt-5.4-mini by
- * pricing the worst-case 65k output window (2026-07-09 benchmark finding).
+ * max_output_tokens=1024 parity cap (see MAX_OUTPUT_TOKENS).
  *
  * Modes:
  *   --dry-run  print the plan (cases, models, caps); no network. DEFAULT.
  *   --mock     run corpus through the pipeline with fixture mockModelOutput;
  *              validates the harness deterministically (CI-safe, no key).
- *   --live     real calls. Requires OPENROUTER_API_KEY (or OPENAI_API_KEY).
+ *   --live     real calls. Requires OPENAI_API_KEY (or OPENROUTER_API_KEY
+ *              together with OPENAI_BASE_URL).
  *
  * Budget rails (live): BAKEOFF_MAX_CASES (default all), BAKEOFF_MAX_USD
  * (default 0.50, enforced on provider-reported cost when available),
@@ -90,9 +95,11 @@ function envNum(name: string, fallback: number): number {
   return Number.isFinite(v) && v > 0 ? v : fallback;
 }
 
+// Prod-style ids for OpenAI-direct. OpenRouter needs the "openai/" prefix —
+// set these envs alongside OPENAI_BASE_URL when deliberately going off-path.
 const MODELS = {
-  nano: process.env.REVORA_MODEL_NANO ?? "openai/gpt-5.4-nano",
-  mini: process.env.REVORA_MODEL_MINI ?? "openai/gpt-5.4-mini"
+  nano: process.env.REVORA_MODEL_NANO?.trim() || "gpt-5.4-nano",
+  mini: process.env.REVORA_MODEL_MINI?.trim() || "gpt-5.4-mini"
 };
 
 const CAPS = {
@@ -127,7 +134,10 @@ function createInstrumentedClient(
 ): RevoraModelClient {
   const sdk = new OpenAI({
     apiKey,
-    baseURL: process.env.OPENAI_BASE_URL ?? "https://openrouter.ai/api/v1",
+    // Default is OpenAI-direct — the exact provider path production uses
+    // (lib/revora/openai-client.ts). A different provider has different
+    // failure modes; only test one on purpose, via OPENAI_BASE_URL.
+    baseURL: process.env.OPENAI_BASE_URL?.trim() || undefined,
     timeout: 30_000,
     maxRetries: 0
   });
@@ -340,6 +350,9 @@ function summarize(modelId: string, results: CaseResult[]) {
       results.length > 0
         ? results.filter((r) => r.expectedKindMet).length / results.length
         : null,
+    // Cases that ended in an actual delivered verdict (any mode). The gate
+    // keys on this, not modelCalls — mock mode never touches the call log.
+    deliveredResults: results.filter((r) => r.finalKind === "result").length,
     harmfulSafeCount: results.filter((r) => r.harmfulSafe).length,
     disallowedRiskCount: results.filter((r) => r.disallowedRiskHit).length,
     rubric: scoreRun(gradedRuns),
@@ -373,10 +386,10 @@ async function main() {
   }
 
   const apiKey =
-    process.env.OPENROUTER_API_KEY ?? process.env.OPENAI_API_KEY ?? "";
+    process.env.OPENAI_API_KEY ?? process.env.OPENROUTER_API_KEY ?? "";
   if (mode === "live" && !apiKey) {
     console.error(
-      "SETUP_BLOCKED: export OPENROUTER_API_KEY (or OPENAI_API_KEY) to run --live."
+      "SETUP_BLOCKED: export OPENAI_API_KEY to run --live (OPENAI_BASE_URL + OPENROUTER_API_KEY for a deliberate off-provider run)."
     );
     process.exitCode = 1;
     return;
@@ -423,15 +436,31 @@ async function main() {
     JSON.stringify({ assignment, mode, caps: CAPS, corpusSize: cases.length }, null, 2)
   );
 
+  const modelSummaries = (["A", "B"] as const).map((label) =>
+    summarize(mode === "mock" ? `mock(${assignment[label]})` : assignment[label],
+      byLabel[label])
+  );
+
+  // Gate 0 — same defect class the graded eval fixed (deebd07): a rubric can
+  // only pass over cases that were actually evaluated. A model whose calls
+  // failed at the provider, was budget-blocked, or never got a call must read
+  // as FAILED, never as "passed: true" over an empty set (the 2026-07-11
+  // bakeoff artifact published exactly that over 46 failed calls).
+  const gates = modelSummaries.map((m) => ({
+    modelId: m.modelId,
+    deliveredResults: m.deliveredResults,
+    providerFailures: m.providerFailures,
+    passed: m.deliveredResults > 0 && m.providerFailures === 0 && m.rubric.passed
+  }));
+
   const summary = {
     mode,
     timestamp: stamp,
+    provider: process.env.OPENAI_BASE_URL?.trim() || "openai-direct",
     corpus: { file: "tests/fixtures/revora-eval-cases.json", cases: cases.length },
     budget: { ...CAPS, spent: spend },
-    models: (["A", "B"] as const).map((label) =>
-      summarize(mode === "mock" ? `mock(${assignment[label]})` : assignment[label],
-        byLabel[label])
-    )
+    gates,
+    models: modelSummaries
   };
   fs.writeFileSync(
     path.join(outDir, "bakeoff-summary.json"),
@@ -445,6 +474,16 @@ async function main() {
     console.warn(
       `BUDGET RAIL TRIPPED: ${spend.callsBlocked} calls were blocked; coverage is PARTIAL, not complete.`
     );
+  }
+
+  const gateFailures = gates.filter((g) => !g.passed);
+  if (mode !== "dry-run" && gateFailures.length > 0) {
+    console.error(
+      `BAKEOFF GATE FAILED: ${gateFailures
+        .map((g) => `${g.modelId} (delivered=${g.deliveredResults}, providerFailures=${g.providerFailures})`)
+        .join("; ")} — an unevaluated case is not a safe case.`
+    );
+    process.exitCode = 1;
   }
 }
 
