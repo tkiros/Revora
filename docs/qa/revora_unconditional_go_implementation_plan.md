@@ -82,6 +82,16 @@ vote into “clinically approved.”
 [CDC PreventT2 curriculum](https://www.cdc.gov/diabetes-prevention/php/lifestyle-change-resources/t2-curriculum.html),
 and [ADCES low-blood-sugar roadmap](https://www.adces.org/docs/default-source/handouts/hypoglycemia/handout_pwd_hypo_hypoglycemiatreatmentplanroadmap.pdf).
 
+### Current closure state (2026-07-12)
+
+| Workstream | Status | Current proof / boundary |
+|---|---|---|
+| **W-01** | **ENGINEERING CLOSED; CLINICAL COPY APPROVAL PENDING W-05** | Deterministic pre-model route, 40/40 clinical cases correctly routed, zero false positives in the food corpus, verdict-free response schema, fixed ledger copy. Copy policy is versioned in `docs/qa/dietitian-review/clinical-copy-governance.json`; its external approval fields remain empty rather than fabricated. |
+| **W-05** | **OPEN — EXTERNAL PANEL REQUIRED** | Engineering review gate and reviewer packet exist. `npm run review:dietitian:close` fails closed until three verified reviewers independently review 240 locked cases, approve clinical copy and `CARB_FORWARD_TOKENS`, sign unconditional votes, and all overall/subgroup gates pass. |
+| **W-06** | **CLOSED** | Runtime `assertNoForbiddenClaims()` covers result reason/adjustment/swap plus model-authored clarify/not-food fields; violations throw and become verdict-free retry cards. Focused W-06 tests and the safety-contract validator pass. |
+
+Detailed evidence and exact remaining authority boundary: `docs/qa/15-w01-w05-w06-closure.md`.
+
 ---
 
 ## Phase 0 — Evidence and baseline (runs first; ~3 days, mostly parallel)
