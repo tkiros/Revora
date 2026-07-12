@@ -197,6 +197,7 @@ test("wall → checkout: value → start POSTs the trial and navigates", async (
   // one click reaches the email step.
   await page.getByRole("button", { name: "Start my free week" }).click();
   await page.getByLabel("Your email").fill("wall@revora.test");
+  await page.getByTestId("trial-terms-consent").check();
   await page
     .getByRole("button", { name: "Continue to checkout — $0 due today" })
     .click();

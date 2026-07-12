@@ -110,7 +110,7 @@ async function fillValidForm(page: Page, overrides?: Partial<{ food: string; a1c
 test("public no-login form", async ({ page }) => {
   await page.goto("/check?stay=1");
 
-  await expect(page.getByRole("heading", { name: /should i eat this/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /check this meal/i })).toBeVisible();
   await expect(
     page.getByLabel(/what are you thinking about eating/i)
   ).toBeVisible();
