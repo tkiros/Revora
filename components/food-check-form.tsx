@@ -406,7 +406,7 @@ export function FoodCheckForm() {
       </div>
 
       <button type="submit" disabled={isSubmitting} className="primary-button">
-        {isSubmitting ? "Checking..." : "Should I eat this?"}
+        {isSubmitting ? "Checking..." : "Check this meal"}
       </button>
 
       {tasterRemaining !== null && tasterRemaining > 0 ? (

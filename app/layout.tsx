@@ -25,7 +25,7 @@ const sans = Plus_Jakarta_Sans({
 
 export const metadata: Metadata = {
   title: "Revora",
-  description: "Server-side permission-first food checks for prediabetes-range A1C inputs.",
+  description: "General meal-composition education with cautious A1C-range context.",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "Revora", statusBarStyle: "default" }
 };

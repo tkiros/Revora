@@ -56,9 +56,9 @@ export function createPhotoDraftHandler(deps: PhotoDraftDeps = {}) {
   const paywallModeDep = deps.paywallMode ?? (() => paywallMode());
 
   return async function POST(request: Request) {
-    // D5 launch gate (BUG-10): dormant in production until the owner flips
-    // NEXT_PUBLIC_PHOTO_INPUT=1 — the client button is hidden by the same flag;
-    // this is the server-side enforcement of it.
+    // Counsel launch gate: dormant until the reviewed build explicitly sets
+    // NEXT_PUBLIC_PHOTO_INPUT=1. The client control uses the same helper, but
+    // this route-level check is the authoritative model-spend/data boundary.
     if (!photoInputEnabled()) {
       return NextResponse.json({ kind: "not_found" }, { status: 404 });
     }

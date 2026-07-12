@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { track } from "../lib/client/analytics";
+import { TERMS_VERSION } from "../lib/legal/terms";
 
 export function PantryBuyButton({
   source,
@@ -15,6 +17,7 @@ export function PantryBuyButton({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   useEffect(() => {
     if (trackView) track({ name: "pantry_viewed", props: { source } });
@@ -25,7 +28,14 @@ export function PantryBuyButton({
     setError(null);
     track({ name: "pantry_checkout_started" });
     try {
-      const response = await fetch("/api/billing/stripe/pantry-checkout", { method: "POST" });
+      const response = await fetch("/api/billing/stripe/pantry-checkout", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          termsAccepted,
+          termsVersion: TERMS_VERSION
+        })
+      });
       const body = (await response.json()) as { url?: string; error?: string };
       if (body.url) window.location.assign(body.url);
       else setError(body.error ?? "Checkout isn't available right now.");
@@ -38,8 +48,29 @@ export function PantryBuyButton({
 
   return (
     <div className="field-stack">
-      <button type="button" className="primary-button" disabled={busy} onClick={buy} data-testid="pantry-buy">
-        {busy ? "Opening…" : "Get your Pantry Review — one payment, nothing renews"}
+      <label className="consent-row">
+        <input
+          type="checkbox"
+          checked={termsAccepted}
+          onChange={(event) => setTermsAccepted(event.target.checked)}
+          data-testid="pantry-terms-consent"
+        />
+        <span className="consent-label">
+          I agree to the <Link href="/terms">Terms</Link> and acknowledge the{" "}
+          <Link href="/privacy">Privacy Notice</Link> and one-time refund
+          policy.
+        </span>
+      </label>
+      <button
+        type="button"
+        className="primary-button"
+        disabled={busy || !termsAccepted}
+        onClick={buy}
+        data-testid="pantry-buy"
+      >
+        {busy
+          ? "Opening…"
+          : "Get your Pantry Review — one payment, nothing renews"}
       </button>
       {error ? <p className="field-error">{error}</p> : null}
     </div>

@@ -24,7 +24,7 @@ Every caption is:
     [the user's moment] → [Revora's answer]
 
 - "Thought oatmeal was the safe breakfast → here's what Revora actually said."
-- "Stared at the fridge wondering what's fine to eat → one photo, one calm report."
+- "Stared at the fridge wondering what to make → one description, one calm educational read."
 
 The left side is a human moment in plain words. The right side is what Revora
 does, in capability language — never an outcome promise.
@@ -47,14 +47,10 @@ rows. For the Reddit launch post, the founder's *real* pantry photo (the actual
 input) plus the resulting sample rows tells the whole story honestly.
 
 **Store listing (Play / App Store).** A 3–4 shot daily-relationship narrative:
-question → honest answer → the calm daily loop → the one-time pantry option. The
-listing MUST carry the legal North Star line **verbatim**, per
-`docs/product-marketing.md`:
-
-> Reversal is achieved through your dietary choices — Revora gives you the clarity to make them.
-
-The user is always the agent; Revora is never the agent. Do not paraphrase this
-line, and do not let any other asset imply Revora itself does the reversing.
+meal description → cautious educational label → the calm daily loop → the
+one-time pantry option. The listing must use the intended-use statement and
+verdict semantics from `docs/safety/claims-boundary.md`. No asset may connect
+Revora use to a disease outcome, even when the user is the grammatical agent.
 
 ## Hard bans
 
@@ -62,12 +58,10 @@ Nothing in any asset may contain:
 
 - **Numbers, graphs, or trajectories** — no A1C values, no glycemic numbers, no
   "down X points," no before/after charts, no upward-arrow imagery.
-- **Outcome testimonials** — no "reversed my prediabetes," no "cured," no member
-  results. The entire "reversal" family is banned in asset copy (the single
-  verbatim North Star line above is the *only* sanctioned exception, and only in
-  onboarding + the store listing).
-- **Fabricated precision** — no invented member counts, ratings, "clinically
-  proven," "FDA," or made-up specifics.
+- **Outcome testimonials** — no disease-outcome story, before/after lab result,
+  or member result. There is no North-Star carve-out.
+- **Fabricated precision** — no invented member counts, ratings, clinical-proof
+  language, regulatory-status language, or made-up specifics.
 - **Scarcity framing** — no fake countdowns, "only N spots left," or urgency
   pressure. The trust promise is the opposite of Klinio's dark patterns.
 

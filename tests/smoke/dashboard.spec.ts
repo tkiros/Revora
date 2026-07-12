@@ -77,7 +77,7 @@ test("guest dashboard fills in from on-device history", async ({ page }) => {
     .getByLabel(/what are you thinking about eating/i)
     .fill("white rice with beans");
   await page.getByLabel(/latest a1c/i).fill("6.1");
-  await page.getByRole("button", { name: "Should I eat this?" }).click();
+  await page.getByRole("button", { name: "Check this meal" }).click();
   await expect(page.getByTestId("result-card")).toBeVisible();
 
   await page.goto("/home?stay=1");

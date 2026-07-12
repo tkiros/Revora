@@ -198,7 +198,7 @@ export function createPantrySubmitHandler(deps: Deps = {}) {
         .set({ status: "needs_manual", updatedAt: now() })
         .where(eq(schema.pantryOrders.id, order.id));
       await email.send({
-        to: process.env.SUPPORT_EMAIL ?? "support@revora.app",
+        to: process.env.SUPPORT_EMAIL ?? "support@revora.bio",
         subject: `Pantry order needs manual review: ${order.id}`,
         text: `Extraction produced zero items for order ${order.id} (${failedPhotos} photo(s) failed). Handle via /admin/pantry.`
       });

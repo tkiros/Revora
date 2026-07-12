@@ -197,9 +197,10 @@ export function ResultCard({
               T1 honesty line — verdicts are band-general, never a prediction of
               this user's own response. */}
           <p className="result-disclaimer" data-testid="general-guidance">
-            Revora&apos;s guidance is general for your A1C range — your own
-            response to a food can differ. Only you (and your care team) know
-            your body.
+            These labels describe general meal patterns. Your A1C range only
+            makes the presentation more cautious; Revora does not predict your
+            individual response or decide whether a meal is medically
+            appropriate for you.
           </p>
           <DisclaimerLine disclaimer={response.disclaimer} />
         </div>

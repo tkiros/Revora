@@ -31,6 +31,14 @@ afterAll(async () => {
 beforeEach(async () => {
   await testDb.db.delete(schema.checks);
   await testDb.db.delete(schema.subscriptions);
+  await testDb.db.delete(schema.profiles);
+  await testDb.db.insert(schema.profiles).values({
+    userId,
+    a1cCiphertext: "cipher",
+    a1cBand: "prediabetes_60_62",
+    timezone: "UTC",
+    consentedAt: new Date()
+  });
 });
 
 const RESULT_RESPONSE = {
@@ -122,6 +130,17 @@ describe("check persistence (4B)", () => {
     expect(rows).toHaveLength(0);
   });
 
+  it("persists nothing after stored-health-data consent is withdrawn", async () => {
+    await testDb.db
+      .delete(schema.profiles)
+      .where(eq(schema.profiles.userId, userId));
+    const POST = createHandler({ sessionUserId: userId });
+    await POST(checkRequest());
+
+    const rows = await testDb.db.select().from(schema.checks);
+    expect(rows).toHaveLength(0);
+  });
+
   it("persists nothing for non-result kinds", async () => {
     const POST = createHandler({
       sessionUserId: userId,
@@ -161,14 +180,6 @@ describe("check persistence (4B)", () => {
 
 describe("free-tier enforcement (4D)", () => {
   it("402s the sixth check of the day for a free signed-in user, before any model spend", async () => {
-    await testDb.db.insert(schema.profiles).values({
-      userId,
-      a1cCiphertext: "cipher",
-      a1cBand: "prediabetes_60_62",
-      timezone: "UTC",
-      consentedAt: new Date()
-    });
-
     const POST = createHandler({ sessionUserId: userId });
 
     for (let i = 0; i < 5; i += 1) {
@@ -250,8 +261,9 @@ describe("trial-mode hard wall (4.4)", () => {
       currentPeriodEnd: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
     });
 
-    // Record every table touched by a SELECT so we can prove countChecksToday
-    // (checks) and the profile-timezone lookup (profiles) never run.
+    // Record every table touched by a SELECT. Trial mode must skip the
+    // free-tier count query (checks), while the consent guard deliberately
+    // reads profiles before persisting the completed result.
     const queriedTables: unknown[] = [];
     const tracked = new Proxy(testDb.db, {
       get(target, prop) {
@@ -282,15 +294,9 @@ describe("trial-mode hard wall (4.4)", () => {
     const response = await POST(checkRequest());
     expect(response.status).toBe(200);
 
-    // Daily metering (profile-timezone lookup) never runs for entitled users.
-    //
-    // Neither does ANY read of the checks table. It used to be read exactly
-    // once, for the lifetime count that drove the model downgrade (F-21) — so
-    // removing that routing (W-02) also removed a per-check database query from
-    // the hot path of every signed-in user. The tiering cost the paying customer
-    // twice: a weaker model, and a DB round-trip to decide to give it to them.
-    expect(queriedTables).not.toContain(schema.profiles);
     expect(queriedTables).not.toContain(schema.checks);
+    // Persistence now verifies an active consent-bearing profile before saving.
+    expect(queriedTables).toContain(schema.profiles);
   });
 
   it("legacy mode: the 5/day soft limit still behaves byte-identically", async () => {

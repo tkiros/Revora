@@ -7,6 +7,7 @@ import { signOut } from "next-auth/react";
 import { track } from "../../../lib/client/analytics";
 import { historyStore } from "../../../lib/client/history-store";
 import { profileStore } from "../../../lib/client/profile-store";
+import { longitudinalInsightsEnabled } from "../../../lib/longitudinal-insights-flag";
 
 type EntitlementInfo = {
   tier: "free" | "premium";
@@ -34,6 +35,8 @@ export default function AccountPage() {
     null
   );
   const [canceling, setCanceling] = useState(false);
+  const [withdrawingHealthConsent, setWithdrawingHealthConsent] = useState(false);
+  const [confirmHealthWithdrawal, setConfirmHealthWithdrawal] = useState(false);
   // Free-tier copy is mode-dependent: legacy has a real 5/day free plan, the
   // trial funnel doesn't. Default to trial (the code default) so the copy
   // never resurrects the retired free offer on a failed lookup.
@@ -165,6 +168,27 @@ export default function AccountPage() {
     }
   }
 
+  async function withdrawHealthDataConsent() {
+    setWithdrawingHealthConsent(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/account/health-data", {
+        method: "DELETE"
+      });
+      if (!response.ok) {
+        setError("Health-data deletion didn't complete — please try again.");
+        return;
+      }
+      historyStore.clear();
+      profileStore.clear();
+      window.location.assign("/welcome?health-data-deleted=1");
+    } catch {
+      setError("Health-data deletion didn't complete — please try again.");
+    } finally {
+      setWithdrawingHealthConsent(false);
+    }
+  }
+
   return (
     <div className="app-content--narrow">
         <section className="surface-card hero-card">
@@ -191,7 +215,9 @@ export default function AccountPage() {
                   <>
                     <p className="page-copy">
                       <strong>Premium</strong> — unlimited checks, full
-                      history, insights, progress, and the daily reminder.
+                      history, progress
+                      {longitudinalInsightsEnabled() ? ", insights" : ""}, and
+                      the daily reminder.
                     </p>
                     {entitlement.currentPeriodEnd && !canceled ? (
                       <p className="field-hint" data-testid="renewal-date">
@@ -317,6 +343,51 @@ export default function AccountPage() {
                   ) : null}
                 </div>
               ) : null}
+
+              <div className="account-section">
+                <h2 className="section-title">Stored health data</h2>
+                <p className="page-copy">
+                  Withdraw your storage consent and erase your saved A1C,
+                  meal history, progress, reminders, and claimed Pantry Review
+                  data. Your login and subscription remain available, and you
+                  can continue using guest mode without saved history.
+                </p>
+                {confirmHealthWithdrawal ? (
+                  <div className="delete-confirm">
+                    <p className="field-error">
+                      Erase all saved health data and withdraw storage consent?
+                    </p>
+                    <button
+                      type="button"
+                      className="danger-button"
+                      disabled={withdrawingHealthConsent}
+                      data-testid="confirm-health-data-delete"
+                      onClick={withdrawHealthDataConsent}
+                    >
+                      {withdrawingHealthConsent
+                        ? "Erasing…"
+                        : "Yes, erase saved health data"}
+                    </button>
+                    <button
+                      type="button"
+                      className="recheck-button"
+                      disabled={withdrawingHealthConsent}
+                      onClick={() => setConfirmHealthWithdrawal(false)}
+                    >
+                      Keep saved health data
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="recheck-button"
+                    data-testid="withdraw-health-data-consent"
+                    onClick={() => setConfirmHealthWithdrawal(true)}
+                  >
+                    Withdraw consent &amp; erase saved health data
+                  </button>
+                )}
+              </div>
 
               <div className="account-section">
                 <h2 className="section-title">Session</h2>

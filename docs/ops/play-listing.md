@@ -1,274 +1,143 @@
-# Revora — Google Play Store Listing Draft (P9)
+# Revora — Google Play Store Listing Draft
 
-> **Claims boundary applies with FULL force to this file.** This is the public
-> store listing — the text below will be pasted into Play Console verbatim.
-> `docs/ops/play-twa-runbook.md` §9.4 lists the banned families this copy must
-> avoid.
->
-> **This file IS automated-audited now** (W-09, 2026-07-11). It used not to be,
-> and the gap cost us: §4 shipped a free-tier promise ("five a day, every day")
-> that contradicted the code by a factor the store would have read as a false
-> claim (F-07). `tests/unit/revora/claims-boundary-copy.test.ts` now scans every
-> region of this file fenced by `<!-- claims-audit:start -->` /
-> `<!-- claims-audit:end -->` — i.e. exactly the text that gets pasted into Play
-> Console, and nothing else. The un-fenced prose (this header, the rationale
-> notes, §5's "avoid" list, §7's explanation) discusses the banned words on
-> purpose and is deliberately out of scope; the test asserts the fences are
-> present and balanced, so the audit cannot be silently switched off by deleting
-> them.
->
-> **The free-tier number is not a free variable.** It is `TASTER_LIMIT` in
-> `lib/client/taster-store.ts` — day-1 only, device-local. The audit pins the
-> number written in §4 to that constant. If the code changes, this file fails
-> the test until it is corrected.
->
-> No calories anywhere. No "reverse" in any inflection — the former North-Star
-> carve-out line is **Rejected** in `docs/safety/copy-ledger.md`
-> (`onboarding-reversal-line`, removed from onboarding 2026-07-06, counsel Q8
-> pending) and must not appear here. No predicted/future A1C. No GI/GL/
-> carb-gram numbers. No "AI-powered" lead. No accuracy percentages. No FDA or
-> medical-device implication. Revora is never the agent of an outcome — only
-> the user is. Coach-first framing throughout: "should I eat this, now?", not
-> a scan/diagnosis tool. Prediabetes-only (A1C 5.7–6.4% band). Calm,
-> permission-first tone — matches `app/how-it-works/page.tsx` and
-> `app/progress/page.tsx`, the two most compliance-sensitive shipped surfaces.
->
-> Placeholders use the `<...>` convention used throughout `docs/ops/`. Fill
-> before paste-in.
+> **Active claims-controlled draft — 2026-07-12.** Paste only after replacing
+> placeholders and confirming the advertised production feature flags. This
+> file is included in the automated marketing-claims audit. Only text inside
+> `claims-audit` fences may be pasted into Play Console.
 
----
-
-## 1. App title (≤30 characters)
+## 1. App title
 
 <!-- claims-audit:start -->
-**Revora — Prediabetes Coach**  *(26 characters)*
+**Revora — Prediabetes Coach**
 <!-- claims-audit:end -->
 
-Rationale: "Coach" (not "Reversal" or "Scan") matches the shipped coach-first
-positioning (`docs/product-marketing.md`) and stays outside the `reverse`
-family entirely.
-
-## 2. Short description (≤80 characters)
+## 2. Short description
 
 <!-- claims-audit:start -->
-**Should I eat this, now? A calm daily coach for prediabetes-range A1C.**
+**Check a meal and understand its general balance in plain language.**
 <!-- claims-audit:end -->
-*(69 characters)*
 
 ## 3. Category
 
-**Health & Fitness.**
+**Health & Fitness**
 
-## 4. Full description (≤4000 characters)
-
-<!-- claims-audit:start -->
-> Should I eat this, now?
->
-> That's the question Revora answers — for the one moment it actually
-> matters: right before you eat. Enter what you're about to have (type it or
-> say it), and Revora gives you a calm, clear read in seconds: **Clear**, **Be
-> careful**, or **Hold off** — plus, when there's one, a simple adjustment, a
-> swap that fits your kitchen, and the order to eat things in. Coach-first,
-> always: Revora tells you what to do with *this* meal, not a running tally
-> of what you ate.
->
-> **Built for one specific moment in one specific range**
-> Revora is for people whose A1C falls in the prediabetes range (5.7–6.4%) —
-> not general wellness, not diabetes management. Enter your A1C once; every
-> check after that is calibrated to your range. Outside that range, Revora
-> says so plainly and points you back to your clinician instead of guessing.
->
-> **What a check gives you**
-> - A clear, plain-language read: Clear / Be careful / Hold off
-> - A short reason in plain English — never a raw number
-> - A swap, when one helps, that works with what you actually have
-> - The order to eat things in, when it changes the outcome
-> - One small next step after the meal, when there is one
->
-> **Free to try — no account, no card**
-> You get 10 free checks on your first day, with no sign-up and nothing to
-> enter but the meal. They live on your device, and today's checks stay
-> visible right on the home screen. After that, Premium opens with a 7-day
-> free trial — nothing is charged until it ends, and we email you before it
-> does.
->
-> **Premium — for building the habit, not just the moment**
-> - Unlimited daily checks
-> - Your full check history, synced across devices
-> - A weekly insight drawn from your own recent meals
-> - A weekly progress view — how consistently you checked in and followed
->   through, never a prediction about a future lab result
-> - One gentle daily reminder, entirely optional and easy to turn off
->
-> **Honest about what this is and isn't**
-> Revora is informational only. It makes no medical determinations and
-> offers no clinical guidance of its own — every check simply reflects your
-> own choices back to you in plain language, and it never predicts your next
-> A1C. The weekly progress view measures your own check-in behavior — never
-> a guess about your lab results. Your dietary choices are yours — Revora
-> gives you the clarity to make them. Always talk with your
-> doctor or a registered dietitian about your own care; Revora is not a
-> substitute for either.
->
-> **Your data, your call**
-> Sign in with just an email — no password to lose. Your A1C and meal notes
-> are encrypted at rest, and you can permanently delete your account and
-> everything in it, in-app, at any time.
-<!-- claims-audit:end -->
-
-*(Draft length: well under the 4000-character Play limit — counted at
-paste-in, since Markdown formatting characters above don't ship as typed.)*
-
-**Free-tier note (F-07, 2026-07-11):** §4 previously read "**Free, every day** —
-the check itself is free, five a day, no account required". Every clause of that
-was wrong against the shipped code: the free tier is `TASTER_LIMIT` (=10) checks
-on the **first day only**, held in device-local storage
-(`lib/client/taster-store.ts`), not five a day forever. The "five" came from
-`FREE_DAILY_CHECKS` in `lib/server/entitlement.ts`, which is the **legacy**
-paywall path (`PAYWALL_MODE=legacy`) and is not what a store user would get.
-Shipping the old text would have been a false claim in a public store listing.
-The number above is now pinned to `TASTER_LIMIT` by the copy audit.
-
-**Reversal-family note:** the former North-Star line ("Reversal is achieved
-through your dietary choices…") is **Rejected** in `docs/safety/copy-ledger.md`
-(`onboarding-reversal-line`) — removed from `app/onboarding/page.tsx` on
-2026-07-06 (launch audit BUG-05), pending counsel Q8. Do not use any
-"reverse/reversal/reversing" language in this listing unless that ledger row
-is changed to Approved with counsel sign-off recorded.
-
-## 5. Tags / keywords
+## 4. Full description
 
 <!-- claims-audit:start -->
-`prediabetes` · `A1C` · `blood sugar` · `food coach` · `meal check` ·
-`glucose-friendly eating` · `health coach` · `prediabetes diet`
+> **Check a meal. Understand its balance in seconds.**
+>
+> Type a meal or say it before submitting it.
+> Revora returns one cautious educational label—**Clear**, **Be careful**, or
+> **Hold off**—with a plain-language reason and, when appropriate, a practical
+> adjustment or alternative.
+>
+> **Built for adults using a prediabetes-range A1C**
+>
+> Revora accepts an A1C from `5.7%–6.4%`. The range only makes the educational
+> presentation more cautious; it is not used to predict your individual
+> response. Outside that range, Revora stops and points you to a doctor or
+> registered dietitian instead of returning a meal label.
+>
+> **What a check includes**
+>
+> - A general meal-pattern label: Clear, Be careful, or Hold off
+> - A short explanation of the composition Revora noticed
+> - A practical adjustment or alternative when appropriate
+> - A clarification question when the meal description is incomplete
+> - No calorie target, glucose forecast, or future laboratory prediction
+>
+> **Guest and Premium use**
+>
+> Try Revora as a guest without an account. You get 10 free checks on your first day, stored on that device. Premium adds unlimited checks,
+> encrypted cross-device history, a behavior-only progress view, and an
+> optional daily reminder. The purchase
+> screen shows the price, billing interval, trial and first-charge terms,
+> automatic renewal, refund policy, and cancellation path before you agree.
+>
+> **Honest limits**
+>
+> Revora provides general educational information about meal composition. Its
+> labels do not establish that a meal is medically appropriate for you and do
+> not forecast your individual glucose response. Revora is informational only
+> and is not medical advice. Talk with a doctor or registered dietitian for
+> guidance specific to you.
+>
+> **Privacy and control**
+>
+> With explicit consent, saved A1C and meal text are encrypted at rest. You can
+> withdraw saved-health-data consent and erase that data while keeping your
+> login, or delete your whole account in the app. Revora does not sell personal
+> information or show ads.
 <!-- claims-audit:end -->
 
-Avoid: `diagnosis`, `treatment`, `cure`, `AI`, `scan` (implies a photo feature
-Revora doesn't ship), `CGM`, `glycemic index`/`GI`/`GL` (numeric claim risk).
-
-Also dropped, 2026-07-11: `diabetes prevention program`. Keywords are pasted
-into Play Console as public store text, so they are claim surface, not just a
-lookup hint — and §7 below commits this listing to avoiding the Banned Claim
-Families *vocabulary itself*, not merely its affirmative sense. A health app
-whose store keywords include "prevention" is asserting the thing the rest of
-this listing carefully does not. `prediabetes diet` carries the same search
-intent with none of the exposure. (The keyword list is inside the audit fence,
-so this can't creep back in unnoticed.)
-
-## 6. Content rating questionnaire — answers
-
-- **Target age:** 18+ (adults only — matches
-  `docs/handoff/human-actions-required.md` §0 "Approve app name/icon/brand as
-  final" and the plan's pre-decided default audience).
-- **Category:** Health & Fitness / informational reference tool.
-- **Medical claims:** None declared. Revora makes no medical determinations
-  and offers no clinical care of its own; it does not provide medical
-  advice.
-- **User-generated content:** None (no public posts, no social features).
-- **Data collection:** Yes — see §8 (Data Safety cross-reference) below.
-
-## 7. Health-apps declaration text
+## Search terms
 
 <!-- claims-audit:start -->
-> Revora is an informational wellness tool for people with a prediabetes-
-> range A1C (5.7–6.4%), self-reported by the user. It offers plain-language,
-> non-numeric guidance about individual meals and tracks the user's own
-> check-in behavior. Revora makes no medical determinations, offers no
-> clinical care of its own, and never forecasts future lab results; it is
-> not a substitute for professional medical advice. Every result and every
-> progress view carries an in-app reminder to consult a doctor or registered
-> dietitian.
+`prediabetes` · `A1C` · `meal composition` · `food education` · `meal check`
+· `balanced meals`
 <!-- claims-audit:end -->
 
-Deliberately avoids the Banned Claim Families vocabulary itself (reverse/
-cure/treat/prevent/diagnose/FDA/guarantee/future-prediction —
-`docs/safety/claims-boundary.md`), not just their affirmative sense. The
-in-app contract disclaimer and prompt text negate those words directly
-("does not diagnose, treat, prevent, cure, or reverse") because
-`claims-boundary-copy.test.ts` excludes prompt-internal snippets from its
-scan; this listing text has no such exclusion once pasted into Play
-Console, so it uses different words entirely rather than relying on
-negation to survive a naive word-boundary scan.
+Do not use disease-outcome, personal-safety, predicted-response, clinical-proof,
+or regulatory-status keywords.
 
-## 8. Data Safety form
+## Health-app declaration
 
-**Do not duplicate the mapping here.** The authoritative Data Safety
-question-by-question answers live in `docs/ops/play-twa-runbook.md` §9.2 —
-fill the Play Console Data Safety form directly from that table (it is kept
-in lockstep with `/privacy` and `docs/privacy/data-flow.md` by the project's
-"lockstep rule"). If the two ever disagree, §9.2 of the runbook is the one to
-trust and this listing should be corrected to match, not the other way
-around.
+<!-- claims-audit:start -->
+> Revora is an informational wellness product for adults who provide an A1C in
+> the `5.7%–6.4%` range. It describes general meal-composition patterns and uses
+> the A1C range only to apply a more cautious educational presentation. It does
+> not make medical determinations, provide clinical care, forecast an
+> individual physiologic response, or replace a doctor or registered
+> dietitian. Every substantive result includes the in-app informational-use
+> disclosure.
+<!-- claims-audit:end -->
 
-## 9. Screenshots shot-list
+## Data Safety
 
-Capture every screenshot **signed in as the seeded reviewer account**
-(`reviewer@revora.test`, `scripts/seed-reviewer-account.mjs`) so no real
-user's PII, food history, or A1C ever appears in a store asset. Use a clean
-device frame; no debug banners, no `COUNSEL-DRAFT` badges visible if
-avoidable (acceptable if unavoidable pre-counsel-signoff, but prefer to
-re-shoot after sign-off lands).
+Complete the Play Console form from `docs/ops/play-twa-runbook.md` §9.2 after
+confirming it matches `/privacy` and `docs/privacy/data-flow.md`. Do not submit
+if the three surfaces disagree.
 
-| # | Screen | State to capture | Notes |
-|---|--------|-------------------|-------|
-| 1 | `/` (home, food-check form) | Empty state, ready to type/say a meal | Leads with "Should I eat this?" — the core loop |
-| 2 | `/` result card | A **Clear** (SAFE) result with a sequencing tip | Shows the plain-language verdict, not a number |
-| 3 | `/` result card | A **Be careful** (MODERATE) result with a swap suggestion | Shows the swap feature |
-| 4 | `/` today view | 2–3 checks logged today | Shows the free daily-check experience |
-| 5 | `/history` | A short history list (reviewer's seeded data only) | Premium feature — full history |
-| 6 | `/progress` | A populated BAI band view (e.g. "Building" or "On track") | Premium — behavioral progress, not a lab prediction |
-| 7 | `/how-it-works` | Top of page | Shows the transparency/evidence section, builds trust with reviewers |
-| 8 | `/subscribe` | Paywall card with both SKUs visible | Shows pricing transparently |
+## Screenshot list
 
-Feature graphic: reuse the brand mark (`public/icon-512.png`) per
-`docs/ops/play-twa-runbook.md` §9.4 item 1 — no new asset generation needed
-beyond composing it into the 1024×500 feature-graphic template.
+Use only the seeded reviewer account and no real user data:
 
-## 10. App access instructions (Play reviewer login)
+1. Empty meal-check form showing enabled input methods.
+2. Clear educational result with its limitation text visible.
+3. Be careful educational result with a practical alternative.
+4. Today view with seeded history.
+5. Encrypted-history explanation or History view.
+6. Behavior-only progress view.
+7. How It Works evidence-and-limitations section.
+8. Purchase screen with price, renewal, trial, cancellation, refund, and Terms
+   acceptance visible.
 
-Play Console's "App access" form needs a working reviewer login. Enter:
+Meal photo-assist and longitudinal insights are omitted from this candidate
+listing. Do not add either unless its production flag, evidence review, and
+explicit written owner approval are all green at the submitted revision.
 
-- **Login method:** email magic-link via the "Reviewer access" disclosure at
-  the bottom of `/signin` (only rendered when `NEXT_PUBLIC_REVIEWER_MODE=1`,
-  which is set on the **preview** environment used for review — see
-  `docs/ops/env-reference.md`).
+## Reviewer access
+
 - **Email:** `reviewer@revora.test`
-- **Access code / secret:** `<REVIEWER_TEST_SECRET value — human enters from the Vercel preview env>`
-- **One-line reviewer note (paste verbatim into the Play Console notes
-  field):** "Tap 'Reviewer access' at the bottom of the sign-in page, enter
-  the email and code above, and you'll be signed in as a fully-onboarded
-  Premium test account — no real purchase needed to review Premium
-  screens."
+- **Secret:** `<REVIEWER_TEST_SECRET>`
+- **Instructions:** “Open Sign in, choose Reviewer access, and enter the email
+  and code. The reviewer account is fully onboarded and has test Premium access;
+  no purchase is required.”
 
-This path is preview-only by design (`app/api/auth/reviewer-signin/route.ts`
-hard-404s whenever `VERCEL_ENV=production`) — it is not present on the public
-production build reviewers would otherwise install from the store listing
-itself; it exists solely so the Play reviewer can reach gated screens during
-review. See `docs/ops/device-qa-checklist.md` §13 for the corresponding
-"absent on production" verification.
+The reviewer shortcut must remain preview/review-only and unavailable in the
+public production environment.
 
-## 11. Data-deletion URL declaration
+## Required URLs
 
-`https://<domain>/account/delete`
+- Account deletion: `https://<domain>/account/delete`
+- Privacy: `https://<domain>/privacy`
+- Terms: `https://<domain>/terms`
 
-## 12. Privacy policy URL
+## Paste-in gate
 
-`https://<domain>/privacy`
-
-## 13. Terms of Service URL
-
-`https://<domain>/terms`
-
-> Note: `/terms` is currently a `COUNSEL-DRAFT` (see
-> `docs/legal/counsel-brief.md` Q10) with two bracketed placeholders
-> (operating-entity name, governing-law/venue). Do not submit for Play review
-> until counsel sign-off lands and the placeholders are resolved.
-
----
-
-**Everything above is a draft awaiting:** final domain (`<domain>`
-throughout), `REVIEWER_TEST_SECRET` value, counsel sign-off on `/terms` and
-the claims audit (Q1–Q10, `docs/legal/counsel-brief.md`), and a human
-paste-in + review pass against the live Play Console form (form fields and
-character limits drift over time — reverify against the current Play
-Console UI before submitting).
+- [ ] Real domain replaces every placeholder.
+- [ ] `LEGAL_ENTITY_NAME` and `SUPPORT_EMAIL` are configured in production.
+- [ ] Store text matches the live intended use and enabled features.
+- [ ] Claims audit passes.
+- [ ] Data Safety, Privacy, and data-flow documentation agree.
+- [ ] Purchase and cancellation flows pass on a real Play-installed build.

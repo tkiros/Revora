@@ -61,7 +61,7 @@ test("free-tier limit renders the calm upsell card", async ({ page }) => {
     .getByLabel(/what are you thinking about eating/i)
     .fill("lentil soup");
   await page.getByLabel(/latest a1c/i).fill("6.1");
-  await page.getByRole("button", { name: "Should I eat this?" }).click();
+  await page.getByRole("button", { name: "Check this meal" }).click();
 
   const card = page.getByTestId("result-card");
   await expect(card).toHaveAttribute("data-kind", "upsell");

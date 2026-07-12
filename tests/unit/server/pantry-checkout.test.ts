@@ -8,6 +8,7 @@ import {
 import { hashClaimToken } from "../../../lib/server/pantry/claims";
 import { schema } from "../../../lib/server/db";
 import { createTestDb } from "../../helpers/test-db";
+import { TERMS_VERSION } from "../../../lib/legal/terms";
 
 /**
  * Task 6.1 — in-app one-time Pantry Review checkout. The factory mirrors the
@@ -57,6 +58,17 @@ function stripeStub() {
   };
 }
 
+function acceptedRequest() {
+  return new Request("https://revora.test/api/billing/stripe/pantry-checkout", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      termsAccepted: true,
+      termsVersion: TERMS_VERSION
+    })
+  });
+}
+
 describe("createPantryCheckoutSessionHandler", () => {
   it("returns a payment-mode checkout url for the pantry price, no session gate", async () => {
     const stripe = stripeStub();
@@ -64,7 +76,7 @@ describe("createPantryCheckoutSessionHandler", () => {
       stripeClient: () => stripe as never
     });
 
-    const res = await handler();
+    const res = await handler(acceptedRequest());
     expect(res.status).toBe(200);
     expect((await res.json()).url).toBe("https://stripe/pantry");
 
@@ -72,6 +84,7 @@ describe("createPantryCheckoutSessionHandler", () => {
     expect(call).toMatchObject({
       mode: "payment",
       line_items: [{ price: PRICE, quantity: 1 }],
+      metadata: { terms_version: TERMS_VERSION },
       success_url: "https://revora.test/pantry/thanks",
       cancel_url: "https://revora.test/pantry"
     });
@@ -86,7 +99,7 @@ describe("createPantryCheckoutSessionHandler", () => {
       stripeClient: () => stripe as never
     });
 
-    const res = await handler();
+    const res = await handler(acceptedRequest());
     expect(res.status).toBe(503);
     expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
   });
@@ -97,10 +110,36 @@ describe("createPantryCheckoutSessionHandler", () => {
     const handler = createPantryCheckoutSessionHandler({
       stripeClient: () => stripe as never
     });
-
-    const res = await handler();
+    const res = await handler(acceptedRequest());
     expect(res.status).toBe(503);
     expect((await res.json()).error).toMatch(/unavailable/i);
+    expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
+  });
+
+  it("503s rather than creating a live checkout with an invalid return URL", async () => {
+    process.env.NEXT_PUBLIC_APP_URL = "http://localhost:3000";
+    const stripe = stripeStub();
+    const handler = createPantryCheckoutSessionHandler({
+      stripeClient: () => stripe as never
+    });
+
+    const res = await handler(acceptedRequest());
+    expect(res.status).toBe(503);
+    expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
+  });
+
+  it("400s before checkout when paid terms were not accepted", async () => {
+    const stripe = stripeStub();
+    const handler = createPantryCheckoutSessionHandler({
+      stripeClient: () => stripe as never
+    });
+    const res = await handler(
+      new Request("https://revora.test/api/billing/stripe/pantry-checkout", {
+        method: "POST",
+        body: "{}"
+      })
+    );
+    expect(res.status).toBe(400);
     expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
   });
 
@@ -120,6 +159,7 @@ describe("createPantryCheckoutSessionHandler", () => {
             mode: "payment",
             payment_intent: "pi_inapp_1",
             customer_details: { email: "buyer@example.com" },
+            metadata: { terms_version: TERMS_VERSION },
             subscription: null,
             client_reference_id: null
           }
@@ -141,6 +181,8 @@ describe("createPantryCheckoutSessionHandler", () => {
 
       const [order] = await ctx.db.select().from(schema.pantryOrders);
       expect(order.status).toBe("paid");
+      expect(order.termsVersion).toBe(TERMS_VERSION);
+      expect(order.termsAcceptedAt?.toISOString()).toBe(NOW.toISOString());
       expect(order.email).toBe("buyer@example.com");
       expect(order.stripeSessionId).toBe("cs_pantry_inapp_1");
       expect(order.intakeEmailSentAt?.toISOString()).toBe(NOW.toISOString());

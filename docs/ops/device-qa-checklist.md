@@ -34,10 +34,10 @@ result is observed on-device, not from the browser dev-server.
 
 ## 3. Onboarding
 
-- [ ] **Art. 9 health-data consent checkbox.** Steps: create a new account
-  through onboarding. **Expected:** the explicit-consent checkbox (marked
-  `COUNSEL-DRAFT` — `app/welcome/page.tsx`) is presented before any A1C value
-  is stored; declining/skipping does not silently store the value.
+- [ ] **Health-data consent checkbox.** Steps: create a new account through
+  onboarding. **Expected:** the explicit, purpose-bound checkbox is presented
+  before any A1C value is stored; it names OpenAI and links Privacy;
+  declining/skipping does not silently store the value.
 - [ ] **A1C boundary guidance.** Steps: enter an A1C below `5.7%`, then above
   `6.4%`, then inside the `5.7–6.4%` band. **Expected:** below/above-range
   values route to the out-of-scope clinician-referral copy
@@ -146,8 +146,9 @@ so purchases don't charge a real card.
 ## 12. Legal pages reachable
 
 - [ ] **`/terms` reachable, signed out.** Steps: navigate to `/terms` without
-  signing in. **Expected:** page loads; "Last updated" date visible;
-  `COUNSEL-DRAFT` marker visible (until counsel sign-off lands).
+  signing in. **Expected:** page loads; effective date, real operator name,
+  monitored support address, refund terms, and intended-use limitation are
+  visible; no placeholder or draft marker appears.
 - [ ] **`/privacy` reachable, signed out.** Steps: navigate to `/privacy`
   without signing in. **Expected:** page loads with the current data-flow
   description.

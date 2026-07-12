@@ -9,8 +9,10 @@
 > 1. **The PWA is live and stable** on the production domain (Phase 8 go-live complete —
 >    `docs/ops/launch-controls.md` §11). A TWA is a thin wrapper over the live PWA; there is
 >    nothing to wrap until the PWA is deployed.
-> 2. **Counsel has weighed in** (`docs/legal/counsel-brief.md`, task 4.4) on the
->    informational-only positioning and the health-app store declarations.
+> 2. **The owner-risk decision is recorded**
+>    (`docs/legal/owner-risk-launch-decision-5f6abcb.md`) and all real operator,
+>    listing, privacy, Terms, and paid-flow facts are complete. The decision is
+>    not counsel clearance.
 >
 > This runbook is the executable plan ops/eng runs **once both gates clear**. Most steps are
 > non-code (store account, policies, asset hosting). The one code artifact —
