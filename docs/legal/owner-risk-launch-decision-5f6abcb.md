@@ -49,21 +49,28 @@ Enabling either disabled function requires a function-specific evidence
 review, an explicit written owner decision, a new reviewed build, and new
 deployment proof.
 
-## Paid launch remains separately fail-closed
+## Paid WTP launch authorization
 
-This decision does not authorize `LEGAL_TERMS_FINAL=1`. Web subscription,
-trial, Google Play, and Pantry purchase entry points must remain closed until
-the owner supplies and approves all of the following without placeholders:
+On 2026-07-12, the owner expressly superseded the earlier paid fail-closed
+direction for a WTP test. The authorized scope is real Stripe charges for:
 
-- real legal operating entity/person and consumer-contact address;
-- launch jurisdiction, governing law/venue, and merchant/contracting party;
-- final refund, renewal, cancellation, and channel-role choices;
-- monitored support inbox and named refund/privacy/incident owners;
-- live Terms and Privacy rendering for the exact candidate;
-- verified current-version assent records and real paid/cancel/refund flows.
+- Premium web subscriptions and their seven-day card-gated trial; and
+- one-time Pantry Review purchases.
 
-Engineering may not invent these business facts or treat this waiver as their
-substitute.
+The public operator name is **Revora** and the monitored customer contact is
+**support@revora.bio**. The owner chose brand-only public identification rather
+than supplying a separate entity name or consumer-contact street address. No
+nonexistent entity or address may be represented as fact.
+
+`LEGAL_TERMS_FINAL=1` is authorized for the reviewed deployed candidate after
+the live Terms and Privacy pages show no drafting placeholders and the current
+Terms version/checkbox evidence is present. This opens the three Stripe web
+entry points above; it does not authorize a Google Play paid launch.
+
+The owner accepts responsibility for real refund, renewal, cancellation,
+support, privacy, incident, merchant, and tax obligations created by accepting
+real charges. A live successful purchase, cancellation, refund, and webhook
+must be recorded before treating the WTP system as operationally proved.
 
 ## Known regulatory and legal uncertainty accepted by the owner
 

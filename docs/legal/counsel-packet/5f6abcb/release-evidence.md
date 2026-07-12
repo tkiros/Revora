@@ -36,7 +36,7 @@ vulnerabilities; no automatic breaking upgrade was applied.
 | --- | --- |
 | `NEXT_PUBLIC_PHOTO_INPUT` | unset; only exact `1` enables; candidate smoke proved hidden control and route `404` |
 | `NEXT_PUBLIC_LONGITUDINAL_INSIGHTS` | unset; only exact `1` enables; candidate API/unit/browser tests proved no output/promise when off |
-| `LEGAL_TERMS_FINAL` | unset until real operator/commercial facts are owner-approved and live assent is proved; all paid entry points otherwise `503` |
+| `LEGAL_TERMS_FINAL` | owner authorized `1` for limited real Stripe WTP after no-placeholder/legal-assent live proof; otherwise all paid entry points return `503` |
 
 ## Explicitly not tested/proved
 

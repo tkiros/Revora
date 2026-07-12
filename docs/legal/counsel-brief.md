@@ -126,10 +126,11 @@ and any jurisdiction-specific disclosures. Do not infer them from this brief.
 - Handlers reject missing, false, or stale acceptance and record the Terms
   version and acceptance time.
 - `TERMS_VERSION` is `2026-07-12` in `lib/legal/terms.ts`.
-- Current-main paid checkout fails closed unless `LEGAL_TERMS_FINAL=1`; that
-  control must survive integration and remain unset until the owner supplies
-  and approves the real entity, merchant, jurisdiction, refund, and Terms facts
-  and live current-version acceptance evidence is verified.
+- Current-main paid checkout fails closed unless `LEGAL_TERMS_FINAL=1`. The
+  owner subsequently authorized a limited real-charge WTP scope in
+  `docs/legal/owner-risk-launch-decision-5f6abcb.md`; the control must survive
+  integration and live current-version acceptance evidence must still be
+  verified.
 - The exact merchant, governing law/venue, support inbox, refund owner, and
   final refund choices require owner input. They may not be invented by
   engineering.

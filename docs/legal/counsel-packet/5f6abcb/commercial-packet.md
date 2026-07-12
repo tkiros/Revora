@@ -33,6 +33,8 @@
 - Production Terms/Privacy render and acceptance record.
 - Authorized migration/application and real account/database behavior.
 
-`LEGAL_TERMS_FINAL` must remain unset until the owner supplies and approves the
-real entity, merchant, jurisdiction, refund, and final Terms facts and the live
-reviewed candidate records affirmative current-version acceptance.
+The later owner WTP decision authorizes `LEGAL_TERMS_FINAL=1` for real Stripe
+Premium/trial and Pantry charges once the deployed candidate renders no drafting
+placeholders and records current-version acceptance. The remaining entity,
+address, jurisdiction, merchant, and incident facts remain accepted owner risk,
+not facts engineering may invent.

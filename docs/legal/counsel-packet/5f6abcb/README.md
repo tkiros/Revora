@@ -11,8 +11,9 @@
 
 **Status:** ENGINEERING EVIDENCE PACKET RETAINED FOR THE OWNER-RISK DECISION AND
 ANY FUTURE REVIEW. The owner waived professional counsel on 2026-07-12. Not
-deployed. Not legal advice. Not counsel-cleared. Operator facts in
-`owner-input-required.md` remain mandatory for paid launch.
+deployed. Not legal advice. Not counsel-cleared. The later owner WTP decision
+authorizes a limited Stripe scope despite the remaining operator facts; the
+facts stay recorded as unresolved risk in `owner-input-required.md`.
 
 ## Contents
 

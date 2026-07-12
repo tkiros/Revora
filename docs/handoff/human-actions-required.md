@@ -180,9 +180,10 @@ provisioning (`docs/adr/hosting-hybrid.md`, `docs/adr/analytics-umami.md`):
 Both Play-submission-readiness artifacts are implemented and tested; three
 manual steps remain before Play review can use them:
 
-- ☐ **Configure the real operator identity** — `/terms` and `/privacy` are no
-  longer drafts and contain no bracketed clauses. Set `LEGAL_ENTITY_NAME` and
-  the monitored `SUPPORT_EMAIL` in production, then capture both pages.
+- ☐ **Capture the deployed operator identity** — the owner WTP decision
+  authorizes the public name `Revora` and `support@revora.bio` for the limited
+  Stripe scope. Set both explicitly in production and capture `/terms` and
+  `/privacy`; do not add a fictional legal identity or address.
 - ☐ **Run the reviewer-account seed script against the preview database**
   once Railway Postgres is provisioned (§1):
   `DATABASE_URL=<preview-url> HEALTH_DATA_KEY=<preview-key> node

@@ -1,7 +1,8 @@
-# Owner/operator facts required before paid launch
+# Owner/operator facts retained as paid-launch risks
 
-Engineering cannot infer or choose these facts. Complete every item before
-setting `LEGAL_TERMS_FINAL=1` or opening any paid entry point.
+Engineering cannot infer or choose these facts. The owner later authorized a
+limited real-charge Stripe WTP test without supplying them; record them here as
+they become known and never invent a legal identity or address.
 
 ## Recorded owner decision
 
@@ -11,6 +12,9 @@ setting `LEGAL_TERMS_FINAL=1` or opening any paid entry point.
   that it is not a legal opinion, compliance determination, or counsel
   clearance.
 - Professional counsel selection and packet delivery: **waived/deferred**.
+- Paid WTP authorization: **real Stripe Premium/trial and Pantry charges**;
+  public seller name **Revora**; public support contact
+  **support@revora.bio**; Google Play paid launch not authorized.
 
 - Legal operating entity/person: ______________________________
 - Registered and consumer-contact address: ______________________________
