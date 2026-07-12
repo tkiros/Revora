@@ -20,16 +20,7 @@ import { CLINICAL_ROUTES } from "./clinical-risk";
  */
 const SafeTelemetryEventSchema = z
   .object({
-    name: z.enum([
-      "check_completed",
-      "check_failed",
-      "launch_probe",
-      // Server-side churn signals (W-10). Emitted from the billing webhook, not
-      // the browser — a canceled or refunded user is precisely the user who is
-      // no longer running our client-side analytics.
-      "subscription_canceled",
-      "subscription_refunded"
-    ]),
+    name: z.enum(["check_completed", "check_failed", "launch_probe"]),
     environment: z.enum(["preview", "production", "development", "test"]),
     responseKind: z
       .enum([

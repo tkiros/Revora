@@ -65,6 +65,68 @@ describe("deriveCoachOutputs", () => {
     expect(COACH_PHRASE_BANK.sequencingTip.length).toBeGreaterThanOrEqual(5);
     expect(COACH_PHRASE_BANK.postMealAction.length).toBeGreaterThanOrEqual(5);
     expect(COACH_PHRASE_BANK.keepMost.length).toBeGreaterThanOrEqual(5);
+    // The daypart banks are slots too — a thin one would silently repeat.
+    expect(
+      COACH_PHRASE_BANK.postMealActionBreakfast.length
+    ).toBeGreaterThanOrEqual(5);
+    expect(COACH_PHRASE_BANK.postMealActionLunch.length).toBeGreaterThanOrEqual(
+      5
+    );
+    expect(COACH_PHRASE_BANK.postMealActionDinner.length).toBeGreaterThanOrEqual(
+      5
+    );
+  });
+
+  it("draws the post-meal action from the daypart's own bank", () => {
+    // The generic tip ("a walk after this meal") is fine at 7pm and slightly
+    // absurd at 7am. Conditioning on a signal already in hand is the difference
+    // between a coach and a form letter.
+    for (const daypart of ["breakfast", "lunch", "dinner"] as const) {
+      const outputs = deriveCoachOutputs(resultResponse("HIGH"), {
+        food: "pasta bake",
+        rotation: 2,
+        daypart
+      });
+
+      const bank =
+        daypart === "breakfast"
+          ? COACH_PHRASE_BANK.postMealActionBreakfast
+          : daypart === "lunch"
+            ? COACH_PHRASE_BANK.postMealActionLunch
+            : COACH_PHRASE_BANK.postMealActionDinner;
+
+      expect(bank).toContain(outputs.postMealAction);
+    }
+  });
+
+  it("falls back to the general bank when the daypart is unknown", () => {
+    // Older clients, curl and the demo page send no daypart. They must still
+    // get a tip — conditioning may only ADD specificity, never remove advice.
+    const outputs = deriveCoachOutputs(resultResponse("HIGH"), {
+      food: "pasta bake",
+      rotation: 2
+    });
+
+    expect(COACH_PHRASE_BANK.postMealAction).toContain(outputs.postMealAction);
+  });
+
+  it("never repeats within a daypart on consecutive checks either", () => {
+    let previous = deriveCoachOutputs(resultResponse("HIGH"), {
+      food: "pasta bake",
+      rotation: 0,
+      daypart: "breakfast"
+    });
+
+    for (let rotation = 1; rotation <= 12; rotation += 1) {
+      const current = deriveCoachOutputs(resultResponse("HIGH"), {
+        food: "pasta bake",
+        rotation,
+        daypart: "breakfast"
+      });
+
+      expect(current.postMealAction).not.toBe(previous.postMealAction);
+      previous = current;
+    }
   });
 
   it("rotation is deterministic — the same counter always yields the same card", () => {

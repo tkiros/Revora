@@ -29,6 +29,22 @@ counsel, and clinical validation.
 green). Its first runs found five defects that every local suite had reported green, including a P0
 that `main` had silently merged back through a **clean** merge. See **`docs/qa/13`**.
 
+**Updated 2026-07-12 (second pass).** A line-by-line audit of the plan against the merged tree found
+**eight gaps between what the plan asked for and what shipped** — items the previous scorecard
+recorded as done, or did not record at all. Seven are now closed; the eighth cannot be closed by
+engineering. Full account: **`docs/qa/14`**. The headline is that two of them were the same defect
+class as N-30 — *a control that was present, documented, and structurally incapable of firing*:
+
+- **W-10's churn events were dead enum entries.** `subscription_canceled` / `subscription_refunded`
+  were declared on the Revora telemetry enum, which the billing webhook does not import and whose
+  `.strict()` schema could never have accepted them. The comment above them asserted "Emitted from
+  the billing webhook." Nothing emitted them, ever. Now emitted from the webhook's own telemetry
+  module, with tests.
+- **W-33's orphan reaper did not exist.** The sweep is DB-driven, and an orphan is by definition the
+  blob whose row is *already gone* — no query over `pantry_photos` can ever find one. The pre-fix
+  orphans were unreachable. Now reaped by walking the *store* and deleting what the DB cannot
+  account for, hourly.
+
 ---
 
 ## P0 ledger

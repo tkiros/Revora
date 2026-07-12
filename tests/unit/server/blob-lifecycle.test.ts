@@ -5,6 +5,7 @@ import {
   PHOTO_MAX_AGE_MS,
   deleteOrderBlobs,
   deleteUserBlobs,
+  reapOrphanBlobs,
   reapPantryBlobs
 } from "../../../lib/server/blob";
 import { schema } from "../../../lib/server/db";
@@ -215,5 +216,94 @@ describe("reapPantryBlobs", () => {
     expect(await reapPantryBlobs(testDb.db, NOW, deleteBlobs)).toBe(1);
     expect(await reapPantryBlobs(testDb.db, NOW, deleteBlobs)).toBe(0);
     expect(deleteBlobs).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * The orphan reaper (W-33, sub-item 3) — the only deletion path that cannot
+ * start from the database, because an orphan is precisely the object whose row
+ * is gone. `DELETE users` cascaded that row away and left a public object with
+ * no pointer; no query over pantry_photos can ever find one. These tests pin
+ * the inversion: the store is the source of truth, and anything the DB cannot
+ * account for is garbage — with an age floor so an in-flight upload is never
+ * mistaken for one.
+ */
+describe("reapOrphanBlobs", () => {
+  const HOUR = 60 * 60 * 1000;
+  const old = () => new Date(NOW.getTime() - 3 * HOUR);
+
+  it("deletes an object the database has no row for — the post-cascade orphan", async () => {
+    // Exactly the N-23 state: the object is live, and nothing in the DB points
+    // at it because the user's account (and its cascade) took the row.
+    const listBlobs = vi
+      .fn()
+      .mockResolvedValue([
+        { url: "https://blob.test/orphan.jpg", uploadedAt: old() }
+      ]);
+    const deleteBlobs = vi.fn().mockResolvedValue(undefined);
+
+    expect(
+      await reapOrphanBlobs(testDb.db, NOW, listBlobs, deleteBlobs)
+    ).toBe(1);
+    expect(deleteBlobs).toHaveBeenCalledWith(["https://blob.test/orphan.jpg"]);
+  });
+
+  it("never touches an object a row still points at", async () => {
+    const order = await makeOrder({ status: "processing" });
+    const photo = await addPhoto(order.id);
+
+    const listBlobs = vi
+      .fn()
+      .mockResolvedValue([{ url: photo.blobUrl, uploadedAt: old() }]);
+    const deleteBlobs = vi.fn().mockResolvedValue(undefined);
+
+    expect(
+      await reapOrphanBlobs(testDb.db, NOW, listBlobs, deleteBlobs)
+    ).toBe(0);
+    expect(deleteBlobs).not.toHaveBeenCalled();
+  });
+
+  it("leaves a row whose delete FAILED on the normal retry path, not the orphan path", async () => {
+    // The row survives (unmarked) precisely so the hourly GC retries it. If the
+    // known-set filtered on status, this object would look like an orphan and
+    // be deleted by the wrong mechanism — with no row left to prove it happened.
+    const order = await makeOrder({ status: "canceled" });
+    const photo = await addPhoto(order.id, { status: "extracted" });
+
+    const listBlobs = vi
+      .fn()
+      .mockResolvedValue([{ url: photo.blobUrl, uploadedAt: old() }]);
+    const deleteBlobs = vi.fn().mockResolvedValue(undefined);
+
+    expect(
+      await reapOrphanBlobs(testDb.db, NOW, listBlobs, deleteBlobs)
+    ).toBe(0);
+  });
+
+  it("spares a freshly uploaded object — a young unmatched blob is a race, not an orphan", async () => {
+    // The object lands in the store before its row is written. Deleting it here
+    // would yank the photo out from under a user still filling in the form.
+    const listBlobs = vi.fn().mockResolvedValue([
+      {
+        url: "https://blob.test/in-flight.jpg",
+        uploadedAt: new Date(NOW.getTime() - 60_000)
+      }
+    ]);
+    const deleteBlobs = vi.fn().mockResolvedValue(undefined);
+
+    expect(
+      await reapOrphanBlobs(testDb.db, NOW, listBlobs, deleteBlobs)
+    ).toBe(0);
+    expect(deleteBlobs).not.toHaveBeenCalled();
+  });
+
+  it("survives a Blob-API listing outage without taking the sweep down", async () => {
+    const listBlobs = vi.fn().mockRejectedValue(new Error("blob store down"));
+    const deleteBlobs = vi.fn().mockResolvedValue(undefined);
+
+    expect(
+      await reapOrphanBlobs(testDb.db, NOW, listBlobs, deleteBlobs)
+    ).toBe(0);
+    expect(deleteBlobs).not.toHaveBeenCalled();
   });
 });

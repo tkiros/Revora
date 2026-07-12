@@ -23,7 +23,7 @@ export const MIN_CHECKS_FOR_INSIGHT = 5;
 const MIN_CAREFUL_FOR_DAYPART = 3;
 const MIN_REPEATS_FOR_MEAL = 3;
 
-type Daypart = "breakfast" | "lunch" | "dinner";
+export type Daypart = "breakfast" | "lunch" | "dinner";
 
 export type InsightOptions = {
   // Hour extractor — defaults to the device-local hour; the server passes a
@@ -32,8 +32,12 @@ export type InsightOptions = {
   hourOf?: (createdAt: string) => number;
 };
 
-function daypartOf(createdAt: string, hourOf?: InsightOptions["hourOf"]): Daypart {
-  const hour = hourOf ? hourOf(createdAt) : new Date(createdAt).getHours();
+/**
+ * The single definition of a daypart boundary. The coach phrase bank (W-17)
+ * conditions on this too, and two copies of "when is breakfast" would drift —
+ * the same triplication that made the verdict labels unauditable (N-20).
+ */
+export function daypartOfHour(hour: number): Daypart {
   if (hour < 11) {
     return "breakfast";
   }
@@ -41,6 +45,12 @@ function daypartOf(createdAt: string, hourOf?: InsightOptions["hourOf"]): Daypar
     return "lunch";
   }
   return "dinner";
+}
+
+function daypartOf(createdAt: string, hourOf?: InsightOptions["hourOf"]): Daypart {
+  return daypartOfHour(
+    hourOf ? hourOf(createdAt) : new Date(createdAt).getHours()
+  );
 }
 
 export function deriveInsight(
