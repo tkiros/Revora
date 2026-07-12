@@ -1,12 +1,13 @@
-# Release evidence — code candidate `3293942`
+# Release evidence — code candidate `5f6abcb`
 
 ## Identity
 
-- Full SHA: `32939424850ebc601040b6d9cbc907632efc16ac`
+- Full SHA: `5f6abcb31c175fdc6840b74c2c602dc5b3fc7ad8`
 - Branch: `feat/counsel-gate-candidate`
 - Integrated base: `eb28ef743749173f3ebb415d7ec4b7febb65d399`
 - Legal-package source commit: `9bc5cf312494491ab467b5537a29ea60958bd33f`
-- Integration commit: `4d23ca3`; lifecycle assertion correction: `3293942`
+- Integration commit: `4d23ca3`; lifecycle assertion correction: `3293942`;
+  root graded-eval empty-set gates integrated from `deebd07` as `5f6abcb`
 - Migrations added: `0003_hesitant_frog_thor.sql`,
   `0004_aspiring_jocasta.sql`
 
@@ -17,6 +18,7 @@
 | `npm run typecheck` | PASS, no TypeScript diagnostics |
 | `npm test` | PASS: 114 files passed, 1 skipped; 1111 tests passed, 2 skipped; duration 319.11s |
 | `npm run eval:revora` | PASS: 1 file, 9 tests; mock/code regression evidence only |
+| `npx vitest run tests/evals/revora-graded-eval.test.ts --reporter=verbose` | PASS in mock mode: total 88, modelCalls 24, modelFailures 0, harmfulSafe 0, labeledCount 24, riskCorrect 24, riskAccuracy 1, usefulnessFailures 0, adversarialFailures 0, passed true; not a live-model result |
 | `npm run build` | PASS with lockfile-pinned local install; 67 routes generated, including health-data deletion, photo-draft, coach, billing and Pantry APIs |
 | `git diff --check` | PASS |
 | focused claims/privacy/billing/consent/deletion/feature-gate tests | PASS after merge reconciliation |

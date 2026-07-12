@@ -1,10 +1,13 @@
-# Revora counsel packet — candidate `3293942`
+# Revora counsel packet — candidate `5f6abcb`
 
-**Code candidate:** `32939424850ebc601040b6d9cbc907632efc16ac`
+**Code candidate:** `5f6abcb31c175fdc6840b74c2c602dc5b3fc7ad8`
 
 **Branch:** `feat/counsel-gate-candidate`
 
 **Base integrated:** `main@eb28ef743749173f3ebb415d7ec4b7febb65d399`
+
+**Root eval line integrated:**
+`deebd0761c58652b269f392115376c0fda53f7a7`
 
 **Status:** REVIEW-READY ENGINEERING PACKET; INCOMPLETE FOR EXTERNAL DELIVERY
 until `owner-input-required.md` is completed. Not deployed. Not legal advice.

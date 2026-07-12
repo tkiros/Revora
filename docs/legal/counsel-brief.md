@@ -6,13 +6,13 @@
 
 **Current source branch:** `feat/counsel-gate-candidate`
 
-**Candidate code SHA:** `32939424850ebc601040b6d9cbc907632efc16ac`
+**Candidate code SHA:** `5f6abcb31c175fdc6840b74c2c602dc5b3fc7ad8`
 
 **Candidate status:** CLEANLY INTEGRATED AND LOCALLY VERIFIED; NOT DEPLOYED OR
 COUNSEL-CLEARED. This candidate descends from `main@eb28ef7` and includes the
 legal-remediation package, current-main checkout/eval controls, and the
 fail-closed photo/insight containment patch. The SHA-bound packet is
-`docs/legal/counsel-packet/3293942/`.
+`docs/legal/counsel-packet/5f6abcb/`.
 
 This document replaces the obsolete premise that an informational PWA may
 launch while legal review runs in parallel. No public account-based or paid

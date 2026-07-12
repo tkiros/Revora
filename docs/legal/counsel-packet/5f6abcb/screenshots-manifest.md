@@ -1,9 +1,11 @@
 # Screenshot manifest
 
 All images are local Next development captures at 390×844 on 2026-07-12 EDT
-from candidate `3293942`. They are not preview/production proof. The capture
-server had no Auth.js secret or database, so authenticated flows were not
-available and emitted expected signed-out configuration logs.
+from runtime source at `3293942`. Candidate `5f6abcb` adds only the root
+graded-eval test correction; it does not change runtime product files. The
+images are therefore runtime-source-equivalent but are not preview/production
+proof. The capture server had no Auth.js secret or database, so authenticated
+flows were unavailable and emitted expected signed-out configuration logs.
 
 | File | Surface / evidentiary use |
 | --- | --- |
