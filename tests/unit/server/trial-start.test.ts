@@ -249,7 +249,10 @@ describe("repeat-trial guard (W-16)", () => {
 
       const call = stripe.checkout.sessions.create.mock.calls[0][0];
       expect(call.subscription_data.trial_period_days).toBeUndefined();
-      expect(call.subscription_data.metadata).toEqual({ price_variant: "1299" });
+      expect(call.subscription_data.metadata).toEqual({
+        price_variant: "1299",
+        terms_version: TERMS_VERSION
+      });
     });
   }
 

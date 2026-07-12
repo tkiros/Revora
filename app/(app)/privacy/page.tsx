@@ -89,7 +89,7 @@ export default function PrivacyPage() {
           address itself is the only thing protecting them, so Revora handles
           it as a secret. The photo is deleted when the report is delivered;
           within the hour if the order is canceled, refunded, or sent for
-          manual review; when you delete the account; and otherwise no later
+          manual review; when you delete your account; and otherwise no later
           than seven days after upload.
         </p>
         <p>
