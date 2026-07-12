@@ -18,12 +18,13 @@
  *   (or put STRIPE_SECRET_KEY in .env.e2e — gitignored)
  *   node scripts/e2e-stripe-lifecycle.mjs --precheck   # verify prerequisites only
  *
- * Safety rails: refuses to run unless the key starts with sk_test_; the DB is
+ * Safety rails: refuses to run unless the key is test-mode (sk_test_ or
+ * rk_test_); the DB is
  * a docker container created and destroyed by this script; emails go to disk.
  */
 
 import { execSync, spawn } from "node:child_process";
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
