@@ -31,6 +31,7 @@ import { deleteOrderBlobs } from "../../../lib/server/blob";
 import { timingSafeEqualSecret } from "../../../lib/server/timing-safe";
 import { checkEmailCooldown } from "../../../lib/revora/rate-limit";
 import { TERMS_VERSION } from "../../../lib/legal/terms";
+import { playBillingEnabled } from "../../../lib/play-billing-flag";
 
 /**
  * Billing (plan 4D / docs/adr/billing.md): Play Billing verified server-side
@@ -87,14 +88,14 @@ function defaultStripe(): Stripe {
 }
 
 /**
- * W-04 — the legal gate. /terms still renders counsel placeholders, and taking
- * money against a placeholder contract is the one failure we cannot undo with a
- * hotfix. So NO paid-checkout entry point opens until the deploy explicitly
- * declares the terms final: LEGAL_TERMS_FINAL=1.
+ * W-04 — the paid-launch gate. No paid-checkout entry point opens until the
+ * deploy explicitly declares the reviewed Terms final: LEGAL_TERMS_FINAL=1.
  *
  * Default-blocked on purpose (env unset ⇒ 503): forgetting the flag can only
  * ever cost a sale, while forgetting the reverse gate would take real money.
- * The failure is loud in staging and impossible to miss in QA.
+ * The failure is loud in staging and impossible to miss in QA. A separately
+ * validated HTTPS return URL is also required before Stripe can create a
+ * customer session.
  *
  * Deliberately NOT applied to the portal or the cancel paths — an existing
  * subscriber must ALWAYS be able to manage and leave, terms or no terms.
@@ -105,6 +106,30 @@ function checkoutGate(env: NodeJS.ProcessEnv = process.env): NextResponse | null
   }
   return NextResponse.json(
     { error: "Checkout is temporarily unavailable. Please try again soon." },
+    { status: 503 }
+  );
+}
+
+function paymentReturnUrl(env: NodeJS.ProcessEnv): string | null {
+  const configured = env.NEXT_PUBLIC_APP_URL?.trim();
+  if (!configured) {
+    return null;
+  }
+
+  try {
+    const url = new URL(configured);
+    return url.protocol === "https:" ? url.origin : null;
+  } catch {
+    return null;
+  }
+}
+
+function paymentReturnUrlGate(env: NodeJS.ProcessEnv): NextResponse | null {
+  if (paymentReturnUrl(env)) {
+    return null;
+  }
+  return NextResponse.json(
+    { error: "Billing is not configured." },
     { status: 503 }
   );
 }
@@ -155,8 +180,12 @@ export function createPlayVerifyHandler(deps: BillingDeps = {}) {
   const getSession = deps.getSession ?? getSessionInfo;
   const playLookup = deps.playLookup ?? fetchPlaySubscription;
   const now = deps.now ?? (() => new Date());
+  const env = deps.env ?? process.env;
 
   return async function POST(request: Request) {
+    if (!playBillingEnabled({ NEXT_PUBLIC_PLAY_BILLING: env.NEXT_PUBLIC_PLAY_BILLING })) {
+      return NextResponse.json({ error: "Google Play billing is not available." }, { status: 503 });
+    }
     const session = await getSession();
     if (!session) {
       return unauthorized();
@@ -307,7 +336,6 @@ export function createStripeCheckoutHandler(deps: BillingDeps = {}) {
     if (blocked) {
       return blocked;
     }
-
     const session = await getSession();
     if (!session) {
       return unauthorized();
@@ -316,6 +344,10 @@ export function createStripeCheckoutHandler(deps: BillingDeps = {}) {
     const parsed = CheckoutSchema.safeParse(await readJson(request));
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+    }
+    const invalidReturnUrl = paymentReturnUrlGate(env);
+    if (invalidReturnUrl) {
+      return invalidReturnUrl;
     }
 
     // W-20 — the legacy (PAYWALL_MODE=legacy) rollback path used to read its own
@@ -328,7 +360,7 @@ export function createStripeCheckoutHandler(deps: BillingDeps = {}) {
       parsed.data.plan === "monthly"
         ? resolvePriceVariant(env).priceId
         : resolveAnnualPrice(env).priceId;
-    const appUrl = env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const appUrl = paymentReturnUrl(env)!;
 
     if (!price) {
       return NextResponse.json(
@@ -372,6 +404,10 @@ export function createPantryCheckoutSessionHandler(deps: BillingDeps = {}) {
     if (blocked) {
       return blocked;
     }
+    const invalidReturnUrl = paymentReturnUrlGate(env);
+    if (invalidReturnUrl) {
+      return invalidReturnUrl;
+    }
 
     const parsed = PantryCheckoutSchema.safeParse(await readJson(request));
     if (!parsed.success) {
@@ -382,7 +418,7 @@ export function createPantryCheckoutSessionHandler(deps: BillingDeps = {}) {
     }
 
     const price = env.STRIPE_PRICE_PANTRY;
-    const appUrl = env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const appUrl = paymentReturnUrl(env)!;
     if (!price) {
       return NextResponse.json({ error: "The Pantry Review is not available right now." }, { status: 503 });
     }
@@ -1083,6 +1119,10 @@ export function createTrialCheckoutHandler(
     if (blocked) {
       return blocked;
     }
+    const invalidReturnUrl = paymentReturnUrlGate(env);
+    if (invalidReturnUrl) {
+      return invalidReturnUrl;
+    }
 
     const parsed = TrialStartSchema.safeParse(await readJson(request));
     if (!parsed.success) {
@@ -1155,7 +1195,7 @@ export function createTrialCheckoutHandler(
       .where(eq(schema.subscriptions.userId, user.id))
       .limit(1);
 
-    const appUrl = env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const appUrl = paymentReturnUrl(env)!;
     const checkout = await stripe().checkout.sessions.create({
       mode: "subscription",
       line_items: [{ price: priceId, quantity: 1 }],

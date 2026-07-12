@@ -90,6 +90,20 @@ it("creates the user, sends the magic link, and returns a trial checkout url", a
   });
 });
 
+it("503s rather than creating a trial checkout with an invalid return URL", async () => {
+  const stripe = stripeStub();
+  const handler = createTrialCheckoutHandler({
+    db: () => ctx.db,
+    stripeClient: () => stripe as never,
+    sendMagicLink: vi.fn(),
+    env: { ...trialEnv, NEXT_PUBLIC_APP_URL: "http://localhost:3000" } as NodeJS.ProcessEnv
+  });
+
+  const res = await handler(jsonRequest({ email: "invalid-return@example.com" }));
+  expect(res.status).toBe(503);
+  expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
+});
+
 it("is idempotent for an existing user (no duplicate users row)", async () => {
   const [existing] = await ctx.db
     .insert(schema.users)

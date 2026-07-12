@@ -30,6 +30,7 @@ let userId: string;
 beforeAll(async () => {
   process.env.HEALTH_DATA_KEY = TEST_KEY;
   process.env.RTDN_SHARED_TOKEN = "rtdn-secret";
+  process.env.NEXT_PUBLIC_PLAY_BILLING = "1";
   // W-04: every paid-checkout entry point 503s unless the deploy declares the
   // terms final. These suites exercise the real paths, so they declare it; the
   // gate itself is proven by its own describe block below.
@@ -52,6 +53,7 @@ beforeAll(async () => {
 afterAll(async () => {
   delete process.env.HEALTH_DATA_KEY;
   delete process.env.RTDN_SHARED_TOKEN;
+  delete process.env.NEXT_PUBLIC_PLAY_BILLING;
   delete process.env.LEGAL_TERMS_FINAL;
   await testDb.close();
 });
@@ -79,6 +81,22 @@ function post(url: string, body: unknown) {
 }
 
 describe("POST /api/billing/play/verify", () => {
+  it("fails closed while Play billing is not explicitly enabled", async () => {
+    const playLookup = vi.fn();
+    const POST = createPlayVerifyHandler({
+      ...baseDeps(),
+      playLookup,
+      env: { NEXT_PUBLIC_PLAY_BILLING: undefined } as unknown as NodeJS.ProcessEnv
+    });
+
+    const response = await POST(
+      post("http://t/api/billing/play/verify", { purchaseToken: "tok-disabled" })
+    );
+
+    expect(response.status).toBe(503);
+    expect(playLookup).not.toHaveBeenCalled();
+  });
+
   it("verifies server-side, upserts the subscription, returns premium", async () => {
     const playLookup = vi.fn().mockResolvedValue({
       status: "active",
@@ -1413,6 +1431,19 @@ describe("POST /api/billing/stripe/checkout (W-20b price unification, W-04 gate)
     const response = await POST(post("http://t/api/billing/stripe/checkout", { plan: "monthly" }));
     expect(response.status).toBe(503);
     expect((await response.json()).error).toMatch(/unavailable/i);
+    expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
+  });
+
+  it("503s rather than creating a live checkout with an invalid return URL", async () => {
+    const stripe = stripeStub();
+    const POST = createStripeCheckoutHandler({
+      ...baseDeps(),
+      stripeClient: () => stripe as never,
+      env: { ...checkoutEnv, NEXT_PUBLIC_APP_URL: "http://localhost:3000" } as NodeJS.ProcessEnv
+    });
+
+    const response = await POST(post("http://t/api/billing/stripe/checkout", { plan: "monthly" }));
+    expect(response.status).toBe(503);
     expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
   });
 });

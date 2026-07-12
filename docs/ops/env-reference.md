@@ -40,6 +40,7 @@ Every variable, per phase. Provision in Vercel for **preview + production**
 | `NEXT_PUBLIC_REVIEWER_MODE` | P9 | set to `1` in **preview only** to show the "Reviewer access" form on `/signin`. **Never set in production** — this is a build-time constant, so leaving it unset makes the form permanently inert (`false`) in the production bundle |
 | `SUPPORT_EMAIL` | P5/P9 | production support inbox; current public fallback is `support@revora.bio`. Used by service email, reports, Privacy, and Terms. Set explicitly in production |
 | `LEGAL_ENTITY_NAME` | P9/legal | public operator name rendered in Terms and Privacy. It must be factual and never a placeholder. The owner WTP decision for `5f6abcb` authorizes the brand name `Revora`; it does not establish a separate legal entity or address |
+| `NEXT_PUBLIC_PLAY_BILLING` | owner/evidence gate | **Google Play billing gate** (`lib/play-billing-flag.ts`): only exact `1` permits Digital Goods purchase UI and new receipt verification. Keep unset for the Stripe-only WTP launch; changing it requires a separate reviewed build and explicit owner decision |
 | `REVORA_LAUNCH_MODE_OVERRIDE` | dev/test only | set to `paused` to simulate a launch-controls incident (`lib/revora/launch-controls.ts`) in unit/smoke tests without touching live Edge Config. **Never set in production** — it is ignored whenever `NODE_ENV` or `VERCEL_ENV` is `production`, so this is a dev/test-only override, not a production kill switch (use `EDGE_CONFIG`'s `launch_mode` key for that) |
 
 Local dev bootstrap:

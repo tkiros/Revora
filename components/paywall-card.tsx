@@ -12,6 +12,7 @@ import {
 } from "../lib/client/digital-goods";
 import { TERMS_VERSION } from "../lib/legal/terms";
 import { longitudinalInsightsEnabled } from "../lib/longitudinal-insights-flag";
+import { playBillingEnabled } from "../lib/play-billing-flag";
 
 /**
  * Soft paywall (plan 4D): after value, never at the first-session aha. In the
@@ -46,7 +47,7 @@ export function PaywallCard() {
         // keep the fallback label
       });
 
-    if (isPlayBillingAvailable()) {
+    if (playBillingEnabled() && isPlayBillingAvailable()) {
       setUsesPlay(true);
       listPlaySkus()
         .then((skus) => {

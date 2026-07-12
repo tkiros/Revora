@@ -1,6 +1,11 @@
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
+import {
+  deleteBlobUrls,
+  deleteUserBlobs,
+  type BlobDeleter
+} from "../../../../lib/server/blob";
 import { getDb, schema, type Db } from "../../../../lib/server/db";
 import {
   getSessionInfo,
@@ -12,6 +17,7 @@ export const runtime = "nodejs";
 type HealthDataDeleteDeps = {
   db?: () => Db;
   getSession?: () => Promise<SessionInfo>;
+  deleteBlobs?: BlobDeleter;
 };
 
 /**
@@ -24,6 +30,7 @@ export function createHealthDataDeleteHandler(
 ) {
   const db = deps.db ?? getDb;
   const getSession = deps.getSession ?? getSessionInfo;
+  const deleteBlobs = deps.deleteBlobs ?? deleteBlobUrls;
 
   return async function DELETE() {
     const session = await getSession();
@@ -31,6 +38,10 @@ export function createHealthDataDeleteHandler(
       return NextResponse.json({ error: "Sign in first." }, { status: 401 });
     }
 
+    // This must precede the order cascade: `pantry_photos.blob_url` is the
+    // only pointer to each live object. A Blob failure is best-effort and does
+    // not block consent withdrawal, matching full-account deletion behavior.
+    await deleteUserBlobs(db(), session.userId, deleteBlobs);
     await db()
       .delete(schema.pantryOrders)
       .where(eq(schema.pantryOrders.userId, session.userId));

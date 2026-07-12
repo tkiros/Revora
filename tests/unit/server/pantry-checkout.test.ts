@@ -116,6 +116,18 @@ describe("createPantryCheckoutSessionHandler", () => {
     expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
   });
 
+  it("503s rather than creating a live checkout with an invalid return URL", async () => {
+    process.env.NEXT_PUBLIC_APP_URL = "http://localhost:3000";
+    const stripe = stripeStub();
+    const handler = createPantryCheckoutSessionHandler({
+      stripeClient: () => stripe as never
+    });
+
+    const res = await handler(acceptedRequest());
+    expect(res.status).toBe(503);
+    expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
+  });
+
   it("400s before checkout when paid terms were not accepted", async () => {
     const stripe = stripeStub();
     const handler = createPantryCheckoutSessionHandler({

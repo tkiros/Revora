@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { createHealthDataDeleteHandler } from "../../../app/api/account/health-data/route";
 import { encryptField } from "../../../lib/server/crypto";
@@ -93,5 +93,41 @@ describe("DELETE /api/account/health-data", () => {
       );
       expect((result.rows[0] as { n: number }).n).toBe(0);
     }
+  });
+
+  it("deletes Pantry Blob objects before its order cascade destroys their URLs", async () => {
+    const [user] = await testDb.db
+      .insert(schema.users)
+      .values({ email: "withdraw-pantry@test.dev" })
+      .returning();
+    const [order] = await testDb.db
+      .insert(schema.pantryOrders)
+      .values({
+        userId: user.id,
+        email: user.email,
+        stripeSessionId: "cs_withdraw_pantry",
+        claimToken: "withdraw-pantry-token"
+      })
+      .returning();
+    const blobUrl = "https://blob.test/withdraw-pantry.jpg";
+    await testDb.db
+      .insert(schema.pantryPhotos)
+      .values({ orderId: order.id, blobUrl });
+    const deleteBlobs = vi.fn().mockResolvedValue(undefined);
+
+    const DELETE = createHealthDataDeleteHandler({
+      db: () => testDb.db,
+      getSession: async () => ({ userId: user.id, email: user.email }),
+      deleteBlobs
+    });
+
+    expect((await DELETE()).status).toBe(200);
+    expect(deleteBlobs).toHaveBeenCalledWith([blobUrl]);
+    expect(
+      await testDb.db
+        .select()
+        .from(schema.pantryOrders)
+        .where(eq(schema.pantryOrders.id, order.id))
+    ).toHaveLength(0);
   });
 });

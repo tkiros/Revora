@@ -74,11 +74,12 @@ export default function PrivacyPage() {
 
         <h2>Pantry Review</h2>
         <p>
-          Pantry Review stores photos privately while the report is prepared.
-          OpenAI helps turn the photos into an item list that you review and
-          correct. Photos are deleted after extraction or delivery according to
-          the report workflow. Item names, notes, A1C range, and the finished
-          report are encrypted at rest until deletion.
+          Pantry Review uploads photos to a public but unlisted, long random
+          URL while the report is prepared. OpenAI helps turn the photos into
+          an item list that you review and correct. Photos are deleted after
+          extraction or delivery according to the report workflow. Item names,
+          notes, A1C range, and the finished report are encrypted at rest until
+          deletion.
         </p>
 
         <h2>Pantry Review photos</h2>
