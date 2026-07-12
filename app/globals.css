@@ -1210,6 +1210,31 @@ button.inline-link {
   .plan-grid {
     grid-template-columns: 1fr;
   }
+
+  /* A11Y-01, corrected. The fold test asserted `cta.y < 720` for BOTH devices,
+     but iPhone 12's viewport is 664px tall — the threshold sat 56px BELOW the
+     fold it was meant to guard, so on Mobile Safari it could never fail. It
+     passed at y=714 with the button already off-screen, and the QA record
+     recorded the fold as "Fixed on Mobile Chrome AND Mobile Safari".
+
+     On the check page the eyebrow and the descriptive paragraph are redundant
+     on a phone: the h1 says "Should I eat this?" and the form is directly
+     below it. Dropping them on narrow viewports returns ~130px and brings the
+     CTA back onto the first screen.
+
+     Note this does not make the WHOLE button visible — that needs ~695px of
+     content in a 664px viewport and is out of reach for both devices without
+     redesigning the form (Mobile Chrome is over too: 674 + 56 > 727). The
+     guarantee is the one the original assertion intended: the CTA's top edge
+     lands on the first screen. */
+  .check-hero .hero-eyebrow,
+  .check-hero .page-copy {
+    display: none;
+  }
+
+  .check-hero {
+    padding: 14px 20px;
+  }
 }
 
 .plan-option {
