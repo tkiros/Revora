@@ -5,9 +5,30 @@ import {
   DEFAULT_REVORA_MODEL,
   REVORA_JSON_SCHEMA_NAME,
   RevoraConnectionError,
+  activeModelId,
   createOpenAIRevoraModelClient
 } from "../../../lib/revora/openai-client";
 import { revoraModelJsonSchema } from "../../../lib/revora/schemas";
+
+describe("activeModelId", () => {
+  // A declared-but-empty REVORA_MODEL= was live in .env: `??` let the empty
+  // string win, so every model call requested model "" and 400'd. Blank is unset.
+  it.each([
+    ["unset", undefined],
+    ["empty", ""],
+    ["whitespace", "   "]
+  ])("falls back to the default when REVORA_MODEL is %s", (_label, value) => {
+    vi.stubEnv("REVORA_MODEL", value as string);
+    expect(activeModelId()).toBe(DEFAULT_REVORA_MODEL);
+    vi.unstubAllEnvs();
+  });
+
+  it("uses an explicitly set REVORA_MODEL", () => {
+    vi.stubEnv("REVORA_MODEL", "gpt-5.4");
+    expect(activeModelId()).toBe("gpt-5.4");
+    vi.unstubAllEnvs();
+  });
+});
 
 describe("createOpenAIRevoraModelClient", () => {
   it("sets store false on every Responses API call", async () => {
