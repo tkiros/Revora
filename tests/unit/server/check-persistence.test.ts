@@ -2,8 +2,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  createCheckRouteHandler,
-  PRIMARY_MODEL_CHECKS
+  createCheckRouteHandler
 } from "../../../app/api/check/route";
 import { decryptField } from "../../../lib/server/crypto";
 import { schema } from "../../../lib/server/db";
