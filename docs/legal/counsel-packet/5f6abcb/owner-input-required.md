@@ -1,7 +1,16 @@
-# Owner input required before external counsel delivery
+# Owner/operator facts required before paid launch
 
-Engineering cannot infer or choose these facts. Complete every item and attach
-supporting documents where applicable.
+Engineering cannot infer or choose these facts. Complete every item before
+setting `LEGAL_TERMS_FINAL=1` or opening any paid entry point.
+
+## Recorded owner decision
+
+- On 2026-07-12, the owner declined professional counsel because the business
+  cannot afford it and launch speed is important.
+- The owner directed launch using the internal engineering evidence and accepts
+  that it is not a legal opinion, compliance determination, or counsel
+  clearance.
+- Professional counsel selection and packet delivery: **waived/deferred**.
 
 - Legal operating entity/person: ______________________________
 - Registered and consumer-contact address: ______________________________
@@ -20,9 +29,6 @@ supporting documents where applicable.
 - Pantry Review in proposed launch scope? yes / no
 - Meal photo-assist in proposed launch scope? **default no** / request later review
 - Longitudinal insights in proposed launch scope? **default no** / request later review
-- Desired counsel: FDA digital-health + privacy/consumer specialist, or one
-  qualified firm covering both: ______________________________
-- Authority to send this packet and source/captures to counsel: yes / no
-- Selected counsel/firm and jurisdiction/licence details: ______________________
-- Owner accepts that internal GREEN, mock evals, and the simulated panel do not
-  clear the counsel gate: signature/date ______________________________
+- Owner/operator name for the launch record: ______________________________
+- Owner confirms these facts and accepts the residual risks in
+  `../../owner-risk-launch-decision-5f6abcb.md`: name/date ____________________

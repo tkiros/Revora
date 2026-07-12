@@ -103,13 +103,14 @@ until the live PWA is stable (`docs/ops/play-twa-runbook.md`'s blocking note).
       screenshots captured per the shot-list (signed in as the reviewer
       account, no real user PII), reviewer "App access" credentials
       entered, deletion/privacy/ToS URLs filled with the real domain.
-- [ ] A dated `docs/legal/counsel-clearance-<sha>.md` records qualified
-      licensed-counsel disposition for the exact submitted revision, every
-      redline and condition, owner residual-risk acceptance, and preview/live
-      proof. Internal GREEN and automated checks are engineering evidence only.
+- [x] `docs/legal/owner-risk-launch-decision-5f6abcb.md` records the owner's
+      decision to launch without professional counsel. It explicitly records
+      that the candidate is not counsel-cleared and that internal GREEN is
+      engineering evidence only.
 - [ ] `NEXT_PUBLIC_PHOTO_INPUT` and
       `NEXT_PUBLIC_LONGITUDINAL_INSIGHTS` remain unset unless the corresponding
-      function has explicit written clearance and completed evidence review.
+      function has completed evidence review and explicit written owner
+      approval for a new reviewed build.
 - [ ] `LEGAL_ENTITY_NAME` and `SUPPORT_EMAIL` are set to real, monitored values;
       `/terms` and `/privacy` show them on the production domain.
 - [ ] Submit for review; respond to any Play reviewer follow-up promptly

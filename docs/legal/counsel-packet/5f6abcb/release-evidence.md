@@ -36,7 +36,7 @@ vulnerabilities; no automatic breaking upgrade was applied.
 | --- | --- |
 | `NEXT_PUBLIC_PHOTO_INPUT` | unset; only exact `1` enables; candidate smoke proved hidden control and route `404` |
 | `NEXT_PUBLIC_LONGITUDINAL_INSIGHTS` | unset; only exact `1` enables; candidate API/unit/browser tests proved no output/promise when off |
-| `LEGAL_TERMS_FINAL` | unset until written clearance and live assent proof; all paid entry points otherwise `503` |
+| `LEGAL_TERMS_FINAL` | unset until real operator/commercial facts are owner-approved and live assent is proved; all paid entry points otherwise `503` |
 
 ## Explicitly not tested/proved
 
@@ -47,8 +47,10 @@ vulnerabilities; no automatic breaking upgrade was applied.
 - No verification of real `LEGAL_ENTITY_NAME`, `SUPPORT_EMAIL`, jurisdiction,
   prices, provider contracts, transfers, retention, backups, or incident plan.
 - No live-model safety run, RD/CDCES validation, or clinical correctness proof.
-- No licensed-counsel written opinion and no owner residual-risk acceptance.
+- No licensed-counsel written opinion. The owner accepted the documented
+  residual risk on 2026-07-12; this is not legal clearance.
 
 Therefore this evidence establishes a locally verified integrated code
-candidate only. It does not establish deployed-runtime truth or counsel-gate
-closure.
+candidate only. It does not establish deployed-runtime truth or legal
+compliance. Professional review was waived; the separate owner-risk decision
+controls the operational launch prerequisite.

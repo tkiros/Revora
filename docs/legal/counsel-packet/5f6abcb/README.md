@@ -9,9 +9,10 @@
 **Root eval line integrated:**
 `deebd0761c58652b269f392115376c0fda53f7a7`
 
-**Status:** REVIEW-READY ENGINEERING PACKET; INCOMPLETE FOR EXTERNAL DELIVERY
-until `owner-input-required.md` is completed. Not deployed. Not legal advice.
-Not counsel-cleared.
+**Status:** ENGINEERING EVIDENCE PACKET RETAINED FOR THE OWNER-RISK DECISION AND
+ANY FUTURE REVIEW. The owner waived professional counsel on 2026-07-12. Not
+deployed. Not legal advice. Not counsel-cleared. Operator facts in
+`owner-input-required.md` remain mandatory for paid launch.
 
 ## Contents
 
@@ -30,5 +31,7 @@ Not counsel-cleared.
 - `owner-input-required.md` — facts and authority that engineering cannot
   invent.
 
-The controlling request to counsel is `../../counsel-brief.md`. The simulated
-panel review is background issue spotting only.
+The controlling operational record is
+`../../owner-risk-launch-decision-5f6abcb.md`. `../../counsel-brief.md` is
+retained for any future professional review. The simulated panel review is
+background issue spotting only.

@@ -114,8 +114,7 @@ Use only the seeded reviewer account and no real user data:
 
 Meal photo-assist and longitudinal insights are omitted from this candidate
 listing. Do not add either unless its production flag, evidence review, and
-written function-specific counsel clearance are all green at the submitted
-revision.
+explicit written owner approval are all green at the submitted revision.
 
 ## Reviewer access
 

@@ -85,8 +85,8 @@ sale/share stance, `docs/handoff/human-actions-required.md` §0).
 
 **Tier reminder (support-internal):** free is five checks a day plus the
 today view; premium adds unlimited checks, history, progress, and the nudge.
-Longitudinal insights are not part of the launch candidate while their counsel
-gate is off (consistent with the in-app copy — `components/paywall-card.tsx`,
+Longitudinal insights are not part of the launch candidate while their
+owner/evidence gate is off (consistent with the in-app copy — `components/paywall-card.tsx`,
 `components/result-card.tsx`, `docs/ops/play-listing.md`). Worth confirming
 which limit the user actually hit before treating it as a mismatch — some
 "still shows free" reports are really "I hit the five-checks-a-day limit,"

@@ -12,7 +12,7 @@
 | Behavior-only progress | Enabled | `/home`, `/progress`, coach API | coach/BAI modules; copy excludes physiologic outcome claims |
 | Optional daily reminder | Enabled in source; provider delivery unproved | account/home, push/cron routes | opt-in UI, push subscription, nudge cron |
 | Subscription/trial/Play billing | Present but default checkout blocked | `/subscribe`, account, billing APIs | `LEGAL_TERMS_FINAL=1` plus current Terms acceptance/version required |
-| Pantry Review | Present; proposed scope requires owner/counsel decision | `/pantry`, intake, report, purchase APIs | separate assent, encrypted details, blob lifecycle, report workflow |
+| Pantry Review | Present; proposed scope requires owner decision and paid-launch facts | `/pantry`, intake, report, purchase APIs | separate assent, encrypted details, blob lifecycle, report workflow |
 | Meal photo-assist | **OFF and unadvertised** | control absent; route retained | exact `NEXT_PUBLIC_PHOTO_INPUT=1` required; otherwise route `404` before model use |
 | Longitudinal insights | **OFF and unadvertised** | no API output, dashboard card, daily-loop output, or paid promise | exact `NEXT_PUBLIC_LONGITUDINAL_INSIGHTS=1` required; derivation otherwise returns `null` |
 
@@ -27,8 +27,8 @@ Material APIs include check/photo-draft, coach, profile/history, health-data and
 account deletion, entitlement, subscription/trial/portal/cancel/webhook/Play,
 Pantry purchase/intake/report, reminder, and cron routes. The production build
 route list is reproduced in `release-evidence.md` by reference to the successful
-build; counsel should review the actual candidate tree if route-level scope is
-dispositive.
+build; any future professional reviewer should inspect the actual candidate tree
+if route-level scope is dispositive.
 
 ## Claim and publishing surfaces
 

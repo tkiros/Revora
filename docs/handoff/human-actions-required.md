@@ -7,11 +7,11 @@ Reconciled 2026-07-04 against docs/handoff/2026-07-04-unified-completion-plan.md
 
 ## ⚠ Longest-lead items — start these today
 
-1. ⏳ **Licensed-counsel review of the exact launch candidate.** Supply the
-   SHA-bound packet, obtain written FDA/FTC/contract/privacy disposition,
-   implement every redline, and record the cleared SHA. Owner risk acceptance
-   supplements but cannot replace counsel clearance. Automated GREEN is not a
-   legal opinion.
+1. ✅ **Owner-risk launch decision recorded for the exact candidate.** The owner
+   waived professional counsel on 2026-07-12 because of budget and launch-speed
+   constraints. `docs/legal/owner-risk-launch-decision-5f6abcb.md` records the
+   scope and residual risk. Automated GREEN remains engineering evidence, not a
+   legal opinion or counsel clearance.
 2. ⏳ **Google Play Developer account ($25)** — ID verification takes days. Decide **account type** (individual vs business) first.
 3. ⏳ **Trademark clearance "Revora"** (2–4 weeks).
 4. ⏳ **Domain decision + purchase** — everything in P7–P9 (DNS, Resend deliverability, assetlinks, deletion URL, listing URLs) hangs off the final domain.
@@ -72,7 +72,7 @@ Reconciled 2026-07-04 against docs/handoff/2026-07-04-unified-completion-plan.md
 · `NEXT_PUBLIC_REVIEWER_MODE` (**preview only, never production**)
 · keep `NEXT_PUBLIC_PHOTO_INPUT` and
   `NEXT_PUBLIC_LONGITUDINAL_INSIGHTS` unset in preview/production until each
-  function has written counsel clearance plus its evidence review
+  function has completed evidence review and explicit written owner approval
 
 ## §3 Money
 
@@ -82,16 +82,16 @@ Reconciled 2026-07-04 against docs/handoff/2026-07-04-unified-completion-plan.md
 · OpenAI usage 
 · Railway/Resend/Umami-hosting/Upstash tiers 
 · Stripe fees 
-· counsel fees
+· optional future counsel fees
 
-## §4 Legal / counsel / compliance
+## §4 Legal / owner-risk / compliance
 
-- ⏳ Qualified licensed counsel reviews the exact candidate packet and returns
-  written FDA/FTC/contract/privacy disposition
+- ✅ Professional review waived/deferred by owner; the candidate is explicitly
+  not counsel-cleared
 - ☐ Owner supplies entity, address, market, venue, refund/merchant choices,
   monitored support inbox, and named refund/incident owners
-- ☐ Every counsel redline is implemented and retested; owner accepts any
-  residual risk in writing
+- ✅ Owner accepted the documented residual risk of launching without an
+  independent legal opinion
 - ☐ OpenAI DPA executed
 - ✅ Purpose-bound health-data consent implemented; names OpenAI, links Privacy, and is separately revocable without deleting login/subscription
 - ⏳ Trademark clearance "Revora"
@@ -256,15 +256,14 @@ business decision:
   `docs/ops/play-listing.md` (title, descriptions, tags, content-rating
   answers, health-apps declaration, Data Safety form per
   `docs/ops/play-twa-runbook.md` §9.2) once the domain, `<...>` placeholders,
-  and counsel sign-off (next item) are resolved.
+  and the real operator/commercial facts (next item) are resolved.
 - ☐ **Capture the screenshots** per `docs/ops/play-listing.md` §9's
   shot-list, signed in as the seeded `reviewer@revora.test` account so no
   real user's data appears in a public store asset.
-- ☐ **Counsel clearance + owner acceptance** — provide the SHA-bound packet to
-  qualified counsel, implement every written redline, prove the exact reviewed
-  revision, and create `docs/legal/counsel-clearance-<sha>.md`. Internal GREEN
-  evidence remains engineering evidence only and cannot replace the written
-  opinion.
+- ✅ **Owner-risk decision** — professional review was waived/deferred. The
+  SHA-bound decision is recorded in
+  `docs/legal/owner-risk-launch-decision-5f6abcb.md`; it does not claim counsel
+  clearance. Photo-assist and longitudinal insights remain off.
 - ☐ **Create the `support@<domain>` inbox** and route it to whoever owns
   Tier 1/2 in `docs/ops/support-playbook.md`'s escalation ladder.
 - ☐ **Stand up an uptime monitor** against `https://<domain>/api/health`

@@ -2,28 +2,34 @@
 
 **Prepared:** 2026-07-12
 
-**Gate:** OPEN — written licensed-counsel disposition required
+**Professional review:** WAIVED BY OWNER on 2026-07-12
+
+**Operational gate:** OWNER-RISK LAUNCH GATE ACCEPTED; COUNSEL GATE NOT CLEARED
 
 **Current source branch:** `feat/counsel-gate-candidate`
 
 **Candidate code SHA:** `5f6abcb31c175fdc6840b74c2c602dc5b3fc7ad8`
 
 **Candidate status:** CLEANLY INTEGRATED AND LOCALLY VERIFIED; NOT DEPLOYED OR
-COUNSEL-CLEARED. This candidate descends from `main@eb28ef7` and includes the
+COUNSEL-CLEARED. The owner has directed a budget-constrained launch without
+professional counsel and accepted the residual legal uncertainty recorded in
+`docs/legal/owner-risk-launch-decision-5f6abcb.md`. This candidate descends from
+`main@eb28ef7` and includes the
 legal-remediation package, current-main checkout/eval controls, and the
 fail-closed photo/insight containment patch. The SHA-bound packet is
 `docs/legal/counsel-packet/5f6abcb/`.
 
-This document replaces the obsolete premise that an informational PWA may
-launch while legal review runs in parallel. No public account-based or paid
-launch is approved by this brief. The simulated review in
+This document is retained as the candidate scope and as a future professional
+review brief. It does not approve a public or paid launch. The simulated review
+in
 `docs/legal/counsel-panel-review-2026-07-12.md` is non-legal-advice issue
 spotting only; it does not satisfy this gate.
 
-## Decision requested
+## Future professional review requested (optional and deferred)
 
-Please give a written, scoped disposition for the exact candidate supplied in
-the counsel packet. Identify required redlines, prohibited claims, residual
+If professional review is later obtained, request a written, scoped disposition
+for the exact candidate supplied in the counsel packet. Identify required
+redlines, prohibited claims, residual
 conditions, and the precise conditions—if any—under which the two disabled
 functions below may later be enabled.
 
@@ -46,7 +52,7 @@ functions below may later be enabled.
 - Pantry Review photo intake is a separate commercial function. Its scope must
   be addressed expressly; it is not the disabled meal photo-assist function.
 
-### Disabled pending function-specific written clearance
+### Disabled pending function-specific evidence review and written owner approval
 
 This section covers both **Longitudinal insights** and **Imaging input** for
 the meal photo-assist function.
@@ -121,10 +127,12 @@ and any jurisdiction-specific disclosures. Do not infer them from this brief.
   version and acceptance time.
 - `TERMS_VERSION` is `2026-07-12` in `lib/legal/terms.ts`.
 - Current-main paid checkout fails closed unless `LEGAL_TERMS_FINAL=1`; that
-  control must survive integration and remain unset until final Terms are
-  counsel-cleared and live acceptance evidence is verified.
+  control must survive integration and remain unset until the owner supplies
+  and approves the real entity, merchant, jurisdiction, refund, and Terms facts
+  and live current-version acceptance evidence is verified.
 - The exact merchant, governing law/venue, support inbox, refund owner, and
-  final refund choices require owner input and counsel review.
+  final refund choices require owner input. They may not be invented by
+  engineering.
 
 ## Known limits and unproved facts
 
@@ -142,10 +150,9 @@ and any jurisdiction-specific disclosures. Do not infer them from this brief.
   owners, and final merchant/refund decisions have not been supplied.
 - No statement in this document represents FDA status, legal compliance, or
   counsel approval.
-- Live-model and dietitian validation remain separate launch gates even after
-  counsel review.
+- Live-model and dietitian validation remain separate launch gates.
 
-## Questions requiring written disposition
+## Questions retained for any future professional review
 
 1. FDA intended-use/device analysis for the actual A1C handling, result labels,
    one-shot meal function, disabled longitudinal function, disabled meal-photo
@@ -179,11 +186,14 @@ and any jurisdiction-specific disclosures. Do not infer them from this brief.
 - `docs/legal/counsel-panel-review-2026-07-12.md`, clearly labeled as
   non-legal-advice background only.
 
-## Gate acceptance
+## Gate record
 
-The gate remains open until qualified licensed counsel returns a written
-disposition for the exact candidate; every redline is implemented and retested;
-rejected/unreviewed functions remain disabled in source and deployed
-configuration; owner acceptance of residual risk is recorded; and preview/live
-proof is tied to the cleared SHA. Only then may a dated
-`docs/legal/counsel-clearance-<sha>.md` state `COUNSEL GATE: CLEARED`.
+The owner has waived professional review for this launch because of budget and
+speed constraints. The operational prerequisite formerly called the counsel
+gate is replaced by the dated owner-risk decision for this exact candidate.
+This is not a legal opinion or a finding of compliance, and no artifact may
+state `COUNSEL GATE: CLEARED`. Meal photo-assist and longitudinal insights stay
+disabled unless a later function-specific evidence review and explicit written
+owner decision authorize a new reviewed build. Paid entry points remain
+separately fail-closed until the real operator and commercial facts are supplied
+and the live assent path is proved.

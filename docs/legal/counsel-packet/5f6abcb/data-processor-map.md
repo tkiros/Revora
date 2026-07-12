@@ -7,7 +7,7 @@
 | Saved A1C + meal text | Checks, encrypted history, progress | AES-256-GCM in Railway-hosted Postgres | App/database; submitted checks also OpenAI | `DELETE /api/account/health-data` erases saved health scope | Key management/backup deletion proof |
 | Result category/timestamps/actions | History, behavior-only progress | Database, owner-scoped routes | App/database | Erased with health-data flow | Exact backup/telemetry retention |
 | Meal photo-assist | Not collected in candidate | Function gated off | None in proposed candidate | Route `404`; no model call | Conditions for any future enablement |
-| Pantry photos | Build separately purchased report | Long random unlisted blob URL; details encrypted | Vercel Blob, OpenAI, app/database | workflow deletion, cancel/refund/manual-review cleanup, seven-day ceiling, account deletion | Counsel acceptance and storage contract |
+| Pantry photos | Build separately purchased report | Long random unlisted blob URL; details encrypted | Vercel Blob, OpenAI, app/database | workflow deletion, cancel/refund/manual-review cleanup, seven-day ceiling, account deletion | Owner scope decision and storage contract |
 | Payments | Subscription/order state and assent evidence | Provider + subscription/order records | Stripe, Google Play, database | Financial/provider retention may outlive health erasure | Merchant/tax/accounting policy |
 | Reminder endpoint | Optional push delivery | Push subscription/setting | Browser push services, app/database | Removed on withdrawal/health erasure/account deletion as applicable | Push provider/data-transfer details |
 | Errors/analytics | Reliability and coarse product use | Scrubbed/coarse records | Sentry, Umami | Not specified in candidate facts | Real retention and workspace settings |
@@ -19,4 +19,5 @@ The legal controller/entity, registered/contact address, launch markets,
 governing law/venue, processor agreements, international-transfer mechanism,
 state consumer-health-data analysis, incident owners, and binding retention
 schedule are not known. They must be supplied in `owner-input-required.md` and
-reviewed by counsel before this map is treated as complete.
+verified against live provider and operator facts before this map is treated as
+complete. No professional legal verification has been obtained.

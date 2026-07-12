@@ -33,5 +33,6 @@
 - Production Terms/Privacy render and acceptance record.
 - Authorized migration/application and real account/database behavior.
 
-`LEGAL_TERMS_FINAL` must remain unset until counsel clears final Terms and the
-live reviewed candidate records affirmative current-version acceptance.
+`LEGAL_TERMS_FINAL` must remain unset until the owner supplies and approves the
+real entity, merchant, jurisdiction, refund, and final Terms facts and the live
+reviewed candidate records affirmative current-version acceptance.

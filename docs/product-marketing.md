@@ -22,14 +22,14 @@ future laboratory result.
 ## Product truth
 
 - Candidate inputs: text and voice-to-reviewed-text. Meal photo-assist exists
-  behind a fail-closed counsel gate and is not an advertised launch feature.
+  behind a fail-closed owner/evidence gate and is not an advertised launch feature.
 - Core output: `Clear`, `Be careful`, or `Hold off`, followed by a reason and,
   where appropriate, an adjustment or practical alternative.
 - The labels are educational meal-pattern categories. They are not personal
   physiologic measurements or medical instructions.
 - Accounts add encrypted history, progress based only on in-app behavior, and
   an optional reminder. Longitudinal insights exist behind a fail-closed
-  counsel gate and are not an advertised launch feature.
+  owner/evidence gate and are not an advertised launch feature.
 - Premium adds unlimited checks and the account features shown at checkout.
 - Pantry Review is a separate one-time, non-renewing educational report.
 
@@ -151,5 +151,5 @@ Marketing is ready only when:
    before affirmative acceptance;
 4. meal photo-assist and longitudinal insights remain unadvertised and
    fail-closed unless each production flag, evidence review, and written
-   function-specific counsel clearance are green;
+   function-specific evidence review and explicit written owner approval are green;
 5. privacy and data-safety disclosures match the launch revision.
