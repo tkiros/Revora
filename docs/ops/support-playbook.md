@@ -3,14 +3,11 @@
 Response macros for the support inbox. Tone: calm, warm, permission-first —
 matches the in-app voice (`docs/product-marketing.md`,
 `docs/safety/tone-uncertainty-policy.md`). Every macro below is written to
-stay inside `docs/safety/claims-boundary.md` — no diagnosing, no clinical
-advice, no outcome promises, no reversal-family language outside the single
-approved North-Star line (`docs/ops/play-listing.md` §4 carve-out note).
+stay inside `docs/safety/claims-boundary.md` — no medical determinations,
+clinical advice, disease outcomes, or North-Star carve-outs.
 
-**Support address:** `support@<domain>` (placeholder convention consistent
-with `docs/handoff/human-actions-required.md` §0 and
-`docs/production-implementation-plan-2026-07-01.md` — fill with the real
-domain once decided).
+**Support address:** `support@revora.bio` (or the production `SUPPORT_EMAIL`
+value if the operator changes it).
 
 ---
 
@@ -36,10 +33,11 @@ through the Play Store or on the website?" first if not stated.
 
 **Macro — Play Billing subscriber:**
 
-> Thanks for reaching out. Since you subscribed through Google Play, refunds
-> for Play purchases go through Google directly — the fastest path is
+> Thanks for reaching out. Since you subscribed through Google Play, the
+> fastest first step is Google's refund request flow:
 > Play Store → Menu → Payments & subscriptions → find Revora → Report a
-> problem. Google typically resolves these within a few days. If you'd
+> problem. If Google cannot resolve it, reply here and Revora will review the
+> request, including any rights required where you live. If you'd
 > rather cancel without a refund, you can do that any time from the same
 > screen, or from your Revora account page — the cancel button lives there,
 > not behind an email. Let us know if Google can't help and we'll look
@@ -47,13 +45,15 @@ through the Play Store or on the website?" first if not stated.
 
 **Macro — Stripe (web) subscriber:**
 
-> Thanks for reaching out. You're on our web billing (Stripe) — <refund
-> policy stance, filled per `docs/handoff/human-actions-required.md` §0
-> "Refund policy stance">. To cancel any time without contacting us, visit
+> Thanks for reaching out. You're on web billing. Revora refunds the first
+> paid subscription charge when requested within seven calendar days. We also
+> refund verified duplicate or unauthorized charges, and any case required by
+> law. To cancel any time without contacting us, visit
 > your account page and use the cancel button — access continues through
 > the period you already paid for. If you're within the refund window
 > above, reply here with the email you subscribed under and we'll process
-> it.
+> it. Later renewal charges are normally non-refundable after the paid period
+> begins unless the Terms or applicable law says otherwise.
 
 **Note on statutory rights:** never state a policy that would override a
 user's statutory refund/cooling-off rights in their jurisdiction (this
@@ -84,8 +84,9 @@ sale/share stance, `docs/handoff/human-actions-required.md` §0).
 ## 4. Billing / entitlement mismatch ("I paid but the app still shows free")
 
 **Tier reminder (support-internal):** free is five checks a day plus the
-today view; premium adds unlimited checks, history, insights, progress, and
-the nudge (consistent with the in-app copy — `components/paywall-card.tsx`,
+today view; premium adds unlimited checks, history, progress, and the nudge.
+Longitudinal insights are not part of the launch candidate while their counsel
+gate is off (consistent with the in-app copy — `components/paywall-card.tsx`,
 `components/result-card.tsx`, `docs/ops/play-listing.md`). Worth confirming
 which limit the user actually hit before treating it as a mismatch — some
 "still shows free" reports are really "I hit the five-checks-a-day limit,"

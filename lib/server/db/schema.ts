@@ -153,6 +153,8 @@ export const subscriptions = pgTable(
       enum: ["active", "trialing", "canceled", "grace", "expired", "refunded"]
     }).notNull(),
     priceVariant: text("price_variant"),
+    termsVersion: text("terms_version"),
+    termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }),
     preChargeEmailSentAt: timestamp("pre_charge_email_sent_at", {
       withTimezone: true
     }),
@@ -260,6 +262,8 @@ export const pantryOrders = pgTable(
     })
       .notNull()
       .default("paid"),
+    termsVersion: text("terms_version"),
+    termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }),
     // Buyer provides at intake (no profile requirement) — same bands as profiles.
     a1cBand: text("a1c_band", {
       enum: ["prediabetes_57_59", "prediabetes_60_62", "prediabetes_63_64"]
@@ -363,4 +367,3 @@ export const pantryItems = pgTable(
     )
   ]
 );
-

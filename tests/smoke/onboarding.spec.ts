@@ -29,7 +29,7 @@ test("a new user walks welcome→segment→a1c→expectations→first_check into
   // Clear result. The copy is now hedged and this assertion follows it.
   await expect(
     page.getByText(
-      /one reason and, when there.s one, an adjustment and a safer swap/
+      /one reason and, when appropriate, an adjustment and one practical alternative/
     )
   ).toBeVisible();
   await expectNoSeriousViolations(page);

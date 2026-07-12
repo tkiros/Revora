@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { track } from "../lib/client/analytics";
@@ -9,6 +10,8 @@ import {
   purchasePlaySku,
   PLAY_SKUS
 } from "../lib/client/digital-goods";
+import { TERMS_VERSION } from "../lib/legal/terms";
+import { longitudinalInsightsEnabled } from "../lib/longitudinal-insights-flag";
 
 /**
  * Soft paywall (plan 4D): after value, never at the first-session aha. In the
@@ -22,6 +25,7 @@ export function PaywallCard() {
   const [usesPlay, setUsesPlay] = useState(false);
   const [monthlyDisplay, setMonthlyDisplay] = useState<string | null>(null);
   const [annualDisplay, setAnnualDisplay] = useState<string | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   useEffect(() => {
     track({ name: "paywall_viewed" });
@@ -72,7 +76,11 @@ export function PaywallCard() {
         const verify = await fetch("/api/billing/play/verify", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ purchaseToken })
+          body: JSON.stringify({
+            purchaseToken,
+            termsAccepted,
+            termsVersion: TERMS_VERSION
+          })
         });
 
         if (verify.ok) {
@@ -88,7 +96,11 @@ export function PaywallCard() {
       const response = await fetch("/api/billing/stripe/checkout", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ plan })
+        body: JSON.stringify({
+          plan,
+          termsAccepted,
+          termsVersion: TERMS_VERSION
+        })
       });
 
       if (response.status === 401) {
@@ -142,7 +154,9 @@ export function PaywallCard() {
       <ul className="page-copy expectation-list">
         <li>Unlimited daily checks</li>
         <li>Your full history, on every device</li>
-        <li>Weekly insights from your own meals</li>
+        {longitudinalInsightsEnabled() ? (
+          <li>Weekly insights from your own meals</li>
+        ) : null}
         <li>The progress view</li>
         <li>One gentle daily reminder (optional)</li>
       </ul>
@@ -156,6 +170,19 @@ export function PaywallCard() {
           about a user base. Enforced by the "social-proof" family in
           claims-boundary-copy.test.ts — which is why this comment describes the
           old flag rather than quoting it. */}
+      <label className="consent-row">
+        <input
+          type="checkbox"
+          checked={termsAccepted}
+          onChange={(event) => setTermsAccepted(event.target.checked)}
+          data-testid="paid-terms-consent"
+        />
+        <span className="consent-label">
+          I agree to the <Link href="/terms">Terms</Link> and acknowledge the{" "}
+          <Link href="/privacy">Privacy Notice</Link>, including automatic
+          renewal and the refund policy.
+        </span>
+      </label>
       <div className="plan-card" data-recommended="">
         <p className="plan-card-price">
           {monthlyDisplay ?? "$12.99"}
@@ -164,7 +191,7 @@ export function PaywallCard() {
         <button
           type="button"
           className="primary-button"
-          disabled={busy !== null}
+          disabled={busy !== null || !termsAccepted}
           data-testid="subscribe-monthly"
           onClick={() => subscribe("monthly")}
         >
@@ -180,7 +207,7 @@ export function PaywallCard() {
         <button
           type="button"
           className="secondary-button"
-          disabled={busy !== null}
+          disabled={busy !== null || !termsAccepted}
           data-testid="subscribe-annual"
           onClick={() => subscribe("annual")}
         >

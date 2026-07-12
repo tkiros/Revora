@@ -15,7 +15,7 @@ export function intakeEmailText(
       "You'll add photos of your pantry or typical meals, confirm what we",
       "saw, and get your report by email within 7 days.",
       "",
-      `Questions? Reply to this email or write to ${process.env.SUPPORT_EMAIL ?? "support@revora.app"}.`
+      `Questions? Reply to this email or write to ${process.env.SUPPORT_EMAIL ?? "support@revora.bio"}.`
     ].join("\n")
   };
 }
@@ -34,7 +34,7 @@ export function reportEmailText(
       "It stays in your account, and the page prints cleanly if you want a",
       'paper copy ("Save as PDF").',
       "",
-      `Questions? Reply to this email or write to ${process.env.SUPPORT_EMAIL ?? "support@revora.app"}.`
+      `Questions? Reply to this email or write to ${process.env.SUPPORT_EMAIL ?? "support@revora.bio"}.`
     ].join("\n")
   };
 }

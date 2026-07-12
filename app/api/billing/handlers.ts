@@ -30,6 +30,7 @@ import { paymentFailedEmailText } from "../../../lib/server/billing/emails";
 import { deleteOrderBlobs } from "../../../lib/server/blob";
 import { timingSafeEqualSecret } from "../../../lib/server/timing-safe";
 import { checkEmailCooldown } from "../../../lib/revora/rate-limit";
+import { TERMS_VERSION } from "../../../lib/legal/terms";
 
 /**
  * Billing (plan 4D / docs/adr/billing.md): Play Billing verified server-side
@@ -56,7 +57,11 @@ export type PantryEmailSender = {
 };
 
 const PlayVerifySchema = z
-  .object({ purchaseToken: z.string().trim().min(1).max(512) })
+  .object({
+    purchaseToken: z.string().trim().min(1).max(512),
+    termsAccepted: z.literal(true),
+    termsVersion: z.literal(TERMS_VERSION)
+  })
   .strict();
 
 function unauthorized() {
@@ -181,6 +186,8 @@ export function createPlayVerifyHandler(deps: BillingDeps = {}) {
         providerRef: parsed.data.purchaseToken,
         productId: info.productId ?? "premium_monthly",
         status: info.status,
+        termsVersion: parsed.data.termsVersion,
+        termsAcceptedAt: now(),
         currentPeriodEnd: info.currentPeriodEnd,
         updatedAt: now()
       })
@@ -188,6 +195,8 @@ export function createPlayVerifyHandler(deps: BillingDeps = {}) {
         target: schema.subscriptions.providerRef,
         set: {
           status: info.status,
+          termsVersion: parsed.data.termsVersion,
+          termsAcceptedAt: now(),
           currentPeriodEnd: info.currentPeriodEnd,
           updatedAt: now()
         }
@@ -281,7 +290,11 @@ function extractPurchaseToken(
 // ── POST /api/billing/stripe/checkout ───────────────────────────────────────
 
 const CheckoutSchema = z
-  .object({ plan: z.enum(["monthly", "annual"]) })
+  .object({
+    plan: z.enum(["monthly", "annual"]),
+    termsAccepted: z.literal(true),
+    termsVersion: z.literal(TERMS_VERSION)
+  })
   .strict();
 
 export function createStripeCheckoutHandler(deps: BillingDeps = {}) {
@@ -329,6 +342,10 @@ export function createStripeCheckoutHandler(deps: BillingDeps = {}) {
       line_items: [{ price, quantity: 1 }],
       client_reference_id: session.userId,
       customer_email: session.email,
+      metadata: { terms_version: parsed.data.termsVersion },
+      subscription_data: {
+        metadata: { terms_version: parsed.data.termsVersion }
+      },
       success_url: `${appUrl}/account?subscribed=1`,
       cancel_url: `${appUrl}/subscribe`
     });
@@ -339,14 +356,29 @@ export function createStripeCheckoutHandler(deps: BillingDeps = {}) {
 
 // ── POST /api/billing/stripe/pantry-checkout ────────────────────────────────
 
+const PantryCheckoutSchema = z
+  .object({
+    termsAccepted: z.literal(true),
+    termsVersion: z.literal(TERMS_VERSION)
+  })
+  .strict();
+
 export function createPantryCheckoutSessionHandler(deps: BillingDeps = {}) {
   const stripe = deps.stripeClient ?? defaultStripe;
   const env = deps.env ?? process.env;
 
-  return async function POST() {
+  return async function POST(request: Request) {
     const blocked = checkoutGate(env);
     if (blocked) {
       return blocked;
+    }
+
+    const parsed = PantryCheckoutSchema.safeParse(await readJson(request));
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Accept the Terms and Privacy Notice before checkout." },
+        { status: 400 }
+      );
     }
 
     const price = env.STRIPE_PRICE_PANTRY;
@@ -360,6 +392,7 @@ export function createPantryCheckoutSessionHandler(deps: BillingDeps = {}) {
     const checkout = await stripe().checkout.sessions.create({
       mode: "payment",
       line_items: [{ price, quantity: 1 }],
+      metadata: { terms_version: parsed.data.termsVersion },
       success_url: `${appUrl}/pantry/thanks`,
       cancel_url: `${appUrl}/pantry`
     });
@@ -580,6 +613,10 @@ export async function applyStripeEvent(
     const isTrialing = subscription?.status === "trialing";
     const status = isTrialing ? "trialing" : "active";
     const priceVariant = subscription?.metadata?.price_variant ?? null;
+    const termsVersion =
+      subscription?.metadata?.terms_version ??
+      session.metadata?.terms_version ??
+      null;
     const currentPeriodEnd =
       isTrialing && subscription?.trial_end
         ? new Date(subscription.trial_end * 1000)
@@ -599,12 +636,20 @@ export async function applyStripeEvent(
             : "premium_monthly",
         status,
         priceVariant,
+        termsVersion,
+        termsAcceptedAt: termsVersion ? now : null,
         currentPeriodEnd,
         updatedAt: now
       })
       .onConflictDoUpdate({
         target: schema.subscriptions.providerRef,
-        set: { status, priceVariant, updatedAt: now }
+        set: {
+          status,
+          priceVariant,
+          termsVersion,
+          termsAcceptedAt: termsVersion ? now : null,
+          updatedAt: now
+        }
       });
 
     if (isTrialing) {
@@ -940,6 +985,8 @@ async function applyPantryCheckout(
           ? session.payment_intent
           : (session.payment_intent?.id ?? null),
       claimToken: tokenHash,
+      termsVersion: session.metadata?.terms_version ?? null,
+      termsAcceptedAt: session.metadata?.terms_version ? now : null,
       updatedAt: now
     })
     .onConflictDoNothing({ target: schema.pantryOrders.stripeSessionId })
@@ -994,7 +1041,9 @@ const TrialStartSchema = z
     email: z.string().trim().toLowerCase().email().max(254),
     // 2-plan wall (owner decision 2026-07-10). Absent = monthly, so existing
     // clients keep working unchanged.
-    plan: z.enum(["monthly", "annual"]).optional()
+    plan: z.enum(["monthly", "annual"]).optional(),
+    termsAccepted: z.literal(true),
+    termsVersion: z.literal(TERMS_VERSION)
   })
   .strict();
 
@@ -1113,8 +1162,12 @@ export function createTrialCheckoutHandler(
       payment_method_collection: "always",
       subscription_data: {
         ...(priorSubscription ? {} : { trial_period_days: 7 }),
-        metadata: { price_variant: variant }
+        metadata: {
+          price_variant: variant,
+          terms_version: parsed.data.termsVersion
+        }
       },
+      metadata: { terms_version: parsed.data.termsVersion },
       client_reference_id: user.id,
       customer_email: email,
       success_url: `${appUrl}/trial/started`,

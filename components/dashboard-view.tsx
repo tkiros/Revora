@@ -215,11 +215,11 @@ export function DashboardView({
         <div className="dash-col">
           <div className="dash-cta">
             <p className="dash-cta-eyebrow">The one thing to do</p>
-            <h2>Should I eat this?</h2>
+            <h2>Check this meal</h2>
             <p>
-              Describe what you&apos;re about to eat. You&apos;ll get a calm
-              verdict, one reason, and — when there&apos;s one — something to
-              adjust and a safer swap.
+              Describe what you&apos;re about to eat. You&apos;ll get a cautious
+              educational label, one reason, and a practical alternative when
+              appropriate.
             </p>
             <Link className="dash-cta-button" href="/check" data-testid="dash-check-cta">
               Check a meal

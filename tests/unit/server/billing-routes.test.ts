@@ -18,6 +18,7 @@ import {
 import { encryptField } from "../../../lib/server/crypto";
 import { schema } from "../../../lib/server/db";
 import { createTestDb } from "../../helpers/test-db";
+import { TERMS_VERSION } from "../../../lib/legal/terms";
 
 const TEST_KEY = Buffer.alloc(32, 6).toString("base64");
 const NOW = new Date("2026-07-03T15:00:00.000Z");
@@ -69,7 +70,11 @@ function post(url: string, body: unknown) {
   return new Request(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(body)
+    body: JSON.stringify({
+      ...(body as Record<string, unknown>),
+      termsAccepted: true,
+      termsVersion: TERMS_VERSION
+    })
   });
 }
 
@@ -128,6 +133,62 @@ describe("POST /api/billing/play/verify", () => {
     await POST(request());
 
     expect(await testDb.db.select().from(schema.subscriptions)).toHaveLength(1);
+  });
+});
+
+describe("POST /api/billing/stripe/checkout terms acceptance", () => {
+  it("rejects checkout without affirmative current-version acceptance", async () => {
+    const stripe = {
+      checkout: { sessions: { create: vi.fn() } }
+    };
+    const POST = createStripeCheckoutHandler({
+      ...baseDeps(),
+      stripeClient: () => stripe as never
+    });
+    const response = await POST(
+      new Request("http://t/api/billing/stripe/checkout", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ plan: "monthly" })
+      })
+    );
+    expect(response.status).toBe(400);
+    expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
+  });
+
+  it("records the accepted Terms version in Stripe metadata", async () => {
+    const previousPrice = process.env.STRIPE_PRICE_MONTHLY_1299;
+    const previousUrl = process.env.NEXT_PUBLIC_APP_URL;
+    process.env.STRIPE_PRICE_MONTHLY_1299 = "price_monthly";
+    process.env.NEXT_PUBLIC_APP_URL = "https://revora.bio";
+    const stripe = {
+      checkout: {
+        sessions: { create: vi.fn().mockResolvedValue({ url: "https://stripe/x" }) }
+      }
+    };
+    try {
+      const POST = createStripeCheckoutHandler({
+        ...baseDeps(),
+        stripeClient: () => stripe as never
+      });
+      const response = await POST(
+        post("http://t/api/billing/stripe/checkout", { plan: "monthly" })
+      );
+      expect(response.status).toBe(200);
+      expect(stripe.checkout.sessions.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: { terms_version: TERMS_VERSION },
+          subscription_data: {
+            metadata: { terms_version: TERMS_VERSION }
+          }
+        })
+      );
+    } finally {
+      if (previousPrice === undefined) delete process.env.STRIPE_PRICE_MONTHLY_1299;
+      else process.env.STRIPE_PRICE_MONTHLY_1299 = previousPrice;
+      if (previousUrl === undefined) delete process.env.NEXT_PUBLIC_APP_URL;
+      else process.env.NEXT_PUBLIC_APP_URL = previousUrl;
+    }
   });
 });
 

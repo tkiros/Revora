@@ -118,7 +118,8 @@ const SWAP_PROMISE =
   /\b(?:one|a|an)\s+(?:safer\s+|simple\s+|small\s+)?(?:swap|adjustment)\b/i;
 
 /** A conditional. "when there's one", "when one helps", "if there is one", "where it changes". */
-const HEDGE = /\b(?:when|if|where)\s+(?:there|one|it|they)\b/i;
+const HEDGE =
+  /\bwhen\s+appropriate\b|\b(?:when|if|where)\s+(?:there|one|it|they)\b/i;
 
 const BANNED: Family[] = [
   // ── The original eleven (docs/safety/claims-boundary.md "Banned Claim
@@ -150,7 +151,6 @@ const BANNED: Family[] = [
     // describing Revora's users.
     exemptSources: ["app/(app)/how-it-works/page.tsx"]
   },
-
   // ── New, 2026-07-11 (W-09). Claims, not verbs. ────────────────────────────
 
   {
@@ -203,7 +203,7 @@ const BANNED: Family[] = [
     label: "study-association",
     pattern:
       /\b(?:CDC\s+)?DPP\b|\bdiabetes\s+prevention\s+program\b|\bNEJM\b|\b(?:Jenkins|Imai|Shukla)\s+et\s+al\b/i,
-    exemptSources: ["app/(app)/how-it-works/page.tsx", "app/page.tsx"]
+    exemptSources: ["app/(app)/how-it-works/page.tsx"]
   },
 
   {
@@ -222,6 +222,18 @@ const BANNED: Family[] = [
     label: "unconditional-swap",
     predicate: (text) =>
       sentences(text).some((s) => SWAP_PROMISE.test(s) && !HEDGE.test(s))
+  },
+  {
+    label: "eat-decision",
+    pattern: /should\s+i\s+eat\s+this/i
+  },
+  {
+    label: "personal-safety",
+    pattern: /safe\s+for\s+(?:your|my)\s+(?:blood\s+sugar|health)/i
+  },
+  {
+    label: "future-test-outcome",
+    pattern: /normal\s+at\s+every\s+test/i
   }
 ];
 
@@ -291,7 +303,8 @@ const EXTRA_SOURCES = [
   "lib/coach/insights.ts",
   "lib/coach/bai.ts",
   "lib/server/pantry/emails.ts",
-  "lib/server/billing/emails.ts"
+  "lib/server/billing/emails.ts",
+  "docs/runbooks/marketing-assets.md"
 ];
 
 /**
@@ -344,10 +357,26 @@ const surfaces = [
   ...USER_FACING_COPY_KEYS.map((key) => ({
     source: `contract.copy.${key}`,
     text: contract.copy[key]
-  }))
+  })),
+  {
+    source: "docs/product-marketing.md#Approved acquisition copy",
+    text: extractSection(
+      fs.readFileSync(path.join(ROOT, "docs/product-marketing.md"), "utf8"),
+      "## Approved acquisition copy",
+      "## Launch gate"
+    )
+  }
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
+function extractSection(text: string, start: string, end: string): string {
+  const startIndex = text.indexOf(start);
+  const endIndex = text.indexOf(end, startIndex + start.length);
+  if (startIndex === -1 || endIndex === -1) {
+    throw new Error(`Missing audited marketing section: ${start} → ${end}`);
+  }
+  return text.slice(startIndex, endIndex);
+}
 
 describe("claims-boundary copy audit", () => {
   it.each(surfaces)(
@@ -408,10 +437,6 @@ describe("claims-boundary copy audit", () => {
     // through the entity — a naive /Revora's/ matches nothing and this guard
     // would pass vacuously.
     const apos = "(?:'|&apos;|’)";
-    const landing = read("app/page.tsx");
-    expect(landing).toMatch(/not a promise about your numbers/i);
-    expect(landing).toMatch(new RegExp(`not a result from Revora${apos}s`, "i"));
-
     const hiw = read("app/(app)/how-it-works/page.tsx");
     expect(hiw).toMatch(
       new RegExp(`none of the following describes Revora${apos}s own users`, "i")
@@ -427,10 +452,7 @@ describe("claims-boundary copy audit", () => {
       .filter(({ text, source }) => /\bDPP\b/i.test(subjectFor(text, source)))
       .map(({ source }) => source)
       .sort();
-    expect(citing).toEqual([
-      "app/(app)/how-it-works/page.tsx",
-      "app/page.tsx"
-    ]);
+    expect(citing).toEqual(["app/(app)/how-it-works/page.tsx"]);
   });
 
   it("pins the free-tier number in the Play listing to TASTER_LIMIT", () => {
@@ -438,7 +460,9 @@ describe("claims-boundary copy audit", () => {
     // TASTER_LIMIT checks on day one, device-local. A store listing is a claim
     // made to a reviewer, so this one is not allowed to drift ever again.
     const listing = fencedRegions(read("docs/ops/play-listing.md")).join("\n");
-    expect(listing).toContain(`${TASTER_LIMIT} free checks on your first day`);
+    expect(listing).toMatch(
+      new RegExp(`${TASTER_LIMIT}\\s+free checks on your\\s+first day`)
+    );
     expect(listing).not.toMatch(/five a day/i);
     expect(listing).not.toMatch(/free,?\s+every\s+day/i);
   });
@@ -476,7 +500,10 @@ describe("claims-boundary copy audit", () => {
       "one reason, one adjustment, and one safer swap",
       "every verdict comes with a safer swap",
       "you always get a simple adjustment"
-    ]
+    ],
+    "eat-decision": ["Should I eat this?"],
+    "personal-safety": ["safe for your blood sugar"],
+    "future-test-outcome": ["Normal at every test"]
   };
 
   it("has a control sample for every family", () => {

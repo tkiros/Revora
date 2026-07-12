@@ -141,7 +141,7 @@ export const BAI_BAND_COPY: Record<BaiBand, BaiBandCopy> = {
   excellent: {
     label: "Excellent",
     message:
-      "You checked in and followed through nearly every day this week — that's the habit doing its work. Keep checking in before your next meal; steady beats perfect."
+      "You checked in consistently and followed through on the next steps you marked this week. Keep checking meals when the information is useful to you."
   },
   on_track: {
     label: "On track",

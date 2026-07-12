@@ -85,7 +85,10 @@ export function createProfileRouteHandlers(deps: ProfileRouteDeps = {}) {
         // GDPR Art. 9: explicit consent is the lawful basis for storing
         // health data — no consent, no profile, no storage.
         return NextResponse.json(
-          { error: "Storing your A1C needs your explicit consent." },
+          {
+            error:
+              "Saving A1C and meal history needs your explicit health-data consent."
+          },
           { status: 400 }
         );
       }

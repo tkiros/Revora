@@ -10,6 +10,7 @@ import {
   IconHeart,
   IconLock
 } from "../../../components/icons";
+import { photoInputEnabled } from "../../../lib/photo-input-flag";
 
 export const metadata = { title: "Check a meal — Revora" };
 
@@ -29,10 +30,11 @@ export default function CheckPage() {
       </div>
         <section className="surface-card hero-card check-hero">
           <p className="hero-eyebrow">Revora</p>
-          <h1 className="page-title">Should I eat this?</h1>
+          <h1 className="page-title">Check this meal</h1>
           <p className="page-copy">
-            One calm answer at the moment you&apos;re deciding — the reason
-            behind it, and one easy swap. Type it, say it, or snap a photo.
+            Get a cautious educational read on the meal&apos;s balance, the reason
+            behind it, and one practical alternative. Type it or say it
+            {photoInputEnabled() ? ", or snap a photo" : ""}.
           </p>
         </section>
 

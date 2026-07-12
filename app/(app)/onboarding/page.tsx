@@ -190,14 +190,15 @@ export default function OnboardingPage() {
             <>
               <p className="hero-eyebrow">Welcome to Revora</p>
               <h1 className="page-title">
-                Should I eat this, now? Get a calm answer.
+                Check a meal. Get a cautious educational read.
               </h1>
               <p className="page-copy">
-                At the moment of a meal, Revora gives you one clear verdict —
-                {" "}
+                At the moment of a meal, Revora gives you one cautious
+                educational label — {" "}
                 {RISK_LABELS.SAFE}, {RISK_LABELS.MODERATE}, or{" "}
-                {RISK_LABELS.HIGH} — with one reason and, when there&apos;s
-                one, an adjustment and a safer swap. Never a calorie, never a
+                {RISK_LABELS.HIGH} — with one reason and, when appropriate, an
+                adjustment and one practical alternative. Never a calorie,
+                never a
                 number to track.
               </p>
               <div className="chip-row" aria-hidden="true">
@@ -329,9 +330,9 @@ export default function OnboardingPage() {
                 {/* `general-guidance-01` ledger row — same line as the result
                     card renders. */}
                 <li>
-                  Revora&apos;s guidance is general for your A1C range — your
-                  own response to a food can differ. Only you (and your care
-                  team) know your body.
+                  The labels describe general meal patterns. Your A1C range
+                  only makes the presentation more cautious; it does not
+                  predict your individual response.
                 </li>
                 <li>It is information to decide with, not medical advice.</li>
               </ul>

@@ -103,13 +103,15 @@ until the live PWA is stable (`docs/ops/play-twa-runbook.md`'s blocking note).
       screenshots captured per the shot-list (signed in as the reviewer
       account, no real user PII), reviewer "App access" credentials
       entered, deletion/privacy/ToS URLs filled with the real domain.
-- [ ] Counsel sign-off on file for Q1–Q10
-      (`docs/legal/counsel-brief.md`) — **must** be recorded before
-      submission per Gate 2's "Counsel sign-off recorded" line, even
-      though the parallel-launch decision (B5) allowed the informational
-      PWA itself to launch before full sign-off.
-- [ ] `/terms` placeholders (operating-entity name, governing-law/venue)
-      resolved — not still `<...>` — before paste-in.
+- [ ] A dated `docs/legal/counsel-clearance-<sha>.md` records qualified
+      licensed-counsel disposition for the exact submitted revision, every
+      redline and condition, owner residual-risk acceptance, and preview/live
+      proof. Internal GREEN and automated checks are engineering evidence only.
+- [ ] `NEXT_PUBLIC_PHOTO_INPUT` and
+      `NEXT_PUBLIC_LONGITUDINAL_INSIGHTS` remain unset unless the corresponding
+      function has explicit written clearance and completed evidence review.
+- [ ] `LEGAL_ENTITY_NAME` and `SUPPORT_EMAIL` are set to real, monitored values;
+      `/terms` and `/privacy` show them on the production domain.
 - [ ] Submit for review; respond to any Play reviewer follow-up promptly
       (health-app review typically carries extra scrutiny — plan §12 risk
       #2).

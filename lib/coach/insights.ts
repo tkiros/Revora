@@ -1,5 +1,6 @@
 import type { StoredCheck } from "../client/history-store";
 import { RISK_LABELS } from "../revora/labels";
+import { longitudinalInsightsEnabled } from "../longitudinal-insights-flag";
 
 /**
  * Rule-based insights (plan P3, F11). Pure rules over StoredCheck[] — no
@@ -57,6 +58,10 @@ export function deriveInsight(
   checks: StoredCheck[],
   options: InsightOptions = {}
 ): CoachInsight | null {
+  if (!longitudinalInsightsEnabled()) {
+    return null;
+  }
+
   if (checks.length < MIN_CHECKS_FOR_INSIGHT) {
     return null;
   }
@@ -107,7 +112,7 @@ function deriveDaypartInsight(
 
   return {
     id: "daypart",
-    text: `Most of your '${moderate}' and '${high}' meals are ${topPart} — that's where one swap helps most this week.`
+    text: `Most of your '${moderate}' and '${high}' meals were at ${topPart} — that is the pattern showing up most often this week.`
   };
 }
 

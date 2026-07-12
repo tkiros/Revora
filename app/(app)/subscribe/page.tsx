@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { PaywallCard } from "../../../components/paywall-card";
 import { TrialWall } from "../../../components/trial-wall";
+import { longitudinalInsightsEnabled } from "../../../lib/longitudinal-insights-flag";
 import { paywallMode } from "../../../lib/server/pricing";
 
 export const metadata = { title: "Premium — Revora" };
@@ -25,8 +26,8 @@ export default async function SubscribePage({
             </h1>
             <p className="page-copy">
               The check stays free, every day. Premium is the memory around it —
-              your history everywhere, the weekly patterns, and progress you can
-              see.
+              your history everywhere, progress you can see
+              {longitudinalInsightsEnabled() ? ", and weekly patterns" : ""}.
             </p>
             <PaywallCard />
           </section>

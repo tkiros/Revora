@@ -100,7 +100,7 @@ test("spoken meal lands in the textarea, is editable, and submits", async ({
   // The transcript is the user's own reviewable text — edit it before submit.
   await foodField.fill("grilled chicken with rice and salad, small portion");
   await page.getByLabel(/latest a1c/i).fill("6.1");
-  await page.getByRole("button", { name: "Should I eat this?" }).click();
+  await page.getByRole("button", { name: "Check this meal" }).click();
 
   await expect(page.getByTestId("result-card")).toContainText(
     "grilled chicken with rice and salad, small portion"
@@ -161,7 +161,7 @@ test("unsupported browsers hide the mic and show the keyboard-dictation hint", a
     .getByLabel(/what are you thinking about eating/i)
     .fill("egg scramble with spinach");
   await page.getByLabel(/latest a1c/i).fill("6.1");
-  await page.getByRole("button", { name: "Should I eat this?" }).click();
+  await page.getByRole("button", { name: "Check this meal" }).click();
 
   await expect(page.getByTestId("result-card")).toBeVisible();
 });

@@ -68,6 +68,11 @@ const trialWebServer = {
 
 export default defineConfig({
   testDir: "./tests/smoke",
+  // Axe scans and cold route compilation can exceed Playwright's 30s default
+  // on the documented slow-filesystem CI/worktree path. Product assertions
+  // still use Playwright's short expect timeout; this only prevents the whole
+  // test budget from expiring while several accessibility scans complete.
+  timeout: 90_000,
   // Revert the trial server's tsconfig.json / next-env.d.ts distDir rewrite so a
   // smoke run never leaves the working tree dirty (self-contained).
   globalTeardown: "./tests/smoke/global-teardown.ts",

@@ -1,118 +1,187 @@
-> **Status note (2026-07-01, full build 4B):** the posture change has landed —
-> accounts (email magic-link), server-side history, subscription billing, and
-> an opt-in daily push now ship. A1C + meal text are stored **encrypted at
-> rest (AES-256-GCM)** only after an explicit consent checkbox; deletion is
-> in-app plus a public URL. `/privacy`, `docs/privacy/data-flow.md`, and the
-> Play Data Safety mapping were updated in the same PR (the lockstep rule).
-> Questions 5–9 below are NEW and arise from this change and from the launch
-> plan (`docs/production-implementation-plan-2026-07-01.md` §7 B1).
+# Revora — Licensed-Counsel Launch-Candidate Brief
 
-# Revora — Legal Counsel Brief (Phase 4 · Task 4.4)
+**Prepared:** 2026-07-12
 
-> **Status: OPEN — NON-CODE GATE.** This is a legal question, not an engineering
-> task. Per the stakeholder decision (Blocker **B5**), counsel review runs **in
-> parallel** and is **not** a hard pre-launch gate: the informational-only PWA
-> may launch with enforced disclaimers and the kill-switch armed. Counsel must,
-> however, conclude **before any benefit-implying marketing**. Do not implement
-> anything from this document.
+**Gate:** OPEN — written licensed-counsel disposition required
 
-## Why counsel is engaged
+**Current source location:** `feat/app-shell-dashboard`
 
-Revora gives condition-specific (prediabetes-range A1C) dietary guidance to a
-self-identified at-risk audience. That sits near two regulated edges — FDA
-software-as-a-medical-device (SaMD) and FTC health-claim substantiation — even
-though the product is positioned as informational-only.
+**Committed base:** `b80cd67f0011a75a6073a59df3f4ac6d6813ab04`
 
-## Questions for counsel
+**Candidate status:** NOT YET SENDABLE — this legal package and containment
+patch are uncommitted and must first be integrated with current `main`. The
+external packet must replace this identity with the clean integrated candidate
+SHA and attach evidence produced from that SHA.
 
-1. **FDA SaMD classification.** Does informational-only, qualitative food
-   guidance keyed to a user-entered A1C band (5.7–6.4%) fall inside or outside
-   the medical-device definition? What, if anything, would push it across the
-   line (e.g., numeric glucose prediction, treatment framing)?
-2. **FTC substantiation.** The MVP makes no benefit/outcome claim. Confirm that
-   the current informational-only copy needs no clinical substantiation, and
-   identify which future claims (any "lower/reverse/prevent" framing) would
-   trigger a substantiation duty.
-3. **Disclaimer + positioning adequacy.** Is the single contract disclaimer
-   ("informational only … not medical advice … talk with a doctor or registered
-   dietitian") adequate for the public, no-account, no-storage MVP, and is its
-   placement (every result surface + the `/privacy` page) sufficient?
-   - **Known divergence:** the middleware pause / rate-limit responses (HTTP
-     503/429) carry the short disclaimer `"Not medical advice."` rather than the
-     full contract disclaimer, because middleware runs on the Edge runtime and
-     cannot read the contract file (`loadSafetyContract` uses `node:fs`). Please
-     confirm the short form is acceptable for these transient, no-classification
-     states.
-4. **Parallel-launch risk.** Confirm the residual regulatory risk of launching
-   informational-only while review is ongoing is understood and acceptable, and
-   flag any condition that should hard-block launch.
-5. **Longitudinal insights & SaMD (NEW).** The app now derives rule-based
-   patterns from a user's tracked meal history ("Most of your 'be careful'
-   meals are breakfast — that's where one swap helps most this week"). An
-   adversarial internal review rated this closer to the device line than the
-   one-shot check. Does personalized longitudinal insight over stored health
-   data change the SaMD analysis? (If flagged, the insight surface is
-   feature-flagged via launch-controls without touching the rest.)
-6. **GDPR Art. 9 consent wording (NEW).** A1C is special-category health
-   data. Review/approve the explicit-consent checkbox wording used at account
-   setup (marked `COUNSEL-DRAFT` in `app/welcome/page.tsx`): storage purpose,
-   encryption, revocability via deletion. US-only launch is the default, but
-   the consent structure is built to GDPR standard.
-7. **Refund-policy adequacy (NEW).** Subscriptions via Google Play Billing
-   (primary) + Stripe web fallback. Review the refund stance in
-   `docs/ops/support-playbook.md` for FTC/negative-option and Play-policy
-   adequacy, including the frictionless-cancellation path.
-8. **The three "reversal" lines (NEW).** `Revora_Brand_Positioning_v2.md`
-   L240/287/295 contain app-as-agent "reversal" phrasings. Product copy uses
-   only the user-as-agent line ("Reversal is achieved through your dietary
-   choices — Revora gives you the clarity to make them."). Rewrite or kill the
-   three flagged lines; confirm the user-as-agent line is the ceiling.
-9. **Imaging input & SaMD (forward-looking only — NEW).** A photo-assist
-   input (vision model drafts a meal description; the user must confirm every
-   class-critical detail before the unchanged text engine judges) is fully
-   specified but NOT built. What would push an imaging input across the SaMD
-   line? This answer gates any future build (plan §6.3); nothing ships now.
-10. **Terms of Service review (NEW, P9).** `app/terms/page.tsx` is a
-    plain-language ToS draft (marked `COUNSEL-DRAFT` in-app, visible
-    "Last updated" date) covering eligibility, accounts, subscriptions/
-    billing/refunds, free-tier limits, health-data consent (cross-references
-    `/privacy`), IP/license, termination, availability, and liability. Two
-    items are left as placeholders pending counsel: the operating-entity
-    name in the ownership/license clause, and the governing law/venue
-    clause. Please also confirm the liability-limitation and no-warranty
-    wording is adequate given the refund stance from Q7.
+This document replaces the obsolete premise that an informational PWA may
+launch while legal review runs in parallel. No public account-based or paid
+launch is approved by this brief. The simulated review in
+`docs/legal/counsel-panel-review-2026-07-12.md` is non-legal-advice issue
+spotting only; it does not satisfy this gate.
 
-## Homework already done (provide to counsel)
+## Decision requested
 
-- `docs/safety/claims-boundary.md` — the enforced product/prompt/result/launch
-  copy boundary and the **Banned Claim Families** list.
-- `docs/safety/evidence-pack.md` — evidence basis for the qualitative guidance.
-- `docs/privacy/data-flow.md` + the public `/privacy` page — the data posture
-  (meal text + A1C → OpenAI Responses API, `store: false`, no Revora retention,
-  honest provider abuse-log caveat).
-- `docs/safety/a1c-band-rubric.md`, `docs/safety/tone-uncertainty-policy.md` —
-  how risk bands and tone are constrained.
+Please give a written, scoped disposition for the exact candidate supplied in
+the counsel packet. Identify required redlines, prohibited claims, residual
+conditions, and the precise conditions—if any—under which the two disabled
+functions below may later be enabled.
 
-## What the codebase already enforces (so counsel can rely on it)
+## Intended launch scope represented by the candidate
 
-- **No banned claims in user-facing copy** — automated audit
-  `tests/unit/revora/claims-boundary-copy.test.ts` fails CI on any
-  diagnose/treat/cure/prevent/reverse/FDA/guarantee/future-lowering match
-  outside the disclaimer.
-- **Disclaimer on every response** — `tests/unit/revora/disclaimer-presence.test.ts`
-  locks the single contract disclaimer onto every response kind.
-- **Informational-only, qualitative** — no numeric glucose/GI/GL/future-A1C
-  output (safety-contract fixture + eval tests).
-- **Privacy, stateful posture (updated 4B)** — guests: nothing stored;
-  accounts: A1C + meal text encrypted at rest (AES-256-GCM), consent-gated,
-  owner-scoped reads (cross-user 401/403 tested), cascade deletion with a
-  public URL; raw food/A1C/email excluded from logs, Sentry, and analytics by
-  automated tests (`privacy-stateful.test.ts`, `sentry-scrub.test.ts`);
-  `store: false` still on every model call.
+### Enabled product functions
 
-## Acceptance
+- Guest text and reviewed voice-to-text meal descriptions at `/check`.
+- A user-entered A1C value in the `5.7%–6.4%` range changes only how cautious
+  the educational presentation is. It is not an individualized prediction or
+  suitability determination.
+- Qualitative `Clear`, `Be careful`, and `Hold off` meal-pattern labels with a
+  reason and, when appropriate, one adjustment and practical alternative.
+- Accounts, encrypted saved A1C and meal text, history, behavior-only progress,
+  optional reminders, health-data consent withdrawal/erasure, and account
+  deletion.
+- Web/Google Play subscription infrastructure and the separate Pantry Review
+  purchase and report flows. All paid entry points remain additionally subject
+  to the current-main `LEGAL_TERMS_FINAL=1` gate after integration.
+- Pantry Review photo intake is a separate commercial function. Its scope must
+  be addressed expressly; it is not the disabled meal photo-assist function.
 
-- Written counsel opinion on file (attach or link here when received).
-- Any counsel-required copy change flows through `docs/safety/copy-ledger.md`
-  (the approved-copy source of truth), not ad hoc edits.
-- Counsel sign-off recorded before any benefit-implying marketing.
+### Disabled pending function-specific written clearance
+
+This section covers both **Longitudinal insights** and **Imaging input** for
+the meal photo-assist function.
+
+| Function | Default candidate state | Enforcement |
+| --- | --- | --- |
+| Meal photo-assist | OFF and unadvertised | `NEXT_PUBLIC_PHOTO_INPUT` must equal exact `1`; otherwise the client control is absent and `POST /api/check/photo-draft` returns `404` before model use (`lib/photo-input-flag.ts`, route handler, smoke/unit tests) |
+| Longitudinal insights | OFF and unadvertised | `NEXT_PUBLIC_LONGITUDINAL_INSIGHTS` must equal exact `1`; otherwise derivation returns `null`, server coach payloads contain no insight, guest/signed-in dashboards and daily loop render none, and paid/product copy omits the promise (`lib/longitudinal-insights-flag.ts`, `lib/coach/insights.ts`, boundary tests) |
+
+Both are build-time gates. Enabling either requires a new reviewed build and
+deployment; an operator cannot silently activate the reviewed binary at
+runtime.
+
+## Public and account routes in scope
+
+- Product: `/`, `/onboarding`, `/welcome`, `/check`, `/home`, `/history`,
+  `/progress`, `/account`, `/account/delete`, `/signin`, `/subscribe`.
+- Legal/support: `/terms`, `/privacy`, `/support` and the support macros in
+  `docs/ops/support-playbook.md`.
+- Pantry Review: `/pantry`, `/pantry/intake`, `/pantry/thanks`, `/report/[id]`.
+- Material APIs: `POST /api/check`, `POST /api/check/photo-draft` (disabled),
+  `GET /api/coach` (insight field disabled/null), profile/history/account
+  routes, `DELETE /api/account/health-data`, subscription/trial/Play/Pantry
+  purchase handlers, Pantry intake/report handlers, reminder endpoints, and
+  billing webhooks.
+
+The packet must inventory the actual integrated tree and add any route omitted
+here before external delivery.
+
+## Claims boundary
+
+The candidate provides general educational meal-composition information. It
+does not claim to diagnose, treat, cure, prevent, reverse, lower, or predict a
+disease, glucose response, or laboratory result. The labels are not statements
+that a meal is safe or medically appropriate for an individual. A1C changes
+presentation caution only.
+
+Counsel should review the net impression of every active result label, reason,
+adjustment, alternative, progress statement, paywall statement, support macro,
+store statement, and advertisement against the claim-to-evidence matrix. A
+disclaimer does not expand the allowed intended use or cure an unsupported
+claim.
+
+## Data and processor summary
+
+- Guests: meal/A1C requests transit the hosting layer and OpenAI; server-side
+  history is not created. Browser-local onboarding/history may persist until
+  site data is cleared.
+- Consenting accounts: email, encrypted A1C, encrypted saved meal text, result
+  category, timestamps, behavior-only progress inputs, and reminder settings.
+- OpenAI: submitted meal and A1C for meal responses with `store: false`; Pantry
+  photos and confirmed text for Pantry extraction; meal photo-assist remains
+  disabled in the proposed candidate.
+- Hosting/database: Vercel application hosting and Railway-hosted Postgres.
+- Identity/email: Auth.js email flow and Resend.
+- Commerce: Stripe and Google Play.
+- Operations: Sentry with scrubbing, Umami coarse analytics, browser/push
+  delivery services, and support handling.
+- Erasure: `DELETE /api/account/health-data` removes saved health/profile,
+  checks, progress/coach records, pushes, and Pantry data while preserving the
+  login and subscription records. Full account deletion remains separate.
+
+The external packet must add the real controller/entity, addresses, processor
+contract/transfer facts, retention periods, security controls, incident owners,
+and any jurisdiction-specific disclosures. Do not infer them from this brief.
+
+## Commercial and assent summary
+
+- Web subscriptions and trials, Google Play verification, and Pantry Review
+  purchase paths require affirmative Terms/Privacy acceptance.
+- Handlers reject missing, false, or stale acceptance and record the Terms
+  version and acceptance time.
+- `TERMS_VERSION` is `2026-07-12` in `lib/legal/terms.ts`.
+- Current-main paid checkout fails closed unless `LEGAL_TERMS_FINAL=1`; that
+  control must survive integration and remain unset until final Terms are
+  counsel-cleared and live acceptance evidence is verified.
+- The exact merchant, governing law/venue, support inbox, refund owner, and
+  final refund choices require owner input and counsel review.
+
+## Known limits and unproved facts
+
+- Local tests are engineering regression evidence, not legal clearance,
+  clinical validation, production authentication proof, or deployed-runtime
+  proof.
+- The current browser smoke environment has no database; signed-out flows may
+  emit expected Auth.js `MissingAdapter` logs.
+- The candidate has not yet been integrated with the 38 committed changes by
+  which current `main` is ahead of this worktree base.
+- Migrations `0003_hesitant_frog_thor.sql` and
+  `0004_aspiring_jocasta.sql` have not yet been proved on preview/production.
+- Real entity, address, launch jurisdiction, venue, support/refund/incident
+  owners, and final merchant/refund decisions have not been supplied.
+- No statement in this document represents FDA status, legal compliance, or
+  counsel approval.
+- Live-model and dietitian validation remain separate launch gates even after
+  counsel review.
+
+## Questions requiring written disposition
+
+1. FDA intended-use/device analysis for the actual A1C handling, result labels,
+   one-shot meal function, disabled longitudinal function, disabled meal-photo
+   function, and separate Pantry Review function.
+2. Permitted/prohibited in-product, support, store, listing, acquisition, and
+   advertising language, including whether each active claim has an adequate
+   substantiation basis under FTC standards.
+3. Terms formation, clickwrap evidence, negative-option/trial disclosures,
+   renewal, cancellation, refunds, merchant identity, governing law, venue,
+   warranties, and liability allocation.
+4. GDPR Art. 9 where applicable, state consumer-health-data, and Health Breach
+   Notification Rule analysis; notice, consent/withdrawal, deletion,
+   processor/transfer, retention, security, and incident-response requirements
+   for the stated markets.
+5. Any jurisdictional restriction required for a genuinely US-only launch and
+   the controls needed to make that representation accurate.
+6. Explicit evidence, labeling, operational, and further-review conditions for
+   ever setting either disabled feature flag to `1`.
+
+## Required attachments
+
+- `docs/safety/claims-boundary.md`, `docs/safety/copy-ledger.md`, and the
+  candidate claim-to-evidence matrix.
+- Candidate feature/route/claim inventory and data/processor map.
+- Screenshots/captures of every substantive public, consent, legal, paid,
+  cancellation, refund, withdrawal, and deletion surface.
+- Commercial packet showing exact price/trial/renewal/refund/cancellation and
+  acceptance evidence.
+- Exact candidate SHA, diff, migrations, launch-flag table, test outputs, and a
+  list of items not tested against production.
+- `docs/legal/counsel-panel-review-2026-07-12.md`, clearly labeled as
+  non-legal-advice background only.
+
+## Gate acceptance
+
+The gate remains open until qualified licensed counsel returns a written
+disposition for the exact candidate; every redline is implemented and retested;
+rejected/unreviewed functions remain disabled in source and deployed
+configuration; owner acceptance of residual risk is recorded; and preview/live
+proof is tied to the cleared SHA. Only then may a dated
+`docs/legal/counsel-clearance-<sha>.md` state `COUNSEL GATE: CLEARED`.

@@ -1,6 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { deriveInsight } from "../../../lib/coach/insights";
+
+beforeEach(() => {
+  vi.stubEnv("NEXT_PUBLIC_LONGITUDINAL_INSIGHTS", "1");
+});
 import type { StoredCheck } from "../../../lib/client/history-store";
 
 function check(overrides: Partial<StoredCheck> = {}): StoredCheck {
@@ -73,7 +77,7 @@ describe("deriveInsight", () => {
 
     expect(insight).not.toBeNull();
     expect(insight!.text).toContain("breakfast");
-    expect(insight!.text.toLowerCase()).toContain("swap");
+    expect(insight!.text.toLowerCase()).toContain("pattern");
     expectCompliant(insight!.text);
   });
 

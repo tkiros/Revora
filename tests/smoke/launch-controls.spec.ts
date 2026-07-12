@@ -77,7 +77,7 @@ test("normal mode — public check completes successfully", async ({ page }) => 
   // Fill in the form
   await page.getByLabel(/what are you thinking about eating/i).fill("lentil soup");
   await page.getByLabel(/latest a1c/i).fill("6.1");
-  await page.getByRole("button", { name: "Should I eat this?" }).click();
+  await page.getByRole("button", { name: "Check this meal" }).click();
 
   // Normal result should appear
   await expect(page.getByText("Clear", { exact: true })).toBeVisible({ timeout: 10_000 });
@@ -101,7 +101,7 @@ test("maintenance mode — friendly pause response before model spend", async ({
 
   await page.getByLabel(/what are you thinking about eating/i).fill("oatmeal");
   await page.getByLabel(/latest a1c/i).fill("6.0");
-  await page.getByRole("button", { name: "Should I eat this?" }).click();
+  await page.getByRole("button", { name: "Check this meal" }).click();
 
   // A 503 carries the middleware's calm retry payload, which lib/client/check.ts
   // surfaces as a retry response (ResultCard, kind="retry") — the user sees the
@@ -137,7 +137,7 @@ test("rate limit — friendly retry response (WAF 429 behavior)", async ({
 
   await page.getByLabel(/what are you thinking about eating/i).fill("brown rice");
   await page.getByLabel(/latest a1c/i).fill("6.2");
-  await page.getByRole("button", { name: "Should I eat this?" }).click();
+  await page.getByRole("button", { name: "Check this meal" }).click();
 
   // A 429 is mapped to "rate_limited" → RequestStatus with "Try again on this page"
   // and "Revora is helping a lot of people right now" copy

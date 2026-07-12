@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 
 import { track, type PriceVariant } from "../lib/client/analytics";
 import { historyStore } from "../lib/client/history-store";
+import { TERMS_VERSION } from "../lib/legal/terms";
+import { longitudinalInsightsEnabled } from "../lib/longitudinal-insights-flag";
 
 type Config = {
   variant: PriceVariant;
@@ -29,6 +31,7 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
   // history only — the declined visitor is a guest; read in an effect so the
   // server render (0) never mismatches hydration.
   const [savedChecks, setSavedChecks] = useState(0);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   useEffect(() => {
     setSavedChecks(historyStore.all().length);
@@ -57,7 +60,12 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
       const response = await fetch("/api/trial/start", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email, plan })
+        body: JSON.stringify({
+          email,
+          plan,
+          termsAccepted,
+          termsVersion: TERMS_VERSION
+        })
       });
       const body = (await response.json()) as { url?: string; error?: string };
       if (body.url) {
@@ -99,11 +107,12 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
           <p className="hero-eyebrow">Your free week with Revora</p>
           <h1 className="page-title">Keep your calm answers — 7 days free</h1>
           <p className="page-copy">
-            Ask &quot;should I eat this?&quot; and get a straight answer
-            instead of a guess. Your free week keeps that
+            Yesterday you checked a meal and got a cautious educational read
+            instead of a pile of numbers. Your free week keeps that
             going at every meal: unlimited checks, your history on every
-            device, weekly patterns from your own meals, and one gentle daily
-            reminder.
+            device, progress you can see
+            {longitudinalInsightsEnabled() ? ", weekly patterns from your own meals" : ""},
+            and one gentle daily reminder.
           </p>
           {/* The same three facts as the old trust bullets, told as the
               timeline the week actually follows (Today → Day 5 → Day 7). */}
@@ -231,7 +240,25 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
-          <button type="submit" className="primary-button" disabled={busy}>
+          <label className="consent-row">
+            <input
+              type="checkbox"
+              checked={termsAccepted}
+              onChange={(event) => setTermsAccepted(event.target.checked)}
+              data-testid="trial-terms-consent"
+            />
+            <span className="consent-label">
+              I agree to the <Link href="/terms">Terms</Link> and acknowledge
+              the <Link href="/privacy">Privacy Notice</Link>, the selected
+              price, automatic renewal after 7 free days, cancellation, and
+              refund terms.
+            </span>
+          </label>
+          <button
+            type="submit"
+            className="primary-button"
+            disabled={busy || !termsAccepted}
+          >
             {busy ? "Opening…" : "Continue to checkout — $0 due today"}
           </button>
           {error ? <p className="field-error">{error}</p> : null}

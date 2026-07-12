@@ -22,6 +22,20 @@
       "when": 1783270935545,
       "tag": "0002_trial-billing",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1783840966591,
+      "tag": "0003_hesitant_frog_thor",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1783842216269,
+      "tag": "0004_aspiring_jocasta",
+      "breakpoints": true
     }
   ]
 }

@@ -8,6 +8,7 @@ import { track } from "../../lib/client/analytics";
 import { historyStore } from "../../lib/client/history-store";
 import { profileStore } from "../../lib/client/profile-store";
 import { tasterStore } from "../../lib/client/taster-store";
+import { longitudinalInsightsEnabled } from "../../lib/longitudinal-insights-flag";
 
 /**
  * First-sign-in profile completion (plan 4A): the GDPR Art. 9 consent
@@ -183,14 +184,21 @@ export default function WelcomePage() {
                     setError(null);
                   }}
                 />
-                {/* COUNSEL-DRAFT (Track B Q6): Art. 9 explicit-consent wording
-                    pending counsel sign-off; structure (unchecked-by-default,
-                    blocking, revocable) is final. */}
+                {/* Explicit, purpose-bound health-data consent. Unchecked by
+                    default, blocking for storage, and separately revocable
+                    from Account without deleting login or subscription. */}
                 <label htmlFor="welcome-consent" className="consent-label">
-                  I consent to Revora storing my A1C value and meal checks —
-                  health information — to power my history, insights, and
-                  progress. I can delete my account and all of this data at
-                  any time.
+                  I explicitly consent to Revora collecting and using my A1C
+                  and submitted meal information (health data) to provide meal
+                  checks, saved history, and progress
+                  {longitudinalInsightsEnabled() ? ", and personalized insights" : ""}.
+                  Each submitted meal and A1C is sent to OpenAI to generate a
+                  response; Revora stores my A1C and saved meal text in
+                  encrypted form. I can withdraw this consent and erase the
+                  saved health data from Account without deleting my login or
+                  subscription, and I can continue in guest mode. Read the{" "}
+                  <Link href="/privacy">Privacy Notice</Link> for recipients,
+                  retention, transfers, and rights.
                 </label>
               </div>
               {error ? <p className="field-error">{error}</p> : null}

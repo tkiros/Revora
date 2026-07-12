@@ -1,159 +1,210 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { longitudinalInsightsEnabled } from "../../../lib/longitudinal-insights-flag";
+import { photoInputEnabled } from "../../../lib/photo-input-flag";
 import { loadSafetyContract } from "../../../lib/revora/safety-contract";
 
 export const metadata: Metadata = {
   title: "Privacy · Revora",
-  description: "What Revora collects, where it goes, and what it keeps."
+  description: "What Revora collects, why it uses it, and how to control it."
 };
 
 export default function PrivacyPage() {
   const { copy } = loadSafetyContract();
+  const supportEmail = process.env.SUPPORT_EMAIL ?? "support@revora.bio";
+  const operatorName = process.env.LEGAL_ENTITY_NAME?.trim() || "Revora";
+  const photoEnabled = photoInputEnabled();
+  const insightsEnabled = longitudinalInsightsEnabled();
 
   return (
     <div className="app-content--narrow">
-        <section className="surface-card hero-card">
-          <p className="hero-eyebrow">Privacy</p>
-          <h1 className="page-title">How Revora handles your data</h1>
-          <p className="page-copy">
-            You can use Revora two ways: as a guest with nothing saved on our
-            side, or with an account that stores your history — encrypted,
-            deletable, and only with your explicit consent. Here is exactly
-            what happens in each case.
-          </p>
-        </section>
+      <section className="surface-card hero-card">
+        <p className="hero-eyebrow">Privacy</p>
+        <h1 className="page-title">How Revora handles your data</h1>
+        <p className="page-copy">
+          Effective 2026-07-12. {operatorName} operates Revora and is
+          responsible for the personal information described here. Use Revora
+          as a guest with no server-side history, or explicitly consent to an
+          account with encrypted, deletable history.
+        </p>
+      </section>
 
-        <section className="surface-card legal-card">
-          <h2>What you enter</h2>
-          <p>
-            A food or meal description and your latest A1C number. With an
-            account, also your email address. That is everything Revora asks
-            for.
-          </p>
+      <section className="surface-card legal-card">
+        <h2>Information you provide</h2>
+        <ul>
+          <li>a meal description and your latest A1C;</li>
+          <li>an email address when you create an account or buy a report;</li>
+          {photoEnabled ? <li>optional meal-check photos;</li> : null}
+          <li>Pantry Review photos, notes, and corrections;</li>
+          <li>reminder preferences and actions you mark complete;</li>
+          <li>messages you send to support.</li>
+        </ul>
 
-          <h2>Where a check goes</h2>
-          <p>
-            To answer, Revora sends your food description and A1C to
-            OpenAI&apos;s Responses API, which generates the response. Every call
-            sets <code>store: false</code>, which asks OpenAI not to keep the
-            request in its default storage.
-          </p>
+        <h2>How a meal check works</h2>
+        <p>
+          Revora sends the submitted meal description and A1C to OpenAI&apos;s
+          Responses API to generate a response. Calls set <code>store: false</code>,
+          which disables default API response storage. OpenAI may still retain
+          limited abuse-monitoring records under its service terms.
+          {photoEnabled
+            ? " Meal-check photos are used in memory to draft text for your review and are not saved as meal-check history."
+            : " Meal photo-assist is disabled in this release."}
+        </p>
 
-          <h2>As a guest</h2>
-          <p>
-            Nothing is saved on Revora&apos;s side — no account, no server-side
-            history. On the server, your food text and A1C are held in memory
-            only long enough to build the request and return your answer, then
-            dropped. Your recent checks, streak, and onboarding A1C live only
-            in this browser&apos;s local storage, and you can wipe them any
-            time by clearing this site&apos;s data.
-          </p>
+        <h2>Guest use</h2>
+        <p>
+          Revora does not create server-side meal history for a guest. Recent
+          checks and onboarding settings may remain in that browser&apos;s local
+          storage until you clear the site data. Request data still passes
+          through Revora&apos;s hosting provider and OpenAI to answer the check.
+        </p>
 
-          <h2>With an account</h2>
-          <p>
-            If you sign in and give explicit consent, Revora stores — so your
-            history and coach work across devices:
-          </p>
-          <ul>
-            <li>your email address (for sign-in links only),</li>
-            <li>
-              your A1C value — <strong>encrypted at rest</strong> (AES-256-GCM),
-            </li>
-            <li>
-              each checked meal&apos;s text — <strong>encrypted at rest</strong> —
-              with its result class and time,
-            </li>
-            <li>
-              if you turn on the daily reminder, a push subscription for this
-              device,
-            </li>
-            <li>if you subscribe, your subscription status (handled by Google
-              Play or Stripe — Revora never sees card numbers).</li>
-          </ul>
-          <p>
-            Consent is asked once, before anything is stored, and you can
-            withdraw it by deleting your account — which removes your profile,
-            history, subscriptions, and push registrations. The deletion page
-            is at{" "}
-            <Link className="inline-link" href="/account/delete">
-              /account/delete
-            </Link>
-            .
-          </p>
+        <h2>Account use and explicit consent</h2>
+        <p>
+          With explicit health-data consent, Revora saves your email, encrypted
+          A1C, encrypted meal text, general result category, dates, history,
+          progress, and optional reminder registration
+          {insightsEnabled ? ", plus derived pattern summaries" : ""}. The purposes
+          are to provide saved checks, cross-device history, progress,
+          {insightsEnabled ? " personalized pattern summaries," : ""} reminders,
+          support, security, and subscription access. Revora does not use this
+          information for ads or sell it.
+        </p>
 
-          <h2>Voice input</h2>
-          <p>
-            If you use the microphone, your speech is transcribed by your
-            browser or device&apos;s own speech service — Revora only ever
-            receives the final text you review and submit. No audio reaches
-            Revora&apos;s servers.
-          </p>
+        <h2>Pantry Review</h2>
+        <p>
+          Pantry Review stores photos privately while the report is prepared.
+          OpenAI helps turn the photos into an item list that you review and
+          correct. Photos are deleted after extraction or delivery according to
+          the report workflow. Item names, notes, A1C range, and the finished
+          report are encrypted at rest until deletion.
+        </p>
 
-          <h2>Pantry Review photos</h2>
-          <p>
-            If you buy a Pantry Review, the photos you upload are held by
-            Revora&apos;s storage provider at a long, random, unlisted address.
-            They are never linked to, listed, or indexed anywhere — but the
-            address itself is the only thing protecting them, so Revora handles
-            it as a secret and the photo is deleted as soon as it has done its
-            job. That means the moment your report is delivered; within the
-            hour if your order is canceled, refunded, or sent for manual
-            review; when you delete your account; and, for anything else, no
-            later than seven days after upload, when a scheduled cleanup
-            deletes whatever is left.
-          </p>
-          <p>
-            A vision model (via OpenAI&apos;s API, with <code>store: false</code>
-            ) is used only to read the food items in your photos into a list —
-            you review and correct that list yourself before anything is
-            assessed. The item names, any notes you add, your A1C range, and
-            the finished report are stored encrypted, the same way as your
-            checks, and are deleted when you delete your account.
-          </p>
-          <p>
-            Meal photos you snap for a check are processed in memory to draft
-            your description and are never stored — not on our servers, not in
-            your history. Only the text you confirm is checked and (when
-            you&apos;re signed in) saved.
-          </p>
+        <h2>Pantry Review photos</h2>
+        <p>
+          If you buy a Pantry Review, the photos you upload are held by
+          Revora&apos;s storage provider at a long, random, unlisted address.
+          They are never linked to, listed, or indexed anywhere — but the
+          address itself is the only thing protecting them, so Revora handles
+          it as a secret. The photo is deleted when the report is delivered;
+          within the hour if the order is canceled, refunded, or sent for
+          manual review; when you delete the account; and otherwise no later
+          than seven days after upload.
+        </p>
+        <p>
+          A vision model through OpenAI&apos;s API, with <code>store: false</code>,
+          reads food items into a list that you review and correct. Item names,
+          notes, A1C range, and the finished report are encrypted at rest.
+        </p>
+        <p>
+          {photoEnabled
+            ? "Meal-check photos are processed in memory to draft text for your review and are never stored as history. Only confirmed text is checked and, for a consenting signed-in account, saved."
+            : "Meal photo-assist is disabled in this release."}
+        </p>
 
-          <h2>What Revora records about usage</h2>
-          <p>
-            Only coarse, non-identifying operational signals — for example
-            whether a check succeeded, the risk class returned, and a rough
-            latency bucket. Revora never records your food text, your A1C, the
-            prompt it builds, or the model&apos;s full answer in logs, error
-            reports, or analytics.
-          </p>
+        <h2>Service providers and recipients</h2>
+        <p>Revora uses these provider categories for the stated purposes:</p>
+        <ul>
+          <li>
+            OpenAI for meal-check responses and Pantry Review extraction
+            {photoEnabled ? ", plus meal photo-draft generation" : ""};
+          </li>
+          <li>Vercel for application hosting and delivery;</li>
+          <li>Railway-hosted Postgres for encrypted account data;</li>
+          <li>Resend for sign-in, reminder, and service email;</li>
+          <li>Google Play and Stripe for purchases and subscription status;</li>
+          <li>Sentry for scrubbed error reporting;</li>
+          <li>Umami for coarse, non-identifying product analytics;</li>
+          <li>browser and push-delivery services when you enable reminders.</li>
+        </ul>
+        <p>
+          These providers may process information in the United States or
+          other countries where they operate. Revora limits each provider to
+          the information needed for its role and does not send raw meal text,
+          exact A1C, or email to analytics or Sentry.
+        </p>
 
-          <h2>What Revora never does</h2>
-          <ul>
-            <li>sell or share your personal data,</li>
-            <li>show ads,</li>
-            <li>store your health data without your explicit consent,</li>
-            <li>
-              keep your data after you delete your account — your checks,
-              profile, Pantry Review orders, and any photos still held are
-              deleted; all that remains is an identity-free record that a
-              deletion happened.
-            </li>
-          </ul>
+        <h2>Security</h2>
+        <p>
+          Exact A1C, saved meal text, Pantry Review item details, notes, and
+          reports use AES-256-GCM encryption at rest. Account routes require an
+          authenticated session and scope reads to the account owner. Payment
+          card numbers stay with Google Play or Stripe. No security measure can
+          eliminate every risk.
+        </p>
 
-          <h2>An honest caveat</h2>
-          <p>
-            <code>store: false</code> asks OpenAI not to retain the request, but
-            OpenAI may still keep its own abuse-monitoring logs. That is
-            OpenAI&apos;s system, not Revora&apos;s, and outside Revora&apos;s
-            control. Revora does not claim zero retention by third parties.
-          </p>
+        <h2>What Revora never does</h2>
+        <ul>
+          <li>sell or share your personal data,</li>
+          <li>show ads,</li>
+          <li>store your health data without your explicit consent,</li>
+          <li>
+            keep health data after the applicable erasure or account-deletion
+            flow completes, except for the identity-free completion record and
+            transaction records that must remain with payment providers.
+          </li>
+        </ul>
 
-          <p className="result-disclaimer">{copy.disclaimer}</p>
-        </section>
+        <h2>Retention and deletion</h2>
+        <ul>
+          <li>Guest server input is dropped after the request completes.</li>
+          <li>Account health data remains until you erase it or delete the account.</li>
+          {photoEnabled ? <li>Meal-check photos are not retained as history.</li> : null}
+          <li>Pantry photos are removed by the report workflow after use.</li>
+          <li>
+            A non-identifying hash and timestamps may remain after deletion to
+            prove that a deletion completed.
+          </li>
+          <li>
+            Payment providers may retain transaction records under their own
+            legal and accounting obligations.
+          </li>
+        </ul>
 
-        <footer className="page-footer">
-          <Link href="/">Back to Revora</Link>
-        </footer>
+        <h2>Your choices and rights</h2>
+        <p>
+          From Account, you can turn reminders off, withdraw saved-health-data
+          consent and erase the saved A1C/history while keeping your login and
+          subscription, or delete the whole account. Account deletion is also
+          available at <Link href="/account/delete">/account/delete</Link>.
+        </p>
+        <p>
+          You may ask to access, correct, export, or delete personal information
+          and may appeal a denied request by replying with “Privacy appeal” to{" "}
+          <a href={`mailto:${supportEmail}`}>{supportEmail}</a>. Revora will
+          verify the request using the existing account or another reasonable
+          method. Rights vary by location; Revora will honor mandatory rights
+          that apply to you.
+        </p>
+
+        <h2>Health-data incidents</h2>
+        <p>
+          Revora investigates unauthorized access or disclosure and will notify
+          affected people and authorities when applicable law requires it. A
+          notice may arrive by email together with an in-app or website notice.
+        </p>
+
+        <h2>Children</h2>
+        <p>
+          Revora is for adults 18 and older and is not directed to children. If
+          you believe a child submitted information, contact {supportEmail}.
+        </p>
+
+        <h2>Changes and contact</h2>
+        <p>
+          Material changes will appear here with a new effective date and, when
+          appropriate, an account notice. Privacy questions and requests:
+          {" "}<a href={`mailto:${supportEmail}`}>{supportEmail}</a>.
+        </p>
+
+        <p className="result-disclaimer">{copy.disclaimer}</p>
+      </section>
+
+      <footer className="page-footer">
+        <Link href="/">Back to Revora</Link>
+        <Link href="/terms">Terms</Link>
+      </footer>
     </div>
   );
 }

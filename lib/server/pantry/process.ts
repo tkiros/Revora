@@ -246,7 +246,7 @@ async function finishNeedsManual(
   // so retaining them would only break the privacy promise (N-23).
   await deleteOrderBlobs(deps.db, orderId, deps.deleteBlobs);
   await deps.email.send({
-    to: process.env.SUPPORT_EMAIL ?? "support@revora.app",
+    to: process.env.SUPPORT_EMAIL ?? "support@revora.bio",
     subject: `Pantry order needs manual review: ${orderId}`,
     text: `Order ${orderId}: ${why}. Handle via /admin/pantry.`
   });
