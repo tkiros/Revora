@@ -19,6 +19,12 @@ type DigitalGoodsService = {
       price: { currency: string; value: string };
     }>
   >;
+  listPurchases(): Promise<
+    Array<{
+      itemId: string;
+      purchaseToken: string;
+    }>
+  >;
 };
 
 type DigitalGoodsHost = {
@@ -52,6 +58,23 @@ export async function listPlaySkus(
     title: item.title,
     priceLabel: `${item.price.value} ${item.price.currency}`
   }));
+}
+
+/**
+ * Existing entitlements on this Google account (N-08 restore-purchases).
+ * Play policy expects an explicit restore control — sign-in-only recovery
+ * strands a reinstalling or device-switching subscriber. Each token MUST
+ * still be verified server-side; the list alone never grants entitlement.
+ */
+export async function listPlayPurchases(
+  host: DigitalGoodsHost = globalThis as DigitalGoodsHost
+): Promise<Array<{ itemId: string; purchaseToken: string }>> {
+  if (!host.getDigitalGoodsService) {
+    return [];
+  }
+
+  const service = await host.getDigitalGoodsService(PLAY_BILLING_URL);
+  return service.listPurchases();
 }
 
 /**

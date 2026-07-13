@@ -476,8 +476,9 @@ async function main() {
     );
   }
 
+  // dry-run returned before any calls; reaching here means mock or live.
   const gateFailures = gates.filter((g) => !g.passed);
-  if (mode !== "dry-run" && gateFailures.length > 0) {
+  if (gateFailures.length > 0) {
     console.error(
       `BAKEOFF GATE FAILED: ${gateFailures
         .map((g) => `${g.modelId} (delivered=${g.deliveredResults}, providerFailures=${g.providerFailures})`)
