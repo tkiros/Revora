@@ -31,8 +31,17 @@ describe("CARB_FORWARD_TOKENS review surface", () => {
     "konjac rice with tofu",
     "shirataki noodles with vegetables",
     "lettuce wrap with chicken",
-    "sweet potato and salmon"
+    "sweet potato and salmon",
+    // G7: the plural escaped the singular exclusion under boundary matching
+    // and hit the "potatoes" token.
+    "roasted sweet potatoes and salmon"
   ])("honors a reviewed exclusion candidate: %s", (food) => {
     expect(isCarbForward(food)).toBe(false);
+  });
+
+  it("keeps flooring dishes where a token survives the exclusion strip", () => {
+    // "sweet potato fries": the exclusion removes "sweet potato" but "fries"
+    // is its own token — the floor must still see it.
+    expect(isCarbForward("sweet potato fries")).toBe(true);
   });
 });

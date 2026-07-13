@@ -79,4 +79,32 @@ describe("classifyInputBeforeModel", () => {
       });
     }
   );
+
+  // N-17 regression: the adversarial cases the finding is named after. Sugar
+  // that CONTAINS a protein word must not vouch for itself — "jelly beans"
+  // (whole-word "beans"), "eggnog" (substring "egg"), "protein bar" (whole-word
+  // "protein") previously suppressed the carbs-only floor via the buffer test.
+  describe("buffer suppression cannot be spoofed (N-17)", () => {
+    it.each(["jelly beans", "eggnog", "a milkshake and eggnog"])(
+      "floors %s as carbs-only high-risk despite the embedded protein word",
+      (food) => {
+        expect(classifyInputBeforeModel(food)).toEqual({
+          kind: "carbs_only",
+          flags: ["carbs_only", "high_risk"]
+        });
+      }
+    );
+
+    it("does not let a protein bar buffer an otherwise carbs-only meal", () => {
+      expect(classifyInputBeforeModel("a donut and a protein bar")).toEqual({
+        kind: "carbs_only",
+        flags: ["carbs_only", "high_risk"]
+      });
+    });
+
+    it("still honors a real protein buffer on the same base meal", () => {
+      const precheck = classifyInputBeforeModel("a donut with scrambled eggs");
+      expect(precheck.kind).toBe("ok");
+    });
+  });
 });

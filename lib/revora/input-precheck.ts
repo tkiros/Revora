@@ -262,7 +262,7 @@ function isCarbsOnlyMeal(food: string): boolean {
  * Version changes are review-significant. W-05 is not closed until an external
  * RDN/CDCES signs this exact version in the dietitian panel artifact.
  */
-export const CARB_FORWARD_POLICY_VERSION = "2026-07-12.1";
+export const CARB_FORWARD_POLICY_VERSION = "2026-07-12.2";
 
 export const CARB_FORWARD_TOKENS = [
   "sushi",
@@ -320,7 +320,10 @@ export const CARB_FORWARD_EXCLUSIONS = [
   "cauliflower crust",
   "lettuce wrap",
   "lettuce wraps",
-  "sweet potato"
+  // Both forms: boundary matching means the singular exclusion does not cover
+  // the plural, but "potatoes" is a token — "sweet potatoes" escaped (G7).
+  "sweet potato",
+  "sweet potatoes"
 ] as const;
 
 export function isCarbForward(food: string): boolean {
