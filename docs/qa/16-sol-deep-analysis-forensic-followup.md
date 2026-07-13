@@ -173,6 +173,27 @@ Verdicts are stated against **what ships (`origin/main` + live prod)**; branch d
 
 ---
 
-## 6. Method note
+## 6. Remediation addendum — 2026-07-12 (same day, later session)
+
+Everything in §4/§5 fixable without an OpenAI API key or external humans was fixed on this branch:
+
+| Item | Status | Commit |
+|---|---|---|
+| **G1** branch/main divergence | **CLOSED** — `origin/main` (PR #11) merged in; sole conflict (graded-eval artifact model id) resolved to the branch's `activeModelId()` fix. Post-merge invariants verified: empty-model guard, fail-closed photo/insights/Play flags, placeholder-free terms, SAFE-filtered insights, dietitian gate all intact. | `d504537` |
+| **G3** bakeoff vacuous pass | **CLOSED** — Gate 0 keyed on delivered results; `passed:false` + exit 1 over empty sets (proven with an invalid-key run: 8/8 provider failures → exit 1); live default now OpenAI-direct with prod-style model ids; artifact records the provider. | `668485c` |
+| **G5** undisclosed 5/day free tier | **CLOSED** — `FREE_DAILY_CHECKS` moved to client-safe `lib/free-tier.ts`; landing pricing tile + FAQ disclose it via interpolation; paywall hint's hand-typed "five" also wired; copy-pins reconciles both numbers. | `ed2a381`, `2c548ff` |
+| **G6** N-17 untested | **CLOSED** — jelly beans / eggnog / protein-bar suppression pinned through the public precheck, plus the real-buffer control. | `e21538a` |
+| **G7** sweet-potatoes escape | **CLOSED** — plural added to `CARB_FORWARD_EXCLUSIONS`; `CARB_FORWARD_POLICY_VERSION` bumped to `2026-07-12.2` (review-significant); "sweet potato fries" still floors. | `e21538a` |
+| **G8** gate unverifiable externally | **CLOSED** — `/api/health` exposes boolean-only `checkoutGate: open\|closed` (same predicate as `checkoutGate()`), pinned across unset/"true"/"1". | `8d2ee71` |
+| **G9** stale analysis numbers | **CLOSED** — all five F-23/F-29 corrections applied in place with dated correction notes. | `4b6f00e` |
+| **N-16/W-21** injection patterns | **CLOSED** — 4 exact phrases → structural patterns (override-verb+instruction-noun, exfiltration, persona hijack) with non-tautological paraphrase tests + negative controls. Forced-verdict coaxing deliberately excluded: the frozen corpus pins that food+coax still gets a verdict (`adversarial-coax-energy-drink`), with the floors absorbing the coercion. | `47ecdbf` |
+| **N-08** Play restore | **CLOSED (code)** — `listPlayPurchases()` + "Restore a previous purchase" in the Play flow, tokens re-verified server-side. Play itself stays hard-off. | `2c548ff` |
+| **G2** stale prod crons | **OPEN — ops/human** (Railway scheduler dashboards; nothing in-repo can restart them). |
+| **G4** passing live eval | **OPEN — needs funded OpenAI key** (quota). |
+| SEC-01/02, W-05 panel, counsel, branch protection, Stripe test-clock, vision-eval photos, DPA, alerting service | **OPEN — external/human by nature.** |
+
+Gates after remediation: typecheck clean · lint 0 errors (10 pre-existing warnings) · contract 9/9 · full vitest suite **1161 passed / 2 skipped, 0 failed (118 files + 1 skipped)** · `review:dietitian:validate` green (closure gate still correctly fail-closed on the missing real panel artifact).
+
+## 7. Method note
 
 Six evidence streams: (1) five parallel read-only source-verification agents (AI-safety, payments/legal, privacy/security, claims/copy, ops/CI/telemetry), each requiring file:line proof and branch-vs-main diffs; (2) direct git archaeology (`merge-base`, `ls-tree`, per-commit diffs); (3) all 10 graded-eval/bakeoff artifacts read raw; (4) live production probes (checkout, `/api/health`, `/terms`, landing, photo-draft, health-data routes); (5) the legal/waiver record on `origin/main`; (6) local gates run fresh on the working tree — `tsc --noEmit` clean, `vitest run` **1119 passed / 2 skipped (115 files passed, 1 skipped)**, matching the claimed state in `docs/qa/15`. Prior QA prose was treated as hypothesis only; where this report contradicts a prior doc (e.g. the handoff's "expect 503" probe, "4 crons ok"), the live evidence above governs.
