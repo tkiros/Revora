@@ -89,6 +89,11 @@ export function createHealthHandler(deps: HealthDeps = {}) {
       // validation only, no live ping — the limiter fails open on reachability,
       // so a ping failure isn't app-fatal and doesn't belong in a hot probe.
       upstash: rateLimitConfigState(),
+      // W-04 gate state, boolean-only (G8): checkout now 401s unauthenticated
+      // before the legal gate runs, so an external probe can no longer tell
+      // whether LEGAL_TERMS_FINAL is set. Same predicate as checkoutGate() in
+      // app/api/billing/handlers.ts. Exposes no config values.
+      checkoutGate: process.env.LEGAL_TERMS_FINAL === "1" ? "open" : "closed",
       // db/crons are visibility-only (P7): a db error or stale/never cron
       // never flips `ok` false — guests are still served without a DB, and a
       // missed cron tick isn't an outage. Never secrets, URLs, or counts.

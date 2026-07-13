@@ -57,6 +57,25 @@ describe("createHealthHandler — db + cron probes (P7)", () => {
     });
   });
 
+  // G8: checkout 401s unauthenticated before the legal gate runs, so this
+  // boolean is the only external way to see W-04's state. Same predicate as
+  // checkoutGate(): anything but exactly "1" reads closed.
+  it("reports the W-04 checkout gate state, closed unless LEGAL_TERMS_FINAL is exactly '1'", async () => {
+    const createHealthHandler = await importHandler();
+    const GET = createHealthHandler({ db: () => testDb.db, now: () => NOW });
+
+    vi.stubEnv("LEGAL_TERMS_FINAL", "");
+    expect((await (await GET()).json()).checkoutGate).toBe("closed");
+
+    vi.stubEnv("LEGAL_TERMS_FINAL", "true");
+    expect((await (await GET()).json()).checkoutGate).toBe("closed");
+
+    vi.stubEnv("LEGAL_TERMS_FINAL", "1");
+    expect((await (await GET()).json()).checkoutGate).toBe("open");
+
+    vi.unstubAllEnvs();
+  });
+
   it("reports crons:ok when all four heartbeats are fresh", async () => {
     await testDb.db.insert(schema.cronHeartbeat).values([
       { name: "nudge", lastRunAt: new Date(NOW.getTime() - 30 * 60 * 1000) }, // 30m ago
