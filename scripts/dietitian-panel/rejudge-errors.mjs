@@ -49,8 +49,11 @@ let patched = 0;
 for (const m of missing) {
   const f = fresh.results.find((r) => r.caseId === m.caseId && r.persona === m.persona);
   if (!f || f.error) { console.log(`still failing: ${m.caseId}/${m.persona}`); continue; }
+  // Patched rows may be judged by a different model than the file's header
+  // claims — stamp them individually so the mix stays auditable.
+  const stamped = { ...f, judgeModel: fresh.judgeModel };
   const idx = panel.results.findIndex((r) => r.caseId === m.caseId && r.persona === m.persona);
-  if (idx >= 0) panel.results[idx] = f; else panel.results.push(f);
+  if (idx >= 0) panel.results[idx] = stamped; else panel.results.push(stamped);
   patched += 1;
 }
 fs.rmSync(tmpIn); fs.rmSync(tmpOut);

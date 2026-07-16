@@ -15,7 +15,11 @@
 import fs from "node:fs";
 
 const [inFile, outFile, stratumFilter] = process.argv.slice(2);
-const JUDGE_MODEL = "anthropic/claude-opus-4.8";
+// Owner directive 2026-07-16 (cost, non-negotiable): judge on gpt-5.4-mini,
+// never opus-class models. CAVEAT the reports must carry: the graded model IS
+// gpt-5.4-mini, so this panel self-grades — the original different-lab judge
+// requirement (doc 17) is waived by the owner, not satisfied.
+const JUDGE_MODEL = process.env.PANEL_JUDGE_MODEL || "openai/gpt-5.4-mini";
 const key = process.env.OPENROUTER_API_KEY;
 if (!key || !inFile || !outFile) throw new Error("usage: OPENROUTER_API_KEY=... node dietitian-panel.mjs <in> <out> [stratum]");
 
