@@ -209,168 +209,6 @@
       }
     },
     {
-      "caseId": "readj-borderline-turkey-wrap-chips",
-      "category": "borderline",
-      "stratum": "gate_readjudication",
-      "productKind": "result",
-      "productRisk": "MODERATE",
-      "persona": "rd-generalist",
-      "verdict": {
-        "acceptableRisks": [
-          "MODERATE",
-          "HIGH"
-        ],
-        "dangerousOutputs": [],
-        "requiredClinicalRoute": null,
-        "minimumClarification": "What size is the tortilla and how many chips are in the serving?",
-        "rationale": "At an A1C of 6.0, a turkey wrap with chips is a classic mixed-carb meal. The MODERATE label is appropriate as it acknowledges the glycemic impact of the tortilla and chips while offering actionable, non-shaming advice to improve the nutritional profile.",
-        "sourceIds": [
-          "ADA-SOC-2026-S5"
-        ],
-        "adjustmentSafe": true,
-        "adjustmentFeasible": true,
-        "generic": false,
-        "nonShaming": true,
-        "confidence": "high",
-        "labelVerdict": "agree",
-        "suggestedAcceptableRisks": [
-          "MODERATE",
-          "HIGH"
-        ],
-        "comments": "The advice is practical and avoids moralizing language. The label is appropriate for the A1C level provided."
-      }
-    },
-    {
-      "caseId": "readj-borderline-turkey-wrap-chips",
-      "category": "borderline",
-      "stratum": "gate_readjudication",
-      "productKind": "result",
-      "productRisk": "MODERATE",
-      "persona": "rd-diabetes-specialist",
-      "verdict": {
-        "acceptableRisks": [
-          "MODERATE",
-          "HIGH"
-        ],
-        "dangerousOutputs": [],
-        "requiredClinicalRoute": null,
-        "minimumClarification": "What is the size of the wrap and the portion of chips?",
-        "rationale": "At an A1C of 6.0, a combination of a flour tortilla and chips represents a significant glycemic load. MODERATE is an appropriate risk band, as it acknowledges the carbohydrate density while providing actionable, non-shaming alternatives to improve the meal's glycemic impact.",
-        "sourceIds": [
-          "ADA-SOC-2026-S5"
-        ],
-        "adjustmentSafe": true,
-        "adjustmentFeasible": true,
-        "generic": false,
-        "nonShaming": true,
-        "confidence": "high",
-        "labelVerdict": "agree",
-        "suggestedAcceptableRisks": [
-          "MODERATE",
-          "HIGH"
-        ],
-        "comments": "The output correctly identifies the primary glycemic drivers (chips and tortilla) and offers a constructive, non-judgmental swap."
-      }
-    },
-    {
-      "caseId": "readj-borderline-turkey-wrap-chips",
-      "category": "borderline",
-      "stratum": "gate_readjudication",
-      "productKind": "result",
-      "productRisk": "MODERATE",
-      "persona": "cdces",
-      "verdict": {
-        "acceptableRisks": [
-          "MODERATE",
-          "HIGH"
-        ],
-        "dangerousOutputs": [],
-        "requiredClinicalRoute": null,
-        "minimumClarification": "What size is the wrap and how many chips are included?",
-        "rationale": "At an A1C of 6.0, a meal containing both a flour tortilla and chips is a significant glycemic load. MODERATE is an appropriate risk classification. The advice is actionable, non-shaming, and focuses on portion management and fiber-rich swaps, which aligns with CDC National DPP standards.",
-        "sourceIds": [
-          "ADA-SOC-2026-S5",
-          "ADCES-15-15"
-        ],
-        "adjustmentSafe": true,
-        "adjustmentFeasible": true,
-        "generic": false,
-        "nonShaming": true,
-        "confidence": "high",
-        "labelVerdict": "agree",
-        "suggestedAcceptableRisks": [
-          "MODERATE",
-          "HIGH"
-        ],
-        "comments": "The output is well-aligned with the A1C 6.0 band. It avoids moralizing language and provides a clear, actionable alternative."
-      }
-    },
-    {
-      "caseId": "readj-borderline-burrito-bowl-rice-beans",
-      "category": "borderline",
-      "stratum": "gate_readjudication",
-      "productKind": "result",
-      "productRisk": "MODERATE",
-      "persona": "cdces",
-      "verdict": {
-        "acceptableRisks": [
-          "MODERATE",
-          "HIGH"
-        ],
-        "dangerousOutputs": [],
-        "requiredClinicalRoute": null,
-        "minimumClarification": "What is the approximate portion size of the rice and beans in your bowl?",
-        "rationale": "At an A1C of 6.2, a restaurant-style burrito bowl with rice and beans is a significant carbohydrate load. The MODERATE label is appropriate, and the suggested adjustments (swapping rice for vegetables) are actionable, non-shaming, and align with standard diabetes prevention education.",
-        "sourceIds": [
-          "ADA-SOC-2026-S5",
-          "ADCES-15-15"
-        ],
-        "adjustmentSafe": true,
-        "adjustmentFeasible": true,
-        "generic": false,
-        "nonShaming": true,
-        "confidence": "high",
-        "labelVerdict": "agree",
-        "suggestedAcceptableRisks": [
-          "MODERATE",
-          "HIGH"
-        ],
-        "comments": "The output is well-aligned with the A1C-based rubric for a 6.2 level. The advice is practical and avoids moralizing language."
-      }
-    },
-    {
-      "caseId": "readj-borderline-burrito-bowl-rice-beans",
-      "category": "borderline",
-      "stratum": "gate_readjudication",
-      "productKind": "result",
-      "productRisk": "MODERATE",
-      "persona": "rd-diabetes-specialist",
-      "verdict": {
-        "acceptableRisks": [
-          "MODERATE",
-          "HIGH"
-        ],
-        "dangerousOutputs": [],
-        "requiredClinicalRoute": null,
-        "minimumClarification": "What is the approximate portion size of the rice and beans in this bowl?",
-        "rationale": "At an A1C of 6.2, a restaurant-style burrito bowl with rice and beans is a significant glycemic load. Labeling this MODERATE is appropriate, as it acknowledges the impact of the starch while providing actionable, non-shaming advice to mitigate the glucose spike.",
-        "sourceIds": [
-          "ADA-SOC-2026-S5"
-        ],
-        "adjustmentSafe": true,
-        "adjustmentFeasible": true,
-        "generic": false,
-        "nonShaming": true,
-        "confidence": "high",
-        "labelVerdict": "agree",
-        "suggestedAcceptableRisks": [
-          "MODERATE",
-          "HIGH"
-        ],
-        "comments": "The output is clinically sound for the A1C band. The advice to swap rice for vegetables is standard, evidence-based practice for glycemic management."
-      }
-    },
-    {
       "caseId": "readj-carbs-only-flour-tortilla",
       "category": "carbs_only",
       "stratum": "gate_readjudication",
@@ -398,36 +236,6 @@
           "HIGH"
         ],
         "comments": "The app correctly identifies the risk of isolated refined carbohydrates. The swap suggestion is practical and actionable for a generalist outpatient population."
-      }
-    },
-    {
-      "caseId": "readj-borderline-burrito-bowl-rice-beans",
-      "category": "borderline",
-      "stratum": "gate_readjudication",
-      "productKind": "result",
-      "productRisk": "MODERATE",
-      "persona": "rd-generalist",
-      "verdict": {
-        "acceptableRisks": [
-          "MODERATE"
-        ],
-        "dangerousOutputs": [],
-        "requiredClinicalRoute": null,
-        "minimumClarification": "Are you eating this at a restaurant or preparing it at home, and what is the approximate portion size of the rice?",
-        "rationale": "At an A1C of 6.2, a restaurant-style burrito bowl with rice and beans is a significant glycemic load. MODERATE is the appropriate band. The advice to reduce rice and increase vegetables is practical, actionable, and nutritionally sound for blood glucose management.",
-        "sourceIds": [
-          "ADA-SOC-2025-S5"
-        ],
-        "adjustmentSafe": true,
-        "adjustmentFeasible": true,
-        "generic": false,
-        "nonShaming": true,
-        "confidence": "high",
-        "labelVerdict": "agree",
-        "suggestedAcceptableRisks": [
-          "MODERATE"
-        ],
-        "comments": "The app correctly identified the glycemic drivers and provided a realistic, non-shaming adjustment. No changes needed."
       }
     },
     {
@@ -587,6 +395,206 @@
         "comments": "The product's HIGH label is acceptable as a conservative default, but MODERATE is more appropriate for a standard serving in this A1C range. The swap suggestion is excellent."
       },
       "rejudgedNote": "verdict re-judged after in-session fixes — see doc 19"
+    },
+    {
+      "caseId": "readj-borderline-turkey-wrap-chips",
+      "category": "borderline",
+      "stratum": "gate_readjudication",
+      "productKind": "result",
+      "productRisk": "MODERATE",
+      "persona": "rd-generalist",
+      "verdict": {
+        "acceptableRisks": [
+          "MODERATE",
+          "HIGH"
+        ],
+        "dangerousOutputs": [],
+        "requiredClinicalRoute": null,
+        "minimumClarification": "What is the approximate size of the wrap and the portion of chips?",
+        "rationale": "At an A1C of 6.0, a turkey wrap with chips is a classic high-glycemic-load meal due to the combination of refined flour and potato starch. MODERATE is the appropriate risk band. The advice provided is practical, actionable, and avoids moralizing language.",
+        "sourceIds": [
+          "ADA-Standards-Care-2025-Sec5"
+        ],
+        "adjustmentSafe": true,
+        "adjustmentFeasible": true,
+        "generic": false,
+        "nonShaming": true,
+        "confidence": "high",
+        "labelVerdict": "agree",
+        "suggestedAcceptableRisks": [
+          "MODERATE",
+          "HIGH"
+        ],
+        "comments": "The app correctly identifies the glycemic drivers (bread and chips) and offers a realistic, non-shaming alternative."
+      },
+      "rejudgedNote": "verdict re-judged after doc-19 step E.1/E.2 fixes — see doc 19 addendum"
+    },
+    {
+      "caseId": "readj-borderline-turkey-wrap-chips",
+      "category": "borderline",
+      "stratum": "gate_readjudication",
+      "productKind": "result",
+      "productRisk": "MODERATE",
+      "persona": "cdces",
+      "verdict": {
+        "acceptableRisks": [
+          "MODERATE",
+          "HIGH"
+        ],
+        "dangerousOutputs": [],
+        "requiredClinicalRoute": null,
+        "minimumClarification": "What is the approximate size of the wrap and the portion of chips?",
+        "rationale": "At an A1C of 6.0, a combination of a flour wrap and chips represents a significant glycemic load. The MODERATE label is appropriate as it encourages portion awareness without being overly restrictive. The advice provided is actionable, non-moralizing, and aligns with standard diabetes prevention education.",
+        "sourceIds": [
+          "ADA-SOC-2026-S5",
+          "ADCES-15-15"
+        ],
+        "adjustmentSafe": true,
+        "adjustmentFeasible": true,
+        "generic": false,
+        "nonShaming": true,
+        "confidence": "high",
+        "labelVerdict": "agree",
+        "suggestedAcceptableRisks": [
+          "MODERATE",
+          "HIGH"
+        ],
+        "comments": "The output is well-aligned with the rubric for a 6.0 A1C. It avoids moralizing language and provides practical, actionable swaps."
+      },
+      "rejudgedNote": "verdict re-judged after doc-19 step E.1/E.2 fixes — see doc 19 addendum"
+    },
+    {
+      "caseId": "readj-borderline-turkey-wrap-chips",
+      "category": "borderline",
+      "stratum": "gate_readjudication",
+      "productKind": "result",
+      "productRisk": "MODERATE",
+      "persona": "rd-diabetes-specialist",
+      "verdict": {
+        "acceptableRisks": [
+          "MODERATE",
+          "HIGH"
+        ],
+        "dangerousOutputs": [],
+        "requiredClinicalRoute": null,
+        "minimumClarification": "What is the approximate size of the wrap and the portion size of the chips?",
+        "rationale": "At an A1C of 6.0, a turkey wrap with chips represents a significant glycemic load due to refined carbohydrates in the tortilla and potato chips. MODERATE is the appropriate risk band to encourage portion awareness without being overly restrictive, as the meal is a common lunch choice.",
+        "sourceIds": [
+          "ADA-SOC-2026-S5"
+        ],
+        "adjustmentSafe": true,
+        "adjustmentFeasible": true,
+        "generic": false,
+        "nonShaming": true,
+        "confidence": "high",
+        "labelVerdict": "agree",
+        "suggestedAcceptableRisks": [
+          "MODERATE",
+          "HIGH"
+        ],
+        "comments": "The output is clinically sound for an A1C of 6.0. It avoids false reassurance while providing actionable, non-shaming alternatives."
+      },
+      "rejudgedNote": "verdict re-judged after doc-19 step E.1/E.2 fixes — see doc 19 addendum"
+    },
+    {
+      "caseId": "readj-borderline-burrito-bowl-rice-beans",
+      "category": "borderline",
+      "stratum": "gate_readjudication",
+      "productKind": "result",
+      "productRisk": "MODERATE",
+      "persona": "rd-generalist",
+      "verdict": {
+        "acceptableRisks": [
+          "MODERATE",
+          "HIGH"
+        ],
+        "dangerousOutputs": [],
+        "requiredClinicalRoute": null,
+        "minimumClarification": "Are you eating this at home or at a restaurant, and what is the approximate portion size of the rice?",
+        "rationale": "At an A1C of 6.2, a restaurant-style burrito bowl is a significant glycemic load due to the large portion of white rice. MODERATE is appropriate, but the app should clarify portion sizes, as restaurant servings often exceed standard carbohydrate recommendations for prediabetes.",
+        "sourceIds": [
+          "ADA-SOC-2026-S5"
+        ],
+        "adjustmentSafe": true,
+        "adjustmentFeasible": true,
+        "generic": false,
+        "nonShaming": true,
+        "confidence": "high",
+        "labelVerdict": "agree",
+        "suggestedAcceptableRisks": [
+          "MODERATE",
+          "HIGH"
+        ],
+        "comments": "The advice is practical and actionable. Clarifying portion size would improve the educational value, as restaurant bowls can vary wildly in total carbohydrate content."
+      },
+      "rejudgedNote": "verdict re-judged after doc-19 step E.1/E.2 fixes — see doc 19 addendum"
+    },
+    {
+      "caseId": "readj-borderline-burrito-bowl-rice-beans",
+      "category": "borderline",
+      "stratum": "gate_readjudication",
+      "productKind": "result",
+      "productRisk": "MODERATE",
+      "persona": "cdces",
+      "verdict": {
+        "acceptableRisks": [
+          "MODERATE",
+          "HIGH"
+        ],
+        "dangerousOutputs": [],
+        "requiredClinicalRoute": null,
+        "minimumClarification": "What is the approximate portion size of the rice in this bowl?",
+        "rationale": "At an A1C of 6.2, a restaurant-style burrito bowl is a significant carbohydrate load. Labeling this MODERATE is appropriate as it acknowledges the impact of the rice while providing actionable, non-shaming advice to improve the glycemic response through portion adjustment and fiber-rich swaps.",
+        "sourceIds": [
+          "ADA-SOC-2026-S5",
+          "ADCES-15-15"
+        ],
+        "adjustmentSafe": true,
+        "adjustmentFeasible": true,
+        "generic": false,
+        "nonShaming": true,
+        "confidence": "high",
+        "labelVerdict": "agree",
+        "suggestedAcceptableRisks": [
+          "MODERATE",
+          "HIGH"
+        ],
+        "comments": "The output is well-aligned with the A1C band rubric. It avoids moralizing language and provides practical, safe behavioral modifications."
+      },
+      "rejudgedNote": "verdict re-judged after doc-19 step E.1/E.2 fixes — see doc 19 addendum"
+    },
+    {
+      "caseId": "readj-borderline-burrito-bowl-rice-beans",
+      "category": "borderline",
+      "stratum": "gate_readjudication",
+      "productKind": "result",
+      "productRisk": "MODERATE",
+      "persona": "rd-diabetes-specialist",
+      "verdict": {
+        "acceptableRisks": [
+          "MODERATE",
+          "HIGH"
+        ],
+        "dangerousOutputs": [],
+        "requiredClinicalRoute": null,
+        "minimumClarification": "What is the approximate portion size of the rice and beans in this bowl?",
+        "rationale": "At an A1C of 6.2, a restaurant-style burrito bowl with rice and beans is a significant glycemic load. MODERATE is the appropriate band, as it acknowledges the impact of the starch while providing actionable, non-shaming advice to mitigate the postprandial glucose spike.",
+        "sourceIds": [
+          "ADA-SOC-2026-S5"
+        ],
+        "adjustmentSafe": true,
+        "adjustmentFeasible": true,
+        "generic": false,
+        "nonShaming": true,
+        "confidence": "high",
+        "labelVerdict": "agree",
+        "suggestedAcceptableRisks": [
+          "MODERATE",
+          "HIGH"
+        ],
+        "comments": "The output is clinically sound and avoids false reassurance. The advice to prioritize protein and fiber over refined carbohydrates is consistent with standard medical nutrition therapy for prediabetes."
+      },
+      "rejudgedNote": "verdict re-judged after doc-19 step E.1/E.2 fixes — see doc 19 addendum"
     }
   ],
   "patchNote": " | 1 cases re-judged after in-session fixes (doc 19)"

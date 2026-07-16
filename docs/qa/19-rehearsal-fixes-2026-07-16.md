@@ -158,3 +158,68 @@ credential; 240 still means 200 until the photo stratum has real photos; the
 ontology v2026-07-16.1, the portion convention, the new floor copy, the ED
 copy, and the high-range routing all await RD/CDCES sign-off.
 **W-05 remains open.**
+
+---
+
+## Addendum (2026-07-16, later session) — step E.1/E.2 band-calibration fixes (SIMULATED — NON-CREDENTIALED)
+
+Follow-up session working the handoff's step E worklist. Two changes, both
+verified by the standing loop.
+
+### E.1(a) — restaurant-scale starch anchor (prompt, v2026-07-16.2)
+
+All 8 unanimous rejected-band cases in the re-run panel were multi-starch
+plates or oversized single-starch portions held at MODERATE (KFC plate,
+Taco Bell order, chicken parm + spaghetti, half frozen pizza, three frozen
+burritos, grilled cheese + canned soup, Subway footlong, Panera bread bowl).
+Added a starch-count anchor: two or more distinct **refined-grain/potato**
+starches, or one at oversized portion, is HIGH at 6.3+, at least MODERATE
+below. Refined-only on purpose — counting beans/lentils/intact whole grains
+would over-flag the cultural staples doc 18 protected. Guard set verified:
+dal+rotis, gallo pinto, feijoada, turkey wrap + chips, burrito bowl all
+stayed MODERATE and panel-accepted (39/39 verdicts, 0 errors).
+
+Patch-pass per the doc-19 pattern: 13 rows re-captured (stamped
+`recapturedNote`), 39 verdicts re-judged (stamped `rejudgedNote`),
+re-adjudicated in place.
+
+| Metric | Before | After |
+|---|---|---|
+| Majority-rejected bands | 17/202 (8.4%) | **9/202 (4.5%)** |
+| Band agreement | 86.0% | **86.3%** |
+| Dangerous false reassurance | 1 (minority) | 1 (minority, unchanged) |
+| Live gate riskAccuracy | 87.9% | **97.0%** |
+
+The remaining 9 are all in explicitly parked buckets: 4 hang on the portion
+convention RD questions (tiny-bite, one-serving ice cream, oatmeal-water,
+rice cakes), 3 are safe-direction over-caution (salmon-quinoa, stuffed
+peppers, apple + PB), 2 are judgment calls reserved for the human panel
+(wine units, biryani). None is a dangerous-direction miss.
+
+### E.2 — retry-card root cause: `looksLikeSwap` rejecting legitimate swaps
+
+Reproduced live with an instrumented one-off harness (24 raw model calls
+through the product postprocess). Every retry card in every live gate run
+was the same assertion — `looksLikeSwap` — rejecting **legitimate** swaps
+phrased outside its keyword list. Two shapes caught in the act:
+
+1. `"pick a sugar-free or zero-sugar version instead"` — bare "instead",
+   verb "pick" (adversarial-coax-energy-drink).
+2. `"keep to one serving and add plain Greek yogurt"` — the portion-
+   reduction shape the prompt itself mandates for label-math quantities
+   (label-math-two-servings-granola, twice in 6 calls). The prompt and the
+   contract disagreed; the contract was the wrong side.
+
+Widened the phrase list to substitution/lower-glycemic-variant/reduced-
+portion wordings (regression tests added, including the exact caught
+strings; a non-swap still matches nothing). Final live gate:
+**0 retry cards** (first zero in the series), passed, 0 harmful-SAFE,
+riskAccuracy 97.0% (33/33 calls, artifact
+`graded-eval-live-2026-07-16T10-02-57-508Z.json`).
+
+### Unchanged
+
+No corpus labels, no governed copy, no ontology lists, no floors touched.
+Both eval modes green on the final code (mock 9/9; full suite 1268 passed;
+contract validator green). **W-05 remains open** — nothing here is clinical
+sign-off.

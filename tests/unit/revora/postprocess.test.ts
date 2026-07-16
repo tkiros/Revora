@@ -120,6 +120,47 @@ describe("postprocessModelOutput", () => {
     }
   );
 
+  // Doc 19 step E.2: every live-gate retry card was the swap check rejecting a
+  // legitimately-phrased substitution. The first row is the exact swap caught
+  // tripping the contract in reproduction.
+  it.each([
+    "If you want an energy boost, pick a sugar-free or zero-sugar version instead.",
+    "Have a small bowl of berries rather than the pastry.",
+    "Try replacing the white rice with roasted vegetables.",
+    "Opt for a lower-carb tortilla in place of the flour one.",
+    "If you want granola, keep to one serving and add plain Greek yogurt or nuts for protein.",
+    "If you want granola, keep it to one serving and add Greek yogurt or nuts for more protein.",
+    "Stick with a single slice and pair it with protein."
+  ])("accepts substitution swaps phrased without the original keywords: %s", (swap) => {
+    expect(() =>
+      assertModerateHighFields(
+        {
+          risk: "HIGH",
+          reason:
+            "This may have a higher blood-sugar impact because it leans heavily on refined carbs.",
+          adjustment: null,
+          swap
+        },
+        new Set()
+      )
+    ).not.toThrow();
+  });
+
+  it("still rejects a swap field that names no substitution", () => {
+    expect(() =>
+      assertModerateHighFields(
+        {
+          risk: "HIGH",
+          reason:
+            "This may have a higher blood-sugar impact because it leans heavily on refined carbs.",
+          adjustment: null,
+          swap: "You can keep enjoying this as long as you feel fine."
+        },
+        new Set()
+      )
+    ).toThrow(RevoraContractError);
+  });
+
   it("floors invalid carbs-only adjustments back to deterministic add-protein copy", () => {
     const response = postprocessModelOutput(
       makeModelOutput({

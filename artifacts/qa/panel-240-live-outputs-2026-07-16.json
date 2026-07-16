@@ -642,14 +642,14 @@
       "notes": "White bread + sweetened canned soup; classic hidden-sugar pairing.",
       "response": {
         "kind": "result",
-        "risk": "MODERATE",
-        "reason": "The bread and canned tomato soup carry most of the blood-sugar load, while the cheese adds some protein and fat.",
-        "adjustment": "Use thinner bread or eat half the sandwich and keep the canned tomato soup portion modest.",
-        "swap": "If you want a lower-impact version, pair the cheese with vegetable soup or a side salad instead of the canned tomato soup.",
+        "risk": "HIGH",
+        "reason": "This is likely a higher-impact choice for this range in its current form.",
+        "adjustment": null,
+        "swap": "If you have the option, swap to a less refined version.",
         "disclaimer": "Revora is informational only and is not medical advice. Talk with a doctor or registered dietitian for guidance that is specific to you."
       },
       "error": null,
-      "recapturedNote": "row re-captured after in-session fixes (sugar-aware HIGH floor copy; cauliflower-crust-pizza exclusion flip) — see doc 19"
+      "recapturedNote": "row re-captured after doc-19 step E.1/E.2 fixes (restaurant-scale starch anchor; widened swap contract) — see doc 19 addendum"
     },
     {
       "id": "a-dinner-sheet-pan-tofu",
@@ -736,13 +736,14 @@
       "notes": "Breaded protein plus pasta side.",
       "response": {
         "kind": "result",
-        "risk": "MODERATE",
-        "reason": "The spaghetti carries most of the blood-sugar impact, while the chicken parmesan adds protein and fat that help buffer the meal.",
-        "adjustment": "Keep the chicken parmesan and cut back the spaghetti portion on the side.",
-        "swap": "If you can, swap the spaghetti for extra vegetables or a side salad.",
+        "risk": "HIGH",
+        "reason": "This is likely a higher-impact choice for this range in its current form.",
+        "adjustment": null,
+        "swap": "If you have the option, swap to a less refined version.",
         "disclaimer": "Revora is informational only and is not medical advice. Talk with a doctor or registered dietitian for guidance that is specific to you."
       },
-      "error": null
+      "error": null,
+      "recapturedNote": "row re-captured after doc-19 step E.1/E.2 fixes (restaurant-scale starch anchor; widened swap contract) — see doc 19 addendum"
     },
     {
       "id": "a-dinner-eggplant-lasagna",
@@ -1196,14 +1197,14 @@
       "notes": "Large refined-bread portion plus chips.",
       "response": {
         "kind": "result",
-        "risk": "MODERATE",
-        "reason": "The italian bread and chips carry most of the blood-sugar load, while the turkey helps balance the sandwich a bit.",
-        "adjustment": "Choose a smaller portion of the italian bread or skip part of the chips.",
-        "swap": "If you can, swap the chips for a side salad or extra vegetables.",
+        "risk": "HIGH",
+        "reason": "This is likely a higher-impact choice for this range in its current form.",
+        "adjustment": null,
+        "swap": "If you have the option, swap to a less refined version.",
         "disclaimer": "Revora is informational only and is not medical advice. Talk with a doctor or registered dietitian for guidance that is specific to you."
       },
       "error": null,
-      "recapturedNote": "row re-captured after in-session fixes (sugar-aware HIGH floor copy; cauliflower-crust-pizza exclusion flip) — see doc 19"
+      "recapturedNote": "row re-captured after doc-19 step E.1/E.2 fixes (restaurant-scale starch anchor; widened swap contract) — see doc 19 addendum"
     },
     {
       "id": "a-rest-pad-thai",
@@ -1291,13 +1292,14 @@
       "notes": "Fried coating + two starch sides; protein present.",
       "response": {
         "kind": "result",
-        "risk": "MODERATE",
-        "reason": "The mashed potatoes and biscuit do most of the blood-sugar work here, while the fried chicken helps balance the plate.",
-        "adjustment": "Keep the fried chicken and have a smaller scoop of mashed potatoes with the biscuit only if you really want it.",
-        "swap": "If possible, swap the biscuit for nonstarchy vegetables or a side salad.",
+        "risk": "HIGH",
+        "reason": "This is likely a higher-impact choice for this range in its current form.",
+        "adjustment": null,
+        "swap": "If you have the option, swap to a less refined version.",
         "disclaimer": "Revora is informational only and is not medical advice. Talk with a doctor or registered dietitian for guidance that is specific to you."
       },
-      "error": null
+      "error": null,
+      "recapturedNote": "row re-captured after doc-19 step E.1/E.2 fixes (restaurant-scale starch anchor; widened swap contract) — see doc 19 addendum"
     },
     {
       "id": "a-rest-pizza-two-slices",
@@ -1337,14 +1339,14 @@
       "notes": "The bowl is bread; 'broccoli' in the name reads healthier than it is.",
       "response": {
         "kind": "result",
-        "risk": "MODERATE",
-        "reason": "The bread bowl carries most of the blood-sugar impact, while the broccoli cheddar soup adds some balance from the vegetables and protein.",
-        "adjustment": "Eat more of the broccoli cheddar soup and less of the bread bowl.",
-        "swap": "If you can, choose the soup in a regular bowl or with a side salad instead of the bread bowl.",
+        "risk": "HIGH",
+        "reason": "This is likely a higher-impact choice for this range in its current form.",
+        "adjustment": null,
+        "swap": "If you have the option, swap to a less refined version.",
         "disclaimer": "Revora is informational only and is not medical advice. Talk with a doctor or registered dietitian for guidance that is specific to you."
       },
       "error": null,
-      "recapturedNote": "row re-captured after in-session fixes (sugar-aware HIGH floor copy; cauliflower-crust-pizza exclusion flip) — see doc 19"
+      "recapturedNote": "row re-captured after doc-19 step E.1/E.2 fixes (restaurant-scale starch anchor; widened swap contract) — see doc 19 addendum"
     },
     {
       "id": "a-rest-wendys-salad",
@@ -1407,13 +1409,14 @@
       "notes": "Typical combined fast-food order.",
       "response": {
         "kind": "result",
-        "risk": "MODERATE",
-        "reason": "The crunchy shells and burrito tortilla are the main blood-sugar drivers here, even though the bean filling adds some protein and fiber.",
-        "adjustment": "Go lighter on the taco shells or eat one taco open-faced so the bean filling leads the meal.",
-        "swap": "If you can, swap the bean burrito tortilla for a bowl or salad base and keep the beans and toppings.",
+        "risk": "HIGH",
+        "reason": "The taco shells and bean burrito make this a carb-heavy meal, and the doubled refined-starch side of the plate is the main blood-sugar load.",
+        "adjustment": null,
+        "swap": "If you want to keep it, drop one taco shell item and choose a burrito bowl or lettuce-wrap style version instead.",
         "disclaimer": "Revora is informational only and is not medical advice. Talk with a doctor or registered dietitian for guidance that is specific to you."
       },
-      "error": null
+      "error": null,
+      "recapturedNote": "row re-captured after doc-19 step E.1/E.2 fixes (restaurant-scale starch anchor; widened swap contract) — see doc 19 addendum"
     },
     {
       "id": "a-rest-wingstop",
@@ -1544,13 +1547,14 @@
       "notes": "Large refined portion, budget staple.",
       "response": {
         "kind": "result",
-        "risk": "MODERATE",
-        "reason": "The crust is the main blood-sugar driver here, and half a frozen pizza is a portion that can still be a noticeable carb load.",
-        "adjustment": "Keep the half-pizza portion but add a side salad or nonstarchy vegetables to slow the meal down.",
-        "swap": "If you can, choose a thinner-crust or lower-carb frozen pizza with more cheese and vegetables.",
+        "risk": "HIGH",
+        "reason": "This is a high-impact pick because half a frozen pizza puts a lot of crust in one sitting, even with the cheese and sauce alongside.",
+        "adjustment": null,
+        "swap": "Choose a thinner-crust pizza or one with a cauliflower crust if you want a lower-impact option.",
         "disclaimer": "Revora is informational only and is not medical advice. Talk with a doctor or registered dietitian for guidance that is specific to you."
       },
-      "error": null
+      "error": null,
+      "recapturedNote": "row re-captured after doc-19 step E.1/E.2 fixes (restaurant-scale starch anchor; widened swap contract) — see doc 19 addendum"
     },
     {
       "id": "a-budget-hotdogs-bread",
@@ -1660,13 +1664,14 @@
       "notes": "Quantity of refined tortilla; beans partially buffer.",
       "response": {
         "kind": "result",
-        "risk": "MODERATE",
-        "reason": "The bean burritos bring the main carb load, so this is a moderate pick rather than a clearly low-impact one.",
-        "adjustment": "Have one burrito with a side of vegetables or salad instead of all three at once.",
-        "swap": "If you want all three, choose burritos with a lower-carb tortilla or more filling and less tortilla.",
+        "risk": "HIGH",
+        "reason": "This is likely a higher-impact choice for this range in its current form.",
+        "adjustment": null,
+        "swap": "If you have the option, swap to a less refined version.",
         "disclaimer": "Revora is informational only and is not medical advice. Talk with a doctor or registered dietitian for guidance that is specific to you."
       },
-      "error": null
+      "error": null,
+      "recapturedNote": "row re-captured after doc-19 step E.1/E.2 fixes (restaurant-scale starch anchor; widened swap contract) — see doc 19 addendum"
     },
     {
       "id": "a-probe-zoodles-meatballs",
@@ -3649,12 +3654,13 @@
       "response": {
         "kind": "result",
         "risk": "MODERATE",
-        "reason": "The rotis are the main blood-sugar driver here, while the dal adds protein and fiber that help balance the plate.",
-        "adjustment": "Keep the dal generous and cut back to one roti or a smaller roti portion.",
-        "swap": "If you want a steadier version, swap one roti for extra dal or nonstarchy vegetables.",
+        "reason": "This looks like a reasonable mixed meal, but the two rotis carry most of the blood-sugar impact here.",
+        "adjustment": "Keep the dal generous and consider making one of the rotis smaller or thinner.",
+        "swap": "If you want to lower the impact further, swap one roti for extra dal or nonstarchy vegetables.",
         "disclaimer": "Revora is informational only and is not medical advice. Talk with a doctor or registered dietitian for guidance that is specific to you."
       },
-      "error": null
+      "error": null,
+      "recapturedNote": "row re-captured after doc-19 step E.1/E.2 fixes (restaurant-scale starch anchor; widened swap contract) — see doc 19 addendum"
     },
     {
       "id": "d-banh-mi",
@@ -3718,12 +3724,13 @@
       "response": {
         "kind": "result",
         "risk": "MODERATE",
-        "reason": "The rice carries most of the blood-sugar impact here, while the beans and meat make the plate more balanced.",
-        "adjustment": "Keep the rice portion smaller and lean on the feijoada beans and pork for the meal.",
-        "swap": "If you can, replace some of the rice with extra beans or nonstarchy vegetables.",
+        "reason": "This looks like a mixed meal, but the rice carries most of the blood-sugar impact while the feijoada adds protein and fiber.",
+        "adjustment": "Keep the feijoada generous and trim the rice portion a bit.",
+        "swap": "If you can, swap some of the rice for extra beans or nonstarchy vegetables and keep the orange slices small.",
         "disclaimer": "Revora is informational only and is not medical advice. Talk with a doctor or registered dietitian for guidance that is specific to you."
       },
-      "error": null
+      "error": null,
+      "recapturedNote": "row re-captured after doc-19 step E.1/E.2 fixes (restaurant-scale starch anchor; widened swap contract) — see doc 19 addendum"
     },
     {
       "id": "d-kebab-tabbouleh",
@@ -4065,12 +4072,13 @@
       "response": {
         "kind": "result",
         "risk": "MODERATE",
-        "reason": "The rice carries most of the blood-sugar load, while the beans and eggs help balance the plate.",
-        "adjustment": "Keep the rice portion smaller and let the eggs and beans make up more of the plate.",
-        "swap": "If you can, make it more bean-heavy or use a lower-rice version of gallo pinto.",
+        "reason": "The rice and beans carry most of the blood-sugar load, while the eggs add protein and make this more balanced.",
+        "adjustment": "Keep the rice portion smaller and lean more on the eggs and beans.",
+        "swap": "If you can, make it with extra beans and less rice, or add vegetables on the side.",
         "disclaimer": "Revora is informational only and is not medical advice. Talk with a doctor or registered dietitian for guidance that is specific to you."
       },
-      "error": null
+      "error": null,
+      "recapturedNote": "row re-captured after doc-19 step E.1/E.2 fixes (restaurant-scale starch anchor; widened swap contract) — see doc 19 addendum"
     },
     {
       "id": "d-mochi",
@@ -4604,12 +4612,13 @@
       "response": {
         "kind": "result",
         "risk": "MODERATE",
-        "reason": "The chips carry most of the blood-sugar load, while the turkey wrap adds protein but may still include a carb-heavy tortilla.",
-        "adjustment": "Keep the turkey wrap, but cut back on the chips or choose a smaller side portion.",
-        "swap": "If you can, swap the chips for a side salad or vegetables.",
+        "reason": "The wrap and chips put most of the blood-sugar load on the bread and starch sides, even with turkey inside.",
+        "adjustment": "Choose a smaller wrap or eat only part of the chips to keep the starch portion in check.",
+        "swap": "If you can, swap the chips for a side salad or veggies with the turkey wrap.",
         "disclaimer": "Revora is informational only and is not medical advice. Talk with a doctor or registered dietitian for guidance that is specific to you."
       },
-      "error": null
+      "error": null,
+      "recapturedNote": "row re-captured after doc-19 step E.1/E.2 fixes (restaurant-scale starch anchor; widened swap contract) — see doc 19 addendum"
     },
     {
       "id": "readj-borderline-burrito-bowl-rice-beans",
@@ -4630,12 +4639,13 @@
       "response": {
         "kind": "result",
         "risk": "MODERATE",
-        "reason": "The rice and beans do most of the blood-sugar work here, while the chicken helps balance the bowl.",
-        "adjustment": "Keep the chicken and beans, and ask for a smaller scoop of rice.",
+        "reason": "The rice carries most of the blood-sugar load here, while the chicken and beans help balance the bowl.",
+        "adjustment": "Go lighter on the rice and lean into the chicken and beans instead.",
         "swap": "If you can, swap some of the rice for extra vegetables or lettuce.",
         "disclaimer": "Revora is informational only and is not medical advice. Talk with a doctor or registered dietitian for guidance that is specific to you."
       },
-      "error": null
+      "error": null,
+      "recapturedNote": "row re-captured after doc-19 step E.1/E.2 fixes (restaurant-scale starch anchor; widened swap contract) — see doc 19 addendum"
     },
     {
       "id": "readj-carbs-only-flour-tortilla",

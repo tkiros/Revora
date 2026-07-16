@@ -509,7 +509,15 @@ const CARBS_ONLY_SEQUENCING_ONLY_PATTERN =
   /\bvegetables?\s+first\b|\beat\s+(?:the\s+)?vegetables?\s+first\b|\bstart\s+with\s+(?:vegetables?|fiber)\b|\bbegin\s+with\s+(?:vegetables?|fiber)\b|\bbefore\s+the\s+carbs\b/i;
 
 function looksLikeSwap(value: string): boolean {
-  return /\bswap\b|\binstead of\b|\bchoose\b|\bless refined\b|\bless sweet\b|\bwhole[- ]grain\b|\bbrown rice\b|\bbeans?\b|\blentil/i.test(
+  // Doc 19 step E.2: the rotating retry cards in every live gate run were this
+  // check rejecting legitimate swaps phrased outside the original keyword list.
+  // Two shapes caught live: substitutions without the exact keywords ("pick a
+  // sugar-free or zero-sugar version instead" — bare "instead", verb "pick"),
+  // and portion-reduction swaps the prompt itself mandates for label-math
+  // quantities ("keep to one serving and add Greek yogurt"). Every phrase here
+  // still names a substitution, a lower-glycemic variant, or a reduced
+  // portion; a non-swap ("you can keep enjoying this") matches nothing.
+  return /\bswap\b|\binstead\b|\brather than\b|\bin place of\b|\breplac(?:e|ing)\b|\bchoose\b|\bpick\b|\bopt for\b|\bswitch(?:ing)? to\b|\bless refined\b|\bless sweet\b|\bwhole[- ]grain\b|\bbrown rice\b|\bbeans?\b|\blentil|\bsugar[- ]free\b|\bzero[- ]sugar\b|\blow(?:er)?[- ]carb\b|\bkeep (?:it |this )?to\b|\blimit (?:it |this )?to\b|\b(?:one|a single|half a?|a smaller) (?:serving|portion|slice|piece|scoop|bowl|cup)\b|\bsmaller (?:serving|portion|amount)\b/i.test(
     value
   );
 }

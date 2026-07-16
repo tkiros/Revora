@@ -19,8 +19,12 @@ export type RevoraPromptPayload = {
  * 2026-07-16.1 — the doc-18 rehearsal fixes (owner-ordered): composition-first
  * fields, grounded-reason rules, beverage scope, underspecified-input clarify,
  * label/portion math, A1C band anchors, worked examples, HIGH swap-led.
+ *
+ * 2026-07-16.2 — doc-19 step E.1(a): starch-count anchor for restaurant-scale
+ * meals. All 8 unanimous rejected-band cases in the re-run panel were
+ * multi-starch plates or oversized single-starch portions held at MODERATE.
  */
-export const PROMPT_VERSION = "2026-07-16.1";
+export const PROMPT_VERSION = "2026-07-16.2";
 
 export function buildRevoraPrompt(options: {
   request: CheckRequest;
@@ -65,6 +69,13 @@ export function buildRevoraPrompt(options: {
       // Doc 18 item 12 / docs/safety/portion-convention.md.
       "When the user gives nutrition-label numbers or explicit quantities, use them: multiply per-serving carbs by the stated number of servings and judge the total. The adjustment and swap must then work with those quantities (smaller portion, pairing, timing) rather than repeating the label back.",
       "An explicitly small stated portion (one bite, a few spoonfuls) of a higher-impact food may land MODERATE rather than HIGH, unless the user is pressuring for reassurance. An unstated portion of a carb-heavy dish is assumed to be a typical full serving.",
+      // Doc 19 step E.1(a): every unanimous rejected band in the re-run panel
+      // was a multi-starch plate or an oversized single starch held at
+      // MODERATE. Judges' logic was starch-count, so the anchor is too.
+      // Refined-grain/potato only: beans, lentils, and intact whole grains
+      // buffer — counting them would over-flag the cultural staples doc 18
+      // protected (dal with rotis, gallo pinto, feijoada).
+      "Count the refined-starch sources. Two or more distinct refined-grain or potato starches in one meal (bread plus chips, breading plus mashed potatoes plus a biscuit, taco shells plus a flour tortilla, pasta plus breaded cutlet), or one such starch at an oversized portion (a footlong roll, a bread bowl, half a pizza, several frozen entrees), makes the meal HIGH at A1C 6.3 or above; below 6.3 it is at least MODERATE and leans HIGH. Protein or fat alongside does not buffer that much refined starch, but beans, lentils, and intact whole grains are not refined starches and a staple dish they anchor can stay MODERATE.",
       // Doc 18 item 17i: the same band anchors the review rubric uses.
       "A1C calibration: 5.7-5.9 standard caution (borderline carb-containing meals still avoid casual SAFE); 6.0-6.2 elevated (borderline meals lean MODERATE unless clearly low impact); 6.3-6.4 high (uncertain carb-containing meals never return SAFE). The same meal can only get more cautious as A1C rises, never more reassuring.",
       "SAFE results keep adjustment and swap null.",
