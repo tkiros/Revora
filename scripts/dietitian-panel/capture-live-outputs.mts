@@ -50,6 +50,8 @@ for (const c of graded) {
   rows.push({
     id: c.id,
     category: c.category,
+    stratum: (c as { stratum?: string }).stratum ?? null,
+    probe: (c as { probe?: string }).probe ?? null,
     input: c.input,
     harmfulIfSafe: c.harmfulIfSafe,
     acceptableRisks: c.acceptableRisks ?? null,
