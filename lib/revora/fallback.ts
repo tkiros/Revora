@@ -60,6 +60,28 @@ export function groundedFallbackReason(risk: "MODERATE" | "HIGH"): string {
   return risk === "HIGH" ? UNGROUNDED_HIGH_REASON : UNGROUNDED_MODERATE_REASON;
 }
 
+/**
+ * HIGH floor draft for foods with NO named sugar (2026-07-16 re-run finding).
+ * The standard HIGH draft says "mostly sugary or refined carbs" and swaps to
+ * "a less sweet or less refined version" — stamped onto injera with doro wat
+ * and a food-pantry box, the flash-lite panel read it as fabricated and
+ * tone-deaf (its only two shaming-majority flags). This variant reuses two
+ * already-governed strings: the grounded HIGH reason and the less-refined-only
+ * swap the MODERATE draft ships.
+ */
+export function buildHighFloorNoSugarResponse(
+  contract: SafetyContract
+): RevoraUserResponse {
+  return RevoraUserResultSchema.parse({
+    kind: "result",
+    risk: "HIGH",
+    reason: UNGROUNDED_HIGH_REASON,
+    adjustment: CARBS_ONLY_HIGH_ADJUSTMENT,
+    swap: CARBS_ONLY_MODERATE_SWAP,
+    disclaimer: contract.copy.disclaimer
+  });
+}
+
 export function buildBorderlineFloorResponse(
   contract: SafetyContract
 ): RevoraUserResponse {

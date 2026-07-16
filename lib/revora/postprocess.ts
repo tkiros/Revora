@@ -2,6 +2,7 @@ import type { A1CRoute } from "./a1c";
 import {
   buildBorderlineFloorResponse,
   buildCarbsOnlyResponse,
+  buildHighFloorNoSugarResponse,
   groundedFallbackReason
 } from "./fallback";
 import { stripSugarNegations } from "./input-precheck";
@@ -376,7 +377,7 @@ export function applyConservativeFloors(
       result.adjustment === null ||
       result.swap === null)
   ) {
-    return buildFloorDraft(context.contract, "HIGH");
+    return buildFloorDraft(context.contract, "HIGH", context.food);
   }
 
   if (flags.has("carbs_only")) {
@@ -392,7 +393,8 @@ export function applyConservativeFloors(
       // under-banding direction doc 18's portion findings warned about.
       return buildFloorDraft(
         context.contract,
-        highRisk || result.risk === "HIGH" ? "HIGH" : "MODERATE"
+        highRisk || result.risk === "HIGH" ? "HIGH" : "MODERATE",
+        context.food
       );
     }
   }
@@ -406,9 +408,18 @@ export function applyConservativeFloors(
 
 function buildFloorDraft(
   contract: SafetyContract,
-  risk: "MODERATE" | "HIGH"
+  risk: "MODERATE" | "HIGH",
+  food?: string
 ): ResultDraft {
-  const floored = buildCarbsOnlyResponse(contract, risk);
+  // The HIGH template claims "mostly sugary" and swaps toward "less sweet".
+  // When the floor was triggered by a model risk flag on a food that names no
+  // sugar (injera with doro wat; a pantry box of corn, bread, and peanut
+  // butter), that copy is a fabricated driver — the flash-lite panel's only
+  // two shaming flags. Same severity, composition-free copy instead.
+  const floored =
+    risk === "HIGH" && food && !hasSugarEvidence(food)
+      ? buildHighFloorNoSugarResponse(contract)
+      : buildCarbsOnlyResponse(contract, risk);
 
   if (floored.kind !== "result") {
     throw new RevoraContractError("Expected a result fallback for floors.");
@@ -457,7 +468,11 @@ function buildBorderlineFloorDraft(contract: SafetyContract): ResultDraft {
 const SUGARY_CLAIM_PATTERN =
   /\bsugary\b|\bmostly sugar\b|\bhigh in sugar\b|\bloaded with sugar\b|\bfull of sugar\b|\bsugar[- ](?:heavy|laden|rich)\b/i;
 const SUGAR_EVIDENCE_PATTERN =
-  /sugar|sweet|honey|syrup|agave|nectar|dessert|candy|chocolate|cocoa|cake|cookie|donut|doughnut|pastr|croissant|ice cream|milkshake|frappuccino|mocha|soda|pop\b|cola|coke|sprite|pepsi|fanta|juice|boba|horchata|gatorade|powerade|lemonade|punch|jelly|jam|caramel|toffee|frosting|glaze|icing|mochi|raisin|dried fruit|date|fig|fruit|banana|mango|berr|grape|apple|orange|pineapple|melon|smoothie|pie\b|pudding|muffin|brownie|oreo|energy drink|sports drink|slush|sorbet|gelato|custard|marshmallow|nutella|churro|baklava|halva|eggnog|granola|cereal|yogurt/i;
+  /sugar|sweet|honey|syrup|agave|nectar|dessert|candy|chocolate|cocoa|cake|cookie|donut|doughnut|pastr|croissant|cinnamon roll|cinnamon bun|ice cream|milkshake|frappuccino|mocha|soda|pop\b|cola|coke|sprite|pepsi|fanta|juice|boba|horchata|gatorade|powerade|lemonade|punch|jelly|jam|caramel|toffee|frosting|glaze|icing|mochi|raisin|dried fruit|date|fig|fruit|banana|mango|berr|grape|apple|orange|pineapple|melon|smoothie|pie\b|pudding|muffin|brownie|oreo|energy drink|sports drink|slush|sorbet|gelato|custard|marshmallow|nutella|churro|baklava|halva|eggnog|granola|cereal|yogurt/i;
+
+export function hasSugarEvidence(food: string): boolean {
+  return SUGAR_EVIDENCE_PATTERN.test(stripSugarNegations(food.toLowerCase()));
+}
 
 export function groundReason(
   food: string,

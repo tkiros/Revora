@@ -98,10 +98,19 @@ describe("CARB_FORWARD_TOKENS review surface", () => {
     "almond flour pancakes with sugar free syrup",
     "keto bread with butter",
     "low carb tortilla with eggs",
-    "cauliflower crust pizza",
     "egg wraps with ham"
   ])("does not fire on low-carb impostor: %s", (food) => {
     expect(isCarbForward(food)).toBe(false);
+  });
+
+  it("keeps cauliflower crust pizza carb-forward — the cautious side of a split panel", () => {
+    // Doc 18 grouped it with the SAFE-banded impostors; the 2026-07-16
+    // flash-lite panel unanimously banded it MODERATE (starch binders in
+    // commercial crusts). Two simulated panels disagreeing means the human
+    // panel owns the call — until then the floor stays reachable.
+    expect(isCarbForward("cauliflower crust pizza with chicken and spinach")).toBe(
+      true
+    );
   });
 
   // Negation (doc 18 F-2): an explicitly negated carb component must not

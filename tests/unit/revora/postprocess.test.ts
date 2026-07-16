@@ -9,6 +9,7 @@ import {
   assertNoUnsafeSafeFields,
   assertOneSentence,
   groundReason,
+  hasSugarEvidence,
   mentionsMealComponent,
   postprocessModelOutput
 } from "../../../lib/revora/postprocess";
@@ -383,5 +384,49 @@ describe("carbs-only floor preserves model severity (doc 18 item 12)", () => {
     );
 
     expect(floored.risk).toBe("MODERATE");
+  });
+});
+
+describe("HIGH floor copy is sugar-aware (2026-07-16 re-run finding)", () => {
+  const context = (food: string) => ({
+    contract,
+    route: routeA1C(6.3),
+    precheckFlags: [],
+    food
+  });
+
+  it("uses the composition-free HIGH draft when the food names no sugar", () => {
+    // Model flags injera high_risk (its right — flags are risk-raising), but
+    // the sugary template copy was a fabricated driver; the panel flagged it.
+    const response = postprocessModelOutput(
+      makeModelOutput({ risk: "MODERATE", policy_flags: ["high_risk"] }),
+      context("injera with doro wat")
+    );
+
+    expect(response.risk).toBe("HIGH");
+    expect(response.reason).toBe(
+      "This is likely a higher-impact choice for this range in its current form."
+    );
+    expect(response.swap).toBe(
+      "If you have the option, swap to a less refined version."
+    );
+  });
+
+  it("keeps the sugary HIGH draft for foods that name sugar", () => {
+    const response = postprocessModelOutput(
+      makeModelOutput({ risk: "MODERATE", policy_flags: ["high_risk"] }),
+      context("glazed donut")
+    );
+
+    expect(response.risk).toBe("HIGH");
+    expect(response.reason).toBe(
+      "This is likely a higher-impact choice because it is mostly sugary or refined carbs."
+    );
+  });
+
+  it("a diet/sugar-free variant does not count as sugar evidence", () => {
+    expect(hasSugarEvidence("sugar free cookies")).toBe(false);
+    expect(hasSugarEvidence("cookies")).toBe(true);
+    expect(hasSugarEvidence("canned corn, white bread, and peanut butter")).toBe(false);
   });
 });

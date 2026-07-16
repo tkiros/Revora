@@ -520,9 +520,14 @@ export const CARB_FORWARD_TOKENS = [
  * Low-carb impostors that contain a carb word but are not carb-forward.
  *
  * Applied longest-phrase-first semantics by ORDER: a phrase that should also
- * swallow a trailing token ("cauliflower crust pizza" — the panel banded it
- * SAFE, so the named low-carb base spares the "pizza" token too) must appear
- * before its shorter prefix. The bunless-burger idioms exist because negation
+ * swallow a trailing token must appear before its shorter prefix.
+ * "cauliflower crust pizza" is deliberately NOT a whole-phrase exclusion: the
+ * two simulated panels disagreed (doc 18 grouped it with the SAFE-banded
+ * impostors; the 2026-07-16 flash-lite panel unanimously banded it MODERATE —
+ * commercial crusts carry starch binders), so the CAUTIOUS side wins until
+ * the human panel rules: the crust words are stripped, the "pizza" token
+ * survives, and a model-SAFE floors to MODERATE.
+ * The bunless-burger idioms exist because negation
  * stripping alone cannot spare them: "no bun" removes the bun, but "burger"
  * is its own token, and a bunless burger is a patty (2026-07-16 panel F-2,
  * unanimous SAFE). Plurals are covered mechanically by termPattern.
@@ -534,8 +539,6 @@ export const CARB_FORWARD_EXCLUSIONS = [
   "shirataki noodles",
   "shirataki rice",
   "shirataki",
-  "cauliflower crust pizza",
-  "cauliflower pizza",
   "cauliflower crust",
   "lettuce wrap",
   "lettuce wraps",
