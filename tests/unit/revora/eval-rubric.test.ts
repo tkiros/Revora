@@ -21,8 +21,9 @@ function result(
     kind: "result",
     risk,
     reason: "This is a reasonable description of the impact.",
+    // HIGH is swap-led by contract (2026-07-16 panel): adjustment only on MODERATE.
     adjustment:
-      risk === "SAFE" ? null : "Add some protein to make it easier to handle.",
+      risk === "MODERATE" ? "Add some protein to make it easier to handle." : null,
     swap: risk === "SAFE" ? null : "If you can, swap to a less refined version.",
     disclaimer: DISCLAIMER,
     ...over

@@ -41,8 +41,9 @@ const CARBS_ONLY_HIGH = {
   risk: "HIGH",
   reason:
     "This is likely a higher-impact choice because it is mostly sugary or refined carbs.",
-  adjustment:
-    "A smaller portion with protein or nonstarchy vegetables would be a steadier fit here.",
+  // HIGH is swap-led by contract (2026-07-16 panel): the adjustment slot is
+  // suppressed so a Hold-off card cannot teach the user how to keep the item.
+  adjustment: null,
   swap: "If you have the option, swap to a less sweet or less refined version.",
   disclaimer: DISCLAIMER
 } as const;
