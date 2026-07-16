@@ -1,9 +1,25 @@
 {
-  "policyVersion": "2026-07-16.1",
+  "policyVersion": "2026-07-16.2",
   "jurisdiction": "US",
   "reviewCadence": "annual_or_source_change",
   "engineeringVerifiedAt": "2026-07-16",
   "clinicalApprovalStatus": "pending_external_panel",
+  "scopeRoutes": [
+    {
+      "route": "high_range_scope",
+      "copyId": "high-range-route",
+      "version": "2026-07-16.1",
+      "evidenceIds": [
+        "CDC-A1C-RANGES",
+        "NIDDK-A1C-INTERPRETATION"
+      ],
+      "note": "Doc 18 finding e-adv-a1c-high (unanimous): A1C >=6.5 now routes with diagnosed-diabetes tone instead of a generic scope refusal. Not one of the eight clinical routes (the validator pins that list), recorded here so the copy change is governed the same way.",
+      "clinicalApproverIds": [],
+      "counselApprovalId": null,
+      "approvedAt": null,
+      "reviewDueAt": null
+    }
+  ],
   "routes": [
     {
       "route": "urgent_symptoms",
@@ -48,10 +64,11 @@
     {
       "route": "eating_disorder",
       "copyId": "clinical-eating-disorder",
-      "version": "2026-07-16.1",
+      "version": "2026-07-16.2",
       "evidenceIds": [
         "FDA-GENERAL-WELLNESS",
-        "FTC-HEALTH-COMPLIANCE"
+        "FTC-HEALTH-COMPLIANCE",
+        "SAMHSA-988-LIFELINE"
       ],
       "clinicalApproverIds": [],
       "counselApprovalId": null,
