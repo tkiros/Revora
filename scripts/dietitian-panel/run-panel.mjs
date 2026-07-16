@@ -15,11 +15,12 @@
 import fs from "node:fs";
 
 const [inFile, outFile, stratumFilter] = process.argv.slice(2);
-// Owner directive 2026-07-16 (cost, non-negotiable): judge on gpt-5.4-mini,
-// never opus-class models. CAVEAT the reports must carry: the graded model IS
-// gpt-5.4-mini, so this panel self-grades — the original different-lab judge
-// requirement (doc 17) is waived by the owner, not satisfied.
-const JUDGE_MODEL = process.env.PANEL_JUDGE_MODEL || "openai/gpt-5.4-mini";
+// Owner directives, 2026-07-16: never opus/large-class judges (cost,
+// non-negotiable). Later the same day: judge on Gemini flash-class — restores
+// the different-lab property (graded model is OpenAI gpt-5.4-mini) at
+// mini-level cost. There is no plain "gemini-3.1-flash" on OpenRouter; the
+// 3.1 flash tier is served as gemini-3.1-flash-lite ($0.25/M in, $1.50/M out).
+const JUDGE_MODEL = process.env.PANEL_JUDGE_MODEL || "google/gemini-3.1-flash-lite";
 const key = process.env.OPENROUTER_API_KEY;
 if (!key || !inFile || !outFile) throw new Error("usage: OPENROUTER_API_KEY=... node dietitian-panel.mjs <in> <out> [stratum]");
 

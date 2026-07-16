@@ -20,11 +20,15 @@ with everything prepared.
 1. **DR-01:** no simulated or internal review closes W-05/F-06. Every produced
    file carries `SIMULATED — NON-CREDENTIALED` where applicable. Never word
    anything as clinical sign-off. W-05 stays open until a real panel signs.
-2. **Judge model (owner, 2026-07-16, non-negotiable):** `openai/gpt-5.4-mini`
-   only, for ALL LLM-judge work. **Absolutely no `anthropic/claude-opus-4.8`
-   or any opus/large-class model — they exhausted the account once already.**
-   `run-panel.mjs` defaults to mini; `PANEL_JUDGE_MODEL` overrides only with
-   owner approval. Document the self-grading caveat wherever mini judges mini.
+2. **Judge model (owner, 2026-07-16, two directives):** absolutely no
+   `anthropic/claude-opus-4.8` or any opus/large-class model — non-negotiable,
+   they exhausted the account once already. For the next rehearsal the owner
+   chose **`google/gemini-3.1-flash-lite`** (there is no plain
+   "gemini-3.1-flash" on OpenRouter; lite IS the 3.1 flash tier, $0.25/M in,
+   $1.50/M out ≈ mini cost) — it restores the different-lab property against
+   the OpenAI-graded model. `run-panel.mjs` now defaults to it; smoke-tested
+   2026-07-16 (clean JSON, independently banded the poke bowl MODERATE).
+   `PANEL_JUDGE_MODEL` overrides only with owner approval.
 3. **Ontology vocabulary is RD-owned (W-05).** Engineering may change
    `input-precheck.ts` lists, but every change bumps
    `CARB_FORWARD_POLICY_VERSION`, is marked PENDING RD/CDCES confirmation, and
@@ -232,10 +236,59 @@ risk-labeled gate cases through the DIRECT OpenAI key (fits inside the 50/day
 cap) and diff against OpenRouter outputs. The org cap itself is a standing
 launch risk — resurface it to the owner.
 
-**16. Judge independence for the NEXT rehearsal** — mini-judging-mini is
-self-grading. Present the option of a cheap different-lab judge (Gemini
-flash-class ≈ mini prices) for the re-run panel; owner decides. Default
-remains `openai/gpt-5.4-mini` per rule 2. Never opus.
+**16. Judge independence — DECIDED (owner, 2026-07-16):** the next rehearsal's
+judge is `google/gemini-3.1-flash-lite` (see rule 2). Already the default in
+`run-panel.mjs`, smoke-tested. Never opus.
+
+**17. Small-model quality program — make mini/flash-lite verdicts and product
+outputs perform opus-like.** Owner asked for this explicitly. Implement in
+this order (each step is cheap; measure on the 50-probe subset before the full
+re-run):
+
+*Judge side (`run-panel.mjs`):*
+- a. **Schema-enforced output**: send `response_format: {type:"json_schema"}`
+  with a strict DR-02 schema (both OpenAI and Gemini support it via
+  OpenRouter). Kills the parse/coherence noise class at the source; also
+  constrain `dangerousOutputs` items with a description ("each entry MUST
+  describe a real harm; put non-harms nowhere") — the 11 negated-danger
+  entries came from a free string array.
+- b. **Few-shot anchors**: embed 2–3 worked DR-02 examples in each persona
+  system prompt — one clean-SAFE (empty dangerousOutputs), one dangerous
+  false reassurance, one clinical refusal. Field-level examples are the
+  single biggest lift for small models.
+- c. **Rubric anchoring**: paste the A1C band anchors and the portion
+  convention (work item 12) into the judge prompt so band disagreement stops
+  measuring missing conventions (nutrition-label agreement was 60%).
+- d. **Code-side coherence gate**: after parsing, reject-and-retry any verdict
+  where `dangerousOutputs` mentions false reassurance while `acceptableRisks`
+  contains the product risk, or an entry matches /does not|no evidence|not
+  appear/. One retry, then keep with a `coherenceFlag` for the report.
+- e. **Self-consistency (optional, if budget allows)**: sample each persona
+  verdict 3× at temperature 0.7 and majority-vote per field — a 3-vote
+  flash-lite ensemble costs ~$0.003/verdict, still 7× cheaper than opus.
+  Measure whether (a)–(d) already close the gap before paying for this.
+
+*Product side (`lib/revora/prompt.ts` + postprocess — extends item 6):*
+- f. **Composition-first prompting**: require the model to list the dish's
+  main components and the single glycemic driver BEFORE choosing a band
+  (structured fields, not free text) — this is the cheap chain-of-thought
+  that stops fabricated "refined carbs" reasons.
+- g. **Few-shot exemplars** in the product prompt: one cultural mixed dish
+  banded correctly with the driver named, one low-carb impostor (zoodles)
+  kept SAFE with the right reason, one label-math case using the user's
+  numbers. Mini is cheap; the token cost is trivial.
+- h. **Grounded-reason validation in code**: postprocess checks that the
+  reason's claimed driver overlaps the input tokens (or the flag context);
+  on mismatch, retry once or fall back to a templated reason consistent with
+  the final band ("floored" cases especially — the model should never explain
+  a verdict the floor chose).
+- i. **Band anchors in the product prompt**: the same A1C/portion rubric as
+  (c), so product and judge share one convention.
+- j. Keep temperature at/near 0 for the product path; verify what it is today.
+
+Success measure for item 17: on the 50 ontology probes re-run, 0 fabricated
+drivers, 0 incoherent danger entries, and judge-panel band agreement on the
+nutrition-label stratum materially above the 60% baseline.
 
 ## The re-verification loop (run after items 1–12 land)
 
