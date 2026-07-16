@@ -213,6 +213,16 @@ export function postprocessModelOutput(
 
   assertOneSentence("reason", result.reason);
 
+  // HIGH results are swap-led: the adjustment slot is suppressed AFTER the
+  // floors resolve the final risk. The 2026-07-16 dietitian panel was
+  // unanimous on the failure mode (docs/qa/17-simulated-dietitian-panel):
+  // "pair the soda with nuts" reads as permission to keep the exact item the
+  // "Hold off" label exists to discourage. Deterministic here, not prompted —
+  // a model cannot reintroduce it.
+  if (result.risk === "HIGH") {
+    result.adjustment = null;
+  }
+
   // Runs on the FLOORED draft, i.e. the exact strings the user would read —
   // not on the raw model output, so a floor cannot reintroduce banned text.
   assertNoForbiddenClaims(context.contract, [
@@ -285,24 +295,43 @@ export function assertModerateHighFields(
     return;
   }
 
-  if (result.adjustment === null || result.swap === null) {
-    throw new RevoraContractError(
-      "MODERATE and HIGH results require one adjustment and one swap."
-    );
-  }
-
-  assertOneSentence("adjustment", result.adjustment);
-  assertOneSentence("swap", result.swap);
-
-  if (!looksLikeSwap(result.swap)) {
+  if (result.swap === null) {
     throw new RevoraContractError(
       "MODERATE and HIGH results require a lower-glycemic swap."
     );
   }
 
-  if (flags.has("carbs_only") && !hasCarbsOnlyCompanionGuidance(result.adjustment)) {
+  // HIGH is swap-led by contract: an adjustment on a "Hold off" item tells the
+  // user how to keep it (2026-07-16 panel, unanimous). MODERATE keeps both.
+  if (result.risk === "HIGH") {
+    if (result.adjustment !== null) {
+      throw new RevoraContractError(
+        "HIGH results must not carry an adjustment — swap only."
+      );
+    }
+  } else {
+    if (result.adjustment === null) {
+      throw new RevoraContractError(
+        "MODERATE results require one adjustment and one swap."
+      );
+    }
+    assertOneSentence("adjustment", result.adjustment);
+
+    if (
+      flags.has("carbs_only") &&
+      !hasCarbsOnlyCompanionGuidance(result.adjustment)
+    ) {
+      throw new RevoraContractError(
+        "Carbs-only adjustments must add protein or nonstarchy vegetables."
+      );
+    }
+  }
+
+  assertOneSentence("swap", result.swap);
+
+  if (!looksLikeSwap(result.swap)) {
     throw new RevoraContractError(
-      "Carbs-only adjustments must add protein or nonstarchy vegetables."
+      "MODERATE and HIGH results require a lower-glycemic swap."
     );
   }
 }

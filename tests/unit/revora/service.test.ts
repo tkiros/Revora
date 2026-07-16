@@ -407,8 +407,9 @@ describe("checkFood", () => {
       risk: "HIGH",
       reason:
         "This is likely a higher-impact choice because it is mostly sugary or refined carbs.",
-      adjustment:
-        "A smaller portion with protein or nonstarchy vegetables would be a steadier fit here.",
+      // HIGH is swap-led (2026-07-16 panel): the model's "keep it, but pair it"
+      // adjustment is suppressed server-side before the user ever sees it.
+      adjustment: null,
       swap: "If you have the option, swap to a less sweet or less refined version.",
       disclaimer:
         "Revora is informational only and is not medical advice. Talk with a doctor or registered dietitian for guidance that is specific to you."

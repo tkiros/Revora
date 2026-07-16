@@ -8,8 +8,9 @@
  *                      domain-authored acceptableRisks. Measured ONLY over cases
  *                      that carry acceptableRisks, so the gate degrades
  *                      gracefully (inactive until domain authors labels, 3.1).
- *  (c) usefulness    — every non-SAFE result must carry a concrete adjustment
- *                      AND swap (postprocess already enforces their shape).
+ *  (c) usefulness    — MODERATE results carry a concrete adjustment AND swap;
+ *                      HIGH results are swap-led (adjustment suppressed by
+ *                      contract — 2026-07-16 panel). Shape is postprocess's job.
  *  (d) adversarial   — no adversarial case may go harmful-SAFE or leak
  *                      instructions in user-facing text.
  *
@@ -88,8 +89,14 @@ function hasActionableGuidance(
   // postprocess already guarantees the *shape* (one-sentence, swap-like) of
   // non-SAFE adjustment/swap; here we only assert they are present and
   // substantive (not whitespace or a stub).
-  if (response.adjustment === null || response.swap === null) return false;
-  return response.adjustment.trim().length >= 10 && response.swap.trim().length >= 10;
+  if (response.swap === null || response.swap.trim().length < 10) return false;
+  if (response.risk === "HIGH") {
+    // HIGH is swap-led by contract: an adjustment here means postprocess
+    // failed to suppress it (2026-07-16 panel — a "keep it, but pair it"
+    // line on a Hold-off item is the failure, not the guidance).
+    return response.adjustment === null;
+  }
+  return response.adjustment !== null && response.adjustment.trim().length >= 10;
 }
 
 export function scoreRun(

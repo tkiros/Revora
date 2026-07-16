@@ -1,15 +1,18 @@
 {
-  "policyVersion": "2026-07-12.1",
+  "policyVersion": "2026-07-16.1",
   "jurisdiction": "US",
   "reviewCadence": "annual_or_source_change",
-  "engineeringVerifiedAt": "2026-07-12",
+  "engineeringVerifiedAt": "2026-07-16",
   "clinicalApprovalStatus": "pending_external_panel",
   "routes": [
     {
       "route": "urgent_symptoms",
       "copyId": "clinical-urgent-symptoms",
       "version": "2026-07-12.1",
-      "evidenceIds": ["CDC-DKA-GUIDANCE", "FDA-GENERAL-WELLNESS"],
+      "evidenceIds": [
+        "CDC-DKA-GUIDANCE",
+        "FDA-GENERAL-WELLNESS"
+      ],
       "clinicalApproverIds": [],
       "counselApprovalId": null,
       "approvedAt": null,
@@ -18,8 +21,12 @@
     {
       "route": "possible_hypoglycemia",
       "copyId": "clinical-possible-hypoglycemia",
-      "version": "2026-07-12.1",
-      "evidenceIds": ["NIDDK-HYPOGLYCEMIA", "CDC-DKA-GUIDANCE"],
+      "version": "2026-07-16.1",
+      "evidenceIds": [
+        "NIDDK-HYPOGLYCEMIA",
+        "ADCES-HYPO-ROADMAP",
+        "CDC-DKA-GUIDANCE"
+      ],
       "clinicalApproverIds": [],
       "counselApprovalId": null,
       "approvedAt": null,
@@ -29,7 +36,10 @@
       "route": "medication_dosing",
       "copyId": "clinical-medication-dosing",
       "version": "2026-07-12.1",
-      "evidenceIds": ["FDA-GENERAL-WELLNESS", "FTC-HEALTH-COMPLIANCE"],
+      "evidenceIds": [
+        "FDA-GENERAL-WELLNESS",
+        "FTC-HEALTH-COMPLIANCE"
+      ],
       "clinicalApproverIds": [],
       "counselApprovalId": null,
       "approvedAt": null,
@@ -38,8 +48,11 @@
     {
       "route": "eating_disorder",
       "copyId": "clinical-eating-disorder",
-      "version": "2026-07-12.1",
-      "evidenceIds": ["FDA-GENERAL-WELLNESS", "FTC-HEALTH-COMPLIANCE"],
+      "version": "2026-07-16.1",
+      "evidenceIds": [
+        "FDA-GENERAL-WELLNESS",
+        "FTC-HEALTH-COMPLIANCE"
+      ],
       "clinicalApproverIds": [],
       "counselApprovalId": null,
       "approvedAt": null,
@@ -49,7 +62,10 @@
       "route": "pregnancy",
       "copyId": "clinical-pregnancy",
       "version": "2026-07-12.1",
-      "evidenceIds": ["CDC-A1C-RANGES", "NIDDK-A1C-INTERPRETATION"],
+      "evidenceIds": [
+        "CDC-A1C-RANGES",
+        "NIDDK-A1C-INTERPRETATION"
+      ],
       "clinicalApproverIds": [],
       "counselApprovalId": null,
       "approvedAt": null,
@@ -59,7 +75,10 @@
       "route": "organ_disease",
       "copyId": "clinical-organ-disease",
       "version": "2026-07-12.1",
-      "evidenceIds": ["FDA-GENERAL-WELLNESS", "CDC-MEAL-PLANNING"],
+      "evidenceIds": [
+        "FDA-GENERAL-WELLNESS",
+        "CDC-MEAL-PLANNING"
+      ],
       "clinicalApproverIds": [],
       "counselApprovalId": null,
       "approvedAt": null,
@@ -69,7 +88,10 @@
       "route": "allergy",
       "copyId": "clinical-allergy",
       "version": "2026-07-12.1",
-      "evidenceIds": ["FDA-GENERAL-WELLNESS", "FTC-HEALTH-COMPLIANCE"],
+      "evidenceIds": [
+        "FDA-GENERAL-WELLNESS",
+        "FTC-HEALTH-COMPLIANCE"
+      ],
       "clinicalApproverIds": [],
       "counselApprovalId": null,
       "approvedAt": null,
@@ -79,7 +101,10 @@
       "route": "diagnosed_diabetes",
       "copyId": "clinical-diagnosed-diabetes",
       "version": "2026-07-12.1",
-      "evidenceIds": ["CDC-A1C-RANGES", "NIDDK-A1C-INTERPRETATION"],
+      "evidenceIds": [
+        "CDC-A1C-RANGES",
+        "NIDDK-A1C-INTERPRETATION"
+      ],
       "clinicalApproverIds": [],
       "counselApprovalId": null,
       "approvedAt": null,
