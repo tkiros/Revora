@@ -8,6 +8,7 @@ import {
   assertModerateHighFields,
   assertNoUnsafeSafeFields,
   assertOneSentence,
+  groundReason,
   mentionsMealComponent,
   postprocessModelOutput
 } from "../../../lib/revora/postprocess";
@@ -271,5 +272,116 @@ describe("postprocessModelOutput — component-mention enforcement (W-17 Tier 2.
     } finally {
       delete process.env.REVORA_ENFORCE_COMPONENT_MENTION;
     }
+  });
+});
+
+describe("groundReason (doc 18 F-5 — fabricated sugar claims)", () => {
+  it("replaces a sugar claim about a food that names no sugar", () => {
+    expect(
+      groundReason(
+        "mac and cheese",
+        "MODERATE",
+        "This is mostly sugary carbs, so be careful."
+      )
+    ).toBe(
+      "This looks like it can have a higher blood-sugar impact than a balanced meal, so some extra care fits here."
+    );
+  });
+
+  it("does not count a sugar-free variant as sugar evidence", () => {
+    expect(
+      groundReason(
+        "sugar-free cookies",
+        "HIGH",
+        "These are mostly sugary treats."
+      )
+    ).toBe("This is likely a higher-impact choice for this range in its current form.");
+  });
+
+  it("keeps a grounded sugar claim untouched", () => {
+    const reason = "The sugary glaze on the donut is the main driver here.";
+    expect(groundReason("glazed donut", "HIGH", reason)).toBe(reason);
+  });
+
+  it("keeps a non-sugar reason untouched regardless of the food", () => {
+    const reason = "The macaroni carries most of the carb load here.";
+    expect(groundReason("mac and cheese", "MODERATE", reason)).toBe(reason);
+  });
+});
+
+describe("postprocessModelOutput grounds model-authored reasons", () => {
+  it("swaps in the band-consistent fallback reason for an ungrounded sugar claim", () => {
+    const response = postprocessModelOutput(
+      makeModelOutput({
+        reason: "This dish is mostly sugary carbs.",
+        policy_flags: []
+      }),
+      {
+        contract,
+        route: routeA1C(6.1),
+        precheckFlags: [],
+        food: "mac and cheese"
+      }
+    );
+
+    expect(response.reason).toBe(
+      "This looks like it can have a higher blood-sugar impact than a balanced meal, so some extra care fits here."
+    );
+    expect(response.risk).toBe("MODERATE");
+  });
+
+  it("never touches a floored draft's template reason", () => {
+    const floored = postprocessModelOutput(
+      makeModelOutput({ risk: "SAFE", adjustment: null, swap: null }),
+      {
+        contract,
+        route: routeA1C(6.4),
+        precheckFlags: ["borderline"],
+        food: "salmon poke bowl"
+      }
+    );
+
+    expect(floored.risk).toBe("MODERATE");
+    expect(floored.reason).toBe(
+      "This leans on a carb-heavy base, which can have a higher blood-sugar impact in your range even with protein or vegetables alongside."
+    );
+  });
+});
+
+describe("carbs-only floor preserves model severity (doc 18 item 12)", () => {
+  it("keeps HIGH when replacing a non-compliant HIGH draft", () => {
+    const floored = applyConservativeFloors(
+      {
+        risk: "HIGH",
+        reason: "Half a box is several servings of refined pasta at once.",
+        adjustment: null, // non-compliant for carbs-only → template replaces it
+        swap: null
+      },
+      {
+        contract,
+        route: routeA1C(6.1),
+        precheckFlags: ["carbs_only", "borderline"]
+      }
+    );
+
+    expect(floored.risk).toBe("HIGH");
+  });
+
+  it("still floors a SAFE draft to MODERATE, not HIGH", () => {
+    const floored = applyConservativeFloors(
+      {
+        risk: "SAFE",
+        reason: "This looks fine.",
+        adjustment: null,
+        swap: null
+      },
+      {
+        contract,
+        route: routeA1C(6.1),
+        precheckFlags: ["carbs_only", "borderline"]
+      }
+    );
+
+    expect(floored.risk).toBe("MODERATE");
   });
 });

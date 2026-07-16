@@ -27,6 +27,52 @@ const CARBS_ONLY_HIGH_ADJUSTMENT =
 const CARBS_ONLY_HIGH_SWAP =
   "If you have the option, swap to a less sweet or less refined version.";
 
+/**
+ * The carb-forward (borderline) SAFE→MODERATE floor's own copy (2026-07-16
+ * panel F-2). The floor used to reuse the carbs-only copy above, which claims
+ * the meal "leans heavily on refined carbs" — reviewers flagged that as the
+ * dangerous part when the dish was buffered (ugali with tilapia) or the flag
+ * was conservative. This copy names only what the floor actually knows: a
+ * carb-heavy base is present (true by construction of CARB_FORWARD_TOKENS —
+ * every token is a starch dish, never a drink), and the caution is
+ * range-driven. Ledger rows: result-borderline-floor-*.
+ */
+const BORDERLINE_FLOOR_REASON =
+  "This leans on a carb-heavy base, which can have a higher blood-sugar impact in your range even with protein or vegetables alongside.";
+const BORDERLINE_FLOOR_ADJUSTMENT =
+  "If practical, keep the protein and vegetables and go lighter on the starchy part.";
+const BORDERLINE_FLOOR_SWAP =
+  "If you have the option, choose a smaller portion or a whole-grain version of the starchy base.";
+
+/**
+ * Grounded-reason fallbacks (2026-07-16 panel F-5). When a model-authored
+ * reason claims a glycemic driver the named food cannot support ("mac and
+ * cheese" → "sugary carbs"), postprocess swaps in a reason that asserts no
+ * composition at all. Band-consistent, claim-free, one sentence. Ledger rows:
+ * result-ungrounded-reason-*.
+ */
+const UNGROUNDED_MODERATE_REASON =
+  "This looks like it can have a higher blood-sugar impact than a balanced meal, so some extra care fits here.";
+const UNGROUNDED_HIGH_REASON =
+  "This is likely a higher-impact choice for this range in its current form.";
+
+export function groundedFallbackReason(risk: "MODERATE" | "HIGH"): string {
+  return risk === "HIGH" ? UNGROUNDED_HIGH_REASON : UNGROUNDED_MODERATE_REASON;
+}
+
+export function buildBorderlineFloorResponse(
+  contract: SafetyContract
+): RevoraUserResponse {
+  return RevoraUserResultSchema.parse({
+    kind: "result",
+    risk: "MODERATE",
+    reason: BORDERLINE_FLOOR_REASON,
+    adjustment: BORDERLINE_FLOOR_ADJUSTMENT,
+    swap: BORDERLINE_FLOOR_SWAP,
+    disclaimer: contract.copy.disclaimer
+  });
+}
+
 export function buildInvalidRequestResponse(
   contract: SafetyContract
 ): RevoraUserResponse {

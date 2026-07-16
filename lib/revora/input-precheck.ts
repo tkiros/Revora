@@ -72,6 +72,37 @@ const AMBIGUOUS_PROTEIN_OR_VEG = [
   "pasta"
 ];
 
+// 2026-07-16 panel F-5: the product graded 10/40 deliberately underspecified
+// inputs instead of asking ("protein and vegetables" → SAFE was called "false
+// precision" by all three reviewers). Exact-match only, like the two lists
+// above — a composed description ("leftover fried rice, two cups") must still
+// reach the model. PENDING RD/CDCES confirmation under W-05.
+const AMBIGUOUS_UNDERSPECIFIED = [
+  "leftovers",
+  "takeout",
+  "take out",
+  "breakfast",
+  "lunch",
+  "dinner",
+  "a snack",
+  "snack",
+  "fruit",
+  "toast",
+  "soup",
+  "granola",
+  "crackers",
+  "a shake",
+  "shake",
+  "a bar",
+  "protein and vegetables",
+  "protein and veg",
+  "mcdonald's",
+  "mcdonalds",
+  "chinese food",
+  "my usual",
+  "the usual"
+];
+
 // Matched with substring semantics (containsAnyLoose), which is why singulars
 // cover most plurals for free ("cookie" ⊂ "cookies") — but NOT irregular ones:
 // "pastry" is not a substring of "pastries", so both forms must be listed.
@@ -101,7 +132,37 @@ const CARBS_ONLY_PATTERNS = [
   "jelly bean",
   "jellybean",
   "eggnog",
-  "ice cream"
+  "ice cream",
+  // 2026-07-16 panel F-2 additions (doc 18): brands, synonyms, and shapes the
+  // ontology could not see. Sugary entries also appear in HIGH_RISK below;
+  // starchy-not-sugary entries (pasta shapes, mac and cheese) stay
+  // MODERATE-floored like "pasta". "honey"/"agave"/"syrup" are deliberately
+  // CARBS_ONLY-only: the panel banded a tablespoon of honey in tea MODERATE
+  // (c-honey-tea), so the named-sugar floor holds without forcing HIGH on
+  // condiment quantities. PENDING RD/CDCES confirmation under W-05.
+  "oreo",
+  "sprite",
+  "cola",
+  "pepsi",
+  "fanta",
+  "boba",
+  "bubble tea",
+  "horchata",
+  "sweet tea",
+  "gatorade",
+  "powerade",
+  "honey",
+  "agave",
+  "syrup",
+  "cinnamon roll",
+  "penne",
+  "macaroni",
+  "mac and cheese",
+  "fettuccine",
+  "linguine",
+  "rigatoni",
+  "raisins",
+  "dried fruit"
 ] as const;
 
 const HIGH_RISK_PATTERNS = [
@@ -121,8 +182,84 @@ const HIGH_RISK_PATTERNS = [
   "jelly bean",
   "jellybean",
   "eggnog",
-  "ice cream"
+  "ice cream",
+  // 2026-07-16 panel F-2: sugary drinks and confections by brand or synonym.
+  // Deterministic-HIGH class per the safety contract's sugary_drink_or_dessert
+  // floor. PENDING RD/CDCES confirmation under W-05.
+  "oreo",
+  "sprite",
+  "cola",
+  "pepsi",
+  "fanta",
+  "boba",
+  "bubble tea",
+  "horchata",
+  "sweet tea",
+  "gatorade",
+  "powerade",
+  "cinnamon roll",
+  "raisins",
+  "dried fruit"
 ] as const;
+
+/**
+ * Compound foods that CONTAIN a risk-raising substring but are not that food
+ * (2026-07-16 panel F-2). The risk lists are substring-matched ON PURPOSE (see
+ * the matching-asymmetry comment at the bottom of this file) — so the fix for
+ * "pancakes" flooring to HIGH via the `cake` substring is to strip the
+ * compound phrase BEFORE the risk match, exactly the way BUFFER_EXCLUSIONS
+ * already strips "jelly beans" before the buffer test. Pancakes remain
+ * carb-forward via their own CARB_FORWARD token; they just stop being HIGH
+ * as *cake*. "chocolate" exists here so the new "cola" pattern cannot fire
+ * inside it ("cho-cola-te"), and "fantastic"/"honeydew" so "fanta"/"honey"
+ * cannot fire inside them.
+ */
+const RISK_PATTERN_EXCLUSIONS = [
+  "pancakes",
+  "pancake",
+  "rice cakes",
+  "rice cake",
+  "fishcakes",
+  "fishcake",
+  "fish cakes",
+  "fish cake",
+  "crab cakes",
+  "crab cake",
+  "chocolate",
+  "fantastic",
+  "honeydew"
+] as const;
+
+/**
+ * Sugar-negation strip (2026-07-16 panel F-5: "diet coke" and the sugar-free
+ * family). A named diet/zero-sugar variant must not trip the sugary floors on
+ * the base word ("diet pepsi", "sugar free syrup", "coke zero"). Removing the
+ * modifier AND its noun is deliberate: what remains is graded by the model,
+ * which the prompt now tells to judge the named variant. Shared with the
+ * grounded-reason check in postprocess so "sugar-free cookies" cannot count
+ * as sugar evidence for a "mostly sugary" reason. PENDING RD under W-05.
+ */
+const SUGAR_NEGATION_PATTERNS = [
+  /\b(?:diet|unsweetened|sugar[- ]free|zero[- ]sugar|no[- ]sugar[- ]added)\s+[\p{L}]+/giu,
+  /\b[\p{L}]+\s+zero\b/giu
+];
+
+export function stripSugarNegations(food: string): string {
+  let text = food;
+  for (const pattern of SUGAR_NEGATION_PATTERNS) {
+    text = text.replace(pattern, " ");
+  }
+  return text;
+}
+
+/** The text the risk-raising (substring) lists are allowed to see. */
+function riskMatchText(food: string): string {
+  let text = stripSugarNegations(food);
+  for (const phrase of RISK_PATTERN_EXCLUSIONS) {
+    text = text.split(phrase).join(" ");
+  }
+  return text;
+}
 
 const PROTEIN_TOKENS = [
   "chicken",
@@ -188,7 +325,7 @@ export function classifyInputBeforeModel(food: string): InputPrecheck {
 
   if (isCarbsOnlyMeal(normalized)) {
     const flags: RevoraPolicyFlag[] = ["carbs_only", "borderline"];
-    if (containsAnyLoose(normalized, HIGH_RISK_PATTERNS)) {
+    if (containsAnyLoose(riskMatchText(normalized), HIGH_RISK_PATTERNS)) {
       flags[1] = "high_risk";
     }
 
@@ -235,11 +372,18 @@ function getAmbiguousQuestion(food: string): string | null {
     return "Does this come with protein or nonstarchy vegetables?";
   }
 
+  if (AMBIGUOUS_UNDERSPECIFIED.includes(food)) {
+    return "Can you name the specific dish or the main foods in it?";
+  }
+
   return null;
 }
 
 function isCarbsOnlyMeal(food: string): boolean {
-  return containsAnyLoose(food, CARBS_ONLY_PATTERNS) && !hasBufferContext(food);
+  return (
+    containsAnyLoose(riskMatchText(food), CARBS_ONLY_PATTERNS) &&
+    !hasBufferContext(food)
+  );
 }
 
 /**
@@ -285,7 +429,7 @@ function isCarbsOnlyMeal(food: string): boolean {
  * Version changes are review-significant. W-05 is not closed until an external
  * RDN/CDCES signs this exact version in the dietitian panel artifact.
  */
-export const CARB_FORWARD_POLICY_VERSION = "2026-07-12.2";
+export const CARB_FORWARD_POLICY_VERSION = "2026-07-16.1";
 
 export const CARB_FORWARD_TOKENS = [
   "sushi",
@@ -331,28 +475,111 @@ export const CARB_FORWARD_TOKENS = [
   "pancake",
   "pancakes",
   "congee",
-  "couscous"
+  "couscous",
+  // 2026-07-16.1 — cultural/staple stage (doc 18 F-1/F-2: five of the seven
+  // dangerous false reassurances were cultural dishes no token could see).
+  // Every entry is the starch-forward base of a named dish from the 50-probe
+  // ontology set or the handoff's staged list. Singulars only where the
+  // mechanical plural in termPattern covers the plural. PENDING RD/CDCES
+  // confirmation under W-05.
+  "poke",
+  "injera",
+  "ugali",
+  "fufu",
+  "biryani",
+  "pho",
+  "bibimbap",
+  "arroz",
+  "nasi",
+  "khao",
+  "pancit",
+  "bihon",
+  "dosa",
+  "idli",
+  "pierogi",
+  "tamale",
+  "pupusa",
+  "mochi",
+  "tostada",
+  "plov",
+  "mansaf",
+  "gnocchi",
+  "chow mein",
+  "tabbouleh",
+  "bulgur",
+  "plantain",
+  "quinoa",
+  "samosa",
+  "pad thai",
+  "banh mi",
+  "gallo pinto",
+  "raisin bran"
 ] as const;
 
-/** Low-carb impostors that contain a carb word but are not carb-forward. */
+/**
+ * Low-carb impostors that contain a carb word but are not carb-forward.
+ *
+ * Applied longest-phrase-first semantics by ORDER: a phrase that should also
+ * swallow a trailing token ("cauliflower crust pizza" — the panel banded it
+ * SAFE, so the named low-carb base spares the "pizza" token too) must appear
+ * before its shorter prefix. The bunless-burger idioms exist because negation
+ * stripping alone cannot spare them: "no bun" removes the bun, but "burger"
+ * is its own token, and a bunless burger is a patty (2026-07-16 panel F-2,
+ * unanimous SAFE). Plurals are covered mechanically by termPattern.
+ * PENDING RD/CDCES confirmation under W-05.
+ */
 export const CARB_FORWARD_EXCLUSIONS = [
   "cauliflower rice",
   "konjac rice",
   "shirataki noodles",
+  "shirataki rice",
   "shirataki",
+  "cauliflower crust pizza",
+  "cauliflower pizza",
   "cauliflower crust",
   "lettuce wrap",
   "lettuce wraps",
-  // Both forms: boundary matching means the singular exclusion does not cover
-  // the plural, but "potatoes" is a token — "sweet potatoes" escaped (G7).
   "sweet potato",
-  "sweet potatoes"
+  "sweet potatoes",
+  // 2026-07-16.1 — the F-2 false floor-positive family.
+  "zucchini noodle",
+  "zoodle",
+  "almond flour pancake",
+  "keto bread",
+  "low carb tortilla",
+  "low-carb tortilla",
+  "egg wrap",
+  "burger, no bun",
+  "burger no bun",
+  "burger without a bun",
+  "burger without the bun",
+  "burger without bun",
+  "bunless burger",
+  "protein style burger",
+  "protein-style burger",
+  "lettuce wrapped burger",
+  "lettuce-wrapped burger"
 ] as const;
+
+/**
+ * Negation pre-pass (2026-07-16 panel F-2: "burger, no bun" was
+ * negation-blind). A token the user explicitly negated must not fire the
+ * carb-forward flag: "no bun" / "without rice" / "bun-free" are removed
+ * before token matching. Only the negated word is dropped — "taco, no
+ * lettuce" keeps its taco.
+ */
+const NEGATION_PATTERNS = [
+  /\b(?:no|without|minus|hold the)\s+(?:the\s+|a\s+|any\s+)?[\p{L}]+/giu,
+  /\b[\p{L}]+[- ]free\b/giu
+];
 
 export function isCarbForward(food: string): boolean {
   let text = food;
   for (const phrase of CARB_FORWARD_EXCLUSIONS) {
     text = text.replace(termPattern(phrase, "gu"), " ");
+  }
+  for (const pattern of NEGATION_PATTERNS) {
+    text = text.replace(pattern, " ");
   }
 
   return containsAny(text, CARB_FORWARD_TOKENS);
@@ -441,8 +668,14 @@ function termPattern(term: string, flags = "iu"): RegExp {
       .trim()
       .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
       .replace(/\s+/g, "\\s+");
+    // Mechanical plural: every boundary-matched term also matches its trailing
+    // s/es form ("roti" → "rotis", "tamale" → "tamales"). G7 and the
+    // 2026-07-16 panel's `rotis` escape both came from hand-listing plurals
+    // and missing a sibling — so plurals are now generated, not listed. This
+    // widens carb tokens AND buffer/exclusion lists symmetrically; a plural of
+    // a real protein is still a real protein.
     pattern = new RegExp(
-      `(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`,
+      `(?<![\\p{L}\\p{N}])${escaped}(?:e?s)?(?![\\p{L}\\p{N}])`,
       flags
     );
     BOUNDARY_CACHE.set(key, pattern);

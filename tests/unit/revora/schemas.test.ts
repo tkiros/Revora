@@ -41,6 +41,11 @@ describe("revoraModelJsonSchema", () => {
     expect(revoraModelJsonSchema.additionalProperties).toBe(false);
     expect(revoraModelJsonSchema.required).toEqual([
       "kind",
+      // Composition-first fields sit BEFORE risk on purpose (doc 18 17f):
+      // constrained decoding generates properties in schema order, so the
+      // model commits to the dish's driver before it picks a band.
+      "components",
+      "glycemic_driver",
       "risk",
       "reason",
       "adjustment",
@@ -50,6 +55,10 @@ describe("revoraModelJsonSchema", () => {
       "policy_flags"
     ]);
     expect(revoraModelJsonSchema).not.toHaveProperty("anyOf");
+    expect(revoraModelJsonSchema.properties.glycemic_driver.type).toEqual([
+      "string",
+      "null"
+    ]);
     expect(revoraModelJsonSchema.properties.risk.type).toEqual([
       "string",
       "null"

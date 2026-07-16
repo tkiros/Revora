@@ -44,4 +44,80 @@ describe("CARB_FORWARD_TOKENS review surface", () => {
     // is its own token — the floor must still see it.
     expect(isCarbForward("sweet potato fries")).toBe(true);
   });
+
+  // 2026-07-16.1 cultural/staple stage (doc 18 F-1/F-2): every dish here was a
+  // confirmed ontology false negative in the 240-case rehearsal — five of them
+  // shipped a dangerous false "Clear". PENDING RD/CDCES confirmation (W-05).
+  it.each([
+    "salmon poke bowl",
+    "ugali with sukuma wiki and grilled tilapia",
+    "gallo pinto with eggs",
+    "chicken kebab plate with tabbouleh",
+    "injera with doro wat",
+    "two cheese pupusas with curtido",
+    "chicken biryani",
+    "two pork tamales",
+    "beef pho",
+    "bibimbap with beef and a fried egg",
+    "arroz con pollo",
+    "plain dosa with sambar",
+    "pierogi with sour cream and onions",
+    "nasi goreng with a fried egg",
+    "khao pad gai",
+    "uzbek plov with lamb",
+    "pancit bihon with chicken",
+    "three mochi",
+    "chicken pad thai from the thai place",
+    "grilled pork banh mi",
+    "a couple samosas",
+    "1 cup cooked quinoa",
+    "serving of raisin bran with skim milk"
+  ])("recognizes rehearsal false-negative dish: %s", (food) => {
+    expect(isCarbForward(food)).toBe(true);
+  });
+
+  // The `rotis` plural escape (doc 18 F-2) — plurals are now generated
+  // mechanically for every boundary-matched term, never hand-listed.
+  it.each([
+    "dal with two rotis",
+    "two tamales",
+    "three tostadas",
+    "fried plantains",
+    "two idlis"
+  ])("covers the plural form mechanically: %s", (food) => {
+    expect(isCarbForward(food)).toBe(true);
+  });
+
+  // 2026-07-16.1 false floor-positive family (doc 18 F-2): the panel banded
+  // each of these SAFE, and the floor firing on them produced the fabricated
+  // "leans heavily on refined carbs" copy. PENDING RD/CDCES (W-05).
+  it.each([
+    "zucchini noodles with turkey meatballs",
+    "zoodles with pesto and chicken",
+    "shirataki rice stir fry with beef",
+    "almond flour pancakes with sugar free syrup",
+    "keto bread with butter",
+    "low carb tortilla with eggs",
+    "cauliflower crust pizza",
+    "egg wraps with ham"
+  ])("does not fire on low-carb impostor: %s", (food) => {
+    expect(isCarbForward(food)).toBe(false);
+  });
+
+  // Negation (doc 18 F-2): an explicitly negated carb component must not
+  // fire, and the bunless-burger idioms are spared entirely.
+  it.each([
+    "burger, no bun",
+    "bunless burger with cheese",
+    "grilled chicken, no rice",
+    "carnitas bowl without rice or beans",
+    "lettuce-wrapped burger"
+  ])("does not fire on negated carb: %s", (food) => {
+    expect(isCarbForward(food)).toBe(false);
+  });
+
+  it("negation only removes the negated word, not the dish", () => {
+    expect(isCarbForward("taco, no lettuce")).toBe(true);
+    expect(isCarbForward("burrito without sour cream")).toBe(true);
+  });
 });

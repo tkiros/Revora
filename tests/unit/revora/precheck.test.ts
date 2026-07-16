@@ -76,6 +76,43 @@ describe("classifyInputBeforeModel", () => {
     expect(precheck.question.match(/\?/g) ?? []).toHaveLength(1);
   });
 
+  // 2026-07-16 panel F-5: underspecified inputs must clarify, not be graded
+  // with false precision ("protein and vegetables" was graded SAFE as if it
+  // were a meal).
+  it.each([
+    "leftovers",
+    "takeout",
+    "dinner",
+    "a snack",
+    "fruit",
+    "toast",
+    "soup",
+    "granola",
+    "crackers",
+    "a shake",
+    "a bar",
+    "protein and vegetables",
+    "mcdonald's",
+    "chinese food",
+    "my usual"
+  ])("clarifies underspecified input: %s", (food) => {
+    const precheck = classifyInputBeforeModel(food);
+    expect(precheck.kind).toBe("clarify");
+    if (precheck.kind === "clarify") {
+      expect(precheck.question.match(/\?/g) ?? []).toHaveLength(1);
+    }
+  });
+
+  // Exact-match only: composed descriptions still reach the model.
+  it.each([
+    "leftover fried rice, about two cups",
+    "toast with two eggs",
+    "lentil soup with salad",
+    "granola with greek yogurt"
+  ])("does not clarify a composed description: %s", (food) => {
+    expect(classifyInputBeforeModel(food).kind).not.toBe("clarify");
+  });
+
   it("flags carbs-only meals before the model call", () => {
     expect(classifyInputBeforeModel("plain bagel")).toEqual({
       kind: "carbs_only",
@@ -135,6 +172,84 @@ describe("classifyInputBeforeModel", () => {
     it("still honors a real protein buffer on the same base meal", () => {
       const precheck = classifyInputBeforeModel("a donut with scrambled eggs");
       expect(precheck.kind).toBe("ok");
+    });
+  });
+
+  // 2026-07-16 panel F-2: brands, synonyms, and sugary drinks the risk lists
+  // could not see. Each entry is floored deterministically now — sugar still
+  // has to be NAMED to be floored (N-17), but these are its names.
+  describe("risk-list additions (doc 18 F-2, PENDING RD)", () => {
+    it.each([
+      "six oreos with a glass of milk",
+      "20 oz bottle of sprite",
+      "brown sugar boba milk tea",
+      "large horchata",
+      "32 oz sweet tea",
+      "32 oz gatorade after mowing the lawn",
+      "quarter cup raisins",
+      "a cinnamon roll"
+    ])("floors %s as carbs-only high-risk", (food) => {
+      expect(classifyInputBeforeModel(food)).toEqual({
+        kind: "carbs_only",
+        flags: ["carbs_only", "high_risk"]
+      });
+    });
+
+    it.each([
+      "tablespoon of honey in tea",
+      "half a box of penne",
+      "mac and cheese",
+      "bowl of macaroni"
+    ])("floors %s as carbs-only WITHOUT the high-risk escalation", (food) => {
+      expect(classifyInputBeforeModel(food)).toEqual({
+        kind: "carbs_only",
+        flags: ["carbs_only", "borderline"]
+      });
+    });
+  });
+
+  // 2026-07-16 panel F-2: the `cake` substring must not floor compound
+  // non-cakes ("pancakes" → HIGH was the worst of the family), and substring
+  // surprises inside longer words must not fire the new brand patterns.
+  describe("risk-pattern exclusions (doc 18 F-2)", () => {
+    it.each([
+      ["almond flour pancakes with sugar free syrup", "cake-in-pancakes"],
+      ["two rice cakes with peanut butter", "cake-in-rice-cakes"],
+      ["crab cakes with a side salad", "cake-in-crab-cakes"],
+      ["a fantastic omelet with spinach", "fanta-in-fantastic"],
+      ["honeydew melon and cottage cheese", "honey-in-honeydew"]
+    ])("does not floor %s (%s)", (food) => {
+      const precheck = classifyInputBeforeModel(food);
+      expect(precheck.kind).toBe("ok");
+    });
+
+    it("still floors real cake, including chocolate cake", () => {
+      expect(classifyInputBeforeModel("slice of chocolate cake")).toEqual({
+        kind: "carbs_only",
+        flags: ["carbs_only", "high_risk"]
+      });
+      expect(classifyInputBeforeModel("cheesecake")).toEqual({
+        kind: "carbs_only",
+        flags: ["carbs_only", "high_risk"]
+      });
+    });
+  });
+
+  // 2026-07-16 panel F-5: named diet/zero-sugar variants must not trip the
+  // sugary floors on their base word — the model grades them instead.
+  describe("sugar-negation strip", () => {
+    it.each(["diet coke", "diet pepsi", "coke zero", "sugar free soda"])(
+      "does not floor %s",
+      (food) => {
+        expect(classifyInputBeforeModel(food).kind).toBe("ok");
+      }
+    );
+
+    it("still floors the sugared base drink", () => {
+      expect(classifyInputBeforeModel("a pepsi")).toEqual({
+        kind: "carbs_only",
+        flags: ["carbs_only", "high_risk"]
+      });
     });
   });
 });

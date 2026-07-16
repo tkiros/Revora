@@ -63,6 +63,13 @@ const ExamplesSchema = z.array(z.string().trim().min(1).max(FOOD_MAX_LENGTH));
 const BaseRevoraModelOutputSchema = z
   .object({
     kind: RevoraModelKindSchema,
+    // Composition-first fields (doc 18 item 17f). REQUIRED in the provider
+    // JSON schema (ordered before `risk`, so the model commits to the dish's
+    // driver before it picks a band) but OPTIONAL here so the frozen mock
+    // fixtures parse unchanged. Postprocess reads neither for the verdict —
+    // they are the model's working notes, not a trusted signal.
+    components: z.array(z.string().trim().min(1).max(60)).optional(),
+    glycemic_driver: z.string().trim().min(1).max(120).nullable().optional(),
     risk: RevoraRiskSchema.nullable(),
     reason: NullableResponseTextSchema,
     adjustment: NullableResponseTextSchema,
@@ -118,6 +125,8 @@ export const revoraModelJsonSchema = {
   additionalProperties: false,
   required: [
     "kind",
+    "components",
+    "glycemic_driver",
     "risk",
     "reason",
     "adjustment",
@@ -131,6 +140,13 @@ export const revoraModelJsonSchema = {
       type: "string",
       enum: ["result", "clarify", "not_food", "carbs_only"]
     },
+    // Composition-first (doc 18 item 17f): generated BEFORE risk under
+    // constrained decoding, so the driver is committed before the band.
+    components: {
+      type: "array",
+      items: { type: "string", minLength: 1, maxLength: 60 }
+    },
+    glycemic_driver: { type: ["string", "null"], minLength: 1, maxLength: 120 },
     risk: {
       type: ["string", "null"],
       enum: ["SAFE", "MODERATE", "HIGH", null]

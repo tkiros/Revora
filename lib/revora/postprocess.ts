@@ -1,5 +1,10 @@
 import type { A1CRoute } from "./a1c";
-import { buildCarbsOnlyResponse } from "./fallback";
+import {
+  buildBorderlineFloorResponse,
+  buildCarbsOnlyResponse,
+  groundedFallbackReason
+} from "./fallback";
+import { stripSugarNegations } from "./input-precheck";
 import { RevoraUserResultSchema } from "./schemas";
 import type {
   RevoraModelOutput,
@@ -211,6 +216,17 @@ export function postprocessModelOutput(
     }
   );
 
+  // Grounded-reason check — model-authored reasons only. A floored draft
+  // already replaced the reason with template copy (a floor always rewrites
+  // the reason), and SAFE reasons are permission-first by contract.
+  if (
+    result.reason === modelOutput.reason &&
+    result.risk !== "SAFE" &&
+    context.food
+  ) {
+    result.reason = groundReason(context.food, result.risk, result.reason);
+  }
+
   assertOneSentence("reason", result.reason);
 
   // HIGH results are swap-led: the adjustment slot is suppressed AFTER the
@@ -342,10 +358,17 @@ export function applyConservativeFloors(
 ): ResultDraft {
   const flags = new Set(context.precheckFlags);
   const highRisk = flags.has("high_risk");
-  const upperBandBorderline =
-    context.route.kind === "in_scope" &&
-    context.route.band === "prediabetes_63_64" &&
-    (flags.has("borderline") || flags.has("carbs_only"));
+  // 2026-07-16 (owner-ordered, doc 18 F-1): the carb-forward SAFE→MODERATE
+  // floor now covers the FULL prediabetes range, not only 6.3–6.4.
+  // `d-congee-chicken` proved token coverage alone does not protect the bands
+  // below the old limit: "congee" was a token, the dish shipped SAFE at 6.2,
+  // and the panel banded it HIGH. The A1C band rubric already said borderline
+  // foods "should move to MODERATE rather than use reassuring SAFE copy" at
+  // every in-scope band — the code was narrower than the policy. The
+  // carbs_only case is handled unconditionally in its own block above this
+  // check, so only the `borderline` flag matters here. PENDING RD (W-05).
+  const borderlineCarbForward =
+    context.route.kind === "in_scope" && flags.has("borderline");
 
   if (
     highRisk &&
@@ -363,12 +386,19 @@ export function applyConservativeFloors(
       result.swap === null ||
       !looksLikeSwap(result.swap)
     ) {
-      return buildFloorDraft(context.contract, highRisk ? "HIGH" : "MODERATE");
+      // Preserve model severity when swapping in the template: a floor must
+      // never LOWER a verdict, and before 2026-07-16 a model-HIGH with a
+      // non-compliant adjustment was replaced by the MODERATE draft — the
+      // under-banding direction doc 18's portion findings warned about.
+      return buildFloorDraft(
+        context.contract,
+        highRisk || result.risk === "HIGH" ? "HIGH" : "MODERATE"
+      );
     }
   }
 
-  if (upperBandBorderline && result.risk === "SAFE") {
-    return buildFloorDraft(context.contract, "MODERATE");
+  if (borderlineCarbForward && result.risk === "SAFE") {
+    return buildBorderlineFloorDraft(context.contract);
   }
 
   return result;
@@ -390,6 +420,58 @@ function buildFloorDraft(
     adjustment: floored.adjustment,
     swap: floored.swap
   };
+}
+
+function buildBorderlineFloorDraft(contract: SafetyContract): ResultDraft {
+  const floored = buildBorderlineFloorResponse(contract);
+
+  if (floored.kind !== "result") {
+    throw new RevoraContractError("Expected a result fallback for floors.");
+  }
+
+  return {
+    risk: floored.risk,
+    reason: floored.reason,
+    adjustment: floored.adjustment,
+    swap: floored.swap
+  };
+}
+
+/**
+ * Grounded-reason check (2026-07-16 panel F-5 / work item 17h).
+ *
+ * The rehearsal found the model back-fills verdicts with invented composition
+ * — "mac and cheese" was called "sugary carbs", "sugar-free cookies" "mostly
+ * sugary". Floored drafts already carry template copy, so this guards only
+ * MODEL-AUTHORED reasons, and only for the observed fabrication family:
+ * a sugar claim about a food that names no sugar. The refined-carb family is
+ * handled prompt-side only — enforcing it in code would false-flag correct
+ * reasons on carby foods the ontology cannot see (granola, pad thai), which
+ * is the same blind spot the floors have. The named-variant strip means
+ * "sugar-free cookies" cannot vouch for a "sugary" claim.
+ *
+ * Replacement, not rejection: a wrong DRIVER with a right BAND is a copy
+ * defect, not a safety defect, so the user gets a composition-free reason
+ * consistent with the verdict instead of a retry card.
+ */
+const SUGARY_CLAIM_PATTERN =
+  /\bsugary\b|\bmostly sugar\b|\bhigh in sugar\b|\bloaded with sugar\b|\bfull of sugar\b|\bsugar[- ](?:heavy|laden|rich)\b/i;
+const SUGAR_EVIDENCE_PATTERN =
+  /sugar|sweet|honey|syrup|agave|nectar|dessert|candy|chocolate|cocoa|cake|cookie|donut|doughnut|pastr|croissant|ice cream|milkshake|frappuccino|mocha|soda|pop\b|cola|coke|sprite|pepsi|fanta|juice|boba|horchata|gatorade|powerade|lemonade|punch|jelly|jam|caramel|toffee|frosting|glaze|icing|mochi|raisin|dried fruit|date|fig|fruit|banana|mango|berr|grape|apple|orange|pineapple|melon|smoothie|pie\b|pudding|muffin|brownie|oreo|energy drink|sports drink|slush|sorbet|gelato|custard|marshmallow|nutella|churro|baklava|halva|eggnog|granola|cereal|yogurt/i;
+
+export function groundReason(
+  food: string,
+  risk: "MODERATE" | "HIGH",
+  reason: string
+): string {
+  if (
+    SUGARY_CLAIM_PATTERN.test(reason) &&
+    !SUGAR_EVIDENCE_PATTERN.test(stripSugarNegations(food.toLowerCase()))
+  ) {
+    return groundedFallbackReason(risk);
+  }
+
+  return reason;
 }
 
 function isPermissionFirstReason(reason: string): boolean {

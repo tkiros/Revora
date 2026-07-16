@@ -19,8 +19,10 @@ const DISCLAIMER =
 const BELOW_RANGE_MESSAGE =
   "Revora is designed for the prediabetes A1C range of 5.7% to 6.4%. This value sits below that range, so use a doctor or registered dietitian for guidance that is specific to you.";
 
+// Revised 2026-07-16 (doc 18, e-adv-a1c-high unanimous): the high side now
+// routes with diagnosed-diabetes tone instead of a generic scope refusal.
 const HIGH_RANGE_MESSAGE =
-  "This A1C value falls in a range used for diabetes and is outside Revora's prediabetes-only MVP. For personalized next steps, talk with a doctor or registered dietitian.";
+  "This A1C value falls in the range clinicians use when evaluating Type 2 diabetes, and Revora's prediabetes bands do not apply there. Revora does not know your medicine or glucose readings — please talk with a doctor or registered dietitian for next steps made for you.";
 
 const NON_FOOD_MESSAGE =
   "I can only classify foods or meals. Try entering something like oatmeal with nuts or grilled chicken with rice and vegetables.";
@@ -45,6 +47,17 @@ const CARBS_ONLY_HIGH = {
   // suppressed so a Hold-off card cannot teach the user how to keep the item.
   adjustment: null,
   swap: "If you have the option, swap to a less sweet or less refined version.",
+  disclaimer: DISCLAIMER
+} as const;
+
+const BORDERLINE_FLOOR_MODERATE = {
+  kind: "result",
+  risk: "MODERATE",
+  reason:
+    "This leans on a carb-heavy base, which can have a higher blood-sugar impact in your range even with protein or vegetables alongside.",
+  adjustment:
+    "If practical, keep the protein and vegetables and go lighter on the starchy part.",
+  swap: "If you have the option, choose a smaller portion or a whole-grain version of the starchy base.",
   disclaimer: DISCLAIMER
 } as const;
 
@@ -136,7 +149,7 @@ describe("engine regression: golden floor scenarios", () => {
     expect(response).toEqual(CARBS_ONLY_MODERATE);
   });
 
-  it("upper_band_borderline — SAFE + model borderline flag at 6.3–6.4 floors to MODERATE", async () => {
+  it("prediabetes borderline — SAFE + borderline flag floors to the borderline-floor draft", async () => {
     const model = scriptedModel({
       ...unsafeSafeOutput(),
       policy_flags: ["borderline"]
@@ -147,7 +160,21 @@ describe("engine regression: golden floor scenarios", () => {
       { model }
     );
 
-    expect(response).toEqual(CARBS_ONLY_MODERATE);
+    // 2026-07-16 (doc 18 F-2): the borderline floor no longer borrows the
+    // carbs-only copy — "leans heavily on refined carbs" was the fabricated
+    // half of the finding. Its own draft names only what the floor knows.
+    expect(response).toEqual(BORDERLINE_FLOOR_MODERATE);
+  });
+
+  it("prediabetes borderline — the floor now covers the lower bands too (doc 18 F-1)", async () => {
+    const model = scriptedModel(unsafeSafeOutput());
+
+    const response = await checkFood(
+      { food: "chicken congee", a1c: 6.2 },
+      { model }
+    );
+
+    expect(response).toEqual(BORDERLINE_FLOOR_MODERATE);
   });
 
   it("upper_band_borderline — carbs-only SAFE at the top band floors to MODERATE", async () => {

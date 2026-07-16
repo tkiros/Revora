@@ -86,9 +86,29 @@ describe("the upper-band floor must not depend on the model's self-report", () =
     }
   });
 
-  it("leaves the lower bands alone — carb-forward is inert below 6.3", async () => {
+  // 2026-07-16 (owner-ordered, doc 18 F-1): the floor now covers the FULL
+  // prediabetes range. The band limit this test used to pin was the mechanism
+  // behind `d-congee-chicken` — "congee" was a token, but SAFE shipped at 6.2
+  // because the floor only existed at 6.3–6.4. The rubric always said
+  // borderline foods avoid reassuring SAFE at every in-scope band.
+  it.each([5.7, 6.0, 6.2])(
+    "floors a SAFE verdict on carb-forward food at A1C %s too",
+    async (a1c) => {
+      const response = await checkFood(
+        { food: "chicken congee", a1c },
+        { model: unhelpfulModel() }
+      );
+
+      expect(response.kind).toBe("result");
+      if (response.kind === "result") {
+        expect(response.risk).toBe("MODERATE");
+      }
+    }
+  );
+
+  it("still allows SAFE in the lower bands for non-carb-forward meals", async () => {
     const response = await checkFood(
-      { food: "salmon avocado roll", a1c: 6.0 },
+      { food: "eggs with spinach", a1c: 5.8 },
       { model: unhelpfulModel() }
     );
 

@@ -129,7 +129,19 @@ describe("privacy-minimal audit", () => {
 
     // The point of this whole file: the new attribution fields must not have
     // opened a channel for health data. Nothing emitted may echo the input.
-    const emitted = JSON.stringify(emitEvent.mock.calls);
+    // The version stamps are date-shaped ("2026-07-16.1") and can legally
+    // contain an A1C-looking substring, so they are removed before the leak
+    // check — they are pinned constants, not request data.
+    const emitted = JSON.stringify(
+      emitEvent.mock.calls.map((call) =>
+        call.map((event: Record<string, unknown>) => {
+          const { promptVersion, contractVersion, ...rest } = event;
+          void promptVersion;
+          void contractVersion;
+          return rest;
+        })
+      )
+    );
     expect(emitted).not.toMatch(/lentil/i);
     expect(emitted).not.toMatch(/6\.1/);
   });

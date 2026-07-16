@@ -61,8 +61,15 @@ describe("prompt composer", () => {
       "SAFE results keep adjustment and swap null."
     );
     expect(prompt.instructions).toContain(
-      "MODERATE and HIGH require exactly one adjustment and one swap."
+      "MODERATE requires exactly one adjustment and one swap."
     );
+    // Doc 18 fixes: composition-first, grounded reasons, scope, and math.
+    expect(prompt.instructions).toContain("Work composition-first");
+    expect(prompt.instructions).toContain(
+      "Beverages are valid check subjects, never not_food."
+    );
+    expect(prompt.instructions).toContain("multiply per-serving carbs");
+    expect(prompt.instructions).toContain("A1C calibration: 5.7-5.9");
     expect(prompt.instructions).toContain(
       "Carbs-only meals must add protein or nonstarchy vegetables."
     );
