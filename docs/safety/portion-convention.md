@@ -59,6 +59,17 @@ No quantity stated → assume a typical restaurant/full serving, never a
 tasting portion. This is the conservative default the A1C band rubric already
 implies ("borderline foods avoid casual reassurance").
 
+### 3b. Restaurant-scale starch counting (added by doc-19 step E.1)
+
+Two or more distinct refined-grain/potato starch sources in one meal, or one
+such starch at an oversized portion (a footlong roll, a bread bowl, half a
+pizza, several frozen entrees), is HIGH at A1C 6.3+, at least MODERATE and
+leaning HIGH below. Beans, lentils, and intact whole grains do not count —
+staple dishes they anchor (dal with rotis, gallo pinto, feijoada) can stay
+MODERATE. All eight unanimous rejected-band cases in the doc-19 re-run panel
+were this shape; the simulated panel unanimously accepted the corrected
+bands (39/39 verdicts).
+
 ### 4. Reasons must be honest about which rule fired
 
 - Quantity-scaled verdicts say so ("two servings doubles the label's carbs").
@@ -68,7 +79,8 @@ implies ("borderline foods avoid casual reassurance").
 ## Where it is enforced
 
 - **Prompt:** `lib/revora/prompt.ts` (label-math, small-portion, unstated-
-  portion, and honesty rules; version `2026-07-16.1`).
+  portion, honesty, and restaurant-scale starch-count rules; version
+  `2026-07-16.2`).
 - **Gate corpus:** `tests/fixtures/revora-eval-cases.json` — cases
   `label-math-two-servings-granola`, `portion-one-serving-ice-cream`,
   `portion-half-box-penne`, `portion-tiny-bite-cheesecake` pin the four
@@ -88,6 +100,9 @@ Questions the panel must answer to ratify this document:
    suggestion vs. pinned coax cases.)
 3. Is "typical restaurant serving" the right unstated-portion default for
    cultural dishes the reviewers know to vary widely?
+4. Is the restaurant-scale starch-count anchor (3b) correct as stated —
+   in particular the refined-only starch definition that exempts legumes and
+   intact whole grains, and the HIGH-at-6.3+ threshold?
 
 **SIMULATED — NON-CREDENTIALED note:** nothing in this file has clinical
 sign-off; it is an engineering proposal derived from a simulated panel and is
