@@ -168,8 +168,10 @@
   ### Photo accuracy
 
   Revora is right not to treat a photo as nutritional ground truth. Research on image-based dietary estimation still finds substantial error, especially for portion size,
-  energy, and visually hidden ingredients. 2023 systematic assessment (https://pubmed.ncbi.nlm.nih.gov/38060823/), 2025 nutrient-agreement study
-  (https://pubmed.ncbi.nlm.nih.gov/40004936/), LLM image-estimation study (https://pubmed.ncbi.nlm.nih.gov/41081011/).
+  energy, and visually hidden ingredients. 2025 nutrient-agreement study
+  (https://pubmed.ncbi.nlm.nih.gov/40004936/), LLM image-estimation study (https://pubmed.ncbi.nlm.nih.gov/41081011/). [Corrected 2026-07-12 per
+  validation F-29: the previously cited 2023 systematic assessment (PMID 38060823) concludes AI dietary assessment is roughly comparable to human
+  estimators and did not support this sentence; it has been removed.]
 
   The confirmation screen is therefore an essential product feature, not friction to be removed.
 
@@ -221,7 +223,7 @@
                                                                                                             management
 
   Current comparison prices reinforce the challenge: Levels lists its app at $15/month or $80/year, including AI food logging, programmes, bloodwork uploads and habit
-  tracking. Levels pricing (https://support.levels.com/article/720-levels-pricing-and-plans). SNAQ lists $60/year for photo logging, AI guidance and CGM integration. SNAQ
+  tracking (a CGM is not included — it is an $89–99 add-on; corrected 2026-07-12 per validation F-29). Levels pricing (https://support.levels.com/article/720-levels-pricing-and-plans). SNAQ lists $60/year for photo logging, AI guidance and CGM integration. SNAQ
   pricing (https://www.snaq.ai/premium).
 
   ### Essential differentiation
@@ -264,7 +266,8 @@
    Annual saving               £/$55.89                     35.85%
 
   The annual discount is compelling and large enough to recommend. Annual subscriptions are also particularly important in Health & Fitness: RevenueCat reports that 68% of
-  category subscription revenue comes from annual plans. 2026 subscription benchmarks (https://www.revenuecat.com/state-of-subscription-apps-2026-health-and-fitness/).
+  category subscriptions are annual PLANS, with annual plans contributing approximately 59% of category subscription REVENUE. [Corrected 2026-07-12 per validation
+  F-29: the original conflated plan mix with revenue share.] 2026 subscription benchmarks (https://www.revenuecat.com/state-of-subscription-apps-2026-health-and-fitness/).
 
   But £/$12.99 and £/$99.99 are expensive for Revora’s current feature depth:
 
@@ -345,8 +348,8 @@
   ───────────────────────────────────  ──────────────────────────  ──────────────────
    Download-to-paid by day 35                               1–3%              2.5–5%
 
-  Monthly subscription retention is a major risk. RevenueCat’s cross-category median year-one retention is approximately 8% for monthly subscriptions and 28% for annual
-  subscriptions. AI apps reportedly monetize better initially but churn faster. RevenueCat 2026
+  Monthly subscription retention is a major risk. RevenueCat’s cross-category median year-one retention is approximately 11% for monthly subscriptions and 28% for annual
+  subscriptions. [Monthly figure corrected 2026-07-12 from 8% per validation F-29; the annual figure was verified exact.] AI apps reportedly monetize better initially but churn faster. RevenueCat 2026
   (https://www.revenuecat.com/state-of-subscription-apps-2026-health-and-fitness/).
 
   ### Biggest adoption barriers
@@ -470,8 +473,9 @@
   2. Users regularly receive advice more specific than “add protein, vegetables, and walk.”
   3. A meaningful share of users act on its recommendations and return after the novelty of photo scanning disappears.
 
-  Current technical verification was positive—110 automated test files completed with no failed files, 86 targeted safety/claims tests passed, and the selected 19 mobile
-  smoke cases passed—but that proves implementation consistency, not clinical correctness or willingness to pay.
+  Current technical verification was positive—as of the 2026-07-11 validation run, 107 test files with 819 tests passed and 0 failed, and the mobile smoke suite was
+  13 tests × 2 device projects (26 executions)—but that proves implementation consistency, not clinical correctness or willingness to pay. [Corrected 2026-07-12 per
+  validation F-23: the previously cited 110 files / 86 safety tests / 19 smoke cases were unsourced and not reproducible from any run artifact.]
 
   Research basis: current Revora source and user-facing flows, automated verification, primary clinical research, official public-health guidance, official competitor
   pricing, and 2026 subscription benchmarks. No user interviews, production retention cohort, or independent clinical validation were available, so the commercial funnel

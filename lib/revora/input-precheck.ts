@@ -14,9 +14,32 @@ const NON_FOOD_EXAMPLES = [
   "egg scramble with spinach"
 ] as const;
 
+// W-21: structural patterns, not exact phrases. Each targets a manipulation
+// SHAPE (override verb + instruction noun, prompt exfiltration, persona
+// hijack, forced verdict) so paraphrases land too. Every pattern requires an
+// instruction-domain word a meal description has no reason to contain — the
+// false-positive surface on real food inputs is deliberately near-zero, and
+// the model-side schema + postprocess contract remain the backstop for
+// anything that slips past.
 const PROMPT_INJECTION_PATTERNS = [
-  /\bignore previous instructions\b/i,
-  /\bsystem prompt\b/i,
+  // "ignore/disregard/forget/override … instructions/rules/prompt/safety"
+  /\b(?:ignore|disregard|forget|override|bypass|skip)\b[^.,;!?]{0,40}\b(?:instructions?|rules?|guidelines?|prompts?|polic(?:y|ies)|safety)\b/i,
+  // naming the hidden prompt/config at all
+  /\b(?:system|developer|hidden|initial)\s+(?:prompt|message|instructions?)\b/i,
+  // exfiltration: "reveal/show/print/repeat/leak … prompt/instructions"
+  /\b(?:reveal|show|print|repeat|output|leak|display)\b[^.,;!?]{0,40}\b(?:prompts?|instructions?|system message)\b/i,
+  // persona hijack
+  /\byou are now\b/i,
+  /\bpretend\s+(?:to be|you(?:'re| are))\b/i,
+  /\b(?:act|behave|respond)\s+as\s+(?:a|an|the)\b/i,
+  /\bjailbreak/i,
+  /\bdeveloper mode\b/i,
+  // Deliberately NOT here: forced-verdict coaxing ("just say SAFE"). The
+  // frozen corpus pins that a real food with a coax bolted on still gets a
+  // cautious VERDICT (adversarial-coax-energy-drink expects `result`) — the
+  // deterministic floors and postprocess contract absorb the coercion, and a
+  // refusal there would punish users who merely quote something they read.
+  // off-task generation
   /\bwrite (?:a|the)?\s*(?:poem|story|essay|joke|haiku)\b/i,
   /\btell me a joke\b/i
 ];
@@ -256,7 +279,15 @@ function isCarbsOnlyMeal(food: string): boolean {
  * prediabetes range, "Be careful" instead of "Clear" on a carb-forward plate is
  * the documented meaning of conservativeLevel "high".
  */
-const CARB_FORWARD_TOKENS = [
+/**
+ * Engineering candidate vocabulary for the N-30 upper-band safety floor.
+ *
+ * Version changes are review-significant. W-05 is not closed until an external
+ * RDN/CDCES signs this exact version in the dietitian panel artifact.
+ */
+export const CARB_FORWARD_POLICY_VERSION = "2026-07-12.2";
+
+export const CARB_FORWARD_TOKENS = [
   "sushi",
   "maki",
   "roll",
@@ -304,14 +335,18 @@ const CARB_FORWARD_TOKENS = [
 ] as const;
 
 /** Low-carb impostors that contain a carb word but are not carb-forward. */
-const CARB_FORWARD_EXCLUSIONS = [
+export const CARB_FORWARD_EXCLUSIONS = [
   "cauliflower rice",
   "konjac rice",
+  "shirataki noodles",
   "shirataki",
   "cauliflower crust",
   "lettuce wrap",
   "lettuce wraps",
-  "sweet potato"
+  // Both forms: boundary matching means the singular exclusion does not cover
+  // the plural, but "potatoes" is a token — "sweet potatoes" escaped (G7).
+  "sweet potato",
+  "sweet potatoes"
 ] as const;
 
 export function isCarbForward(food: string): boolean {

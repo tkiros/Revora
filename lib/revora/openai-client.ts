@@ -18,7 +18,11 @@ export const REVORA_JSON_SCHEMA_NAME = "revora_model_output";
  * drift from the call.
  */
 export function activeModelId(): string {
-  return process.env.REVORA_MODEL ?? DEFAULT_REVORA_MODEL;
+  // `??` alone is wrong here: a declared-but-empty REVORA_MODEL= (a real .env
+  // and a real Vercel state) is a string, so it wins the coalesce and every
+  // call asks the provider for model "" — a 400 on every request, product and
+  // eval alike. Blank means unset.
+  return process.env.REVORA_MODEL?.trim() || DEFAULT_REVORA_MODEL;
 }
 
 // Reasoning-effort lever (cost/latency control for GPT-5.x reasoning models).
@@ -85,7 +89,7 @@ export function createOpenAIRevoraModelClient(options?: {
   client?: OpenAIResponsesTransport;
   openAiCtor?: typeof OpenAI;
 }): RevoraModelClient {
-  const model = options?.model ?? process.env.REVORA_MODEL ?? DEFAULT_REVORA_MODEL;
+  const model = options?.model?.trim() || activeModelId();
   const reasoningEffort = resolveReasoningEffort(
     options?.reasoningEffort ?? process.env.REVORA_REASONING_EFFORT
   );

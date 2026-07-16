@@ -4,6 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { TASTER_LIMIT } from "../../../lib/client/taster-store";
+import { FREE_DAILY_CHECKS } from "../../../lib/free-tier";
 import { RISK_LABELS } from "../../../lib/revora/labels";
 
 const ROOT = process.cwd();
@@ -67,6 +68,27 @@ describe("free-tier copy is derived from TASTER_LIMIT", () => {
     expect(src).toContain("{TASTER_LIMIT} free checks on day one");
     expect(src).toContain("Check up to {TASTER_LIMIT} meals on your first day");
     expect(src).toContain("Your first {TASTER_LIMIT} checks, on your first day");
+  });
+
+  // G5 (the F-07 residual): FREE_DAILY_CHECKS = 5 is not legacy-dead — a
+  // signed-in account with no trial/subscription lives on it every day
+  // (app/api/check/route.ts, plan-box). A live entitlement no marketing
+  // surface mentions is an undisclosed wall; the landing must now disclose
+  // BOTH numbers, each interpolated from its constant.
+  it("the landing page discloses the signed-in daily allowance, derived from FREE_DAILY_CHECKS", () => {
+    expect(FREE_DAILY_CHECKS).toBeGreaterThan(1);
+    expect(Number.isInteger(FREE_DAILY_CHECKS)).toBe(true);
+
+    const src = read("app/page.tsx");
+    expect(src).toMatch(/import\s*\{[^}]*FREE_DAILY_CHECKS[^}]*\}\s*from\s*["'].*free-tier["']/);
+    // JSX wraps lines; compare with whitespace collapsed. Pricing tile + FAQ.
+    const flat = src.replace(/\s+/g, " ");
+    expect(flat).toContain(
+      "A free account still includes {FREE_DAILY_CHECKS} free checks a day"
+    );
+    expect(flat).toContain(
+      "a free account includes {FREE_DAILY_CHECKS} free checks a day"
+    );
   });
 
   it("the landing page no longer implies an unmetered free day", () => {

@@ -10,7 +10,8 @@ import { schema, type Db } from "./db";
  * was missed; the webhook is an optimization, not a correctness dependency.
  */
 
-export const FREE_DAILY_CHECKS = 5;
+// Client-safe home (G5): marketing pages interpolate it too.
+export { FREE_DAILY_CHECKS } from "../free-tier";
 
 export type Entitlement = {
   tier: "free" | "premium";

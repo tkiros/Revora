@@ -93,6 +93,8 @@ describe("GET /api/health", () => {
       launch: "ready",
       launchMode: "normal",
       upstash: "unconfigured",
+      // G8: boolean-only W-04 gate state; closed unless LEGAL_TERMS_FINAL="1"
+      checkoutGate: "closed",
       db: "unconfigured",
       crons: {
         nudge: "unknown",

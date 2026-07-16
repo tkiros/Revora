@@ -4,6 +4,7 @@ import Link from "next/link";
 import { DemoCheckCard } from "../components/demo-check-card";
 import { IconAlert, IconArrowRight, IconLeaf } from "../components/icons";
 import { TASTER_LIMIT } from "../lib/client/taster-store";
+import { FREE_DAILY_CHECKS } from "../lib/free-tier";
 import { longitudinalInsightsEnabled } from "../lib/longitudinal-insights-flag";
 import { photoInputEnabled } from "../lib/photo-input-flag";
 import { RISK_LABELS } from "../lib/revora/labels";
@@ -320,7 +321,9 @@ export default function LandingPage() {
               <p className="landing-price-what">$12.99/month</p>
               <p>
                 Unlimited checks, your history on every device, progress you
-                can see, and one gentle reminder. Cancel in one tap.
+                can see, and one gentle reminder. Cancel in one tap. Not
+                ready? A free account still includes {FREE_DAILY_CHECKS} free
+                checks a day.
               </p>
             </div>
           </div>
@@ -357,7 +360,8 @@ export default function LandingPage() {
                 No. Your first {TASTER_LIMIT} checks, on your first day, need
                 no login and no card — they live on this device only. The 7-day
                 free trial needs a card but charges nothing for a week — and we
-                email you before any charge.
+                email you before any charge. Without Premium, a free account
+                includes {FREE_DAILY_CHECKS} free checks a day.
               </p>
             </details>
             {photoEnabled ? (

@@ -28,6 +28,7 @@ import {
   scoreRun,
   type GradedRun
 } from "../../lib/revora/eval-rubric";
+import { activeModelId } from "../../lib/revora/openai-client";
 import type { RevoraModelClient } from "../../lib/revora/openai-client";
 import { checkFood } from "../../lib/revora/service";
 import { createEvalModelClient, loadEvalCases } from "../support/revora-test-model";
@@ -141,7 +142,9 @@ describe("revora graded quality gate", () => {
       JSON.stringify(
         {
           live,
-          model: live ? (process.env.REVORA_MODEL ?? "default") : "mock",
+          // The resolved id, not the raw env var: an artifact that cannot name
+          // the model that produced it is not evidence of that model.
+          model: live ? activeModelId() : "mock",
           summary,
           modelErrors,
           cases: rows

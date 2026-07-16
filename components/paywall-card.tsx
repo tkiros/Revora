@@ -6,10 +6,12 @@ import { useEffect, useState } from "react";
 import { track } from "../lib/client/analytics";
 import {
   isPlayBillingAvailable,
+  listPlayPurchases,
   listPlaySkus,
   purchasePlaySku,
   PLAY_SKUS
 } from "../lib/client/digital-goods";
+import { FREE_DAILY_CHECKS } from "../lib/free-tier";
 import { TERMS_VERSION } from "../lib/legal/terms";
 import { longitudinalInsightsEnabled } from "../lib/longitudinal-insights-flag";
 import { playBillingEnabled } from "../lib/play-billing-flag";
@@ -122,6 +124,45 @@ export function PaywallCard() {
     }
   }
 
+  // N-08: explicit restore for a reinstall / new device. Each token is
+  // re-verified server-side — the client list alone never grants anything.
+  async function restorePurchases() {
+    setBusy("restore");
+    setError(null);
+
+    try {
+      const purchases = await listPlayPurchases();
+      if (purchases.length === 0) {
+        setError("No previous purchase was found on this Google account.");
+        return;
+      }
+
+      for (const purchase of purchases) {
+        const verify = await fetch("/api/billing/play/verify", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            purchaseToken: purchase.purchaseToken,
+            termsAccepted,
+            termsVersion: TERMS_VERSION
+          })
+        });
+        if (verify.ok) {
+          window.location.assign("/account?restored=1");
+          return;
+        }
+      }
+
+      setError(
+        "We couldn't confirm the purchase yet. It will be re-checked automatically — nothing is lost."
+      );
+    } catch {
+      setError("Something went wrong. Your purchase is not affected.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   // Play prices win in the TWA; otherwise the paywall config's monthly
   // variant; the literal only as the offline fallback.
   const monthlyLabel =
@@ -215,10 +256,21 @@ export function PaywallCard() {
           {busy === "annual" ? "Opening…" : `Annual — ${annualLabel}`}
         </button>
       </div>
+      {usesPlay ? (
+        <button
+          type="button"
+          className="link-button"
+          disabled={busy !== null || !termsAccepted}
+          data-testid="restore-purchases"
+          onClick={() => restorePurchases()}
+        >
+          {busy === "restore" ? "Checking…" : "Restore a previous purchase"}
+        </button>
+      ) : null}
       <p className="field-hint">
-        Free keeps working: five checks a day and your today view. Cancel
-        anytime — the cancel button lives on your account page, not behind an
-        email.
+        Free keeps working: {FREE_DAILY_CHECKS} checks a day and your today
+        view. Cancel anytime — the cancel button lives on your account page,
+        not behind an email.
       </p>
       {error ? <p className="field-error">{error}</p> : null}
     </div>

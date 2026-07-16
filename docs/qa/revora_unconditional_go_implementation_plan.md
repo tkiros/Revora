@@ -11,11 +11,86 @@
 > here: W-01 ships **fail-closed**, not fail-open (safer than specified); W-16 uses the existing
 > `subscriptions` row as the trial-used flag rather than a **schema migration** (no new column to
 > desync); and W-13's `model` field is a bounded string, not an enum.
+>
+> **Dietitian-review status (2026-07-12).** The author personas and desk review below are simulated
+> recruiting/protocol tools, not licensed clinical sign-off. They do not close W-05. The review
+> verdict is **REVISE, THEN SEND TO THE EXTERNAL PANEL**; four blocking protocol amendments are
+> incorporated into W-01/W-05 below.
 
 **Date:** 2026-07-11 · **Input:** `docs/qa/sol_deep_analysis_validation.md` (finding IDs F-xx/N-xx referenced throughout) · **Goal:** move the release verdict from today's honest **NO-GO (broad paid launch)** through **CONDITIONAL GO** to **UNCONDITIONAL GO** with evidence, not assertions.
 
 **Effort scale:** XS <1d · S 1–3d · M 3–7d · L 1–2wk · XL >2wk.
 **Flags:** ⚖ legal/privacy review · 🩺 clinician/dietitian review · 🔒 security review · 🏬 store review · 📋 product decision · 🧪 real-user testing · 🔌 vendor dependency.
+
+---
+
+## Dietitian author personas and review record
+
+These are **composite role specifications for recruiting real reviewers**, not invented people and
+not a claim that a credentialed professional has reviewed Revora. Recruit three independent authors;
+at least two must be current RDNs and at least one must also hold CDCES certification. Verify active
+credentials, jurisdiction, conflicts of interest, relevant practice experience, and paid-review terms
+before giving access to the locked corpus.
+
+| Persona | Required background | Primary authoring responsibility | Review lens | Must not approve alone |
+|---|---|---|---|---|
+| **A — Metabolic safety lead** | RDN + CDCES; ≥5 years outpatient prediabetes/diabetes care; current hypoglycaemia, medication-boundary, pregnancy, renal and eating-disorder referral experience | Clinical-route response bank; dangerous-false-reassurance definition; medical-precedence rules; `CARB_FORWARD_TOKENS` | Could this output delay urgent care, conflict with a prescribed plan, or give a meal verdict where Revora lacks enough context? | Emergency/legal wording; medication instructions; the final panel verdict |
+| **B — Cultural and practical nutrition lead** | RDN; community nutrition or National DPP delivery; demonstrated work across culturally diverse cuisines, food insecurity, disability and limited cooking access | Meal corpus breadth; feasible adjustment/swap rubric; budget/equipment/accessibility variants | Is the food recognized without stereotyping, and is the suggestion affordable, available, culturally respectful and realistic? | Clinical routing; model-release thresholds |
+| **C — Behavior, literacy and claims lead** | RDN (MPH or health-literacy/digital-health evaluation experience preferred); motivational interviewing and weight-neutral/non-shaming practice | Plain-language phrase bank; verdict-label comprehension rubric; non-shaming and genericness labels; user-study script | Does the copy support informed choice without diagnosis, moralizing food, false personalization or implied individualized MNT? | Legal claims; emergency copy; statistical sign-off |
+
+### Review method used for this plan
+
+On 2026-07-12 the three personas above were applied as a structured desk review of this plan, the
+current gap audit and release scorecard. This was an **AI-simulated multidisciplinary review** used
+to improve the protocol. It did not inspect 240 live model outputs and cannot be recorded as expert
+validation. The clinical baseline was the 2026 ADA Standards of Care (person-centered,
+culturally/socially appropriate support; individualized MNT by an RDN; activity tailored to ability
+and contraindications), CDC National DPP materials (a structured year-long program, not a meal-card
+equivalent), and ADCES hypoglycaemia symptom material.
+
+### Dietitian desk-review verdict
+
+**REVISE, THEN SEND TO THE EXTERNAL PANEL.** The engineering safety architecture is directionally
+strong: medical precedence, deterministic clinical copy, fail-closed model handling, bounded
+phrase banks, explicit uncertainty and zero-tolerance dangerous-false-reassurance gates are the
+right foundations. The plan was not yet a reproducible dietitian study protocol.
+
+| ID | Severity | Persona finding | Required disposition |
+|---|---|---|---|
+| DR-01 | **BLOCKER** | No simulated or internal review can close F-06/W-05. No Revora verdict has yet received documented external RDN review. | Keep launch at **CONDITIONAL GO** until signed external artifacts exist; never mark persona output as clinical sign-off. |
+| DR-02 | **BLOCKER** | `acceptableRisks` alone is too thin for a defensible reference label. A reviewer must distinguish an acceptable band from required clarification, prohibited reassurance and feasible guidance. | For every case record: independent reviewer band(s), dangerous outputs, required clinical route, minimum clarification, rationale/source, adjustment feasibility, confidence and adjudicated result. |
+| DR-03 | **BLOCKER** | Clinical-route copy has no explicit evidence/version/expiry record. Fixed copy is safer than generation, but it can still become stale or cross a medication/emergency boundary. | Version each route, cite its governing source, record jurisdiction, RDN/CDCES + counsel approval, approval date and annual-or-source-change review date. |
+| DR-04 | **BLOCKER** | `CARB_FORWARD_TOKENS` is a clinical ontology hidden inside a code safety floor. False negatives across mixed dishes, transliterations and regional foods could recreate N-30. | External metabolic lead owns the vocabulary; test false-negative/false-positive performance by cuisine and input style; changes require corpus review and versioning. |
+| DR-05 | HIGH | A 240-case total can look broad while underrepresenting mixed dishes, beverages, restaurant uncertainty, staple foods, budget constraints and transliterated names. | Pre-register case strata and minimum counts; report gates overall **and by safety-critical/cuisine/input subgroup**, not only as a pooled average. |
+| DR-06 | HIGH | Universal walking or plate-order advice can be impractical or inappropriate when mobility, symptoms or prescribed care are unknown. | Phrase activity as optional general education (for example, “if movement is safe for you”); suppress it on clinical routes; include mobility/contraindication cases in review. |
+| DR-07 | HIGH | A literal meal-token match is a weak proxy for useful specificity: it rewards name-dropping, misses synonyms/translations and can reject clinically sound advice. | Treat token matching as a monitored quality heuristic until false-reject evidence supports enforcement; dietitians score whether the suggestion materially addresses the meal. |
+| DR-08 | HIGH | Panel independence, blinding and adjudication are underspecified; consensus after discussion can hide initial disagreement. | Randomize/blind output identity where possible; collect independent labels first; predefine tie handling; retain raw labels; report inter-rater agreement, disagreements and confidence intervals. |
+| DR-09 | HIGH | The ≥95% non-shaming gate needs explicit failure examples, including moral labels, restriction escalation and eating-disorder-sensitive phrasing. | Add a bounded rubric and dedicated eating-disorder/adversarial stratum; any harmful eating-disorder response is a release blocker, not averaged away. |
+| DR-10 | MEDIUM | Revora can be mistaken for individualized MNT or a substitute for the National DPP even when disclaimers exist. | Test scope comprehension explicitly: users must understand that the app offers general meal-decision support, not diagnosis, medication advice, individualized MNT or a year-long DPP. |
+
+### External panel sign-off artifact (required to close W-05)
+
+The final artifact must contain: reviewer names and verified credentials; conflicts; corpus/prompt/
+model/contract versions; source list and review dates; independent raw labels; adjudication log;
+overall and subgroup results with confidence intervals; every dangerous-false-reassurance example;
+approved route/copy-bank versions; unresolved minority opinions; explicit **approve / approve with
+conditions / reject** votes; signatures and dates. Product may not convert a split or conditional
+vote into “clinically approved.”
+
+**Authoritative anchors:** [ADA Standards of Care in Diabetes—2026, Section 5](https://diabetesjournals.org/care/article/49/Supplement_1/S89/163932/5-Facilitating-Positive-Health-Behaviors-and-Well),
+[CDC National DPP description](https://www.cdc.gov/diabetes-prevention/programs/what-is-the-national-dpp.html),
+[CDC PreventT2 curriculum](https://www.cdc.gov/diabetes-prevention/php/lifestyle-change-resources/t2-curriculum.html),
+and [ADCES low-blood-sugar roadmap](https://www.adces.org/docs/default-source/handouts/hypoglycemia/handout_pwd_hypo_hypoglycemiatreatmentplanroadmap.pdf).
+
+### Current closure state (2026-07-12)
+
+| Workstream | Status | Current proof / boundary |
+|---|---|---|
+| **W-01** | **ENGINEERING CLOSED; CLINICAL COPY APPROVAL PENDING W-05** | Deterministic pre-model route, 40/40 clinical cases correctly routed, zero false positives in the food corpus, verdict-free response schema, fixed ledger copy. Copy policy is versioned in `docs/qa/dietitian-review/clinical-copy-governance.json`; its external approval fields remain empty rather than fabricated. |
+| **W-05** | **OPEN — EXTERNAL PANEL REQUIRED** | Engineering review gate and reviewer packet exist. `npm run review:dietitian:close` fails closed until three verified reviewers independently review 240 locked cases, approve clinical copy and `CARB_FORWARD_TOKENS`, sign unconditional votes, and all overall/subgroup gates pass. |
+| **W-06** | **CLOSED** | Runtime `assertNoForbiddenClaims()` covers result reason/adjustment/swap plus model-authored clarify/not-food fields; violations throw and become verdict-free retry cards. Focused W-06 tests and the safety-contract validator pass. |
+
+Detailed evidence and exact remaining authority boundary: `docs/qa/15-w01-w05-w06-closure.md`.
 
 ---
 
@@ -42,7 +117,10 @@
 - **Change:** Deterministic, pattern-based router running **before** the model, returning fixed, counsel/dietitian-approved copy per class — per the class table in `sol_deep_analysis.md` §4 (insulin/med dosing, possible hypoglycaemia, urgent symptoms, pregnancy, kidney/liver/CV disease, eating-disorder language, serious allergy, T1/T2 out-of-scope, food+medical → medical precedence). Word-boundary matching (avoid N-17's substring class). No model call on a clinical route.
 - **Rollout:** Ship behind nothing — this is a pure safety addition; fail-open to the current behavior only if the router itself throws (log loudly).
 - **Tests:** New eval category (Phase 0.5 corpus); unit tests per class incl. paraphrases/misspellings; adversarial combos ("valid meal + insulin question" must route medical). **Gate: 100% correct routing on the clinical corpus.**
-- **Manual:** 🩺 dietitian/CDCES reviews the approved response copy; red-team hour with casual/slang phrasings.
+- **Manual:** External Persona A (RDN/CDCES) reviews and versions every approved response against
+  current sources; counsel reviews emergency/legal wording; red-team hour with casual/slang,
+  misspellings, mixed food+symptom prompts, transliterations and regional food names. Copy approval
+  records the source, jurisdiction, version, approval date and re-review date.
 - **Rollback:** Revert commit (additive change, no migration).
 - **Owner:** Eng + 🩺 + ⚖ (emergency-language wording). **Effort: M.**
 - **Done when:** clinical corpus green live, copy signed off, category enum extended, zero regressions in existing 48 cases.
@@ -74,10 +152,24 @@
 ### W-05 · Expert + user validation study (F-06) 🩺🧪 — the long pole
 
 - **Problem:** No evidence the verdict system is directionally safe/useful: the automated risk-accuracy gate has never evaluated (0 labeled cases) and no dietitian has reviewed outputs.
-- **Work:** Adopt the protocol already specified in `sol_deep_analysis.md` §5 (it is sound): ~240-case locked corpus, 3 reviewers (2 RDs + 1 CDCES), predefined disagreement rubric, the stated success gates (zero dangerous false reassurance, 100% medical routing, ≥85% direction agreement, ≥90% safe/feasible adjustments, <15% generic, ≥95% non-shaming). Then the 25–30-person real-user week with the stated product gates. Interim step that de-risks it cheaply: Phase 0.5's `acceptableRisks` labels activate the automated 0.85 accuracy gate immediately.
+- **Work:** Use the protocol in `sol_deep_analysis.md` §5, amended by DR-01–DR-10 above: a
+  ~240-case locked, pre-stratified corpus; the three external author roles defined above (≥2 RDNs,
+  ≥1 RDN/CDCES); independent blinded-first labels; retained disagreements and predefined
+  adjudication. Each reference record contains acceptable band(s), prohibited/dangerous outputs,
+  required clinical route, minimum clarification, rationale/source, safe/feasible-adjustment label,
+  non-shaming label and reviewer confidence — not only `acceptableRisks`. Report overall and
+  subgroup results with confidence intervals. Gates remain: zero observed dangerous false
+  reassurance, 100% medical routing, ≥85% direction agreement, ≥90% safe/feasible adjustments,
+  <15% generic, ≥95% non-shaming; a harmful eating-disorder response is an automatic failure.
+  Then run the 25–30-person real-user week, including a scope-comprehension check, with the stated
+  product gates. Phase 0.5's `acceptableRisks` remains a useful automated interim gate, not the
+  clinical gold standard.
 - **Sequencing:** Corpus + labels now; expert review after W-01/W-02/W-06/W-09 land (validate the product you'll ship, not the one you're deleting).
-- **Owner:** Product + 🩺 external panel + 🧪. **Effort: XL (external calendar time; eng support S).**
-- **Done when:** Gates pass and are recorded; this converts the F-06 launch gate from FAIL to PASS.
+- **Owner:** Product + 🩺 external panel (Persona A owns `CARB_FORWARD_TOKENS`) + 🧪.
+  **Effort: XL (external calendar time; eng support S).**
+- **Done when:** The external sign-off artifact defined above is complete; overall and subgroup
+  gates pass; route/copy/ontology versions are approved; minority opinions remain visible; and the
+  user-study scope-comprehension gate passes. Only then does F-06 move from FAIL to PASS.
 
 ### W-33 · Blob lifecycle integrity — make the deletion promise true (N-23/N-24)
 
@@ -128,7 +220,13 @@ All six items verified per their "done when"; fresh full-suite + live-eval artif
 
 The per-meal value already comes from the model's `adjustment`/`swap` (schema-bounded, one sentence, postprocessed, fail-closed). Two upgrades:
 
-1. **Require the adjustment/swap to name a concrete component of the described meal** — add the instruction to `prompt.ts`, and enforce it cheaply in `postprocess.ts` (adjustment must contain a token from the input food string; violation → fail-closed retry, same as every other contract rule). Every result then feels meal-specific while the deterministic layer stays safe. Watch the retry-rate telemetry when enabling (same rollout discipline as W-06).
+1. **Ask the adjustment/swap to address a concrete component of the described meal** — add the
+   instruction to `prompt.ts`, but treat `mentionsMealComponent()` as a monitored quality heuristic,
+   not proof of clinical correctness. Literal matching rewards name-dropping and misses synonyms,
+   translations and mixed-dish components (DR-07). Enable fail-closed enforcement only after a
+   multilingual/culturally varied labeled run shows an acceptable false-reject rate; until then,
+   record the metric and let dietitians score whether the suggestion materially addresses the meal.
+   Watch delivered-result and retry-rate telemetry when enabling (same rollout discipline as W-06).
 2. **Optional anti-repetition context:** the client already holds recent history locally (`lib/client/history-store.ts`), so it can send the last 2–3 adjustment texts with the request ("avoid repeating these"). No new server storage; keep the strings out of telemetry/Sentry per existing scrub rules. Flag: this widens the prompt input surface — run the injection eval against it before shipping.
 
 #### Tier 3 — Feedback-driven personalization (Phase 3 · the actual moat)
@@ -143,7 +241,13 @@ Repetition is a symptom of the product not learning. The durable fix is the loop
 
 - **Ship as one package:** Tier 1 + Tier 2.1 + W-10 instrumentation (M total). Tier 2.2 optional fast-follow; Tier 3 after feedback data accumulates (Phase 3).
 - **Tests:** ledger/claims-boundary tests cover every new variant; unit tests for rotation determinism, no-consecutive-repeat, drink suppression, and the component-mention postprocess rule; repeat-session manual review (10 consecutive checks as one user — no identical coach line twice in a row).
-- **Acceptance criteria:** ≥5 audited variants per slot; same sentence never twice consecutively; drink-type meals get no sequencing tip; adjustment names a meal component ≥90% of delivered results without raising retry rate >2pts; helpful-rate per variant visible in analytics; metric defined and trending — "% of 7-day-active users who saw an identical coach sentence twice."
+- **Acceptance criteria:** ≥5 audited variants per slot; same sentence never twice consecutively;
+  drink-type meals get no sequencing tip; activity advice is suppressed on clinical routes and
+  framed as optional when appropriateness is unknown; ≥90% of delivered adjustments materially
+  address a meal component by labeled dietitian review, with lexical-match false rejects reported
+  separately and retry-rate delta <2pts before enforcement; helpful-rate per variant visible in
+  analytics; metric defined and trending — "% of 7-day-active users who saw an identical coach
+  sentence twice."
 - **Owner:** Eng + product; 🩺⚖ one-time bank review. **Rollback:** variants revert to the current three strings (pure copy/data change).
 
 ### Phase 2 exit criteria
