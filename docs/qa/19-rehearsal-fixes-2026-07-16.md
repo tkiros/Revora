@@ -223,3 +223,18 @@ No corpus labels, no governed copy, no ontology lists, no floors touched.
 Both eval modes green on the final code (mock 9/9; full suite 1268 passed;
 contract validator green). **W-05 remains open** — nothing here is clinical
 sign-off.
+
+### E.3 measurement — `REVORA_ENFORCE_COMPONENT_MENTION` stays OFF
+
+Ran the unblock measurement (live gate, flag on, real model):
+`graded-eval-live-2026-07-16T10-08-48-056Z.json` — passed, 0 harmful-SAFE,
+but 1 retry card in 33 calls = **3pts delta > the 2pt condition. Flag stays
+off.** Instrumented reproduction (6 calls on `mac and cheese`) shows the
+delta is checker literalism, not model genericness: the model names the
+component precisely ("keep the macaroni portion smaller", "the pasta carries
+most of the blood-sugar load") and `mentionsMealComponent` token-matches the
+typed string, so "macaroni"/"pasta" fail to count as mentions of "mac".
+The prompt-side instruction (ships enabled) is doing its job — every raw
+output in the reproduction named real components. Unblocking now requires a
+synonym-aware `mentionsMealComponent`, not more prompt work. Future work
+item; not attempted here.
