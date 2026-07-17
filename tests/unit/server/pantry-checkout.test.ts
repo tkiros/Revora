@@ -104,8 +104,8 @@ describe("createPantryCheckoutSessionHandler", () => {
     expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
   });
 
-  it("W-04: 503s and never opens a Stripe session when LEGAL_TERMS_FINAL is unset", async () => {
-    delete process.env.LEGAL_TERMS_FINAL;
+  it("W-04 kill switch: 503s and never opens a Stripe session when LEGAL_TERMS_FINAL=0", async () => {
+    process.env.LEGAL_TERMS_FINAL = "0";
     const stripe = stripeStub();
     const handler = createPantryCheckoutSessionHandler({
       stripeClient: () => stripe as never

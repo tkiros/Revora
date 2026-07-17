@@ -328,14 +328,14 @@ describe("per-email cooldown (W-11)", () => {
 });
 
 describe("legal gate (W-04)", () => {
-  it("503s and takes no money when LEGAL_TERMS_FINAL is unset", async () => {
+  it("kill switch: 503s and takes no money when LEGAL_TERMS_FINAL=0", async () => {
     const stripe = stripeStub();
     const sendMagicLink = vi.fn();
     const handler = createTrialCheckoutHandler({
       db: () => ctx.db,
       stripeClient: () => stripe as never,
       sendMagicLink,
-      env: { ...trialEnv, LEGAL_TERMS_FINAL: undefined } as NodeJS.ProcessEnv
+      env: { ...trialEnv, LEGAL_TERMS_FINAL: "0" } as NodeJS.ProcessEnv
     });
 
     const res = await handler(jsonRequest({ email: "new@example.com" }));

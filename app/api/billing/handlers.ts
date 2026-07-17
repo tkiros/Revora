@@ -88,20 +88,24 @@ function defaultStripe(): Stripe {
 }
 
 /**
- * W-04 — the paid-launch gate. No paid-checkout entry point opens until the
- * deploy explicitly declares the reviewed Terms final: LEGAL_TERMS_FINAL=1.
+ * W-04 — the paid-launch gate. Checkout is OPEN by default as of the WTP
+ * decision (2026-07-17, owner): counsel sign-off is deferred until the WTP
+ * test returns, and /terms renders free of placeholders (asserted by
+ * tests/smoke/legal-placeholders.spec.ts), so the deployed contract text is
+ * real even though no lawyer has passed on it.
  *
- * Default-blocked on purpose (env unset ⇒ 503): forgetting the flag can only
- * ever cost a sale, while forgetting the reverse gate would take real money.
- * The failure is loud in staging and impossible to miss in QA. A separately
- * validated HTTPS return URL is also required before Stripe can create a
- * customer session.
+ * ponytail: kept as a kill switch rather than deleted — LEGAL_TERMS_FINAL=0
+ * closes every paid entry point again without a deploy. This path takes real
+ * money; a one-line off switch is worth more than the lines it costs.
+ *
+ * A separately validated HTTPS return URL is still required before Stripe can
+ * create a customer session.
  *
  * Deliberately NOT applied to the portal or the cancel paths — an existing
  * subscriber must ALWAYS be able to manage and leave, terms or no terms.
  */
 function checkoutGate(env: NodeJS.ProcessEnv = process.env): NextResponse | null {
-  if (env.LEGAL_TERMS_FINAL === "1") {
+  if (env.LEGAL_TERMS_FINAL !== "0") {
     return null;
   }
   return NextResponse.json(

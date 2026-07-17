@@ -1420,12 +1420,12 @@ describe("POST /api/billing/stripe/checkout (W-20b price unification, W-04 gate)
     ]);
   });
 
-  it("W-04: 503s and never opens a Stripe session when LEGAL_TERMS_FINAL is unset", async () => {
+  it("W-04 kill switch: 503s and never opens a Stripe session when LEGAL_TERMS_FINAL=0", async () => {
     const stripe = stripeStub();
     const POST = createStripeCheckoutHandler({
       ...baseDeps(),
       stripeClient: () => stripe as never,
-      env: { ...checkoutEnv, LEGAL_TERMS_FINAL: undefined } as NodeJS.ProcessEnv
+      env: { ...checkoutEnv, LEGAL_TERMS_FINAL: "0" } as NodeJS.ProcessEnv
     });
 
     const response = await POST(post("http://t/api/billing/stripe/checkout", { plan: "monthly" }));
