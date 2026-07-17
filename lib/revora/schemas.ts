@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { CLINICAL_ROUTES } from "./clinical-risk";
 
-const FOOD_MAX_LENGTH = 160;
+export const FOOD_MAX_LENGTH = 160;
 const RESPONSE_TEXT_MAX_LENGTH = 280;
 
 const TrimmedResponseTextSchema = z

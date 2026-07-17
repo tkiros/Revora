@@ -29,3 +29,38 @@ describe("composeDraftText", () => {
     expect(composeDraftText("soup", [])).toBe("soup");
   });
 });
+
+describe("composeDraftText length bounding", () => {
+  const longItems = [
+    { name: "sesame seed bun", portion: "1 bun", uncertain: false },
+    { name: "beef patty", portion: "1 patty", uncertain: false },
+    { name: "cheddar cheese", portion: "1 slice", uncertain: false },
+    { name: "bacon", portion: "several strips", uncertain: false },
+    { name: "mayonnaise", portion: "small amount", uncertain: false },
+    { name: "ketchup or sauce", portion: "small amount", uncertain: false }
+  ];
+
+  it("keeps portions when the composed text fits", () => {
+    const text = composeDraftText("soup", [
+      { name: "lentils", portion: "1 cup", uncertain: false }
+    ]);
+    expect(text).toBe("soup: lentils (1 cup)");
+  });
+
+  it("drops portions before item names when over the cap", () => {
+    const text = composeDraftText("bacon cheeseburger", longItems);
+    expect(text.length).toBeLessThanOrEqual(160);
+    expect(text).toContain("bacon cheeseburger");
+    expect(text).toContain("beef patty");
+    expect(text).not.toContain("(1 patty)");
+  });
+
+  it("never exceeds the check schema's food cap", () => {
+    const many = Array.from({ length: 20 }, (_, i) => ({
+      name: `ingredient number ${i} with a fairly long descriptive name`,
+      portion: "1 serving",
+      uncertain: false
+    }));
+    expect(composeDraftText("a very detailed plate", many).length).toBeLessThanOrEqual(160);
+  });
+});

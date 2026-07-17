@@ -6,6 +6,31 @@ photos exist. Only the owner can close this. This checklist is written so the
 owner can just drop files and the next session can wire them in without a
 decision meeting.
 
+## Two tiers (owner-ordered amendment, 2026-07-17)
+
+The owner supplied ~100 web-sourced meal photos (Reddit/review-site CDN
+provenance, confirmed by filename patterns and download timestamps) and
+ordered that feature testing not wait months for consent-clean photos. The
+amendment keeps purpose and evidence separate instead of pretending one file
+set can serve both:
+
+- **Tier 1 — engineering test set (web-sourced allowed).** Used to exercise
+  and debug the photo-draft → checkFood path and to run SIMULATED panels on
+  photo outputs. Lives OUTSIDE the repo (never committed — the repo must not
+  redistribute third-party images), manifest field
+  `"consent": "web-sourced-engineering-only"`. Results are engineering
+  findings only: they can find and fix bugs, but they can NEVER be listed as
+  corpus coverage or enter the credentialed panel packet. Coverage stays
+  **200/240** while only Tier 1 exists.
+- **Tier 2 — panel stratum (this checklist, unchanged).** The 40 photos the
+  human panel grades. Consent rules below hold verbatim; the `consent` field
+  is an attestation inside the evidence chain the panel signs, and it is
+  never written falsely. Realistic accumulation paths: (a) the owner
+  photographs their own meals as eaten — no dedicated shooting, ~40 in a few
+  weeks; (b) friends/family photos with one-line written consent; (c) once
+  the app has beta users, in-app photo submissions behind an explicit
+  QA-consent checkbox — the cleanest long-term source.
+
 ## Per-photo requirements (all must hold)
 
 - [ ] **Consent:** you took the photo yourself, or the person who did has
