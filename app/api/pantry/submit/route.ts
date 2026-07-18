@@ -25,10 +25,35 @@ export const runtime = "nodejs";
 // OPS: requires the Vercel plan's 300s function ceiling (Pro default).
 export const maxDuration = 300;
 
+// Photos must come from OUR blob store (the same origins the CSP allows).
+// Without this, a signed-in buyer could point the vision provider's fetcher
+// at an arbitrary host via photoUrls.
+function isBlobPhotoUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" &&
+      (url.hostname === "blob.vercel-storage.com" ||
+        url.hostname.endsWith(".blob.vercel-storage.com"))
+    );
+  } catch {
+    return false;
+  }
+}
+
 const SubmitSchema = z
   .object({
     orderId: z.string().uuid(),
-    photoUrls: z.array(z.string().url().max(2048)).min(1).max(10),
+    photoUrls: z
+      .array(
+        z
+          .string()
+          .url()
+          .max(2048)
+          .refine(isBlobPhotoUrl, "Photos must come from the Revora upload store.")
+      )
+      .min(1)
+      .max(10),
     a1cBand: z.enum([
       "prediabetes_57_59",
       "prediabetes_60_62",

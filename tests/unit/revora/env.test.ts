@@ -82,6 +82,8 @@ describe("GET /api/health", () => {
     };
     delete process.env.UPSTASH_REDIS_REST_URL;
     delete process.env.UPSTASH_REDIS_REST_TOKEN;
+    // Hermetic against a local shell exporting the kill switch.
+    delete process.env.LEGAL_TERMS_FINAL;
 
     const response = await GET();
     const payload = await response.json();
@@ -93,8 +95,9 @@ describe("GET /api/health", () => {
       launch: "ready",
       launchMode: "normal",
       upstash: "unconfigured",
-      // G8: boolean-only W-04 gate state; closed unless LEGAL_TERMS_FINAL="1"
-      checkoutGate: "closed",
+      // G8: boolean-only W-04 gate state; open unless LEGAL_TERMS_FINAL="0"
+      // (owner WTP decision 2026-07-17, commit 8c30265 — kill switch inverted)
+      checkoutGate: "open",
       db: "unconfigured",
       crons: {
         nudge: "unknown",

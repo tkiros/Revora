@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import Script from "next/script";
 import type { ReactNode } from "react";
 
+import { AttributionCapture } from "../components/attribution-capture";
 import { SwRegister } from "../components/sw-register";
 
 import "./globals.css";
@@ -23,11 +24,27 @@ const sans = Plus_Jakarta_Sans({
   weight: ["400", "500", "600", "700", "800"]
 });
 
+// Absolute base for OG/Twitter URLs and sitemap/robots (strategy §0.2 #7 —
+// every launch channel is link-sharing). Same validated origin the billing
+// return URLs use; localhost keeps dev/test builds self-consistent.
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(APP_URL),
   title: "Revora",
   description: "General meal-composition education with cautious A1C-range context.",
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, title: "Revora", statusBarStyle: "default" }
+  appleWebApp: { capable: true, title: "Revora", statusBarStyle: "default" },
+  // Site-wide link-preview card; app/opengraph-image.tsx supplies the image.
+  // Copy is reused from the landing page metadata — no new claims.
+  openGraph: {
+    siteName: "Revora",
+    type: "website",
+    title: "Revora — A cautious educational read on your meal",
+    description:
+      "For adults using a prediabetes-range A1C. Describe a meal and get general meal-composition information, cautious labels, and practical alternatives."
+  },
+  twitter: { card: "summary_large_image" }
 };
 
 export const viewport: Viewport = {
@@ -46,6 +63,7 @@ export default function RootLayout({
       <body>
         {children}
         <SwRegister />
+        <AttributionCapture />
         {UMAMI_SRC && UMAMI_WEBSITE_ID ? (
           <Script
             src={UMAMI_SRC}

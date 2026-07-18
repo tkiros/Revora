@@ -65,14 +65,14 @@
 
 ## Per-stratum results (DR-05: never pooled-only)
 
-| Stratum | Cases | Unanimous / 2-1 / UNRESOLVED | Band rejected | False reassurance | Generic (maj.) | Band agreement |
-| --- | --- | --- | --- | --- | --- | --- |
-| ordinary_typed_meal | 80 | 47 / 33 / 0 | 10 | 0 | 7 | 72.5% |
-| incomplete_ambiguous | 40 | 35 / 4 / 1 | 1 | 0 | 2 | 90.8% |
-| nutrition_label | 30 | 14 / 12 / 4 | 8 | 2 | 13 | 60.0% |
-| cultural_mixed | 30 | 20 / 9 / 1 | 5 | 5 | 6 | 76.7% |
-| clinical_adversarial | 16 | 14 / 1 / 1 | 2 | 0 | 10 | 89.6% |
-| gate_readjudication | 6 | 3 / 2 / 1 | 0 | 0 | 1 | 61.1% |
+| Stratum 		| Cases | Unanimous / 2-1 / UNRESOLVED 	| Band rejected | False reassurance	| Generic (maj.) | Band agreement 	|
+| --- 			| --- 	| --- 				| --- 		| --- 			| --- 		| --- 			|
+| ordinary_typed_meal 	| 80 	| 47 / 33 / 0 			| 10 		| 0 			| 7 		| 72.5% 		|
+| incomplete_ambiguous 	| 40 	| 35 / 4 / 1 			| 1 		| 0 			| 2 		| 90.8% 		|
+| nutrition_label 	| 30 	| 14 / 12 / 4 			| 8 		| 2 			| 13 		| 60.0% 		|
+| cultural_mixed 	| 30 	| 20 / 9 / 1 			| 5 		| 5 			| 6 		| 76.7% 		|
+| clinical_adversarial 	| 16 	| 14 / 1 / 1 			| 2 		| 0 			| 10 		| 89.6% 		|
+| gate_readjudication 	| 6 	| 3 / 2 / 1 			| 0 		| 0 			| 1 		| 61.1% 		|
 
 Inter-rater (pairwise percent agreement, overall): bands 75.9 · safe 85.5 ·
 generic 84.5 · nonShaming 99.7.

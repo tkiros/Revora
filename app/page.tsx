@@ -8,6 +8,7 @@ import { FREE_DAILY_CHECKS } from "../lib/free-tier";
 import { longitudinalInsightsEnabled } from "../lib/longitudinal-insights-flag";
 import { photoInputEnabled } from "../lib/photo-input-flag";
 import { RISK_LABELS } from "../lib/revora/labels";
+import { paywallMode, resolvePriceVariant } from "../lib/server/pricing";
 import { storeWaitlistUrl } from "../lib/waitlist";
 
 export const metadata: Metadata = {
@@ -39,6 +40,12 @@ export default function LandingPage() {
   const iosWaitlist = storeWaitlistUrl("ios");
   const photoEnabled = photoInputEnabled();
   const insightsEnabled = longitudinalInsightsEnabled();
+  // §0.2 #4 — the pricing section renders from the SAME server flags checkout
+  // enforces (paywallMode + resolvePriceVariant), so the landing can never
+  // promise a funnel or a price the live config doesn't run. Mismatch here is
+  // the one unforced error this audience never forgives.
+  const trialFunnel = paywallMode() === "trial";
+  const monthlyPrice = resolvePriceVariant().display;
   return (
     <main className="landing">
       {/* ── Dark band: nav + hero ─────────────────────────────── */}
@@ -292,9 +299,21 @@ export default function LandingPage() {
           <div className="landing-section-head">
             <h2 className="landing-h2">Try it before you pay a cent</h2>
             <p className="landing-section-lede">
-              The funnel is the promise: {TASTER_LIMIT} free checks on day one,
-              a free week, and a cancel button that lives on your account page
-              — not behind an email.
+              {trialFunnel ? (
+                <>
+                  The funnel is the promise:{" "}
+                  {TASTER_LIMIT} free checks on day one, a free week, and a
+                  cancel button that lives on your account page — not behind
+                  an email.
+                </>
+              ) : (
+                <>
+                  The funnel is the promise:{" "}
+                  {TASTER_LIMIT} free checks on day one, a free account every
+                  day after, and a cancel button that lives on your account
+                  page — not behind an email.
+                </>
+              )}
             </p>
           </div>
           <div className="landing-price-tiles">
@@ -308,24 +327,48 @@ export default function LandingPage() {
                 no card. See how the answers feel at your own table.
               </p>
             </div>
-            <div className="landing-price-tile">
-              <p className="landing-price-day">Days 2–8</p>
-              <p className="landing-price-what">7 days free</p>
-              <p>
-                Card required, nothing charged. Two days before the trial
-                ends, we email you the exact date and amount.
-              </p>
-            </div>
-            <div className="landing-price-tile">
-              <p className="landing-price-day">After</p>
-              <p className="landing-price-what">$12.99/month</p>
-              <p>
-                Unlimited checks, your history on every device, progress you
-                can see, and one gentle reminder. Cancel in one tap. Not
-                ready? A free account still includes {FREE_DAILY_CHECKS} free
-                checks a day.
-              </p>
-            </div>
+            {trialFunnel ? (
+              <>
+                <div className="landing-price-tile">
+                  <p className="landing-price-day">Days 2–8</p>
+                  <p className="landing-price-what">7 days free</p>
+                  <p>
+                    Card required, nothing charged. Two days before the trial
+                    ends, we email you the exact date and amount.
+                  </p>
+                </div>
+                <div className="landing-price-tile">
+                  <p className="landing-price-day">After</p>
+                  <p className="landing-price-what">{monthlyPrice}/month</p>
+                  <p>
+                    Unlimited checks, your history on every device, progress
+                    you can see, and one gentle reminder. Cancel in one tap.
+                    Not ready? A free account still includes
+                    {FREE_DAILY_CHECKS} free checks a day.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="landing-price-tile">
+                  <p className="landing-price-day">Every day</p>
+                  <p className="landing-price-what">A free account</p>
+                  <p>
+                    No card. A free account still includes
+                    {FREE_DAILY_CHECKS} free checks a day, with your
+                    history saved to your account.
+                  </p>
+                </div>
+                <div className="landing-price-tile">
+                  <p className="landing-price-day">Premium</p>
+                  <p className="landing-price-what">{monthlyPrice}/month</p>
+                  <p>
+                    Unlimited checks, your history on every device, progress
+                    you can see, and one gentle reminder. Cancel in one tap.
+                  </p>
+                </div>
+              </>
+            )}
           </div>
         </section>
 
@@ -356,13 +399,23 @@ export default function LandingPage() {
             </details>
             <details>
               <summary>Do I need an account or a card to try it?</summary>
-              <p>
-                No. Your first {TASTER_LIMIT} checks, on your first day, need
-                no login and no card — they live on this device only. The 7-day
-                free trial needs a card but charges nothing for a week — and we
-                email you before any charge. Without Premium, a free account
-                includes {FREE_DAILY_CHECKS} free checks a day.
-              </p>
+              {trialFunnel ? (
+                <p>
+                  No. Your first {TASTER_LIMIT} checks, on your first day, need
+                  no login and no card — they live on this device only. The
+                  7-day free trial needs a card but charges nothing for a week
+                  — and we email you before any charge. Without Premium, a free
+                  account includes {FREE_DAILY_CHECKS} free checks a day.
+                </p>
+              ) : (
+                <p>
+                  No. Your first {TASTER_LIMIT} checks, on your first day, need
+                  no login and no card — they live on this device only. After
+                  that, a free account includes {FREE_DAILY_CHECKS} free checks
+                  a day — still no card. Premium is optional, and cancels in
+                  one tap.
+                </p>
+              )}
             </details>
             {photoEnabled ? (
               <details>

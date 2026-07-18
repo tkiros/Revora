@@ -11,7 +11,19 @@ async function expectNoSeriousViolations(page: Page) {
   expect(serious).toEqual([]);
 }
 
-test("a new user walks welcome→segment→a1c→expectations→first_check into a guided check", async ({
+// §0.2 #6: the attribution step sits between segment and a1c in every path.
+async function answerAttribution(page: Page, chip = "Reddit") {
+  await expect(page.getByTestId("onboarding-step")).toHaveAttribute(
+    "data-step",
+    "attribution"
+  );
+  await expect(
+    page.getByRole("heading", { name: "Where did you hear about us?" })
+  ).toBeVisible();
+  await page.getByRole("button", { name: chip, exact: true }).click();
+}
+
+test("a new user walks welcome→segment→attribution→a1c→expectations→first_check into a guided check", async ({
   page
 }) => {
   await page.goto("/onboarding");
@@ -46,7 +58,11 @@ test("a new user walks welcome→segment→a1c→expectations→first_check into
   await expectNoSeriousViolations(page);
   await page.getByRole("button", { name: "New A1C result" }).click();
 
-  // Step 3: A1C entry (shown because no profile is seeded)
+  // Step 3: attribution — one tap, closed enum, then on to A1C
+  await expectNoSeriousViolations(page);
+  await answerAttribution(page);
+
+  // Step 4: A1C entry (shown because no profile is seeded)
   await expect(page.getByTestId("onboarding-step")).toHaveAttribute(
     "data-step",
     "a1c"
@@ -105,6 +121,7 @@ test("a returning guest with a saved A1C skips the A1C step", async ({
     "segment"
   );
   await page.getByRole("button", { name: "Just checking" }).click();
+  await answerAttribution(page, "Somewhere else");
 
   // Single-source rule: the device already knows the A1C, so a1c is skipped.
   await expect(page.getByTestId("onboarding-step")).toHaveAttribute(
@@ -130,6 +147,7 @@ test("invalid A1C shows a field error, not progress", async ({ page }) => {
   await page.goto("/onboarding");
   await page.getByRole("button", { name: "Get started" }).click();
   await page.getByRole("button", { name: "New A1C result" }).click();
+  await answerAttribution(page, "Search");
 
   // Empty submit (number inputs refuse non-numeric text entirely)
   await page.getByRole("button", { name: "Continue" }).click();
@@ -150,6 +168,7 @@ test.describe("out-of-range A1C ends at boundary guidance, never a verdict", () 
       await page.goto("/onboarding");
       await page.getByRole("button", { name: "Get started" }).click();
       await page.getByRole("button", { name: "New A1C result" }).click();
+      await answerAttribution(page, "Facebook");
       await page.getByLabel("Latest A1C").fill(value);
       await page.getByRole("button", { name: "Continue" }).click();
 

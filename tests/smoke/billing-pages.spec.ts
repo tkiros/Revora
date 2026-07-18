@@ -72,3 +72,20 @@ test("free-tier limit renders the calm upsell card", async ({ page }) => {
   // calm, not scary
   await expect(card).not.toContainText(/warning|blocked|denied/i);
 });
+
+// §0.2 #4 — the landing pricing section renders from the same server flag the
+// paywall enforces. This server is pinned PAYWALL_MODE=legacy, so the landing
+// must describe the legacy funnel and never promise the 7-day trial.
+test("landing pricing matches the legacy funnel this server runs", async ({
+  page
+}) => {
+  await page.goto("/");
+  const tiles = page.locator("#pricing .landing-price-what");
+  await expect(tiles).toHaveText([
+    /free checks$/,
+    "A free account",
+    "$12.99/month"
+  ]);
+  await expect(page.locator("#pricing")).not.toContainText("7 days free");
+  await expect(page.locator("#faq")).not.toContainText("7-day");
+});
