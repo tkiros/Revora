@@ -1,0 +1,118 @@
+{
+  "runId": "2026-07-18T04-18-35-314Z",
+  "startedAt": "2026-07-18T04:18:35.315Z",
+  "steps": [
+    {
+      "step": "1a trial/start returns Checkout URL",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "url": "https://checkout.stripe.com/c/pay/cs_test_a1m0LVS0eMSCvgrirE"
+      }
+    },
+    {
+      "step": "1b hosted Checkout completed with 4242 test card",
+      "ok": true,
+      "detail": {
+        "sessionStatus": "complete"
+      }
+    },
+    {
+      "step": "2 signed webhook accepted for checkout.session.completed",
+      "ok": true,
+      "detail": [
+        {
+          "type": "checkout.session.completed",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "step": "2b subscriptions row upserted as trialing",
+      "ok": true,
+      "detail": {
+        "id": "c27a100d-40b9-41c3-aea8-d4948ef0b31a",
+        "status": "trialing",
+        "provider": "stripe",
+        "provider_ref": "sub_1TuPmOKweWSWjefke8bMQ50Z",
+        "price_variant": "1299"
+      }
+    },
+    {
+      "step": "3a magic-link sign-in produced a DB session cookie",
+      "ok": true,
+      "detail": "authjs.session-token set"
+    },
+    {
+      "step": "3b GET /api/entitlement shows paid entitlement",
+      "ok": true,
+      "detail": {
+        "tier": "premium",
+        "source": "stripe",
+        "status": "trialing",
+        "currentPeriodEnd": "2026-07-25T04:23:11.000Z",
+        "checksToday": 0,
+        "freeDailyLimit": 5
+      }
+    },
+    {
+      "step": "4 pre-charge email written (amount, date, cancel link)",
+      "ok": true,
+      "detail": {
+        "sweep": {
+          "ok": true,
+          "sent": 1
+        },
+        "subject": "Your Revora trial ends in about 2 days",
+        "hasCancelLink": true
+      }
+    },
+    {
+      "step": "4b pre_charge_email_sent_at stamped (idempotent resend guard)",
+      "ok": true,
+      "detail": {
+        "pre_charge_email_sent_at": "2026-07-18T04:20:47.256Z"
+      }
+    },
+    {
+      "step": "5 email-link cancel flips cancel_at_period_end on Stripe",
+      "ok": true,
+      "detail": {
+        "redirect": "http://localhost:3100/canceled",
+        "cancel_at_period_end": true
+      }
+    },
+    {
+      "step": "5b after cancel webhook the row stays entitled (trialing until period end)",
+      "ok": true,
+      "detail": {
+        "relayed": 1,
+        "status": "trialing"
+      }
+    },
+    {
+      "step": "6 portal session created for the subscriber",
+      "ok": true,
+      "detail": {
+        "status": 200,
+        "url": "https://billing.stripe.com/p/session/test_YWNjdF8xNFc4R0ZLd2"
+      }
+    },
+    {
+      "step": "7 deleted subscription lapses the entitlement",
+      "ok": true,
+      "detail": {
+        "rowStatus": "expired",
+        "entitlement": {
+          "tier": "free",
+          "source": null,
+          "status": "lapsed",
+          "currentPeriodEnd": null,
+          "checksToday": 0,
+          "freeDailyLimit": 5
+        }
+      }
+    }
+  ],
+  "finishedAt": "2026-07-18T04:20:53.977Z"
+}

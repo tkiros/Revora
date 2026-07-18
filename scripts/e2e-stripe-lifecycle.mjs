@@ -132,7 +132,10 @@ const serverEnv = {
   STRIPE_PRICE_MONTHLY_1299: PRICE_MONTHLY,
   STRIPE_PRICE_ANNUAL: PRICE_ANNUAL,
   TRIAL_PRICE_VARIANT: "1299",
-  NEXT_PUBLIC_APP_URL: BASE,
+  // paymentReturnUrlGate requires https (PR #11). Stripe accepts an https
+  // return URL it never resolves; the harness itself always talks to the
+  // server over plain-http BASE and re-origins any link before fetching it.
+  NEXT_PUBLIC_APP_URL: "https://localhost:3100",
   HEALTH_DATA_KEY: Buffer.alloc(32, 7).toString("base64"),
   RESEND_API_KEY: "", // stub dir handles every email
   SENTRY_DSN: "",
@@ -195,7 +198,10 @@ try {
     startRes = await fetchRetry(`${BASE}/api/trial/start`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email: buyer, plan: "monthly" })
+      // termsAccepted/termsVersion: required by TrialStartSchema (paid entry
+      // points always record terms acceptance) — keep in lockstep with
+      // lib/legal/terms.ts TERMS_VERSION.
+      body: JSON.stringify({ email: buyer, plan: "monthly", termsAccepted: true, termsVersion: "2026-07-12" })
     });
     const raw = await startRes.text();
     try {
@@ -204,6 +210,9 @@ try {
     } catch {
       // HTML error page while the route is still compiling — retry.
     }
+    // A 4xx is a real rejection, not a cold compile — retrying it just burns
+    // the 3/hour per-IP abuse limit and turns the report into a 429.
+    if (startRes.status >= 400 && startRes.status < 500) break;
     await new Promise((r) => setTimeout(r, 3000));
   }
   record("1a trial/start returns Checkout URL", startRes.status === 200 && /checkout\.stripe\.com/.test(startBody.url ?? ""), { status: startRes.status, url: startBody.url?.slice(0, 60) });
@@ -212,19 +221,40 @@ try {
   const browser = await chromium.launch();
   const page = await browser.newPage();
   try {
-    await page.goto(startBody.url, { waitUntil: "domcontentloaded" });
+    // Docker's host-network setup/teardown can flap Chromium's interface
+    // watcher (ERR_NETWORK_CHANGED) — a plain retry rides it out.
+    for (let nav = 0; ; nav += 1) {
+      try {
+        await page.goto(startBody.url, { waitUntil: "domcontentloaded" });
+        break;
+      } catch (navError) {
+        if (nav >= 2) throw navError;
+        await page.waitForTimeout(3000);
+      }
+    }
 
     // Checkout renders a payment-method accordion (card / cashapp / link);
     // the card form mounts only after the card radio is selected, and its
     // fields may live in a child iframe — search every frame.
+    // Checkout renders a skeleton first on a slow network — wait for the real
+    // payment UI before touching anything.
+    await page.waitForSelector("#payment-method-accordion-item-title-card, #cardNumber", { timeout: 90_000 }).catch(() => {});
     const cardRadio = page.locator("#payment-method-accordion-item-title-card");
-    if (await cardRadio.count()) {
-      // Click the visible "Card" label — the radio input itself is hidden and
-      // force-checking it does not fire the accordion's mount events.
-      await page.getByText("Card", { exact: true }).first().click().catch(async () => {
-        await cardRadio.first().check({ force: true });
-      });
-      await page.waitForTimeout(1500);
+    const cardFieldVisible = async () => {
+      for (const frame of page.frames()) {
+        const el = await frame.$("#cardNumber").catch(() => null);
+        if (el && (await el.isVisible().catch(() => false))) return true;
+      }
+      return false;
+    };
+    // The accordion mounts the card form on selection; no single click target
+    // is reliable across Checkout revisions — keep clicking until it mounts.
+    for (let sel = 0; sel < 6 && !(await cardFieldVisible()); sel += 1) {
+      if (await cardRadio.count()) {
+        await cardRadio.first().click({ force: true }).catch(() => {});
+        await page.getByText("Card", { exact: true }).first().click().catch(() => {});
+      }
+      await page.waitForTimeout(3000);
     }
 
     async function fillInAnyFrame(selector, value, { required = true } = {}) {
@@ -249,8 +279,23 @@ try {
     await fillInAnyFrame("#billingName", "E2E Zero Six");
     await fillInAnyFrame("#billingPostalCode", "94103", { required: false });
     await fillInAnyFrame(".SubmitButton", null);
-    await page.waitForURL(`${BASE}/trial/started*`, { timeout: 60_000 });
-    record("1b hosted Checkout completed with 4242 test card", true, "redirected to /trial/started");
+    // The success redirect goes to the https NEXT_PUBLIC_APP_URL, which no
+    // local listener serves — prove payment on Stripe's side instead.
+    const sessionId = startBody.url.match(/cs_(?:test|live)_[A-Za-z0-9]+/)?.[0];
+    let session = null;
+    for (let i = 0; i < 30 && session?.status !== "complete"; i += 1) {
+      await page.waitForTimeout(2000);
+      session = await stripe.checkout.sessions.retrieve(sessionId).catch(() => null);
+      // A first click can land while the button is still validating — poke it
+      // again while the session is open.
+      if (i % 5 === 4 && session?.status === "open") {
+        await fillInAnyFrame(".SubmitButton", null, { required: false });
+      }
+    }
+    if (session?.status !== "complete") {
+      throw new Error(`checkout session stayed ${session?.status ?? "unknown"}`);
+    }
+    record("1b hosted Checkout completed with 4242 test card", true, { sessionStatus: session.status });
   } catch (checkoutError) {
     const shot = path.join(EVIDENCE_DIR, `e2e06-${RUN_ID}-checkout.png`);
     fs.mkdirSync(EVIDENCE_DIR, { recursive: true });
@@ -305,7 +350,7 @@ try {
   const magic = stubFiles().find((m) => m.url);
   let cookie = "";
   if (magic) {
-    const cbRes = await fetchRetry(magic.url, { redirect: "manual" });
+    const cbRes = await fetchRetry(magic.url.replace(/^https?:\/\/[^/]+/, BASE), { redirect: "manual" });
     const setCookies = cbRes.headers.getSetCookie?.() ?? [];
     cookie = setCookies.map((c) => c.split(";")[0]).filter((c) => c.includes("session-token")).join("; ");
   }
