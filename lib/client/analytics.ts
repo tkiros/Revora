@@ -1,3 +1,4 @@
+import type { Channel } from "./attribution";
 import type {
   ClinicalRoute,
   RevoraRisk,
@@ -71,6 +72,14 @@ export type AnalyticsEvent =
       props: { source: "landing" | "wall_decline" | "result_card" };
     }
   | { name: "pantry_checkout_started" }
+  | {
+      // §0.2 #6: acquisition attribution — the read every Part 10 decision
+      // rule depends on. Both props are the closed Channel enum
+      // (lib/client/attribution.ts); raw UTM strings are mapped onto it at
+      // capture time and never stored or sent.
+      name: "attribution";
+      props: { reported: Channel | "skipped"; utm: Channel | "none" };
+    }
   | { name: "photo_draft"; props: { items: number; uncertain: number } };
 
 // Runtime belt-over-type-belt guard: even if a caller bypasses the type
@@ -97,6 +106,7 @@ const ALLOWED_EVENT_NAMES: ReadonlySet<AnalyticsEvent["name"]> = new Set([
   "trial_started",
   "pantry_viewed",
   "pantry_checkout_started",
+  "attribution",
   "photo_draft"
 ]);
 

@@ -13,12 +13,25 @@ const nextConfig: NextConfig = {
   turbopack: { root: __dirname },
   // SEC-04 (QA round 2026-07-10): baseline security headers. CSP notes:
   // - script/style 'unsafe-inline' is required by Next's inline runtime unless
-  //   we move to nonce-based CSP via middleware — revisit if we ever embed
-  //   third-party scripts (today there are none).
+  //   we move to nonce-based CSP via middleware.
+  // - Umami is the ONE third-party script we embed (app/layout.tsx, env-gated).
+  //   Its origin is derived from the SAME env var the layout reads, for both
+  //   the script tag and the tracker's POST beacons — without it the WTP
+  //   funnel's analytics silently die under this CSP.
   // - connect-src includes Vercel Blob because pantry photos upload directly
   //   from the browser (@vercel/blob/client, components/pantry-intake-flow.tsx).
   // - camera/microphone stay self-allowed: photo check input + voice input.
-  headers: async () => [
+  headers: async () => {
+    let umamiOrigin: string | null = null;
+    try {
+      umamiOrigin = process.env.NEXT_PUBLIC_UMAMI_SRC
+        ? new URL(process.env.NEXT_PUBLIC_UMAMI_SRC).origin
+        : null;
+    } catch {
+      umamiOrigin = null;
+    }
+    const umami = umamiOrigin ? ` ${umamiOrigin}` : "";
+    return [
     {
       source: "/(.*)",
       headers: [
@@ -26,11 +39,11 @@ const nextConfig: NextConfig = {
           key: "Content-Security-Policy",
           value: [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline'",
+            `script-src 'self' 'unsafe-inline'${umami}`,
             "style-src 'self' 'unsafe-inline'",
             "img-src 'self' blob: data: https://*.blob.vercel-storage.com https://*.public.blob.vercel-storage.com",
             "font-src 'self' data:",
-            "connect-src 'self' https://*.blob.vercel-storage.com https://blob.vercel-storage.com",
+            `connect-src 'self' https://*.blob.vercel-storage.com https://blob.vercel-storage.com${umami}`,
             "frame-ancestors 'none'",
             "base-uri 'self'",
             "form-action 'self'",
@@ -50,7 +63,8 @@ const nextConfig: NextConfig = {
         }
       ]
     }
-  ]
+  ];
+  }
   // Note: the Video Engine dashboard's run.json writes (~1×/s under
   // video-engine/output/) can churn Fast Refresh, but the run is a DETACHED
   // child and survives HMR regardless, so churn is cosmetic. A webpack

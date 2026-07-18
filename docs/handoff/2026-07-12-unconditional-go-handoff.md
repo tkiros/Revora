@@ -9,6 +9,16 @@ lesson of this branch is that **a gate nobody ran is not a gate that passed.**
 
 ---
 
+> **Third-pass verification, 2026-07-12 (later session).** Every claim in this document was
+> re-derived from primary evidence: fresh local gates (typecheck clean · lint 0 errors ·
+> contract 9/9 · vitest **1099 passed / 2 skipped, 114 files**), CI green 4/4 on all three `main`
+> commits (latest run `29188477377`), live production probes (checkout → 503, `/api/health` →
+> db + 4 crons ok, `/terms` still renders both counsel placeholders), and source greps confirming
+> every workstream's wiring *can actually fire* (W-01 router before the model, W-10 events emitted
+> from the webhook, W-33 reaper in the sweep, N-30 `isCarbForward` floor, etc.). **No drift found**
+> between this document and reality. Blockers 1–4 confirmed still open. Two previously untracked
+> gaps were surfaced and added as items 8–9 in §3.
+
 ## 0. Ground truth — where things actually are
 
 | Fact | Value |
@@ -236,7 +246,9 @@ Then enable branch protection on `main` requiring all 4 CI jobs to pass.
 | 4 | **`scripts/run-graded-evals.mjs` writes no artifact** | Add artifact-writing so a live run leaves evidence on disk. Right now the only record of the one honest live run in this project's history is *prose* in `docs/qa/12`. Fix this while doing Blocker 1. | — |
 | 5 | **Perf: TBT 580ms** | Lighthouse perf 71 against production; paint and layout are fine (LCP 1.0s, CLS 0). It is a main-thread/hydration cost. Not a launch blocker; it is the baseline the next round is measured against. | — |
 | 6 | **Pantry blobs are still public-read** | `access: "public"` with unguessable-URL security only. The privacy copy was rewritten to say so truthfully (the plan's permitted fallback). If you want the *primary* branch, switch uploads to private access and revert the copy. | Product decision |
-| 7 | **Phase 3 backlog (W-18..W-36)** | Post-launch-decision backlog. Not launch-blocking. See the plan's Phase 3 table. | — |
+| 7 | **Phase 3 backlog (W-18..W-36)** | Post-launch-decision backlog. Not launch-blocking. See the plan's Phase 3 table. Includes the two halves of the safety-control checklist that stayed open *by plan*: W-21 (broaden the 4 input-side injection patterns) and W-23 (auto-pause — `shouldPauseForOps` still has **zero callers**; photo kill switch still build-time). | — |
+| 8 | **OpenAI dashboard spend cap is unconfirmed** | The plan's budget-caps row assumes an external dashboard cap "per cost-model doc — confirm it is actually set." Nothing in the repo attests it. Ops checks the OpenAI dashboard and writes a one-line attestation into the QA record (same shape as W-14's). Until then the only spend ceilings are the per-request 1024-token cap and the IP+global daily caps — and the limiter **fails open** by documented choice (`lib/revora/rate-limit.ts:116`). | Ops (~5 min) |
+| 9 | **No telemetry correlation id** | W-13 shipped `model` / `promptVersion` / `contractVersion` / `durationMs`, so a bad answer is *attributable* — but no per-request id ever shipped (the checklist row said "model/version/**id**"; W-13's spec never included the id, so nothing tracked it). Consequence: a specific user report cannot be joined to one specific telemetry row. Decide whether that matters pre-launch; if yes, add a random UUID field (PII-free) stamped on the check response and the telemetry event. | Product decision, then XS eng |
 
 ---
 

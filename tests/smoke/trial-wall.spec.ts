@@ -92,9 +92,11 @@ test("taster: first-run walk lands a guided oatmeal check and meters used===1", 
   await page.goto(`${TRIAL}/check`);
   await expect(page).toHaveURL(/\/onboarding$/, { timeout: 30_000 });
 
-  // Walk welcome → segment → a1c → expectations → first_check (onboarding.spec).
+  // Walk welcome → segment → attribution → a1c → expectations → first_check
+  // (mirrors onboarding.spec).
   await page.getByRole("button", { name: "Get started" }).click();
   await page.getByRole("button", { name: "New A1C result" }).click();
+  await page.getByRole("button", { name: "Reddit", exact: true }).click();
   await page.getByLabel("Latest A1C").fill("6.1");
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Continue" }).click();
@@ -280,4 +282,19 @@ test("legacy guard: PAYWALL_MODE=legacy shows the paywall card, never the wall",
   ).toBeVisible();
   await expect(page).toHaveURL(/\/check$/);
   await expect(page.getByTestId("onboarding-step")).toHaveCount(0);
+});
+
+// §0.2 #4 mirror of billing-pages.spec.ts's legacy landing check: this server
+// runs PAYWALL_MODE=trial, so the landing must describe the 7-day trial.
+test("landing pricing matches the trial funnel this server runs", async ({
+  page
+}) => {
+  await page.goto(`${TRIAL}/`);
+  const tiles = page.locator("#pricing .landing-price-what");
+  await expect(tiles).toHaveText([
+    /free checks$/,
+    "7 days free",
+    "$12.99/month"
+  ]);
+  await expect(page.locator("#pricing")).toContainText("Days 2–8");
 });

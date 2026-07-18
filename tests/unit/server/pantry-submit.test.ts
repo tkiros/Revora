@@ -73,7 +73,7 @@ function submitRequest(body: unknown) {
 function validBody(orderId: string, overrides: Record<string, unknown> = {}) {
   return {
     orderId,
-    photoUrls: ["https://blob.test/a.jpg", "https://blob.test/b.jpg"],
+    photoUrls: ["https://revora.public.blob.vercel-storage.com/a.jpg", "https://revora.public.blob.vercel-storage.com/b.jpg"],
     a1cBand: "prediabetes_60_62",
     notes: "mostly breakfast stuff",
     consent: true,
@@ -132,11 +132,26 @@ describe("POST /api/pantry/submit", () => {
     const response = await POST(
       submitRequest(
         validBody(order.id, {
-          photoUrls: Array.from({ length: 11 }, (_, i) => `https://blob.test/${i}.jpg`)
+          photoUrls: Array.from({ length: 11 }, (_, i) => `https://revora.public.blob.vercel-storage.com/${i}.jpg`)
         })
       )
     );
     expect(response.status).toBe(400);
+  });
+
+  it("rejects photo URLs outside the Revora blob store (no arbitrary-fetch relay)", async () => {
+    const order = await makeClaimedOrder();
+    const POST = createPantrySubmitHandler(makeDeps());
+    for (const hostile of [
+      "https://evil.example/a.jpg",
+      "https://blob.vercel-storage.com.evil.example/a.jpg",
+      "http://revora.public.blob.vercel-storage.com/a.jpg" // https only
+    ]) {
+      const response = await POST(
+        submitRequest(validBody(order.id, { photoUrls: [hostile] }))
+      );
+      expect(response.status, hostile).toBe(400);
+    }
   });
 
   it("rejects a submit without consent", async () => {

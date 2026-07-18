@@ -7,6 +7,10 @@ import { useEffect, useState } from "react";
 import { routeA1C } from "../../../lib/revora/a1c";
 import { RISK_LABELS } from "../../../lib/revora/labels";
 import { track } from "../../../lib/client/analytics";
+import {
+  storedUtmChannel,
+  type Channel
+} from "../../../lib/client/attribution";
 import { profileStore } from "../../../lib/client/profile-store";
 import { IconAlert, IconCheck, IconPause } from "../../../components/icons";
 
@@ -20,7 +24,14 @@ const BELOW_RANGE_MESSAGE =
 const HIGH_RANGE_MESSAGE =
   "This A1C value falls in a range used for diabetes and is outside Revora's prediabetes-only MVP. For personalized next steps, talk with a doctor or registered dietitian.";
 
-type Step = "welcome" | "segment" | "a1c" | "expectations" | "first_check" | "boundary";
+type Step =
+  | "welcome"
+  | "segment"
+  | "attribution"
+  | "a1c"
+  | "expectations"
+  | "first_check"
+  | "boundary";
 
 // Segmentation prompt — one tap, kept on-device only (no server write). The
 // answer picks which three first-check foods step 5 suggests, so the tour
@@ -33,6 +44,18 @@ const SEGMENT_CHIPS = [
 ] as const;
 
 type Segment = (typeof SEGMENT_CHIPS)[number];
+
+// Attribution question (§0.2 #6 — distinct from the segment step above; that
+// one asks WHY they came, this one asks WHERE FROM). One tap, sent only as a
+// closed-enum analytics event — never free text, never stored server-side.
+const ATTRIBUTION_CHIPS: ReadonlyArray<{ label: string; channel: Channel }> = [
+  { label: "Reddit", channel: "reddit" },
+  { label: "TikTok, Reels, or Shorts", channel: "video" },
+  { label: "Facebook", channel: "facebook" },
+  { label: "Search", channel: "search" },
+  { label: "A friend or family", channel: "friend" },
+  { label: "Somewhere else", channel: "other" }
+];
 
 // The guided-first-check foods — everyday items whose impact surprises almost
 // everyone, so the very first check earns an "oh, huh" moment. Varied by what
@@ -53,7 +76,8 @@ export const FIRST_CHECK_CHIPS_BY_SEGMENT: Record<
 export const STEP_PROGRESS: Record<Step, number> = {
   welcome: 20,
   segment: 40,
-  a1c: 55,
+  attribution: 48,
+  a1c: 58,
   expectations: 75,
   first_check: 90,
   boundary: 0
@@ -65,8 +89,15 @@ export const STEP_PROGRESS: Record<Step, number> = {
 // it is unit-testable in node without a component harness.
 export function stepCounter(step: Step, skipsA1c: boolean): string {
   const steps: readonly Step[] = skipsA1c
-    ? ["welcome", "segment", "expectations", "first_check"]
-    : ["welcome", "segment", "a1c", "expectations", "first_check"];
+    ? ["welcome", "segment", "attribution", "expectations", "first_check"]
+    : [
+        "welcome",
+        "segment",
+        "attribution",
+        "a1c",
+        "expectations",
+        "first_check"
+      ];
   const index = steps.indexOf(step);
   return index === -1 ? "" : `Step ${index + 1} of ${steps.length}`;
 }
@@ -74,7 +105,7 @@ export function stepCounter(step: Step, skipsA1c: boolean): string {
 // Single-source rule (P3): the tour never re-asks what the device already knows.
 // A guest who has an on-device A1C skips the A1C step entirely. Pure so the
 // branch is unit-testable in node without a component harness.
-export function nextStepAfterSegment(hasProfile: boolean): Step {
+export function nextStepAfterAttribution(hasProfile: boolean): Step {
   return hasProfile ? "expectations" : "a1c";
 }
 
@@ -106,7 +137,17 @@ export default function OnboardingPage() {
         // best-effort — the chip choice still steers this tour
       }
     }
-    setStep(nextStepAfterSegment(profileStore.get() !== null));
+    setStep("attribution");
+  }
+
+  function advanceFromAttribution(choice?: Channel) {
+    // Fires exactly once per tour, skip included — a skipped self-report with
+    // a captured UTM is still a channel read.
+    track({
+      name: "attribution",
+      props: { reported: choice ?? "skipped", utm: storedUtmChannel() }
+    });
+    setStep(nextStepAfterAttribution(profileStore.get() !== null));
   }
 
   const firstCheckChips = segment
@@ -245,6 +286,36 @@ export default function OnboardingPage() {
                 type="button"
                 className="inline-link onboarding-skip"
                 onClick={() => advanceFromSegment()}
+              >
+                Skip
+              </button>
+            </>
+          ) : null}
+
+          {step === "attribution" ? (
+            <>
+              <p className="hero-eyebrow">One more quick question</p>
+              <h1 className="page-title">Where did you hear about us?</h1>
+              <div
+                className="chip-row"
+                role="group"
+                aria-label="Where did you hear about us?"
+              >
+                {ATTRIBUTION_CHIPS.map(({ label, channel }) => (
+                  <button
+                    key={channel}
+                    type="button"
+                    className="selectable-chip"
+                    onClick={() => advanceFromAttribution(channel)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                className="inline-link onboarding-skip"
+                onClick={() => advanceFromAttribution()}
               >
                 Skip
               </button>

@@ -12,6 +12,7 @@ import {
   getSessionInfo,
   type SessionInfo
 } from "../../../../lib/server/session";
+import { isAuthorizedCron } from "../../../../lib/server/timing-safe";
 
 export const runtime = "nodejs";
 // Judging ≤40 items sequentially needs the plan's 300s ceiling (Vercel Pro).
@@ -31,10 +32,10 @@ export function createPantryProcessHandler(deps: Deps = {}) {
   const makeProcessDeps = deps.makeProcessDeps ?? defaultProcessDeps;
 
   return async function POST(request: Request) {
-    const cronSecret = process.env.CRON_SECRET;
-    const isCron =
-      !!cronSecret &&
-      request.headers.get("authorization") === `Bearer ${cronSecret}`;
+    // Same timing-safe doorway as every app/api/cron/* route (unset secret ⇒
+    // never cron; a plain === compare here was the one non-constant-time
+    // secret check in the tree).
+    const isCron = isAuthorizedCron(request.headers.get("authorization"));
 
     let parsed;
     try {

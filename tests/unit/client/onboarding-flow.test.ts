@@ -18,40 +18,55 @@ vi.stubGlobal("localStorage", storage);
 vi.stubGlobal("window", { localStorage: storage });
 
 import {
-  nextStepAfterSegment,
+  nextStepAfterAttribution,
   STEP_PROGRESS,
   stepCounter
 } from "../../../app/(app)/onboarding/page";
 
-describe("nextStepAfterSegment (single-source A1C rule)", () => {
+describe("nextStepAfterAttribution (single-source A1C rule)", () => {
   it("routes a device with a saved A1C straight past the A1C step", () => {
-    expect(nextStepAfterSegment(true)).toBe("expectations");
+    expect(nextStepAfterAttribution(true)).toBe("expectations");
   });
 
   it("asks for the A1C when the device has none", () => {
-    expect(nextStepAfterSegment(false)).toBe("a1c");
+    expect(nextStepAfterAttribution(false)).toBe("a1c");
   });
 });
 
 describe("stepCounter (visible Step X of N)", () => {
-  it("counts 5 steps for a new user, in order, with no holes", () => {
-    const path = ["welcome", "segment", "a1c", "expectations", "first_check"] as const;
+  it("counts 6 steps for a new user, in order, with no holes", () => {
+    const path = [
+      "welcome",
+      "segment",
+      "attribution",
+      "a1c",
+      "expectations",
+      "first_check"
+    ] as const;
     expect(path.map((s) => stepCounter(s, false))).toEqual([
+      "Step 1 of 6",
+      "Step 2 of 6",
+      "Step 3 of 6",
+      "Step 4 of 6",
+      "Step 5 of 6",
+      "Step 6 of 6"
+    ]);
+  });
+
+  it("counts 5 contiguous steps for a returning guest who skips a1c", () => {
+    const path = [
+      "welcome",
+      "segment",
+      "attribution",
+      "expectations",
+      "first_check"
+    ] as const;
+    expect(path.map((s) => stepCounter(s, true))).toEqual([
       "Step 1 of 5",
       "Step 2 of 5",
       "Step 3 of 5",
       "Step 4 of 5",
       "Step 5 of 5"
-    ]);
-  });
-
-  it("counts 4 contiguous steps for a returning guest who skips a1c", () => {
-    const path = ["welcome", "segment", "expectations", "first_check"] as const;
-    expect(path.map((s) => stepCounter(s, true))).toEqual([
-      "Step 1 of 4",
-      "Step 2 of 4",
-      "Step 3 of 4",
-      "Step 4 of 4"
     ]);
   });
 
@@ -63,7 +78,14 @@ describe("stepCounter (visible Step X of N)", () => {
 
 describe("STEP_PROGRESS (goal-gradient bar)", () => {
   it("never shows a visible step at zero — arriving counts as progress", () => {
-    const visible = ["welcome", "segment", "a1c", "expectations", "first_check"] as const;
+    const visible = [
+      "welcome",
+      "segment",
+      "attribution",
+      "a1c",
+      "expectations",
+      "first_check"
+    ] as const;
     for (const step of visible) {
       expect(STEP_PROGRESS[step]).toBeGreaterThan(0);
       expect(STEP_PROGRESS[step]).toBeLessThan(100);
@@ -71,8 +93,21 @@ describe("STEP_PROGRESS (goal-gradient bar)", () => {
   });
 
   it("only ever moves forward, on both the full and the skip-A1C path", () => {
-    const full = ["welcome", "segment", "a1c", "expectations", "first_check"] as const;
-    const skipA1c = ["welcome", "segment", "expectations", "first_check"] as const;
+    const full = [
+      "welcome",
+      "segment",
+      "attribution",
+      "a1c",
+      "expectations",
+      "first_check"
+    ] as const;
+    const skipA1c = [
+      "welcome",
+      "segment",
+      "attribution",
+      "expectations",
+      "first_check"
+    ] as const;
     for (const path of [full, skipA1c]) {
       for (let i = 1; i < path.length; i++) {
         expect(STEP_PROGRESS[path[i]]).toBeGreaterThan(STEP_PROGRESS[path[i - 1]]);
