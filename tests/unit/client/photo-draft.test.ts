@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { targetDimensions } from "../../../lib/client/image";
-import { composeDraftText } from "../../../lib/client/photo-draft";
+import {
+  composeDraft,
+  composeDraftText,
+  dedupeDraftItems
+} from "../../../lib/client/photo-draft";
 
 describe("targetDimensions", () => {
   it("caps the long edge and keeps aspect ratio", () => {
@@ -62,5 +66,73 @@ describe("composeDraftText length bounding", () => {
       uncertain: false
     }));
     expect(composeDraftText("a very detailed plate", many).length).toBeLessThanOrEqual(160);
+  });
+});
+
+describe("composeDraft — truncation visibility", () => {
+  it("reports no drop when everything fits", () => {
+    const result = composeDraft("chicken bowl", [
+      { name: "grilled chicken", portion: null, uncertain: false },
+      { name: "white rice", portion: "1 cup", uncertain: false }
+    ]);
+    expect(result.totalItems).toBe(2);
+    expect(result.keptItems).toBe(2);
+    expect(result.portionsDropped).toBe(false);
+  });
+
+  it("flags portions dropped when names still fit but portions don't", () => {
+    const items = [
+      { name: "sesame seed bun", portion: "1 bun", uncertain: false },
+      { name: "beef patty", portion: "1 patty", uncertain: false },
+      { name: "cheddar cheese", portion: "1 slice", uncertain: false },
+      { name: "bacon", portion: "several strips", uncertain: false },
+      { name: "mayonnaise", portion: "small amount", uncertain: false },
+      { name: "ketchup or sauce", portion: "small amount", uncertain: false }
+    ];
+    const result = composeDraft("bacon cheeseburger", items);
+    expect(result.portionsDropped).toBe(true);
+    expect(result.keptItems).toBe(items.length);
+    expect(result.text).not.toContain("(1 patty)");
+  });
+
+  it("reports how many items were dropped when even names overflow", () => {
+    const many = Array.from({ length: 20 }, (_, i) => ({
+      name: `ingredient number ${i} with a fairly long descriptive name`,
+      portion: "1 serving",
+      uncertain: false
+    }));
+    const result = composeDraft("a very detailed plate", many);
+    expect(result.totalItems).toBe(20);
+    expect(result.keptItems).toBeLessThan(20);
+    expect(result.text.length).toBeLessThanOrEqual(160);
+  });
+});
+
+describe("dedupeDraftItems", () => {
+  it("collapses exact duplicate name+portion pairs, first wins", () => {
+    const { items, collapsed } = dedupeDraftItems([
+      { name: "white rice", portion: "1 cup", uncertain: false },
+      { name: "White Rice", portion: "1 cup", uncertain: true },
+      { name: "grilled chicken", portion: null, uncertain: false }
+    ]);
+    expect(collapsed).toBe(1);
+    expect(items).toHaveLength(2);
+    expect(items[0]).toEqual({ name: "white rice", portion: "1 cup", uncertain: false });
+  });
+
+  it("keeps same-name items with different portions distinct", () => {
+    const { items, collapsed } = dedupeDraftItems([
+      { name: "rice", portion: "1 cup", uncertain: false },
+      { name: "rice", portion: "2 cups", uncertain: false }
+    ]);
+    expect(collapsed).toBe(0);
+    expect(items).toHaveLength(2);
+  });
+
+  it("reports nothing collapsed for a clean list", () => {
+    const { collapsed } = dedupeDraftItems([
+      { name: "apple", portion: null, uncertain: false }
+    ]);
+    expect(collapsed).toBe(0);
   });
 });

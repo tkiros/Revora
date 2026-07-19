@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   createHistoryStore,
+  normalizeInputMethod,
   type StoredCheck
 } from "../../../lib/client/history-store";
 
@@ -35,6 +36,20 @@ function daysAgoLocal(days: number, hour = 12): string {
   d.setHours(hour, 0, 0, 0);
   return d.toISOString();
 }
+
+describe("normalizeInputMethod — shared read-path mapping (plan §4.6 fidelity)", () => {
+  it("preserves every real method, including photo (no collapse to text)", () => {
+    expect(normalizeInputMethod("text")).toBe("text");
+    expect(normalizeInputMethod("voice")).toBe("voice");
+    expect(normalizeInputMethod("photo")).toBe("photo");
+  });
+
+  it("degrades unknown or missing methods to text", () => {
+    expect(normalizeInputMethod("something-else")).toBe("text");
+    expect(normalizeInputMethod(null)).toBe("text");
+    expect(normalizeInputMethod(undefined)).toBe("text");
+  });
+});
 
 describe("historyStore", () => {
   let store: ReturnType<typeof createHistoryStore>;
@@ -116,6 +131,32 @@ describe("historyStore", () => {
 
     const stored = store.all().find((c) => c.clientId === "walk");
     expect(stored?.actionDoneAt).toBeTruthy();
+  });
+
+  it("remove() drops a check by clientId (deletion is real — E1)", () => {
+    store.add(check({ clientId: "keep", createdAt: daysAgoLocal(0) }));
+    store.add(check({ clientId: "gone", createdAt: daysAgoLocal(1) }));
+
+    store.remove("gone");
+
+    expect(store.all().map((c) => c.clientId)).toEqual(["keep"]);
+  });
+
+  it("remove() is a no-op for an unknown clientId", () => {
+    store.add(check({ clientId: "a" }));
+    store.remove("does-not-exist");
+    expect(store.all().map((c) => c.clientId)).toEqual(["a"]);
+  });
+
+  it("a removed check is absent from the migrate payload — no resurrection (E1)", () => {
+    // syncLocalHistory posts historyStore.all() to /api/history/migrate; after a
+    // real delete the row must not be in that payload or the daily loop would
+    // re-create it on the next visit.
+    store.add(check({ clientId: "deleted", createdAt: daysAgoLocal(0) }));
+    store.remove("deleted");
+
+    const migratePayload = store.all();
+    expect(migratePayload.some((c) => c.clientId === "deleted")).toBe(false);
   });
 
   it("clear() empties the store", () => {

@@ -109,6 +109,13 @@ export default defineConfig({
         // legacy-mode assertions (billing-pages.spec, trial-wall's legacy
         // guard) need this server pinned to legacy explicitly.
         PAYWALL_MODE: "legacy",
+        // Task 7 (P2.1): the paywall card now shows the annual plan ONLY when
+        // GET /api/paywall returns an annual price — which the route gates on
+        // this env being set (annual.priceId). Production configures it; the
+        // e2e server must too, or the annual card is (correctly) hidden and
+        // billing-pages.spec's annual assertion has nothing to match. A dummy
+        // id is fine — annual checkout is never exercised here (no Stripe).
+        STRIPE_PRICE_ANNUAL: "price_e2e_annual_smoke_only",
         // Test-only secret so Auth.js stops logging MissingSecret in smoke
         // runs (2026-07-09 E2E-05). Never a production value.
         AUTH_SECRET: "revora-e2e-smoke-only-secret-0000000000000000",

@@ -1,9 +1,11 @@
 import { isNotNull, sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   check,
   date,
   index,
+  jsonb,
   pgTable,
   primaryKey,
   smallint,
@@ -86,9 +88,35 @@ export const profiles = pgTable("profiles", {
   timezone: text("timezone").notNull().default("America/New_York"),
   nudgeOptIn: boolean("nudge_opt_in").notNull().default(false),
   nudgeHour: smallint("nudge_hour").notNull().default(11),
+  // Personal journey nudges (Task 19 / §P4.3). Cadence the user chose and an
+  // optional quiet-hours window the cron respects. `nudgeCadence` defaults to
+  // "daily" so existing opted-in users keep the one-per-day behavior; the quiet
+  // columns are nullable and null means "no quiet window" (never suppressed).
+  // Hours are 0–23 local-hour integers; a wrap-around window (start > end) is
+  // valid (e.g. 22 → 7). Bounded enums/ranges only — no health data here.
+  nudgeCadence: text("nudge_cadence", {
+    enum: ["daily", "few_per_week", "weekly"]
+  })
+    .notNull()
+    .default("daily"),
+  nudgeQuietStart: smallint("nudge_quiet_start"),
+  nudgeQuietEnd: smallint("nudge_quiet_end"),
   onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
   consentedAt: timestamp("consented_at", { withTimezone: true }).notNull()
-});
+}, (table) => [
+  check(
+    "profiles_nudge_cadence_check",
+    sql`${table.nudgeCadence} IN ('daily','few_per_week','weekly')`
+  ),
+  check(
+    "profiles_nudge_quiet_start_check",
+    sql`${table.nudgeQuietStart} IS NULL OR (${table.nudgeQuietStart} >= 0 AND ${table.nudgeQuietStart} <= 23)`
+  ),
+  check(
+    "profiles_nudge_quiet_end_check",
+    sql`${table.nudgeQuietEnd} IS NULL OR (${table.nudgeQuietEnd} >= 0 AND ${table.nudgeQuietEnd} <= 23)`
+  )
+]);
 
 export const checks = pgTable(
   "checks",
@@ -108,6 +136,47 @@ export const checks = pgTable(
       .default("text"),
     clientId: text("client_id"),
     actionDoneAt: timestamp("action_done_at", { withTimezone: true }),
+    // ── Immutable check-result snapshot (Task 13 / §P3.1, §8 `check_results`) ──
+    //
+    // APPEND-ONLY BOUNDARY. Every column below is written EXACTLY ONCE, at
+    // insert, by persistCheck() (app/api/check/route.ts). No handler updates any
+    // of them — a rerun creates a NEW row, never overwriting an old card (§12
+    // immutable snapshots). The ONLY post-insert mutation of a checks row is
+    // `actionDoneAt` (createHistoryActionHandler), which is user-activity
+    // metadata, not snapshot content; that boundary is asserted by
+    // check-snapshot.test.ts.
+    //
+    // All are nullable so the migration is forward/backward compatible: rows
+    // written before this task keep working and read back as null (we never
+    // invent a card we did not store). `cardCiphertext` holds the encrypted JSON
+    // card the user actually saw {risk, reason, adjustment, swap, coach fields};
+    // health-adjacent, so AES-256-GCM like foodCiphertext.
+    cardCiphertext: text("card_ciphertext"),
+    // Plaintext route/response class — NOT sensitive (mirrors responseKind).
+    // Only in-scope results are persisted, so this is "result" today; the column
+    // exists so the snapshot carries its own route class if that boundary widens.
+    routeType: text("route_type"),
+    // Clarification asked + answer supplied (§P3.1). The QUESTION is one of three
+    // approved deterministic strings (lib/revora/clarify.ts) reconstructed
+    // server-side from a bounded category — never health text, encrypted anyway.
+    // The ANSWER is, by construction, this check's own normalized input
+    // (foodCiphertext), so clarifyAnswerCiphertext is left null rather than
+    // duplicating encrypted health text; `wasClarified` records that this result
+    // resolved a one-question clarification.
+    clarifyQuestionCiphertext: text("clarify_question_ciphertext"),
+    clarifyAnswerCiphertext: text("clarify_answer_ciphertext"),
+    wasClarified: boolean("was_clarified").notNull().default(false),
+    // Reproducibility stamps (plaintext version strings).
+    promptVersion: text("prompt_version"),
+    contractVersion: text("contract_version"),
+    modelId: text("model_id"),
+    // Safety-floor + fallback metadata surfaced from postprocess. `floorApplied`
+    // is the conservative floor that fired (null when the model draft stood);
+    // `usedFallback` is true when a floor/template replaced that draft.
+    floorApplied: text("floor_applied", {
+      enum: ["high_risk", "carbs_only", "borderline"]
+    }),
+    usedFallback: boolean("used_fallback").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow()
@@ -121,8 +190,225 @@ export const checks = pgTable(
     check(
       "checks_input_method_check",
       sql`${table.inputMethod} IN ('text','voice','photo')`
+    ),
+    check(
+      "checks_floor_applied_check",
+      sql`${table.floorApplied} IS NULL OR ${table.floorApplied} IN ('high_risk','carbs_only','borderline')`
     )
   ]
+);
+
+// Result-linked structured feedback + safety queue (plan §P1.6, §4.6, §8).
+//
+// One feedback row per (check, user) — upserted on re-submit. The private
+// comment is health-adjacent free text → AES-256-GCM ciphertext, same standard
+// as checks.food; it is stored here, in the access-controlled operational
+// store, and NEVER in the analytics stream (which carries submission presence
+// only). `reviewStatus` drives the founder-only safety queue: a reason of
+// `unsafe_feeling`, or a not-helpful `wrong_food` (wrong-direction), enqueues
+// the row for human review. Feedback never trains or alters live behavior.
+export const checkFeedback = pgTable(
+  "check_feedback",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    checkId: uuid("check_id")
+      .notNull()
+      .references(() => checks.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    helpful: boolean("helpful").notNull(),
+    reason: text("reason", {
+      enum: [
+        "too_vague",
+        "wrong_food",
+        "unsafe_feeling",
+        "confusing",
+        "other"
+      ]
+    }),
+    commentCiphertext: text("comment_ciphertext"),
+    reviewStatus: text("review_status", {
+      enum: ["none", "queued", "reviewed"]
+    })
+      .notNull()
+      .default("none"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (table) => [
+    uniqueIndex("check_feedback_check_user").on(table.checkId, table.userId),
+    index("check_feedback_queue").on(table.reviewStatus, table.createdAt),
+    check(
+      "check_feedback_reason_check",
+      sql`${table.reason} IS NULL OR ${table.reason} IN ('too_vague','wrong_food','unsafe_feeling','confusing','other')`
+    ),
+    check(
+      "check_feedback_review_status_check",
+      sql`${table.reviewStatus} IN ('none','queued','reviewed')`
+    )
+  ]
+);
+
+// User-authored meal memory (plan §P3.2, §8 entity `meal_memories`).
+//
+// The user attaches, to a check they already ran: what they chose, whether they
+// would choose it again, how easy it felt, a private note, a favorite flag, and
+// a self-chosen label. NEVER an input to card-band logic — nothing in
+// lib/revora/* imports this table, and meal-memory-non-interference.test.ts
+// asserts that structurally (global constraint §1). Memory is anchored on a
+// check (`checkId`, cascade) and unique per (user, check) so a save upserts the
+// single row rather than piling duplicates.
+//
+// Free text is health-adjacent → AES-256-GCM ciphertext, same standard as
+// checks.food: `choiceCiphertext` ("what I chose") and `noteCiphertext` (the
+// private note). The reflections that must stay QUERYABLE / bounded are stored
+// as closed enums, NOT free text: `easeReflection` (easy|okay|hard) and `label`
+// (a fixed meal-context vocabulary). `wouldRepeat` is a plain nullable boolean.
+// Deliberately absent: any glucose reading, any risk band derived from the
+// note, any claim a choice "worked" — this phase does not infer or interpret
+// health outcomes (plan §P3.2 "Do not").
+export const mealMemories = pgTable(
+  "meal_memories",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    checkId: uuid("check_id")
+      .notNull()
+      .references(() => checks.id, { onDelete: "cascade" }),
+    choiceCiphertext: text("choice_ciphertext"),
+    wouldRepeat: boolean("would_repeat"),
+    easeReflection: text("ease_reflection", {
+      enum: ["easy", "okay", "hard"]
+    }),
+    noteCiphertext: text("note_ciphertext"),
+    favorite: boolean("favorite").notNull().default(false),
+    label: text("label", {
+      enum: [
+        "breakfast",
+        "lunch",
+        "dinner",
+        "snack",
+        "restaurant",
+        "travel",
+        "family_meal",
+        "other"
+      ]
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (table) => [
+    uniqueIndex("meal_memories_user_check").on(table.userId, table.checkId),
+    index("meal_memories_user").on(table.userId, table.createdAt.desc()),
+    check(
+      "meal_memories_ease_check",
+      sql`${table.easeReflection} IS NULL OR ${table.easeReflection} IN ('easy','okay','hard')`
+    ),
+    check(
+      "meal_memories_label_check",
+      sql`${table.label} IS NULL OR ${table.label} IN ('breakfast','lunch','dinner','snack','restaurant','travel','family_meal','other')`
+    )
+  ]
+);
+
+// 90-day Learning Journey (plan §P4.1, §8 entity `learning_journeys`:
+// "Explicit state machine; no hidden reset"). ONE row per user (`user_id`
+// UNIQUE) — the journey is a singleton per account. There is NO stage column:
+// the stage and current day are DERIVED purely from startedAt + now + pause
+// history (lib/journey/state.ts), the single source, so a stored stage can
+// never drift from the day math. The `not_started` state is the ABSENCE of a
+// row — the persisted `state` enum is only the four post-start states. Pause
+// freezes the day count: `accumulated_pause_ms` banks completed pauses and
+// `paused_at` marks the live one. Nothing here feeds the check engine (global
+// constraint §1) — a journey is a frame around the product, never an input to a
+// verdict.
+export const learningJourneys = pgTable(
+  "learning_journeys",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .unique()
+      .references(() => users.id, { onDelete: "cascade" }),
+    state: text("state", {
+      enum: ["active", "paused", "graduated", "maintenance"]
+    }).notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    pausedAt: timestamp("paused_at", { withTimezone: true }),
+    // Frozen paused time from all resumed pauses, in ms. bigint (not integer):
+    // a long-paused journey can bank more ms than a 32-bit int holds. `mode:
+    // "number"` — the value is always well within Number.MAX_SAFE_INTEGER
+    // (90 days ≈ 7.8e9 ms), so the JS number round-trips exactly.
+    accumulatedPauseMs: bigint("accumulated_pause_ms", { mode: "number" })
+      .notNull()
+      .default(0),
+    graduatedAt: timestamp("graduated_at", { withTimezone: true }),
+    maintenanceAt: timestamp("maintenance_at", { withTimezone: true }),
+    // Why the CURRENT pause was taken (plan §P4.4). Bounded enum, nullable: null
+    // whenever the journey is not paused, or when a pause was taken without a
+    // reason. Set on pause, cleared on resume (lib/journey/state.ts). A bounded
+    // reason class — never free text, never health data.
+    pauseReason: text("pause_reason", {
+      enum: ["need_a_break", "life_event", "not_useful_now", "other"]
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (table) => [
+    check(
+      "learning_journeys_state_check",
+      sql`${table.state} IN ('active','paused','graduated','maintenance')`
+    ),
+    check(
+      "learning_journeys_pause_reason_check",
+      sql`${table.pauseReason} IS NULL OR ${table.pauseReason} IN ('need_a_break','life_event','not_useful_now','other')`
+    )
+  ]
+);
+
+// Weekly learning artifact (plan §P4.2, §8 entity `weekly_reflections`:
+// "Versioned weekly learning artifact. Derived only from allowed fields;
+// reproducible."). ONE row per (user, week): the deterministic projection
+// (lib/journey/weekly-learning.deriveWeeklyLearning) for a COMPLETED week,
+// persisted lazily the first time it is requested — there is no cron. The
+// CURRENT (in-progress) week is computed on the fly and never stored, so a row
+// here is always a finished, reproducible week.
+//
+// `artifactCiphertext` is the AES-256-GCM ciphertext of the artifact JSON. The
+// artifact carries `repeatedUncertainty` — the user's OWN meal text echoed back
+// to them — so it is health-adjacent and encrypted at rest, same standard as
+// checks.food (global constraint §5); it is decrypted only for the owner on
+// read. `version` is the projection version (WEEKLY_LEARNING_VERSION) the row
+// was built at: a persisted row from an older version is ignored and recomputed
+// so a versioned re-projection can never silently mix schemas. Nothing here
+// feeds the check engine (global constraint §1).
+export const weeklyReflections = pgTable(
+  "weekly_reflections",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    weekStart: date("week_start").notNull(),
+    version: text("version").notNull(),
+    artifactCiphertext: text("artifact_ciphertext").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.weekStart] })]
 );
 
 export const pushSubscriptions = pgTable("push_subscriptions", {
@@ -161,6 +447,15 @@ export const subscriptions = pgTable(
     currentPeriodEnd: timestamp("current_period_end", {
       withTimezone: true
     }).notNull(),
+    // Stripe self-healing (Task 8 / P2.2). `lastEventAt` is the provider event
+    // `created` time of the newest webhook the reducer has applied to this row;
+    // it makes the entitlement reducer order-tolerant — a replayed or
+    // out-of-order event whose `created` predates this is stale and must not
+    // downgrade newer state (latest-event-wins per providerRef). `lastVerifiedAt`
+    // time-gates Stripe verify-on-read so a stale row is re-checked against the
+    // Stripe API at most once per hour, never on every read.
+    lastEventAt: timestamp("last_event_at", { withTimezone: true }),
+    lastVerifiedAt: timestamp("last_verified_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow()
@@ -174,6 +469,52 @@ export const subscriptions = pgTable(
     check(
       "subscriptions_status_check",
       sql`${table.status} IN ('active','trialing','canceled','grace','expired','refunded')`
+    )
+  ]
+);
+
+// Stripe self-healing (Task 8 / P2.2, §8 entity `billing_event_inbox`).
+//
+// Durable inbox for signed provider webhook events. The webhook verifies the
+// signature, writes the event HERE first, then processes it — so the money
+// path never depends on the process staying alive between "signature valid"
+// and "entitlement written". `providerEventId` is UNIQUE: a duplicate delivery
+// conflicts and is acked without re-applying. `status`/`attempts`/`lastError`
+// carry retry + dead-letter metadata for the reconciliation sweep. `payload`
+// is the verified Stripe event object (non-PAN by construction — Stripe never
+// sends card numbers), stored so a failed row can be reprocessed offline.
+export const billingEventInbox = pgTable(
+  "billing_event_inbox",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    provider: text("provider", { enum: ["stripe"] })
+      .notNull()
+      .default("stripe"),
+    providerEventId: text("provider_event_id").notNull().unique(),
+    eventType: text("event_type").notNull(),
+    payload: jsonb("payload").notNull(),
+    status: text("status", {
+      enum: ["pending", "processed", "failed", "dead_letter"]
+    })
+      .notNull()
+      .default("pending"),
+    attempts: smallint("attempts").notNull().default(0),
+    lastError: text("last_error"),
+    receivedAt: timestamp("received_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    processedAt: timestamp("processed_at", { withTimezone: true })
+  },
+  (table) => [
+    // The sweep scans non-terminal rows (pending/failed) oldest-first.
+    index("billing_event_inbox_status").on(table.status, table.receivedAt),
+    check(
+      "billing_event_inbox_provider_check",
+      sql`${table.provider} IN ('stripe')`
+    ),
+    check(
+      "billing_event_inbox_status_check",
+      sql`${table.status} IN ('pending','processed','failed','dead_letter')`
     )
   ]
 );

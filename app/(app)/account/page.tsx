@@ -1,13 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { signOut } from "next-auth/react";
 
+import { resolveAccountLoadState } from "../../../lib/client/account-load-state";
 import { track } from "../../../lib/client/analytics";
 import { historyStore } from "../../../lib/client/history-store";
+import {
+  resolveNudgeSave,
+  type NudgeSettings
+} from "../../../lib/client/nudge-settings";
 import { profileStore } from "../../../lib/client/profile-store";
-import { longitudinalInsightsEnabled } from "../../../lib/longitudinal-insights-flag";
 
 type EntitlementInfo = {
   tier: "free" | "premium";
@@ -19,18 +23,24 @@ type EntitlementInfo = {
   currentPeriodEnd: string | null;
 };
 
+/** 24h → friendly label, e.g. 0 → "12:00 am", 13 → "1:00 pm". */
+function formatHour(hour: number): string {
+  if (hour === 0) return "12:00 am";
+  if (hour === 12) return "12:00 pm";
+  return hour < 12 ? `${hour}:00 am` : `${hour - 12}:00 pm`;
+}
+
 export default function AccountPage() {
-  const [state, setState] = useState<"loading" | "signed_out" | "ready">(
-    "loading"
-  );
+  const [state, setState] = useState<
+    "loading" | "signed_out" | "unavailable" | "ready"
+  >("loading");
   const [entitlement, setEntitlement] = useState<EntitlementInfo | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [nudge, setNudge] = useState<{ optIn: boolean; hour: number } | null>(
-    null
-  );
+  const [nudge, setNudge] = useState<NudgeSettings | null>(null);
   const [nudgeSaved, setNudgeSaved] = useState(false);
+  const [nudgeError, setNudgeError] = useState(false);
   const [canceled, setCanceled] = useState<{ accessUntil: string } | null>(
     null
   );
@@ -41,6 +51,15 @@ export default function AccountPage() {
   // trial funnel doesn't. Default to trial (the code default) so the copy
   // never resurrects the retired free offer on a failed lookup.
   const [mode, setMode] = useState<"legacy" | "trial">("trial");
+  // Checkout-return truth (Task 8 / P2.2): after a checkout, the webhook +
+  // inbox may not have written the subscription row yet. Rather than flash a
+  // false free/paywall state at a user who just paid, we show "access is
+  // syncing" and poll /api/entitlement until premium appears.
+  const [syncing, setSyncing] = useState(false);
+  // Set when the 60s syncing fallback fires without premium appearing, so the
+  // user gets an explicit refresh hint instead of a silent drop to free copy.
+  const [syncTimedOut, setSyncTimedOut] = useState(false);
+  const syncStartRef = useRef<number>(0);
 
   useEffect(() => {
     fetch("/api/paywall")
@@ -61,10 +80,80 @@ export default function AccountPage() {
     // this is the only client-side moment that knows checkout completed.
     if (new URLSearchParams(window.location.search).get("subscribed") === "1") {
       track({ name: "subscribe_completed" });
+      // Enter the "syncing" surface: the entitlement poll below waits for the
+      // webhook/inbox to write the row before we render a plan state.
+      setSyncing(true);
+      syncStartRef.current = Date.now();
       // Strip the param so a refresh doesn't re-fire the event.
       window.history.replaceState(null, "", window.location.pathname);
     }
   }, []);
+
+  // While syncing, poll the entitlement endpoint until premium appears (or we
+  // give up after ~60s and let the normal state render with a gentle refresh
+  // hint). The polls are tagged so the server logs the pending→recovered
+  // transition (entitlement_pending / entitlement_recovered, §10.1).
+  useEffect(() => {
+    if (!syncing) {
+      return;
+    }
+    let cancelled = false;
+    let logged = false;
+
+    const bucket = () => {
+      const elapsed = Date.now() - syncStartRef.current;
+      if (elapsed <= 60_000) return "under_60s";
+      if (elapsed <= 5 * 60_000) return "under_5m";
+      return "under_1h";
+    };
+
+    const poll = async () => {
+      try {
+        const url = logged
+          ? "/api/entitlement"
+          : `/api/entitlement?heal=pending&waited=${bucket()}`;
+        logged = true;
+        const response = await fetch(url, { cache: "no-store" });
+        if (cancelled || !response.ok) {
+          return;
+        }
+        const data = (await response.json()) as EntitlementInfo;
+        if (data.tier === "premium") {
+          // Recovered: record the flip (server logs the latency bucket) and
+          // drop out of the syncing surface.
+          void fetch(`/api/entitlement?heal=recovered&waited=${bucket()}`, {
+            cache: "no-store"
+          }).catch(() => {});
+          if (!cancelled) {
+            setEntitlement(data);
+            setState("ready");
+            setSyncing(false);
+            setSyncTimedOut(false);
+          }
+        }
+      } catch {
+        // Transient — the next tick retries.
+      }
+    };
+
+    void poll();
+    const interval = setInterval(poll, 2500);
+    // Bounded: stop the visual "syncing" after 60s so a genuinely stuck sync
+    // falls back to the normal (accurate) state plus a refresh hint, never an
+    // infinite spinner.
+    const stop = setTimeout(() => {
+      if (!cancelled) {
+        setSyncing(false);
+        setSyncTimedOut(true);
+      }
+    }, 60_000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      clearTimeout(stop);
+    };
+  }, [syncing]);
 
   useEffect(() => {
     let cancelled = false;
@@ -75,11 +164,25 @@ export default function AccountPage() {
         if (cancelled) {
           return;
         }
-        if (response.status === 401) {
-          setState("signed_out");
+        // Error-state truth: only a real 401 is signed-out; a 5xx/other error
+        // is an outage, never a silent drop to free/trial plan copy.
+        const loadState = resolveAccountLoadState({
+          outcome: "response",
+          ok: response.ok,
+          status: response.status
+        });
+        if (loadState !== "ready") {
+          setState(loadState);
           return;
         }
-        setEntitlement((await response.json()) as EntitlementInfo);
+        let data: EntitlementInfo;
+        try {
+          data = (await response.json()) as EntitlementInfo;
+        } catch {
+          setState("unavailable");
+          return;
+        }
+        setEntitlement(data);
         setState("ready");
 
         const profileResponse = await fetch("/api/profile", {
@@ -90,17 +193,24 @@ export default function AccountPage() {
             hasProfile: boolean;
             nudgeOptIn?: boolean;
             nudgeHour?: number;
+            nudgeCadence?: "daily" | "few_per_week" | "weekly";
+            nudgeQuietStart?: number | null;
+            nudgeQuietEnd?: number | null;
           };
           if (profile.hasProfile) {
             setNudge({
               optIn: Boolean(profile.nudgeOptIn),
-              hour: profile.nudgeHour ?? 11
+              hour: profile.nudgeHour ?? 11,
+              cadence: profile.nudgeCadence ?? "daily",
+              quietStart: profile.nudgeQuietStart ?? null,
+              quietEnd: profile.nudgeQuietEnd ?? null
             });
           }
         }
       } catch {
         if (!cancelled) {
-          setState("signed_out");
+          // Network throw → outage, not signed-out.
+          setState(resolveAccountLoadState({ outcome: "network" }));
         }
       }
     })();
@@ -120,6 +230,50 @@ export default function AccountPage() {
       window.location.assign(body.url);
     } else {
       setError(body.error ?? "Couldn't open the billing portal.");
+    }
+  }
+
+  async function patchNudge(patch: Record<string, unknown>): Promise<boolean> {
+    setNudgeSaved(false);
+    try {
+      const response = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(patch)
+      });
+      setNudgeSaved(response.ok);
+      return response.ok;
+    } catch {
+      setNudgeSaved(false);
+      return false;
+    }
+  }
+
+  // Optimistic apply-or-rollback for a single reminder-field change (U9). The UI
+  // shows `next` immediately; if the PATCH fails we roll back to `prior` and flag
+  // it, so a field can never silently claim a value the server never stored.
+  async function saveNudge(
+    prior: NudgeSettings,
+    next: NudgeSettings,
+    patch: Record<string, unknown>
+  ): Promise<void> {
+    setNudge(next);
+    setNudgeError(false);
+    const ok = await patchNudge(patch);
+    const resolved = resolveNudgeSave(prior, next, ok);
+    setNudge(resolved.nudge);
+    setNudgeError(resolved.failed);
+  }
+
+  async function turnOffNudges() {
+    if (!nudge) {
+      return;
+    }
+    const ok = await patchNudge({ nudgeOptIn: false });
+    if (ok) {
+      setNudge({ ...nudge, optIn: false });
+      // §P4.3: opting out is the whole signal — no props.
+      track({ name: "nudge_unsubscribed" });
     }
   }
 
@@ -197,6 +351,22 @@ export default function AccountPage() {
 
           {state === "loading" ? (
             <p className="page-copy">Loading…</p>
+          ) : state === "unavailable" ? (
+            <div data-testid="account-unavailable" aria-live="polite">
+              <p className="page-copy">
+                We couldn&apos;t load your account just now. Your data and any
+                subscription are safe — this is on our side. Try again in a
+                moment.
+              </p>
+              <button
+                type="button"
+                className="primary-button"
+                data-testid="account-retry"
+                onClick={() => window.location.reload()}
+              >
+                Try again
+              </button>
+            </div>
           ) : state === "signed_out" ? (
             <>
               <p className="page-copy">
@@ -211,13 +381,35 @@ export default function AccountPage() {
             <>
               <div className="account-section" data-testid="account-plan">
                 <h2 className="section-title">Plan</h2>
-                {entitlement?.tier === "premium" ? (
+                {syncing && entitlement?.tier !== "premium" ? (
+                  <div data-testid="entitlement-syncing" aria-live="polite">
+                    <p className="page-copy">
+                      <strong>Payment received</strong> — your access is
+                      syncing. This usually takes a few seconds, and this page
+                      updates on its own. No need to pay again.
+                    </p>
+                  </div>
+                ) : syncTimedOut && entitlement?.tier !== "premium" ? (
+                  <div data-testid="entitlement-sync-timeout" aria-live="polite">
+                    <p className="page-copy">
+                      <strong>Payment received</strong> — this is taking longer
+                      than usual to sync. Your access is safe; no need to pay
+                      again. Refresh this page in a moment, and if it still
+                      doesn&apos;t show, contact support.
+                    </p>
+                    <button
+                      type="button"
+                      className="recheck-button"
+                      onClick={() => window.location.reload()}
+                    >
+                      Refresh
+                    </button>
+                  </div>
+                ) : entitlement?.tier === "premium" ? (
                   <>
                     <p className="page-copy">
                       <strong>Premium</strong> — unlimited checks, full
-                      history, progress
-                      {longitudinalInsightsEnabled() ? ", insights" : ""}, and
-                      the daily reminder.
+                      history, progress, and the daily reminder.
                     </p>
                     {entitlement.currentPeriodEnd && !canceled ? (
                       <p className="field-hint" data-testid="renewal-date">
@@ -312,16 +504,13 @@ export default function AccountPage() {
                         id="nudge-hour"
                         className="text-input"
                         value={nudge.hour}
-                        onChange={async (event) => {
+                        onChange={(event) => {
                           const hour = Number(event.target.value);
-                          setNudge({ ...nudge, hour });
-                          setNudgeSaved(false);
-                          const response = await fetch("/api/profile", {
-                            method: "PATCH",
-                            headers: { "content-type": "application/json" },
-                            body: JSON.stringify({ nudgeHour: hour })
-                          });
-                          setNudgeSaved(response.ok);
+                          void saveNudge(
+                            nudge,
+                            { ...nudge, hour },
+                            { nudgeHour: hour }
+                          );
                         }}
                       >
                         {Array.from({ length: 17 }, (_, i) => i + 5).map(
@@ -336,9 +525,105 @@ export default function AccountPage() {
                           )
                         )}
                       </select>
-                      {nudgeSaved ? (
+
+                      <label htmlFor="nudge-cadence" className="field-label">
+                        How often
+                      </label>
+                      <select
+                        id="nudge-cadence"
+                        className="text-input"
+                        value={nudge.cadence}
+                        onChange={(event) => {
+                          const cadence = event.target
+                            .value as NudgeSettings["cadence"];
+                          void saveNudge(
+                            nudge,
+                            { ...nudge, cadence },
+                            { nudgeCadence: cadence }
+                          );
+                        }}
+                      >
+                        <option value="daily">Once a day</option>
+                        <option value="few_per_week">A few times a week</option>
+                        <option value="weekly">Once a week</option>
+                      </select>
+
+                      <label htmlFor="nudge-quiet" className="field-label">
+                        Quiet hours (no reminders)
+                      </label>
+                      <div className="field-row" id="nudge-quiet">
+                        <select
+                          aria-label="Quiet hours start"
+                          className="text-input"
+                          value={nudge.quietStart ?? ""}
+                          onChange={(event) => {
+                            const raw = event.target.value;
+                            const quietStart = raw === "" ? null : Number(raw);
+                            // Clearing the start clears the whole window.
+                            const quietEnd =
+                              quietStart === null ? null : nudge.quietEnd;
+                            void saveNudge(
+                              nudge,
+                              { ...nudge, quietStart, quietEnd },
+                              {
+                                nudgeQuietStart: quietStart,
+                                nudgeQuietEnd: quietEnd
+                              }
+                            );
+                          }}
+                        >
+                          <option value="">Off</option>
+                          {Array.from({ length: 24 }, (_, hour) => (
+                            <option key={hour} value={hour}>
+                              {formatHour(hour)}
+                            </option>
+                          ))}
+                        </select>
+                        <span className="field-hint">to</span>
+                        <select
+                          aria-label="Quiet hours end"
+                          className="text-input"
+                          value={nudge.quietEnd ?? ""}
+                          disabled={nudge.quietStart === null}
+                          onChange={(event) => {
+                            const raw = event.target.value;
+                            const quietEnd = raw === "" ? null : Number(raw);
+                            void saveNudge(
+                              nudge,
+                              { ...nudge, quietEnd },
+                              { nudgeQuietEnd: quietEnd }
+                            );
+                          }}
+                        >
+                          <option value="">—</option>
+                          {Array.from({ length: 24 }, (_, hour) => (
+                            <option key={hour} value={hour}>
+                              {formatHour(hour)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {nudgeError ? (
+                        <p
+                          className="field-error"
+                          data-testid="nudge-save-error"
+                          role="alert"
+                        >
+                          Couldn&apos;t save — try again.
+                        </p>
+                      ) : nudgeSaved ? (
                         <p className="field-hint">Saved.</p>
                       ) : null}
+
+                      <button
+                        type="button"
+                        className="recheck-button"
+                        data-testid="nudge-turn-off"
+                        onClick={turnOffNudges}
+                      >
+                        Turn off reminders
+                      </button>
                     </div>
                   ) : null}
                 </div>

@@ -38,6 +38,9 @@ async function seedUser(options: {
   premium?: boolean;
   checkedTodayAt?: Date;
   lastNudgeDate?: string;
+  cadence?: "daily" | "few_per_week" | "weekly";
+  quietStart?: number | null;
+  quietEnd?: number | null;
 }) {
   const [user] = await testDb.db
     .insert(schema.users)
@@ -51,6 +54,9 @@ async function seedUser(options: {
     timezone: options.timezone,
     nudgeOptIn: options.optIn ?? true,
     nudgeHour: options.nudgeHour ?? 11,
+    nudgeCadence: options.cadence ?? "daily",
+    nudgeQuietStart: options.quietStart ?? null,
+    nudgeQuietEnd: options.quietEnd ?? null,
     consentedAt: NOW
   });
 
@@ -91,6 +97,24 @@ function runWith(send = vi.fn().mockResolvedValue("ok" as const)) {
     send,
     run: () => runNudgeCron(testDb.db, { now: () => NOW, send })
   };
+}
+
+const JOURNEY_ON = { LEARNING_JOURNEY_ENABLED: "1" };
+
+async function seedJourney(
+  userId: string,
+  options: {
+    state?: "active" | "paused" | "graduated" | "maintenance";
+    startedAt?: Date;
+  } = {}
+) {
+  await testDb.db.insert(schema.learningJourneys).values({
+    userId,
+    state: options.state ?? "active",
+    // Default: started 2 days before NOW → day 3 → stage 1.
+    startedAt: options.startedAt ?? new Date("2026-07-01T15:00:00.000Z"),
+    accumulatedPauseMs: 0
+  });
 }
 
 describe("runNudgeCron", () => {
@@ -236,7 +260,8 @@ describe("runNudgeCron — heartbeat (P7)", () => {
       }) as Db["insert"],
       update: testDb.db.update.bind(testDb.db),
       delete: testDb.db.delete.bind(testDb.db),
-      query: testDb.db.query
+      query: testDb.db.query,
+      transaction: testDb.db.transaction.bind(testDb.db)
     };
 
     await expect(
@@ -250,6 +275,151 @@ describe("runNudgeCron — heartbeat (P7)", () => {
     // above already proves the run itself didn't fail.
     const rows = await testDb.db.select().from(schema.cronHeartbeat);
     expect(rows).toHaveLength(0);
+  });
+});
+
+describe("runNudgeCron — journey-aware triggers (flag on)", () => {
+  it("active journey, unmet stage intent → journey_step with the stage", async () => {
+    const user = await seedUser({ email: "js@test.dev", timezone: "America/New_York" });
+    await seedJourney(user.id); // active, stage 1, no saved memories → intent unmet
+
+    const send = vi.fn().mockResolvedValue("ok" as const);
+    const result = await runNudgeCron(testDb.db, {
+      now: () => NOW,
+      env: JOURNEY_ON,
+      send
+    });
+
+    expect(result.sent).toBe(1);
+    const payload = JSON.parse(send.mock.calls[0][1] as string);
+    expect(payload.class).toBe("journey_step");
+    expect(payload.stage).toBe("1");
+  });
+
+  it("a fresh weekly artifact outranks the stage step → weekly_learning_ready", async () => {
+    const user = await seedUser({ email: "wk@test.dev", timezone: "America/New_York" });
+    await seedJourney(user.id);
+    // Persisted completed-week artifact; user never nudged → fresh.
+    await testDb.db.insert(schema.weeklyReflections).values({
+      userId: user.id,
+      weekStart: "2026-06-22",
+      version: "1",
+      artifactCiphertext: encryptField("{}"),
+      createdAt: new Date("2026-06-29T12:00:00.000Z")
+    });
+
+    const send = vi.fn().mockResolvedValue("ok" as const);
+    const result = await runNudgeCron(testDb.db, {
+      now: () => NOW,
+      env: JOURNEY_ON,
+      send
+    });
+
+    expect(result.sent).toBe(1);
+    const payload = JSON.parse(send.mock.calls[0][1] as string);
+    expect(payload.class).toBe("weekly_learning_ready");
+  });
+
+  it("STOP: a paused journey sends nothing", async () => {
+    const user = await seedUser({ email: "pz@test.dev", timezone: "America/New_York" });
+    await seedJourney(user.id, { state: "paused" });
+
+    const result = await runNudgeCron(testDb.db, {
+      now: () => NOW,
+      env: JOURNEY_ON,
+      send: vi.fn().mockResolvedValue("ok" as const)
+    });
+    expect(result.sent).toBe(0);
+  });
+
+  it("STOP: a graduated journey sends nothing", async () => {
+    const user = await seedUser({ email: "gr@test.dev", timezone: "America/New_York" });
+    await seedJourney(user.id, { state: "graduated" });
+
+    const result = await runNudgeCron(testDb.db, {
+      now: () => NOW,
+      env: JOURNEY_ON,
+      send: vi.fn().mockResolvedValue("ok" as const)
+    });
+    expect(result.sent).toBe(0);
+  });
+
+  it("STOP: 14-day inactivity winds nudges down", async () => {
+    const user = await seedUser({
+      email: "inactive@test.dev",
+      timezone: "America/New_York",
+      // Last (and only) check 20 days before NOW — not today, so it passes the
+      // "checked today" gate but trips the inactivity wind-down.
+      checkedTodayAt: new Date("2026-06-13T12:00:00.000Z")
+    });
+    await seedJourney(user.id);
+
+    const result = await runNudgeCron(testDb.db, {
+      now: () => NOW,
+      env: JOURNEY_ON,
+      send: vi.fn().mockResolvedValue("ok" as const)
+    });
+    expect(result.sent).toBe(0);
+  });
+
+  it("flag OFF leaves behavior generic even with a paused journey", async () => {
+    const user = await seedUser({ email: "off@test.dev", timezone: "America/New_York" });
+    await seedJourney(user.id, { state: "paused" });
+
+    const send = vi.fn().mockResolvedValue("ok" as const);
+    // No env → flag off → journey stop rules do not apply.
+    const result = await runNudgeCron(testDb.db, { now: () => NOW, send });
+
+    expect(result.sent).toBe(1);
+    const payload = JSON.parse(send.mock.calls[0][1] as string);
+    expect(payload.class).toBe("generic");
+    expect(payload.stage).toBe("none");
+  });
+});
+
+describe("runNudgeCron — cadence + quiet hours", () => {
+  it("weekly cadence: a nudge 5 days ago is too soon (needs ≥7)", async () => {
+    await seedUser({
+      email: "weekly@test.dev",
+      timezone: "America/New_York",
+      cadence: "weekly",
+      lastNudgeDate: "2026-06-28" // 5 days before NOW
+    });
+
+    expect((await runWith().run()).sent).toBe(0);
+  });
+
+  it("few_per_week cadence: a nudge yesterday is too soon (needs ≥2)", async () => {
+    await seedUser({
+      email: "few@test.dev",
+      timezone: "America/New_York",
+      cadence: "few_per_week",
+      lastNudgeDate: "2026-07-02" // 1 day before NOW
+    });
+
+    expect((await runWith().run()).sent).toBe(0);
+  });
+
+  it("few_per_week cadence: a 2-day gap sends", async () => {
+    await seedUser({
+      email: "few2@test.dev",
+      timezone: "America/New_York",
+      cadence: "few_per_week",
+      lastNudgeDate: "2026-07-01" // 2 days before NOW
+    });
+
+    expect((await runWith().run()).sent).toBe(1);
+  });
+
+  it("quiet hours covering the chosen hour suppress the send", async () => {
+    await seedUser({
+      email: "quiet@test.dev",
+      timezone: "America/New_York", // 11:00 local
+      quietStart: 9,
+      quietEnd: 17
+    });
+
+    expect((await runWith().run()).sent).toBe(0);
   });
 });
 

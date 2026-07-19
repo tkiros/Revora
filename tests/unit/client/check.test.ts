@@ -133,4 +133,35 @@ describe("submitCheck", () => {
     expect(response.sequencingTip).toBeNull();
     expect(response.postMealAction).toBeNull();
   });
+
+  it("sends the x-revora-clarified header only when answering a clarify (§8 cap)", async () => {
+    const okBody = {
+      kind: "result",
+      risk: "SAFE",
+      reason: "This looks balanced.",
+      adjustment: null,
+      swap: null,
+      disclaimer: DISCLAIMER
+    };
+
+    const withFlag = mockFetch(200, okBody);
+    await submitCheck(input, { clarified: true });
+    expect(headerOf(withFlag, "x-revora-clarified")).toBe("1");
+
+    vi.unstubAllGlobals();
+
+    const withoutFlag = mockFetch(200, okBody);
+    await submitCheck(input);
+    expect(headerOf(withoutFlag, "x-revora-clarified")).toBeUndefined();
+  });
 });
+
+function headerOf(
+  fetchMock: ReturnType<typeof vi.fn>,
+  name: string
+): string | undefined {
+  const init = fetchMock.mock.calls[0]?.[1] as
+    | { headers?: Record<string, string> }
+    | undefined;
+  return init?.headers?.[name];
+}

@@ -53,7 +53,8 @@ describe("createHealthHandler — db + cron probes (P7)", () => {
       nudge: "never",
       baiWeekly: "never",
       trialPrecharge: "never",
-      pantrySweep: "never"
+      pantrySweep: "never",
+      stripeReconcile: "never"
     });
   });
 
@@ -81,7 +82,8 @@ describe("createHealthHandler — db + cron probes (P7)", () => {
       { name: "nudge", lastRunAt: new Date(NOW.getTime() - 30 * 60 * 1000) }, // 30m ago
       { name: "bai-weekly", lastRunAt: new Date(NOW.getTime() - 24 * 60 * 60 * 1000) }, // 1 day ago
       { name: "trial-precharge", lastRunAt: new Date(NOW.getTime() - 30 * 60 * 1000) }, // 30m ago
-      { name: "pantry-sweep", lastRunAt: new Date(NOW.getTime() - 30 * 60 * 1000) } // 30m ago
+      { name: "pantry-sweep", lastRunAt: new Date(NOW.getTime() - 30 * 60 * 1000) }, // 30m ago
+      { name: "stripe-reconcile", lastRunAt: new Date(NOW.getTime() - 30 * 60 * 1000) } // 30m ago
     ]);
 
     const createHealthHandler = await importHandler();
@@ -94,7 +96,8 @@ describe("createHealthHandler — db + cron probes (P7)", () => {
       nudge: "ok",
       baiWeekly: "ok",
       trialPrecharge: "ok",
-      pantrySweep: "ok"
+      pantrySweep: "ok",
+      stripeReconcile: "ok"
     });
   });
 
@@ -107,7 +110,9 @@ describe("createHealthHandler — db + cron probes (P7)", () => {
       // trial-precharge stale past 2h
       { name: "trial-precharge", lastRunAt: new Date(NOW.getTime() - 3 * 60 * 60 * 1000) },
       // pantry-sweep stale past 2h
-      { name: "pantry-sweep", lastRunAt: new Date(NOW.getTime() - 3 * 60 * 60 * 1000) }
+      { name: "pantry-sweep", lastRunAt: new Date(NOW.getTime() - 3 * 60 * 60 * 1000) },
+      // stripe-reconcile stale past 2h
+      { name: "stripe-reconcile", lastRunAt: new Date(NOW.getTime() - 3 * 60 * 60 * 1000) }
     ]);
 
     const createHealthHandler = await importHandler();
@@ -119,7 +124,8 @@ describe("createHealthHandler — db + cron probes (P7)", () => {
       nudge: "stale",
       baiWeekly: "stale",
       trialPrecharge: "stale",
-      pantrySweep: "stale"
+      pantrySweep: "stale",
+      stripeReconcile: "stale"
     });
   });
 
@@ -149,7 +155,8 @@ describe("createHealthHandler — db + cron probes (P7)", () => {
       nudge: "unknown",
       baiWeekly: "unknown",
       trialPrecharge: "unknown",
-      pantrySweep: "unknown"
+      pantrySweep: "unknown",
+      stripeReconcile: "unknown"
     });
   });
 
@@ -170,7 +177,8 @@ describe("createHealthHandler — db + cron probes (P7)", () => {
       nudge: "unknown",
       baiWeekly: "unknown",
       trialPrecharge: "unknown",
-      pantrySweep: "unknown"
+      pantrySweep: "unknown",
+      stripeReconcile: "unknown"
     });
   });
 

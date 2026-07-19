@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import type { VerdictWeekDay } from "../lib/coach/days";
 import type { StoredCheck } from "../lib/client/history-store";
 import type { PlanBoxData } from "../lib/server/plan-box";
+import { HomeCheckHero } from "./home-check-hero";
 import { IconAlert, IconCheck, IconPause } from "./icons";
 import { PlanBox } from "./plan-box";
 import { TodayList } from "./today-list";
@@ -82,6 +83,9 @@ function WeekStrip({ week, isDay0 }: { week: VerdictWeekDay[]; isDay0: boolean }
   return (
     <section className="dash-card" aria-label="This week">
       <h3 className="dash-sect-title">This week</h3>
+      {/* Progress posture (approved direction 2026-07-19, from variant C):
+          reassurance, not gamification — DESIGN.md §Progress surfaces. */}
+      <p className="dash-sect-sub">No score to chase.</p>
       <ol className="dash-week" data-testid="dash-week">
         {week.map((day) => {
           const date = new Date(`${day.key}T00:00:00`);
@@ -213,18 +217,7 @@ export function DashboardView({
 
       <div className="dash-grid">
         <div className="dash-col">
-          <div className="dash-cta">
-            <p className="dash-cta-eyebrow">The one thing to do</p>
-            <h2>Check this meal</h2>
-            <p>
-              Describe what you&apos;re about to eat. You&apos;ll get a cautious
-              educational label, one reason, and a practical alternative when
-              appropriate.
-            </p>
-            <Link className="dash-cta-button" href="/check" data-testid="dash-check-cta">
-              Check a meal
-            </Link>
-          </div>
+          <HomeCheckHero />
 
           <WeekStrip week={data.week} isDay0={data.isDay0} />
 

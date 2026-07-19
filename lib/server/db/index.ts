@@ -5,7 +5,7 @@ import * as schema from "./schema";
 
 export type Db = Pick<
   NodePgDatabase<typeof schema>,
-  "select" | "insert" | "update" | "delete" | "query"
+  "select" | "insert" | "update" | "delete" | "query" | "transaction"
 >;
 
 let db: Db | null = null;

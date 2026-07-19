@@ -9,3 +9,14 @@
  * re-exports it for server callers.
  */
 export const FREE_DAILY_CHECKS = 5;
+
+/**
+ * The free-tier history VIEW window: how many recent days a free account can see
+ * (the full archive is premium — plan 4D). This is a VIEW rule, not a storage
+ * rule; the export path (a data right) ignores it.
+ *
+ * Single definition (T10 / G5): the history handler that enforces the window and
+ * the capability matrix that renders it BOTH import this constant, so the number
+ * can never fork between what the server enforces and what the UI promises.
+ */
+export const FREE_HISTORY_DAYS = 7;

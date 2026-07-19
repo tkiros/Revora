@@ -3,6 +3,12 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { routeA1C } from "../../../lib/revora/a1c";
+// Approved boundary copy — single-sourced (SAFETY-OWNED). Out-of-range A1C gets
+// guidance, never a verdict, at profile creation exactly as at check time.
+import {
+  BELOW_RANGE_MESSAGE,
+  HIGH_RANGE_MESSAGE
+} from "../../../lib/revora/boundary-copy";
 import { encryptField } from "../../../lib/server/crypto";
 import { getDb, schema, type Db } from "../../../lib/server/db";
 import {
@@ -11,13 +17,6 @@ import {
 } from "../../../lib/server/session";
 
 export const runtime = "nodejs";
-
-// Approved boundary copy (docs/safety/copy-ledger.md) — out-of-range A1C gets
-// guidance, never a verdict, at profile creation exactly as at check time.
-const BELOW_RANGE_MESSAGE =
-  "Revora is designed for the prediabetes A1C range of 5.7% to 6.4%. This value sits below that range, so use a doctor or registered dietitian for guidance that is specific to you.";
-const HIGH_RANGE_MESSAGE =
-  "This A1C value falls in a range used for diabetes and is outside Revora's prediabetes-only MVP. For personalized next steps, talk with a doctor or registered dietitian.";
 
 const ProfileRequestSchema = z
   .object({
@@ -48,7 +47,10 @@ export function createProfileRouteHandlers(deps: ProfileRouteDeps = {}) {
           a1cBand: schema.profiles.a1cBand,
           timezone: schema.profiles.timezone,
           nudgeOptIn: schema.profiles.nudgeOptIn,
-          nudgeHour: schema.profiles.nudgeHour
+          nudgeHour: schema.profiles.nudgeHour,
+          nudgeCadence: schema.profiles.nudgeCadence,
+          nudgeQuietStart: schema.profiles.nudgeQuietStart,
+          nudgeQuietEnd: schema.profiles.nudgeQuietEnd
         })
         .from(schema.profiles)
         .where(eq(schema.profiles.userId, session.userId));
@@ -135,7 +137,12 @@ export function createProfileRouteHandlers(deps: ProfileRouteDeps = {}) {
 const NudgePrefsSchema = z
   .object({
     nudgeHour: z.number().int().min(0).max(23).optional(),
-    nudgeOptIn: z.boolean().optional()
+    nudgeOptIn: z.boolean().optional(),
+    // Personal journey nudges (Task 19 / §P4.3): cadence + optional quiet-hours
+    // window. Quiet hours are nullable (send null to clear the window).
+    nudgeCadence: z.enum(["daily", "few_per_week", "weekly"]).optional(),
+    nudgeQuietStart: z.number().int().min(0).max(23).nullable().optional(),
+    nudgeQuietEnd: z.number().int().min(0).max(23).nullable().optional()
   })
   .strict();
 

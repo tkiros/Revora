@@ -8,7 +8,10 @@ import {
 } from "../../../components/dashboard-view";
 import { FirstRunGate } from "../../../components/first-run-gate";
 import { GuestDashboard } from "../../../components/guest-dashboard";
-import type { StoredCheck } from "../../../lib/client/history-store";
+import {
+  normalizeInputMethod,
+  type StoredCheck
+} from "../../../lib/client/history-store";
 import { computeCoachView } from "../../../lib/coach/compute";
 import {
   dayKeyInTimezone,
@@ -106,7 +109,7 @@ export default async function HomePage() {
       food: safeDecrypt(row.foodCiphertext),
       risk: row.risk,
       a1cBand: row.a1cBand,
-      inputMethod: row.inputMethod === "voice" ? "voice" : "text",
+      inputMethod: normalizeInputMethod(row.inputMethod),
       createdAt: row.createdAt.toISOString(),
       actionDoneAt: row.actionDoneAt?.toISOString()
     }));

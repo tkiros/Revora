@@ -21,7 +21,12 @@ self.addEventListener("activate", (event) => {
 // gentle reminder a day — the server enforces the cadence; the SW only
 // displays what it's sent.
 self.addEventListener("push", (event) => {
-  let payload = { title: "Revora", body: "Ready for today? Check your first meal." };
+  let payload = {
+    title: "Revora",
+    body: "Ready for today? Check your first meal.",
+    class: "generic",
+    stage: "none"
+  };
   try {
     if (event.data) payload = { ...payload, ...event.data.json() };
   } catch {
@@ -32,17 +37,31 @@ self.addEventListener("push", (event) => {
       body: payload.body,
       icon: "/icon-192.png",
       badge: "/icon-192.png",
-      tag: "revora-daily-nudge" // same tag: never stacks duplicates
+      tag: "revora-daily-nudge", // same tag: never stacks duplicates
+      // Bounded routing metadata only (no health text) — read on click so the
+      // app can emit nudge_opened {class, stage} (§10.1).
+      data: { class: payload.class, stage: payload.stage }
     })
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
+  const data = event.notification.data || {};
+  const params = new URLSearchParams();
+  params.set("nudge", typeof data.class === "string" ? data.class : "generic");
+  params.set("stage", typeof data.stage === "string" ? data.stage : "none");
+  const target = `/check?${params.toString()}`;
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((wins) => {
+      // Focus an open tab and route it to the check page with the nudge params;
+      // otherwise open a fresh window there.
       const existing = wins.find((w) => "focus" in w);
-      return existing ? existing.focus() : clients.openWindow("/check");
+      if (existing) {
+        if ("navigate" in existing) existing.navigate(target).catch(() => {});
+        return existing.focus();
+      }
+      return clients.openWindow(target);
     })
   );
 });

@@ -15,6 +15,7 @@ const ALLOWED_NAMES = [
   "onboarding_completed",
   "signin_completed",
   "nudge_opened",
+  "nudge_unsubscribed",
   "paywall_viewed",
   "subscribe_started",
   "subscribe_completed",
@@ -26,7 +27,16 @@ const ALLOWED_NAMES = [
   "pantry_viewed",
   "pantry_checkout_started",
   "attribution",
-  "photo_draft"
+  "photo_draft",
+  "result_feedback_submitted",
+  "clarification_requested",
+  "clarification_resolved",
+  "meal_memory_saved",
+  "meal_memory_recalled",
+  "weekly_learning_viewed",
+  "journey_paused",
+  "journey_graduated",
+  "maintenance_selected"
 ] as const;
 
 // (a) Compile-time exhaustiveness: this switch must handle every member of
@@ -39,6 +49,7 @@ function assertExhaustive(name: AnalyticsEvent["name"]): void {
     case "onboarding_completed":
     case "signin_completed":
     case "nudge_opened":
+    case "nudge_unsubscribed":
     case "paywall_viewed":
     case "subscribe_started":
     case "subscribe_completed":
@@ -51,9 +62,18 @@ function assertExhaustive(name: AnalyticsEvent["name"]): void {
     case "pantry_checkout_started":
     case "attribution":
     case "photo_draft":
+    case "result_feedback_submitted":
     case "onboarding_started":
     case "result_helpful":
     case "clinical_route":
+    case "clarification_requested":
+    case "clarification_resolved":
+    case "meal_memory_saved":
+    case "meal_memory_recalled":
+    case "weekly_learning_viewed":
+    case "journey_paused":
+    case "journey_graduated":
+    case "maintenance_selected":
       return;
     default: {
       const exhaustiveCheck: never = name;
@@ -84,7 +104,11 @@ describe("AnalyticsEvent allowlist", () => {
       },
       { name: "onboarding_completed" },
       { name: "signin_completed" },
-      { name: "nudge_opened" },
+      {
+        name: "nudge_opened",
+        props: { class: "journey_step", stage: "1" }
+      },
+      { name: "nudge_unsubscribed" },
       { name: "paywall_viewed" },
       { name: "subscribe_started" },
       { name: "subscribe_completed" },
@@ -96,7 +120,34 @@ describe("AnalyticsEvent allowlist", () => {
       { name: "pantry_viewed", props: { source: "wall_decline" } },
       { name: "pantry_checkout_started" },
       { name: "attribution", props: { reported: "reddit", utm: "none" } },
-      { name: "photo_draft", props: { items: 3, uncertain: 1 } }
+      { name: "photo_draft", props: { items: 3, uncertain: 1 } },
+      { name: "result_feedback_submitted", props: { helpful: true } },
+      {
+        name: "clarification_requested",
+        props: { category: "plain_or_sweetened" }
+      },
+      {
+        name: "clarification_resolved",
+        props: { category: "underspecified", elapsed: "lt60s" }
+      },
+      {
+        name: "meal_memory_saved",
+        props: {
+          hasChoice: true,
+          hasNote: false,
+          wouldRepeat: "yes",
+          favorite: true,
+          label: "breakfast"
+        }
+      },
+      { name: "meal_memory_recalled", props: { match: "exact" } },
+      { name: "weekly_learning_viewed", props: { stage: "3" } },
+      {
+        name: "journey_paused",
+        props: { stage: "5", pauseReason: "need_a_break" }
+      },
+      { name: "journey_graduated", props: { completedStages: "5" } },
+      { name: "maintenance_selected", props: { variant: "standard" } }
     ];
 
     expect(oneOfEach.map((event) => event.name).sort()).toEqual(

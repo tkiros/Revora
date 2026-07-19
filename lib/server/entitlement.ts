@@ -1,14 +1,28 @@
-import { and, count, desc, eq, gte } from "drizzle-orm";
+import { and, count, desc, eq, gte, notInArray } from "drizzle-orm";
 
 import { dayKeyInTimezone } from "../coach/days";
 import { schema, type Db } from "./db";
+import { emitBillingEvent, latencyBucket } from "./billing/telemetry";
+import type { StripeRefreshResult } from "./stripe-api";
 
 /**
  * Unified entitlement (plan 4D / docs/adr/billing.md). One read path over
  * the one `subscriptions` table — the rest of the app never knows which
- * provider granted premium. Verify-on-read heals stale Play rows when RTDN
- * was missed; the webhook is an optimization, not a correctness dependency.
+ * provider granted premium.
+ *
+ * Verify-on-read heals stale rows against the provider API:
+ *  - Play self-heals on read when an RTDN was missed — for Play the webhook is
+ *    an optimization, not a correctness dependency.
+ *  - Stripe correctness DOES depend on the webhook. When the webhook + durable
+ *    inbox (Task 8 / P2.2) miss a renewal, a Stripe row can read premium-status
+ *    but past its paid-through date; this path re-checks it against the Stripe
+ *    API (time-gated to once per hour per row) and heals it. The reconciliation
+ *    sweep is the scheduled backstop for rows nobody reads.
  */
+
+// A Stripe row is re-checked against the Stripe API at most this often, so a
+// hot read path never turns into a per-request Stripe call.
+const STRIPE_RECHECK_INTERVAL_MS = 60 * 60 * 1000;
 
 // Client-safe home (G5): marketing pages interpolate it too.
 export { FREE_DAILY_CHECKS } from "../free-tier";
@@ -37,6 +51,13 @@ export type EntitlementDeps = {
   refreshPlaySubscription?: (
     purchaseToken: string
   ) => Promise<PlayRefreshResult>;
+  // Injected Stripe subscription lookup (lib/server/stripe-api.ts in prod).
+  // Present only on granting read paths (the entitlement route); display-only
+  // callers omit it so the read never blocks on Stripe.
+  refreshStripeSubscription?: (
+    subscriptionId: string,
+    fallbackPeriodEnd: Date
+  ) => Promise<StripeRefreshResult>;
 };
 
 // 'canceled' still counts until the paid-through date; grace is honored.
@@ -107,6 +128,70 @@ export async function getEntitlement(
         }
       } catch {
         // Play API unreachable: fail toward free — never grant on a guess.
+      }
+    }
+
+    // Stale Stripe row: the webhook/inbox missed a renewal, so the row still
+    // reads a premium status but its paid-through date has passed. Re-check it
+    // against the Stripe API and heal — bounded to premium-status rows that are
+    // actually stale, and rate-limited to once per hour per row so a hot read
+    // path never becomes a per-request Stripe call.
+    if (
+      row.provider === "stripe" &&
+      (PREMIUM_STATUSES as readonly string[]).includes(row.status) &&
+      row.currentPeriodEnd <= now &&
+      deps.refreshStripeSubscription &&
+      (!row.lastVerifiedAt ||
+        now.getTime() - row.lastVerifiedAt.getTime() >=
+          STRIPE_RECHECK_INTERVAL_MS)
+    ) {
+      try {
+        const fresh = await deps.refreshStripeSubscription(
+          row.providerRef,
+          row.currentPeriodEnd
+        );
+        // Guard on the terminal statuses (B2/B3): a charge.refunded or
+        // subscription.deleted can commit during this in-flight Stripe fetch —
+        // writing `fresh` back (and returning premium) would resurrect a
+        // refunded/expired (terminal) row. If the guarded update matched
+        // nothing, the row went terminal under us: do not heal, do not grant.
+        const healed = await db
+          .update(schema.subscriptions)
+          .set({
+            status: fresh.status,
+            currentPeriodEnd: fresh.currentPeriodEnd,
+            lastVerifiedAt: now,
+            updatedAt: now
+          })
+          .where(
+            and(
+              eq(schema.subscriptions.id, row.id),
+              notInArray(schema.subscriptions.status, ["refunded", "expired"])
+            )
+          )
+          .returning({ id: schema.subscriptions.id });
+
+        if (
+          healed.length > 0 &&
+          (PREMIUM_STATUSES as readonly string[]).includes(fresh.status) &&
+          fresh.currentPeriodEnd > now
+        ) {
+          // A charged user was missing entitlement and just got it back — the
+          // §10.1 recovery signal, bucketed by how long the row was stale.
+          emitBillingEvent({
+            name: "entitlement_recovered",
+            provider: "stripe",
+            latency: latencyBucket(now.getTime() - row.currentPeriodEnd.getTime())
+          });
+          return {
+            tier: "premium",
+            source: "stripe",
+            status: "premium",
+            currentPeriodEnd: fresh.currentPeriodEnd
+          };
+        }
+      } catch {
+        // Stripe API unreachable: fail toward free — never grant on a guess.
       }
     }
   }

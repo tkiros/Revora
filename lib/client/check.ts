@@ -33,6 +33,13 @@ export async function submitCheck(
     // body, so the engine contract stays untouched.
     clientId?: string;
     inputMethod?: "text" | "voice" | "photo";
+    // One-clarification cap (§8/P1.3): true when this submission answers a
+    // prior clarify question, so the server suppresses a second ambiguity ask.
+    clarified?: boolean;
+    // §P3.1 snapshot: the bounded clarify-reason enum of the question being
+    // answered (the same closed value analytics carries — NOT the meal text or
+    // raw question). Lets the server persist WHICH approved question was asked.
+    clarifyCategory?: string;
   }
 ): Promise<RevoraUserResponse> {
   let response: Response;
@@ -46,6 +53,10 @@ export async function submitCheck(
         ...(init?.clientId ? { "x-revora-client-id": init.clientId } : {}),
         ...(init?.inputMethod
           ? { "x-revora-input-method": init.inputMethod }
+          : {}),
+        ...(init?.clarified ? { "x-revora-clarified": "1" } : {}),
+        ...(init?.clarified && init?.clarifyCategory
+          ? { "x-revora-clarify-category": init.clarifyCategory }
           : {}),
         // W-17: cycles the server's audited coach phrase bank so a daily user
         // is not shown the same three sentences every day.
@@ -182,7 +193,11 @@ function normalizeResponse(payload: unknown): RevoraUserResponse {
           sequencingTip: asNullableString(response.sequencingTip),
           postMealAction: asNullableString(response.postMealAction),
           keepMost: asNullableString(response.keepMost),
-          disclaimer: response.disclaimer
+          disclaimer: response.disclaimer,
+          // Present only for a signed-in persisted check; absent for guests.
+          ...(typeof response.checkId === "string"
+            ? { checkId: response.checkId }
+            : {})
         } satisfies ServerResponse;
       }
       break;

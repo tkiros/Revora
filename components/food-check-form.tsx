@@ -5,6 +5,11 @@ import { useEffect, useRef, useState } from "react";
 
 import { track } from "../lib/client/analytics";
 import { submitCheck } from "../lib/client/check";
+import {
+  clarifyElapsedBucket,
+  clarifyReasonForQuestion,
+  type ClarifyReason
+} from "../lib/revora/clarify";
 import { historyStore } from "../lib/client/history-store";
 import { profileStore } from "../lib/client/profile-store";
 import { tasterStore } from "../lib/client/taster-store";
@@ -22,6 +27,7 @@ import type { MealDraftItem } from "../lib/meal/photo-extract";
 import { photoInputEnabled } from "../lib/photo-input-flag";
 import type { PhotoDraftResult } from "../lib/client/photo-draft";
 import { IconKeyboard } from "./icons";
+import { MealMemoryRecall } from "./meal-memory-recall";
 import { PhotoDraftReview } from "./photo-draft-review";
 import { PhotoInputButton } from "./photo-input-button";
 import { RequestStatus } from "./request-status";
@@ -63,9 +69,24 @@ export function FoodCheckForm() {
   } | null>(null);
   const [photoNotice, setPhotoNotice] = useState<string | null>(null);
   const [lastCheckId, setLastCheckId] = useState<string | null>(null);
+  // Snapshot of the submitted meal + method for the result's Meal row —
+  // read at success time so edits to the field don't rewrite the echo.
+  const [lastMeal, setLastMeal] = useState<{
+    food: string;
+    method: "text" | "voice" | "photo";
+  } | null>(null);
   const [actionDone, setActionDone] = useState(false);
   const [mode, setMode] = useState<PaywallMode>("legacy");
   const foodInputRef = useRef<HTMLTextAreaElement | null>(null);
+  // One-clarification cap + clarify metrics (P1.3 §8/§10.1). Holds the reason
+  // and start time of an OUTSTANDING deterministic clarify — set when a clarify
+  // card renders, cleared when the next submission answers it. A ref, not
+  // state: it must not trigger a re-render, and it is read/written inside the
+  // submit handler only.
+  const pendingClarifyRef = useRef<{
+    reason: ClarifyReason;
+    startedAt: number;
+  } | null>(null);
 
   useEffect(() => {
     // Day-1 taster: learn the paywall mode once on mount. Fail-open to the
@@ -169,14 +190,56 @@ export function FoodCheckForm() {
       });
     }, 5_000);
 
+    // One-clarification cap (§8): if this submission answers an outstanding
+    // clarify, mark it so the server suppresses a second ambiguity question.
+    // Read the pending clarify here, but DO NOT clear the ref or record the
+    // resolution yet — that only happens once submitCheck actually resolves
+    // (below). A thrown submit must leave the ref intact so the retry still
+    // carries clarified:true and re-records resolution on success (U3).
+    const pendingClarify = pendingClarifyRef.current;
+
     try {
       // One id shared by the on-device copy and the server row (4B) so the
       // sign-in migration dedupes instead of duplicating.
       const clientId = crypto.randomUUID();
       const response = await submitCheck(result.data, {
         clientId,
-        inputMethod
+        inputMethod,
+        clarified: pendingClarify !== null,
+        // §P3.1: the bounded reason of the clarify being answered, so the server
+        // can persist which approved question was asked. Bounded enum, not text.
+        clarifyCategory: pendingClarify?.reason
       });
+
+      // The submit resolved — the outstanding clarify is now genuinely answered.
+      // Clear the pending ref and record the resolution (§10.1) — reason +
+      // elapsed bucket only, never the meal text. Done here (not before the
+      // await) so a thrown submit leaves the ref intact for the retry (U3).
+      if (pendingClarify) {
+        pendingClarifyRef.current = null;
+        track({
+          name: "clarification_resolved",
+          props: {
+            category: pendingClarify.reason,
+            elapsed: clarifyElapsedBucket(Date.now() - pendingClarify.startedAt)
+          }
+        });
+      }
+
+      // §10.1: a deterministic clarify card renders — record which of the three
+      // bounded reasons fired so clarify/resolution/abandonment rates are
+      // computable. A model-authored or generic clarify maps to no reason and
+      // is not metered. Abandonment = requested with no later resolved.
+      if (response.kind === "clarify") {
+        const reason = clarifyReasonForQuestion(response.question);
+        if (reason) {
+          pendingClarifyRef.current = { reason, startedAt: Date.now() };
+          track({
+            name: "clarification_requested",
+            props: { category: reason }
+          });
+        }
+      }
 
       // W-10: which clinical class fired. The route id only — never the input
       // that matched it, which would be health data.
@@ -202,6 +265,7 @@ export function FoodCheckForm() {
           createdAt: new Date().toISOString()
         });
         setLastCheckId(clientId);
+        setLastMeal({ food: result.data.food, method: inputMethod });
         setActionDone(false);
         track({
           name: "check_completed",
@@ -425,6 +489,8 @@ export function FoodCheckForm() {
         <>
           <ResultCard
             response={uiState.response}
+            food={lastMeal?.food}
+            inputMethod={lastMeal?.method}
             actionDone={actionDone}
             onActionDone={
               lastCheckId
@@ -447,6 +513,13 @@ export function FoodCheckForm() {
             uiState.response.kind === "result" ? uiState.response.risk : undefined
           ) ? (
             <PantryEntry />
+          ) : null}
+          {/* §P3.3 recall panel: render-after-result only, and only for a
+              completed meal card. Self-gates on the build flag + the server's
+              answer (guest/free/flag-off get no matches), so it never shows as a
+              paywall or an error. Reads memory; never feeds the engine above. */}
+          {uiState.response.kind === "result" ? (
+            <MealMemoryRecall food={lastMeal?.food} />
           ) : null}
         </>
       ) : (

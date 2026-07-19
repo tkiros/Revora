@@ -39,11 +39,20 @@ describe("DELETE /api/account/health-data", () => {
       a1cBand: "prediabetes_60_62",
       consentedAt: new Date()
     });
-    await testDb.db.insert(schema.checks).values({
+    const [check] = await testDb.db
+      .insert(schema.checks)
+      .values({
+        userId: user.id,
+        foodCiphertext: encryptField("meal"),
+        risk: "MODERATE",
+        a1cBand: "prediabetes_60_62"
+      })
+      .returning({ id: schema.checks.id });
+    await testDb.db.insert(schema.mealMemories).values({
       userId: user.id,
-      foodCiphertext: encryptField("meal"),
-      risk: "MODERATE",
-      a1cBand: "prediabetes_60_62"
+      checkId: check.id,
+      noteCiphertext: encryptField("private note"),
+      favorite: true
     });
     await testDb.db.insert(schema.baiWeekly).values({
       userId: user.id,
@@ -87,12 +96,66 @@ describe("DELETE /api/account/health-data", () => {
         .where(eq(schema.subscriptions.userId, user.id))
     ).toHaveLength(1);
 
-    for (const table of ["profiles", "checks", "bai_weekly", "push_subscriptions"]) {
+    for (const table of [
+      "profiles",
+      "checks",
+      "meal_memories",
+      "bai_weekly",
+      "push_subscriptions"
+    ]) {
       const result = await testDb.raw.query(
         `SELECT count(*)::int AS n FROM ${table} WHERE user_id = '${user.id}'`
       );
       expect((result.rows[0] as { n: number }).n).toBe(0);
     }
+  });
+
+  it("erases learning journeys and weekly reflections on withdrawal (E2/E5)", async () => {
+    const [user] = await testDb.db
+      .insert(schema.users)
+      .values({ email: "withdraw-journey@test.dev" })
+      .returning();
+    await testDb.db.insert(schema.profiles).values({
+      userId: user.id,
+      a1cCiphertext: encryptField("6.1"),
+      a1cBand: "prediabetes_60_62",
+      consentedAt: new Date()
+    });
+    // learning_journeys references `users`, not `profiles`/`checks` — no cascade
+    // reaches it (E2), so withdrawal must delete it explicitly.
+    await testDb.db.insert(schema.learningJourneys).values({
+      userId: user.id,
+      state: "active",
+      startedAt: new Date("2026-07-01T00:00:00Z")
+    });
+    // weekly_reflections embeds the user's own meal text; it references only
+    // `users` and is deleted LAST in the withdrawal transaction (E5).
+    await testDb.db.insert(schema.weeklyReflections).values({
+      userId: user.id,
+      weekStart: "2026-07-06",
+      version: "1",
+      artifactCiphertext: encryptField(JSON.stringify({ weekStart: "2026-07-06" }))
+    });
+
+    const DELETE = createHealthDataDeleteHandler({
+      db: () => testDb.db,
+      getSession: async () => ({ userId: user.id, email: user.email })
+    });
+    expect((await DELETE()).status).toBe(200);
+
+    for (const table of ["learning_journeys", "weekly_reflections"]) {
+      const result = await testDb.raw.query(
+        `SELECT count(*)::int AS n FROM ${table} WHERE user_id = '${user.id}'`
+      );
+      expect((result.rows[0] as { n: number }).n).toBe(0);
+    }
+    // Login survives.
+    expect(
+      await testDb.db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.id, user.id))
+    ).toHaveLength(1);
   });
 
   it("deletes Pantry Blob objects before its order cascade destroys their URLs", async () => {

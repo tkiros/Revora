@@ -3,6 +3,7 @@ import Link from "next/link";
 import { DemoCheckCard } from "../../../components/demo-check-card";
 import { ResultCard } from "../../../components/result-card";
 import type { RevoraRisk, RevoraUserResponse } from "../../../lib/client/ui-state";
+import { BOUNDARY_DISCLAIMER } from "../../../lib/revora/boundary-copy";
 import { deriveCoachOutputs } from "../../../lib/revora/coach-outputs";
 
 /**
@@ -21,10 +22,6 @@ export const metadata = {
   robots: { index: false, follow: false }
 };
 
-// Verbatim `result-footer` ledger row — the stable disclaimer on every result.
-const DISCLAIMER =
-  "Revora is informational only and is not medical advice. Talk with a doctor or registered dietitian for guidance that is specific to you.";
-
 // Builds a result fixture from a verbatim ledger `reason`, then fills the coach
 // fields (keepMost / sequencingTip / postMealAction) via the real derivation so
 // their copy is sourced from `coach-outputs.ts`, never re-typed here. SAFE gets
@@ -39,7 +36,7 @@ function resultFixture(risk: RevoraRisk, reason: string): RevoraUserResponse {
     sequencingTip: null,
     postMealAction: null,
     keepMost: null,
-    disclaimer: DISCLAIMER
+    disclaimer: BOUNDARY_DISCLAIMER
   };
   return { ...base, ...deriveCoachOutputs(base) };
 }
@@ -68,7 +65,7 @@ const CLARIFY_FIXTURE: RevoraUserResponse = {
   kind: "clarify",
   question:
     "Is this plain or sweetened? That one detail changes whether Revora should read it as lower impact or more concentrated.",
-  disclaimer: DISCLAIMER
+  disclaimer: BOUNDARY_DISCLAIMER
 };
 
 export default function DemoPage() {

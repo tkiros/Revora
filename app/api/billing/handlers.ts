@@ -8,6 +8,7 @@ import {
   countChecksToday,
   FREE_DAILY_CHECKS
 } from "../../../lib/server/entitlement";
+import { capabilitiesFor } from "../../../lib/server/capabilities";
 import { fetchPlaySubscription } from "../../../lib/server/play-api";
 import { getDb, schema, type Db } from "../../../lib/server/db";
 import {
@@ -23,8 +24,11 @@ import {
 import { sendEmail, type SendEmailResult } from "../../../lib/server/email";
 import {
   emitBillingEvent,
-  type BillingTelemetryEvent
+  type BillingTelemetryEvent,
+  type LatencyBucket
 } from "../../../lib/server/billing/telemetry";
+import { ingestStripeEvent } from "../../../lib/server/billing/inbox";
+import { fetchStripeSubscription } from "../../../lib/server/stripe-api";
 import { verifyCancelToken } from "../../../lib/server/billing/cancel-token";
 import { paymentFailedEmailText } from "../../../lib/server/billing/emails";
 import { deleteOrderBlobs } from "../../../lib/server/blob";
@@ -56,6 +60,52 @@ export type PantryEmailSender = {
     text: string;
   }) => Promise<SendEmailResult>;
 };
+
+/**
+ * An email the reducer wants sent as a side effect of applying an event. B4:
+ * emails must NEVER be sent inside the durable-inbox transaction — a commit
+ * failure would leave the email sent while the DB rolled back (duplicate
+ * dunning, an orphaned claim token referencing no committed row). So the reducer
+ * COLLECTS its emails and the inbox dispatches them AFTER the transaction
+ * commits (lib/server/billing/inbox.processInboxRow). `onSent` runs once, after
+ * a successful send, to record that durably (the pantry intake stamp).
+ *
+ * A DIRECT caller that passes an `email` sender (the pantry/dunning unit tests)
+ * still gets the legacy inline send — only the inbox path, which passes NO
+ * sender, defers. Production reaches this reducer solely through the inbox, so
+ * production always defers.
+ */
+export type PendingEmail = {
+  to: string;
+  subject: string;
+  text: string;
+  onSent?: (db: Db, sentAt: Date) => Promise<void>;
+};
+
+/**
+ * Either send `msg` now (legacy inline path, when a sender was passed) or defer
+ * it by pushing onto `pending` for the inbox to dispatch after commit.
+ */
+async function emitEmail(
+  db: Db,
+  pending: PendingEmail[],
+  email: PantryEmailSender | undefined,
+  now: Date,
+  msg: PendingEmail
+): Promise<void> {
+  if (!email) {
+    pending.push(msg);
+    return;
+  }
+  const result = await email.send({
+    to: msg.to,
+    subject: msg.subject,
+    text: msg.text
+  });
+  if (result.ok && msg.onSent) {
+    await msg.onSent(db, now);
+  }
+}
 
 const PlayVerifySchema = z
   .object({
@@ -140,21 +190,55 @@ function paymentReturnUrlGate(env: NodeJS.ProcessEnv): NextResponse | null {
 
 // ── GET /api/entitlement ────────────────────────────────────────────────────
 
+const LATENCY_BUCKETS: readonly LatencyBucket[] = [
+  "under_60s",
+  "under_5m",
+  "under_1h",
+  "over_1h"
+];
+
 export function createEntitlementHandler(deps: BillingDeps = {}) {
   const db = deps.db ?? getDb;
   const getSession = deps.getSession ?? getSessionInfo;
   const playLookup = deps.playLookup ?? fetchPlaySubscription;
+  const stripe = deps.stripeClient ?? defaultStripe;
   const now = deps.now ?? (() => new Date());
 
-  return async function GET() {
+  return async function GET(request?: Request) {
     const session = await getSession();
     if (!session) {
       return unauthorized();
     }
 
+    // Checkout-return truth signal (§10.1). The "access is syncing" surface
+    // tags its polls (?heal=pending while still free, ?heal=recovered on the
+    // flip to premium) so the pending→recovered transition is logged
+    // server-side without a separate endpoint. Bounded enums only — anything
+    // else is ignored, and only a signed-in caller can emit.
+    if (request) {
+      const params = new URL(request.url).searchParams;
+      const heal = params.get("heal");
+      if (heal === "pending" || heal === "recovered") {
+        const waited = params.get("waited");
+        const latency = LATENCY_BUCKETS.includes(waited as LatencyBucket)
+          ? (waited as LatencyBucket)
+          : undefined;
+        emitBillingEvent({
+          name:
+            heal === "pending"
+              ? "entitlement_pending"
+              : "entitlement_recovered",
+          provider: "stripe",
+          ...(latency ? { latency } : {})
+        });
+      }
+    }
+
     const entitlement = await getEntitlement(db(), session.userId, {
       now,
-      refreshPlaySubscription: (token) => playLookup(token)
+      refreshPlaySubscription: (token) => playLookup(token),
+      refreshStripeSubscription: (subscriptionId, fallbackPeriodEnd) =>
+        fetchStripeSubscription(stripe(), subscriptionId, fallbackPeriodEnd)
     });
 
     const [profile] = await db()
@@ -172,7 +256,10 @@ export function createEntitlementHandler(deps: BillingDeps = {}) {
     return NextResponse.json({
       ...entitlement,
       checksToday,
-      freeDailyLimit: FREE_DAILY_CHECKS
+      freeDailyLimit: FREE_DAILY_CHECKS,
+      // Additive (T10): the UI renders paid state from this server matrix rather
+      // than re-deriving the free/premium split client-side.
+      capabilities: capabilitiesFor(entitlement)
     });
   };
 }
@@ -611,27 +698,85 @@ export function createStripeWebhookHandler(deps: BillingDeps = {}) {
       return NextResponse.json({ error: "Bad signature." }, { status: 400 });
     }
 
-    await applyStripeEvent(db(), event, now(), stripe, email);
-    return NextResponse.json({ received: true });
+    // Durable inbox (Task 8 / P2.2): store-then-process. The outcome picks the
+    // HTTP status so Stripe's retry machinery does the right thing.
+    //   duplicate / processed / dead_letter → 200 ack (redelivery won't help)
+    //   failed (attempts remain)            → 500 so Stripe redelivers
+    // A failed row is also retried by the reconciliation sweep, so the money
+    // path recovers even if Stripe stops redelivering.
+    const outcome = await ingestStripeEvent(db(), event, {
+      now,
+      stripe,
+      email
+    });
+
+    if (outcome === "failed") {
+      return NextResponse.json({ error: "retry" }, { status: 500 });
+    }
+    return NextResponse.json({ received: true, outcome });
   };
 }
 
-/** Exported for direct unit testing without signature plumbing. */
+/** The provider `created` time of an event as a Date, or null if absent. */
+function eventCreatedAt(event: Stripe.Event): Date | null {
+  return typeof event.created === "number"
+    ? new Date(event.created * 1000)
+    : null;
+}
+
+/**
+ * Order tolerance (Task 8 / P2.2). Latest-event-wins per providerRef: an event
+ * is stale for a row when we can PROVE it predates the newest event already
+ * applied there — both `created` timestamps present and this one strictly
+ * older. A stale event is skipped so it can never downgrade newer state (an old
+ * invoice.paid arriving after a cancellation, a replayed subscription.updated).
+ * Missing timestamps (older payloads, direct unit calls) are never stale, so
+ * the reducer behaves exactly as it did before `last_event_at` existed.
+ */
+function isStaleForRow(
+  event: Stripe.Event,
+  row: { lastEventAt: Date | null } | undefined
+): boolean {
+  const created = eventCreatedAt(event);
+  if (!created || !row?.lastEventAt) {
+    return false;
+  }
+  return created.getTime() < row.lastEventAt.getTime();
+}
+
+/** The `last_event_at` set-fragment for a write (omitted when created absent). */
+function eventStamp(event: Stripe.Event): { lastEventAt?: Date } {
+  const created = eventCreatedAt(event);
+  return created ? { lastEventAt: created } : {};
+}
+
+/**
+ * Exported for direct unit testing without signature plumbing. Idempotent and
+ * order-tolerant: replaying any event set in any order converges to the same
+ * final state (guarded by `last_event_at`), and `refunded` is terminal. The
+ * durable inbox (lib/server/billing/inbox.ts) wraps this; the raw reducer is
+ * still directly callable and safe to call more than once per event.
+ */
 export async function applyStripeEvent(
   db: Db,
   event: Stripe.Event,
   now: Date,
   stripe?: () => Stripe,
   email?: PantryEmailSender
-): Promise<void> {
+): Promise<PendingEmail[]> {
+  // B4: emails are collected, not sent inline (except the legacy direct-call
+  // path inside emitEmail). The inbox dispatches these AFTER its transaction
+  // commits so a rolled-back tx never leaks an email.
+  const pending: PendingEmail[] = [];
+
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
 
     if (session.mode === "payment") {
       // Pantry Review Payment Link (one-time). Anything else in payment
       // mode is not ours — verify the price before touching the DB.
-      await applyPantryCheckout(db, session, now, stripe, email);
-      return;
+      await applyPantryCheckout(db, session, now, stripe, email, pending);
+      return pending;
     }
 
     const userId = session.client_reference_id;
@@ -641,7 +786,19 @@ export async function applyStripeEvent(
         : session.subscription?.id;
 
     if (!userId || !subscriptionId) {
-      return;
+      return pending;
+    }
+
+    // Order tolerance + refund terminality: read the stored row first. A
+    // checkout.session.completed replayed after the subscription was refunded
+    // or after a newer event landed must NOT resurrect premium.
+    const [existingSub] = await db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.providerRef, subscriptionId))
+      .for("update");
+    if (existingSub?.status === "refunded" || isStaleForRow(event, existingSub)) {
+      return pending;
     }
 
     // Fetch the subscription for period end + price.
@@ -679,6 +836,7 @@ export async function applyStripeEvent(
         termsVersion,
         termsAcceptedAt: termsVersion ? now : null,
         currentPeriodEnd,
+        ...eventStamp(event),
         updatedAt: now
       })
       .onConflictDoUpdate({
@@ -688,6 +846,7 @@ export async function applyStripeEvent(
           priceVariant,
           termsVersion,
           termsAcceptedAt: termsVersion ? now : null,
+          ...eventStamp(event),
           updatedAt: now
         }
       });
@@ -699,34 +858,43 @@ export async function applyStripeEvent(
           (priceVariant as BillingTelemetryEvent["priceVariant"]) ?? undefined
       });
     }
-    return;
+    return pending;
   }
 
   if (event.type === "invoice.paid") {
     const invoice = event.data.object as Stripe.Invoice;
     const subscriptionId = resolveInvoiceSubscriptionId(invoice);
     if (!subscriptionId) {
-      return;
+      return pending;
     }
 
     const [row] = await db
       .select()
       .from(schema.subscriptions)
-      .where(eq(schema.subscriptions.providerRef, subscriptionId));
+      .where(eq(schema.subscriptions.providerRef, subscriptionId))
+      .for("update");
     if (!row) {
-      return;
+      return pending;
     }
 
     // The $0 subscription-create invoice fires at trial START. It must not
     // flip trialing→active or emit a conversion. Other billing reasons
     // (subscription_cycle, …) or an absent reason proceed to conversion.
     if (invoice.billing_reason === "subscription_create") {
-      return;
+      return pending;
     }
 
-    // Only trial→active and renewals of active rows are ours to touch.
+    // Only trial→active and renewals of active rows are ours to touch. This
+    // also holds the refunded/expired line: an old invoice.paid after a
+    // cancellation or refund lands on a non-active row and is dropped here.
     if (row.status !== "trialing" && row.status !== "active") {
-      return;
+      return pending;
+    }
+
+    // Order tolerance: a replayed invoice.paid older than the newest applied
+    // event must not re-refresh the period end backwards.
+    if (isStaleForRow(event, row)) {
+      return pending;
     }
 
     const subscription = stripe
@@ -742,7 +910,12 @@ export async function applyStripeEvent(
       // already-active row are NOT conversions (new-only rule).
       await db
         .update(schema.subscriptions)
-        .set({ status: "active", currentPeriodEnd, updatedAt: now })
+        .set({
+          status: "active",
+          currentPeriodEnd,
+          ...eventStamp(event),
+          updatedAt: now
+        })
         .where(eq(schema.subscriptions.id, row.id));
       emitBillingEvent({
         name: "trial_converted",
@@ -754,28 +927,37 @@ export async function applyStripeEvent(
       // Active renewal: period-end refresh only.
       await db
         .update(schema.subscriptions)
-        .set({ currentPeriodEnd, updatedAt: now })
+        .set({ currentPeriodEnd, ...eventStamp(event), updatedAt: now })
         .where(eq(schema.subscriptions.id, row.id));
     }
-    return;
+    return pending;
   }
 
   if (event.type === "invoice.payment_failed") {
     const invoice = event.data.object as Stripe.Invoice;
     const subscriptionId = resolveInvoiceSubscriptionId(invoice);
     if (!subscriptionId) {
-      return; // Not a subscription invoice (e.g. the one-time Pantry charge).
+      return pending; // Not a subscription invoice (e.g. the one-time Pantry charge).
     }
 
     const [found] = await db
       .select({ sub: schema.subscriptions, email: schema.users.email })
       .from(schema.subscriptions)
       .innerJoin(schema.users, eq(schema.subscriptions.userId, schema.users.id))
-      .where(eq(schema.subscriptions.providerRef, subscriptionId));
+      .where(eq(schema.subscriptions.providerRef, subscriptionId))
+      // Lock the subscription row only (not the joined users row) so a refund
+      // racing this dunning-grace write serializes and the refunded guard holds.
+      .for("update", { of: schema.subscriptions });
     if (!found || found.sub.status === "refunded") {
-      return; // "refunded" is terminal — see the guard in subscription.updated.
+      return pending; // "refunded" is terminal — see the guard in subscription.updated.
     }
     const row = found.sub;
+
+    // Order tolerance: a replayed/older failure must not re-cap or re-email a
+    // row that a newer event has already moved past.
+    if (isStaleForRow(event, row)) {
+      return pending;
+    }
 
     // Cap the grace window (N-07). Stripe's dunning retries a declined card for
     // ~3 weeks; mapStripeStatus turns past_due into "grace", which IS entitled,
@@ -791,16 +973,24 @@ export async function applyStripeEvent(
     // retry recomputes a graceEnd LATER than the stored end — that is the
     // idempotence signal, and it costs no schema column: cap and email once.
     if (row.status === "grace" && row.currentPeriodEnd <= graceEnd) {
-      return;
+      return pending;
     }
 
     await db
       .update(schema.subscriptions)
-      .set({ status: "grace", currentPeriodEnd, updatedAt: now })
+      .set({
+        status: "grace",
+        currentPeriodEnd,
+        ...eventStamp(event),
+        updatedAt: now
+      })
       .where(eq(schema.subscriptions.id, row.id));
 
+    // B4: collect the dunning email — do NOT send it inside the inbox tx. The
+    // inbox dispatches it after commit (a direct caller with a sender still
+    // gets the inline send via emitEmail).
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-    await (email?.send ?? sendEmail)({
+    await emitEmail(db, pending, email, now, {
       to: found.email,
       ...paymentFailedEmailText(
         appUrl,
@@ -810,7 +1000,7 @@ export async function applyStripeEvent(
         })
       )
     });
-    return;
+    return pending;
   }
 
   if (
@@ -826,7 +1016,8 @@ export async function applyStripeEvent(
     const [existing] = await db
       .select()
       .from(schema.subscriptions)
-      .where(eq(schema.subscriptions.providerRef, subscription.id));
+      .where(eq(schema.subscriptions.providerRef, subscription.id))
+      .for("update");
 
     // "refunded" is TERMINAL (N-06). Stripe does not guarantee webhook ordering,
     // so a customer.subscription.updated emitted before the refund can be
@@ -835,7 +1026,25 @@ export async function applyStripeEvent(
     // subscription to "active" and handed back the premium we just refunded.
     // charge.refunded is the only writer of this status; nothing may undo it.
     if (existing?.status === "refunded") {
-      return;
+      return pending;
+    }
+
+    // "expired" is TERMINAL too (B2). mapStripeStatus turns
+    // customer.subscription.deleted into "expired", and a deleted Stripe
+    // subscription id never legitimately reactivates — a resubscribe is a NEW
+    // subscription id and a NEW row. Without this, a customer.subscription.updated
+    // whose `created` EQUALS the delete event's is NOT stale (equal is not
+    // strictly older), so an out-of-order active update after a delete would
+    // overwrite expired→active and hand back premium we already ended.
+    if (existing?.status === "expired") {
+      return pending;
+    }
+
+    // Order tolerance: a subscription.updated/deleted whose `created` predates
+    // the newest applied event is stale and must not overwrite newer status or
+    // period data (the classic out-of-order updated-before-refund resurrection).
+    if (isStaleForRow(event, existing)) {
+      return pending;
     }
 
     // Cancellation telemetry: a subscription flagged to cancel at period end
@@ -887,6 +1096,7 @@ export async function applyStripeEvent(
       .set({
         status,
         ...(periodEnd ? { currentPeriodEnd: periodEnd } : {}),
+        ...eventStamp(event),
         updatedAt: now
       })
       .where(eq(schema.subscriptions.providerRef, subscription.id));
@@ -899,7 +1109,7 @@ export async function applyStripeEvent(
           undefined
       });
     }
-    return;
+    return pending;
   }
 
   if (event.type === "charge.refunded") {
@@ -933,7 +1143,7 @@ export async function applyStripeEvent(
     // stripe@22's basil types drop charge.invoice — same safe-cast fallback as
     // the invoice.paid resolution above.
     if (!charge.refunded || !stripe) {
-      return;
+      return pending;
     }
     const invoiceRef = (
       charge as unknown as { invoice?: string | { id: string } | null }
@@ -941,16 +1151,16 @@ export async function applyStripeEvent(
     const invoiceId =
       typeof invoiceRef === "string" ? invoiceRef : invoiceRef?.id;
     if (!invoiceId) {
-      return;
+      return pending;
     }
     const invoice = await stripe().invoices.retrieve(invoiceId);
     const subscriptionId = resolveInvoiceSubscriptionId(invoice);
     if (!subscriptionId) {
-      return;
+      return pending;
     }
     const refunded = await db
       .update(schema.subscriptions)
-      .set({ status: "refunded", updatedAt: now })
+      .set({ status: "refunded", ...eventStamp(event), updatedAt: now })
       .where(eq(schema.subscriptions.providerRef, subscriptionId))
       .returning({ priceVariant: schema.subscriptions.priceVariant });
 
@@ -966,6 +1176,8 @@ export async function applyStripeEvent(
       });
     }
   }
+
+  return pending;
 }
 
 /**
@@ -974,7 +1186,7 @@ export async function applyStripeEvent(
  * account/endpoint versions send a top-level invoice.subscription that
  * stripe@22's types no longer declare — resolve via a safe cast fallback.
  */
-function resolveInvoiceSubscriptionId(
+export function resolveInvoiceSubscriptionId(
   invoice: Stripe.Invoice
 ): string | undefined {
   const subRef = invoice.parent?.subscription_details?.subscription;
@@ -992,8 +1204,9 @@ async function applyPantryCheckout(
   db: Db,
   session: Stripe.Checkout.Session,
   now: Date,
-  stripe?: () => Stripe,
-  email?: PantryEmailSender
+  stripe: (() => Stripe) | undefined,
+  email: PantryEmailSender | undefined,
+  pending: PendingEmail[]
 ): Promise<void> {
   const pantryPrice = process.env.STRIPE_PRICE_PANTRY;
   if (!pantryPrice || !stripe) {
@@ -1014,6 +1227,12 @@ async function applyPantryCheckout(
     return; // Payment Links always collect email; belt-and-suspenders.
   }
 
+  // The claim token is minted once and its hash committed on the order row
+  // BEFORE the email is dispatched (B4). Because the row (and the inbox row)
+  // commit atomically, a retry only reprocesses when the insert rolled back —
+  // so the token that reaches the buyer's inbox always matches a committed row,
+  // never an orphan. onConflictDoNothing is the redelivery guard: a duplicate
+  // delivery makes no new row and enqueues no second email.
   const { token, tokenHash } = generateClaimToken();
   const inserted = await db
     .insert(schema.pantryOrders)
@@ -1038,18 +1257,21 @@ async function applyPantryCheckout(
 
   emitBillingEvent({ name: "pantry_purchased" });
 
+  const orderId = inserted[0].id;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const result = await (email?.send ?? sendEmail)({
+  // Collect (or, for a direct caller with a sender, send inline). `onSent`
+  // stamps intake-sent only after a real successful send, so a send failure
+  // leaves intakeEmailSentAt null.
+  await emitEmail(db, pending, email, now, {
     to: buyerEmail,
-    ...intakeEmailText(appUrl, token)
+    ...intakeEmailText(appUrl, token),
+    onSent: async (d, sentAt) => {
+      await d
+        .update(schema.pantryOrders)
+        .set({ intakeEmailSentAt: sentAt, updatedAt: sentAt })
+        .where(eq(schema.pantryOrders.id, orderId));
+    }
   });
-
-  if (result.ok) {
-    await db
-      .update(schema.pantryOrders)
-      .set({ intakeEmailSentAt: now, updatedAt: now })
-      .where(eq(schema.pantryOrders.id, inserted[0].id));
-  }
 }
 
 function mapStripeStatus(

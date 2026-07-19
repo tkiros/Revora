@@ -7,7 +7,9 @@ import { TASTER_LIMIT } from "../lib/client/taster-store";
 import { FREE_DAILY_CHECKS } from "../lib/free-tier";
 import { longitudinalInsightsEnabled } from "../lib/longitudinal-insights-flag";
 import { photoInputEnabled } from "../lib/photo-input-flag";
+import { BOUNDARY_DISCLAIMER } from "../lib/revora/boundary-copy";
 import { RISK_LABELS } from "../lib/revora/labels";
+import { OATMEAL_EXAMPLE } from "../lib/revora/promise-registry";
 import { paywallMode, resolvePriceVariant } from "../lib/server/pricing";
 import { storeWaitlistUrl } from "../lib/waitlist";
 
@@ -114,10 +116,25 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Phone mockup: the real result-card markup, pixel-true. */}
+            {/* Phone mockup: the HONEST two-step oatmeal flow (§P1.1 / K1),
+                real result-card markup, pixel-true. Typing "oatmeal" is
+                genuinely ambiguous, so Revora asks one question before it
+                answers — the demo shows that sequence rather than manufacturing
+                an immediate card. The three flow strings (input, question,
+                answer) come from the promise registry, so promise-registry.test
+                pins them to the real precheck output. */}
             <div className="landing-phone" aria-hidden="true">
               <div className="landing-phone-inner">
-                <p className="status-eyebrow">You enter: oatmeal</p>
+                <p className="status-eyebrow">You enter: {OATMEAL_EXAMPLE.input}</p>
+                <div className="result-card" data-kind="clarify">
+                  <p className="result-eyebrow">Need one more detail</p>
+                  <p className="result-copy">
+                    {OATMEAL_EXAMPLE.expectedClarifyQuestion}
+                  </p>
+                </div>
+                <p className="status-eyebrow">
+                  You answer: {OATMEAL_EXAMPLE.followUp}
+                </p>
                 <div className="result-card" data-risk="MODERATE">
                   <p className="result-eyebrow">Revora result</p>
                   <p className="result-title verdict-title" data-risk="MODERATE">
@@ -125,9 +142,9 @@ export default function LandingPage() {
                     {RISK_LABELS.MODERATE}
                   </p>
                   <p className="result-copy">
-                    Oatmeal on its own leans heavily on carbohydrates and has
-                    less protein or nonstarchy-vegetable balance than a mixed
-                    meal.
+                    Plain oatmeal on its own leans heavily on carbohydrates and
+                    has less protein or nonstarchy-vegetable balance than a
+                    mixed meal.
                   </p>
                   <div className="result-list">
                     <p className="result-row">
@@ -477,11 +494,7 @@ export default function LandingPage() {
               <Link href="/terms">Terms</Link>
             </div>
           </div>
-          <p className="result-disclaimer">
-            Revora is informational only and is not medical advice. Talk with
-            a doctor or registered dietitian for guidance that is specific to
-            you.
-          </p>
+          <p className="result-disclaimer">{BOUNDARY_DISCLAIMER}</p>
         </footer>
       </div>
     </main>

@@ -89,7 +89,8 @@ describe("revora graded quality gate", () => {
           id: evalCase.id,
           category: evalCase.category,
           harmfulIfSafe: evalCase.harmfulIfSafe,
-          acceptableRisks: evalCase.acceptableRisks
+          acceptableRisks: evalCase.acceptableRisks,
+          knownGap: evalCase.knownGap
         },
         response
       });

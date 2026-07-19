@@ -1,10 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { DisclaimerLine } from "../../../components/disclaimer-line";
+import { JourneyCard } from "../../../components/journey-card";
+import { LearningSummary } from "../../../components/learning-summary";
 import { BAI_BAND_COPY, bandOf, type BaiBand } from "../../../lib/coach/bai";
+import { learningJourneyUiEnabled } from "../../../lib/learning-journey-flag";
+import {
+  resolveProgressState,
+  shouldShowBai,
+  type LatestBai,
+  type ProgressState
+} from "../../../lib/coach/progress-state";
+
+// The support path used across the app (privacy/terms/account) — a plain
+// mailto so an outage surface never dead-ends the user.
+const SUPPORT_EMAIL = "support@revora.bio";
 
 /**
  * Progress / BAI view (plan P6). Fetches the already-premium-gated
@@ -17,22 +30,6 @@ import { BAI_BAND_COPY, bandOf, type BaiBand } from "../../../lib/coach/bai";
  * qualitative bars, not a numeric line chart, and the band message is the
  * single audited source in lib/coach/bai.ts (BAI_BAND_COPY).
  */
-
-type LatestBai = {
-  weekStart: string;
-  score: number;
-  adherence: number;
-  consistency: number;
-  action: number;
-  prompted: number;
-};
-
-type CoachResponse = {
-  tier: "free" | "premium";
-  latestBai: LatestBai | null;
-};
-
-type PageState = "loading" | "locked" | "empty" | "ready";
 
 const QUALITATIVE_LABELS: Array<{ min: number; label: string }> = [
   { min: 80, label: "Strong" },
@@ -82,8 +79,29 @@ function formatWeekStart(weekStart: string): string {
 }
 
 export default function ProgressPage() {
-  const [state, setState] = useState<PageState>("loading");
+  // When the Learning Journey build flag is on, the plainly-named weekly
+  // "Your learning summary" (plan §P4.2) REPLACES the BAI band block below; with
+  // the flag off, the BAI behavior is unchanged. The BAI cron still runs and
+  // /api/coach still returns it — this only swaps the SURFACE.
+  const learningEnabled = learningJourneyUiEnabled();
+  const [state, setState] = useState<ProgressState>("loading");
   const [latestBai, setLatestBai] = useState<LatestBai | null>(null);
+  // Whether the learning summary actually rendered a surface. Defaults true so
+  // BAI stays hidden while the summary loads (no flash); it flips false only if
+  // the summary self-nulls (guest / not-premium / flag-off), at which point BAI
+  // becomes the honest fallback rather than a blank page (U10).
+  const [learningShown, setLearningShown] = useState(true);
+  const handleLearningResolved = useCallback((shown: boolean) => {
+    setLearningShown(shown);
+  }, []);
+  // Bumped by the Retry button — bounded, manual retry only (no auto-retry
+  // storms against an already-struggling backend).
+  const [reloadNonce, setReloadNonce] = useState(0);
+
+  const retry = useCallback(() => {
+    setState("loading");
+    setReloadNonce((nonce) => nonce + 1);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -95,36 +113,42 @@ export default function ProgressPage() {
           return;
         }
 
-        if (response.status === 401) {
-          setState("locked");
+        // Parse defensively: a 2xx with malformed JSON is an outage, not data.
+        let body: unknown = null;
+        try {
+          body = await response.json();
+        } catch {
+          body = null;
+        }
+        if (cancelled) {
           return;
         }
 
-        const body = (await response.json()) as CoachResponse;
-        if (body.tier !== "premium") {
-          setState("locked");
-          return;
-        }
-
-        if (!body.latestBai) {
-          setState("empty");
-          return;
-        }
-
-        setLatestBai(body.latestBai);
-        setState("ready");
+        const resolved = resolveProgressState({
+          outcome: "response",
+          ok: response.ok,
+          status: response.status,
+          body
+        });
+        setLatestBai(resolved.latestBai);
+        setState(resolved.state);
       } catch {
-        setState("locked");
+        if (!cancelled) {
+          // fetch threw (offline / DNS / abort) → unavailable, never locked.
+          setState(resolveProgressState({ outcome: "network" }).state);
+        }
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadNonce]);
 
   const band: BaiBand | null = latestBai ? bandOf(latestBai.score) : null;
   const bandCopy = band ? BAI_BAND_COPY[band] : null;
+  // Show BAI when the flag is off, OR when the learning summary rendered nothing.
+  const showBai = shouldShowBai(learningEnabled, learningShown);
 
   return (
     <div className="app-content--narrow">
@@ -137,13 +161,46 @@ export default function ProgressPage() {
           </p>
         </section>
 
+        {/* Learning journey (Task 17). Self-gating: renders nothing unless the
+            build flag is on AND the caller is an entitled premium user, so it is
+            invisible for free users and pre-rollout builds. */}
+        <JourneyCard />
+
+        {/* Premium weekly value (plan §P4.2). Self-gating + error-truthful; when
+            the flag is on it renders in place of the BAI band block below (which
+            is suppressed while `learningEnabled`). For guest / non-premium it
+            renders nothing — the BAI states below still own that messaging. */}
+        {learningEnabled ? (
+          <LearningSummary onResolved={handleLearningResolved} />
+        ) : null}
+
         {state === "loading" ? (
           <section className="surface-card hero-card">
             <p className="page-copy">Loading your week…</p>
           </section>
         ) : null}
 
-        {state === "locked" ? (
+        {state === "unauthenticated" ? (
+          <section
+            className="surface-card hero-card"
+            data-testid="progress-unauthenticated"
+          >
+            <h2 className="section-title">Sign in to see your progress</h2>
+            <p className="page-copy">
+              Your weekly progress lives with your account. Sign in and it
+              syncs back — nothing is lost.
+            </p>
+            <Link
+              className="primary-button link-button"
+              href="/signin"
+              data-testid="progress-signin-link"
+            >
+              Sign in
+            </Link>
+          </section>
+        ) : null}
+
+        {state === "free" ? (
           <section className="surface-card hero-card" data-testid="progress-locked">
             <h2 className="section-title">Progress is part of Premium</h2>
             <p className="page-copy">
@@ -162,7 +219,36 @@ export default function ProgressPage() {
           </section>
         ) : null}
 
-        {state === "empty" ? (
+        {state === "unavailable" ? (
+          <section
+            className="surface-card hero-card"
+            data-testid="progress-unavailable"
+            aria-live="polite"
+          >
+            <h2 className="section-title">Progress is temporarily unavailable</h2>
+            <p className="page-copy">
+              We couldn&apos;t load your weekly progress just now. Your checks
+              are safe — this is on our side, not yours.
+            </p>
+            <button
+              type="button"
+              className="primary-button"
+              data-testid="progress-retry"
+              onClick={retry}
+            >
+              Try again
+            </button>
+            <p className="field-hint">
+              Still stuck? Email{" "}
+              <a className="inline-link" href={`mailto:${SUPPORT_EMAIL}`}>
+                {SUPPORT_EMAIL}
+              </a>
+              .
+            </p>
+          </section>
+        ) : null}
+
+        {state === "empty" && showBai ? (
           <section className="surface-card hero-card" data-testid="progress-empty">
             <h2 className="section-title">Building your first week</h2>
             <p className="page-copy">
@@ -176,7 +262,7 @@ export default function ProgressPage() {
           </section>
         ) : null}
 
-        {state === "ready" && latestBai && bandCopy ? (
+        {state === "ready" && latestBai && bandCopy && showBai ? (
           <section className="surface-card hero-card" data-testid="progress-bands">
             <p className="hero-eyebrow">
               Week of {formatWeekStart(latestBai.weekStart)}

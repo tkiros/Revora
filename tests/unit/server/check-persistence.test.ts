@@ -120,14 +120,35 @@ describe("check persistence (4B)", () => {
     expect(rows[0].clientId).toBe("web-123");
     expect(rows[0].foodCiphertext).not.toContain("rice");
     expect(decryptField(rows[0].foodCiphertext)).toBe("white rice and beans");
+
+    // §P1.6: the persisted id is threaded back so feedback can link to it.
+    const body = await response.json();
+    expect(body.checkId).toBe(rows[0].id);
   });
 
-  it("persists nothing for guests", async () => {
+  it("returns the same checkId on a client-id dedupe re-submit", async () => {
+    const POST = createHandler({ sessionUserId: userId });
+    const first = await POST(checkRequest({ "x-revora-client-id": "web-dup" }));
+    const second = await POST(checkRequest({ "x-revora-client-id": "web-dup" }));
+
+    const firstBody = await first.json();
+    const secondBody = await second.json();
+
+    const rows = await testDb.db.select().from(schema.checks);
+    expect(rows).toHaveLength(1);
+    expect(firstBody.checkId).toBe(rows[0].id);
+    expect(secondBody.checkId).toBe(rows[0].id);
+  });
+
+  it("persists nothing for guests and returns no checkId", async () => {
     const POST = createHandler({ sessionUserId: null });
-    await POST(checkRequest());
+    const response = await POST(checkRequest());
 
     const rows = await testDb.db.select().from(schema.checks);
     expect(rows).toHaveLength(0);
+
+    const body = await response.json();
+    expect(body.checkId).toBeUndefined();
   });
 
   it("persists nothing after stored-health-data consent is withdrawn", async () => {
@@ -249,6 +270,55 @@ describe("trial-mode hard wall (4.4)", () => {
     // Nothing persisted — the blocked check never reaches the model or storage.
     const rows = await testDb.db.select().from(schema.checks);
     expect(rows).toHaveLength(0);
+  });
+
+  it("trial mode: a stale Stripe row (lost renewal webhook) heals on read so a paying user is NOT walled", async () => {
+    // Reviewer #3: without the hot-path heal, this paying user is denied checks
+    // for up to an hour. The row reads premium-status but past its paid-through.
+    const past = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const future = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    await testDb.db.insert(schema.subscriptions).values({
+      userId,
+      provider: "stripe",
+      providerRef: "sub_lostwebhook",
+      productId: "premium_monthly",
+      status: "active",
+      currentPeriodEnd: past,
+      lastVerifiedAt: null
+    });
+
+    const retrieve = vi.fn().mockResolvedValue({
+      status: "active",
+      items: {
+        data: [{ current_period_end: Math.floor(future.getTime() / 1000) }]
+      }
+    });
+
+    const POST = createCheckRouteHandler({
+      checkFoodImpl: vi.fn().mockResolvedValue(RESULT_RESPONSE),
+      emitEvent: vi.fn(),
+      modelFactory: () => ({ generate: vi.fn() }),
+      db: () => testDb.db,
+      getSession: async () => ({ userId, email: "persist@test.dev" }),
+      stripeClient: () => ({ subscriptions: { retrieve } }) as never,
+      paywallMode: () => "trial"
+    });
+
+    const response = await POST(checkRequest());
+    expect(response.status).toBe(200); // healed → not walled
+    expect(retrieve).toHaveBeenCalledWith("sub_lostwebhook");
+
+    const [row] = await testDb.db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.providerRef, "sub_lostwebhook"));
+    // Stripe reports period end in whole unix seconds, so the healed value is
+    // the second-truncated `future`; assert it moved into the future, not lapsed.
+    expect(row.currentPeriodEnd.getTime()).toBe(
+      Math.floor(future.getTime() / 1000) * 1000
+    );
+    expect(row.currentPeriodEnd.getTime()).toBeGreaterThan(Date.now());
+    expect(row.lastVerifiedAt).not.toBeNull();
   });
 
   it("trial mode: trialing and premium users pass with no metering query", async () => {

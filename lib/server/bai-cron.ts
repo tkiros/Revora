@@ -7,6 +7,15 @@ import { schema, type Db } from "./db";
 import { recordHeartbeat } from "./heartbeat";
 
 /**
+ * follow-up (T18 / plan §P4.2 "Replace BAI with a plainly named learning summary
+ * or retire it"): the Progress SURFACE is now the deterministic "Your learning
+ * summary" whenever the Learning Journey flag is on (components/learning-summary
+ * + app/(app)/progress/page). This cron and `bai_weekly` still run SILENTLY so
+ * no signal is lost during rollout. RETIREMENT DECISION (owner): once the
+ * learning summary is the default-on surface everywhere, retire this cron, the
+ * `bai_weekly` table, and lib/coach/bai.ts — or keep BAI as an internal-only
+ * metric. Tracked so the dead-but-running path can't silently persist forever.
+ *
  * Weekly BAI compute (plan P6). Monday cron (vercel.json "30 4 * * 1"):
  * for every premium user, compute the PRIOR Mon–Sun week's Behavioral
  * Adherence Index in the user's profile timezone and upsert it into

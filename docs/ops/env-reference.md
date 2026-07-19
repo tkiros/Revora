@@ -33,7 +33,7 @@ Every variable, per phase. Provision in Vercel for **preview + production**
 | `REVORA_DAILY_CHECK_CAP` | existing | global daily check cap enforced by the middleware (default 2000, `lib/revora/rate-limit.ts`) |
 | `NEXT_PUBLIC_WAITLIST_URL` | launch-readiness | Tally waitlist form URL for `/get-the-app`; section hidden when unset |
 | ⚙ `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | P5 | `npx web-push generate-vapid-keys`; also expose the public key as `NEXT_PUBLIC_VAPID_PUBLIC_KEY` |
-| ⚙ `CRON_SECRET` | P5 | bearer token the schedulers send to cron routes — the Railway `hourly-crons` service (nudge, pantry-sweep, trial-precharge; `docs/runbooks/price-test.md`) and the one remaining Vercel cron (`bai-weekly`, `vercel.json`) |
+| ⚙ `CRON_SECRET` | P5 | bearer token the schedulers send to cron routes — the Railway `hourly-crons` service (nudge, pantry-sweep, trial-precharge, stripe-reconcile; `docs/runbooks/price-test.md`) and the one remaining Vercel cron (`bai-weekly`, `vercel.json`). `stripe-reconcile` (`/api/cron/stripe-reconcile`, Task 8 / P2.2) hourly retries the durable Stripe event inbox and verifies subscriptions against Stripe — it is the SLO backstop for missed webhooks. |
 | `NEXT_PUBLIC_UMAMI_SRC` | P7 | Umami tracker script URL (self-hosted on Railway — `docs/adr/analytics-umami.md`); analytics is fully disabled (no `<script>` rendered, `track()` no-ops) when unset |
 | `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | P7 | Umami website ID; both this and `NEXT_PUBLIC_UMAMI_SRC` must be set for analytics to activate |
 | `NEXT_PUBLIC_APP_URL` | 4D/P7 | canonical origin, e.g. `https://revora.app` |

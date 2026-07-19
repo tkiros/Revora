@@ -22,12 +22,36 @@ type ResultDraft = {
   swap: string | null;
 };
 
+/** The conservative floor that fired, if any (Task 13 snapshot metadata). */
+export type FloorKind = "high_risk" | "carbs_only" | "borderline";
+
+/**
+ * Safety-floor / fallback metadata for the immutable snapshot (Task 13, §P3.1).
+ *
+ * A pure OUT-param: postprocess mutates a caller-supplied sink instead of
+ * changing its return type, so every existing caller (evals, pantry, the many
+ * pinned postprocess tests) is byte-for-byte unaffected. `floorApplied` names
+ * the conservative floor that replaced the model draft; `usedFallback` is true
+ * whenever such a template stood in for the model's own card. Reflects the card
+ * the user actually saw — never a reason it could not know.
+ */
+export type SnapshotMetadata = {
+  floorApplied: FloorKind | null;
+  usedFallback: boolean;
+};
+
 export type PostprocessContext = {
   contract: SafetyContract;
   route: A1CRoute;
   precheckFlags: RevoraPolicyFlag[];
   /** The food the user described — for the component-mention rule (W-17). */
   food?: string;
+  /**
+   * Optional snapshot sink (Task 13). When present, postprocess records which
+   * conservative floor fired (if any) so the check route can persist it. Absent
+   * for every non-persisting caller, which keeps their behavior identical.
+   */
+  snapshot?: SnapshotMetadata;
 };
 
 /** Words too common to count as "naming a component of the meal". */
@@ -377,7 +401,9 @@ export function applyConservativeFloors(
       result.adjustment === null ||
       result.swap === null)
   ) {
-    return buildFloorDraft(context.contract, "HIGH", context.food);
+    return recordFloor(context.snapshot, "high_risk", () =>
+      buildFloorDraft(context.contract, "HIGH", context.food)
+    );
   }
 
   if (flags.has("carbs_only")) {
@@ -391,19 +417,40 @@ export function applyConservativeFloors(
       // never LOWER a verdict, and before 2026-07-16 a model-HIGH with a
       // non-compliant adjustment was replaced by the MODERATE draft — the
       // under-banding direction doc 18's portion findings warned about.
-      return buildFloorDraft(
-        context.contract,
-        highRisk || result.risk === "HIGH" ? "HIGH" : "MODERATE",
-        context.food
+      return recordFloor(context.snapshot, "carbs_only", () =>
+        buildFloorDraft(
+          context.contract,
+          highRisk || result.risk === "HIGH" ? "HIGH" : "MODERATE",
+          context.food
+        )
       );
     }
   }
 
   if (borderlineCarbForward && result.risk === "SAFE") {
-    return buildBorderlineFloorDraft(context.contract);
+    return recordFloor(context.snapshot, "borderline", () =>
+      buildBorderlineFloorDraft(context.contract)
+    );
   }
 
   return result;
+}
+
+/**
+ * Stamp the snapshot sink (if the caller supplied one) with the floor that
+ * fired, then build the floored draft. A pure passthrough when no sink is
+ * present, so non-persisting callers are unaffected.
+ */
+function recordFloor(
+  sink: SnapshotMetadata | undefined,
+  floor: FloorKind,
+  build: () => ResultDraft
+): ResultDraft {
+  if (sink) {
+    sink.floorApplied = floor;
+    sink.usedFallback = true;
+  }
+  return build();
 }
 
 function buildFloorDraft(

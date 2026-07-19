@@ -162,7 +162,7 @@ test("invalid A1C shows a field error, not progress", async ({ page }) => {
 test.describe("out-of-range A1C ends at boundary guidance, never a verdict", () => {
   for (const [value, expected] of [
     ["5.2", /below that range/i],
-    ["7.1", /range used for diabetes/i]
+    ["7.1", /range clinicians use when evaluating Type 2 diabetes/i]
   ] as const) {
     test(`A1C ${value}`, async ({ page }) => {
       await page.goto("/onboarding");

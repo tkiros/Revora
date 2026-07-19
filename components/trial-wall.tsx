@@ -3,24 +3,25 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { track, type PriceVariant } from "../lib/client/analytics";
+import { track } from "../lib/client/analytics";
 import { historyStore } from "../lib/client/history-store";
 import { TERMS_VERSION } from "../lib/legal/terms";
-import { longitudinalInsightsEnabled } from "../lib/longitudinal-insights-flag";
+import { usePaywallConfig } from "../lib/client/paywall-config";
 
-type Config = {
-  variant: PriceVariant;
-  priceDisplay: string;
-  annualDisplay?: string | null;
-  annualMonthlyEquivalent?: string | null;
-};
 // Two steps (was three): the offer, the trial mechanics, and the price all
 // live on the first screen — "7 days free" is never hidden behind a click.
 type Step = "value" | "start";
 type Plan = "monthly" | "annual";
 
+/**
+ * Task 7 (P2.1): every price on this wall is server-authoritative. Until GET
+ * /api/paywall answers with a config that passes the client zod schema, the
+ * wall shows a neutral loading/retry state and NO price — it never falls back
+ * to a hard-coded ladder that could differ from what checkout will charge.
+ */
 export function TrialWall({ declined = false }: { declined?: boolean }) {
-  const [config, setConfig] = useState<Config | null>(null);
+  const { state, retry } = usePaywallConfig();
+  const config = state.status === "ready" ? state.config : null;
   const [step, setStep] = useState<Step>("value");
   // Annual preselected when offered — it's the plan we flag as best value.
   const [plan, setPlan] = useState<Plan>("monthly");
@@ -37,18 +38,17 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
     setSavedChecks(historyStore.all().length);
   }, []);
 
+  // Fire the view event and preselect the annual plan only once the server
+  // config is known — never off a guessed variant.
   useEffect(() => {
-    fetch("/api/paywall")
-      .then((r) => r.json())
-      .then((cfg: Config & { mode: string }) => {
-        setConfig(cfg);
-        if (cfg.annualDisplay) {
-          setPlan("annual");
-        }
-        track({ name: "wall_viewed", props: { variant: cfg.variant } });
-      })
-      .catch(() => setConfig({ variant: "1299", priceDisplay: "$12.99" }));
-  }, []);
+    if (!config) {
+      return;
+    }
+    track({ name: "wall_viewed", props: { variant: config.variant } });
+    if (config.annualDisplay) {
+      setPlan("annual");
+    }
+  }, [config]);
 
   async function startTrial(event: React.FormEvent) {
     event.preventDefault();
@@ -80,13 +80,71 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
     }
   }
 
+  const declinedNotes = (
+    <>
+      {declined && savedChecks > 0 ? (
+        <p className="field-hint" data-testid="saved-checks-note">
+          The {savedChecks} {savedChecks === 1 ? "check" : "checks"} you&apos;ve
+          already made stay saved on this device — your history is here
+          whenever you come back.
+        </p>
+      ) : null}
+      {declined ? (
+        <p className="field-hint" data-testid="pantry-catch">
+          Not ready for a subscription? There&apos;s a one-time option:{" "}
+          <Link className="inline-link" href="/pantry">
+            the Pantry Review
+          </Link>
+          . One payment, nothing renews.
+        </p>
+      ) : null}
+    </>
+  );
+
+  // Neutral pending/retry (global constraint §7): no price until authority
+  // responds; a failed lookup is an explicit retry, never a guessed contract.
+  if (!config) {
+    return (
+      <div className="surface-card hero-card" data-testid="trial-wall">
+        <p className="hero-eyebrow">Your free week with Revora</p>
+        <div
+          className="paywall-config-pending"
+          data-testid="paywall-config-pending"
+          aria-live="polite"
+        >
+          <p className="plan-card-price skeleton-line" aria-hidden="true">
+            &nbsp;
+          </p>
+          {state.status === "error" ? (
+            <>
+              <p className="field-hint">
+                We couldn&apos;t load the plan details just now.
+              </p>
+              <button
+                type="button"
+                className="primary-button"
+                data-testid="paywall-config-retry"
+                onClick={retry}
+              >
+                Retry
+              </button>
+            </>
+          ) : (
+            <p className="field-hint">Loading plan details…</p>
+          )}
+        </div>
+        {declinedNotes}
+      </div>
+    );
+  }
+
   // Savings vs 12 months of the live monthly variant — computed from the
-  // paywall config, never a second hard-coded ladder.
+  // server config, never a second hard-coded ladder.
   const monthlyNumber = Number.parseFloat(
-    (config?.priceDisplay ?? "$12.99").replace(/[^0-9.]/g, "")
+    config.priceDisplay.replace(/[^0-9.]/g, "")
   );
   const annualNumber = Number.parseFloat(
-    (config?.annualDisplay ?? "").replace(/[^0-9.]/g, "")
+    (config.annualDisplay ?? "").replace(/[^0-9.]/g, "")
   );
   const annualSavingsPct =
     Number.isFinite(monthlyNumber) &&
@@ -96,9 +154,9 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
       ? Math.round((1 - annualNumber / (monthlyNumber * 12)) * 100)
       : 0;
   const chosenPriceLine =
-    plan === "annual" && config?.annualDisplay
+    plan === "annual" && config.annualDisplay
       ? `${config.annualDisplay}/year`
-      : `${config?.priceDisplay ?? "$12.99"}/month`;
+      : `${config.priceDisplay}/month`;
 
   return (
     <div className="surface-card hero-card" data-testid="trial-wall">
@@ -110,9 +168,7 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
             Yesterday you checked a meal and got a cautious educational read
             instead of a pile of numbers. Your free week keeps that
             going at every meal: unlimited checks, your history on every
-            device, progress you can see
-            {longitudinalInsightsEnabled() ? ", weekly patterns from your own meals" : ""},
-            and one gentle daily reminder.
+            device, progress you can see, and one gentle daily reminder.
           </p>
           {/* The same three facts as the old trust bullets, told as the
               timeline the week actually follows (Today → Day 5 → Day 7). */}
@@ -137,7 +193,7 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
               </span>
             </li>
           </ol>
-          {config?.annualDisplay ? (
+          {config.annualDisplay ? (
             <>
               <div
                 className="plan-grid"
@@ -202,7 +258,7 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
             <div className="plan-card" data-recommended="">
               <p className="plan-card-flag">7 days free</p>
               <p className="plan-card-price">
-                {config?.priceDisplay ?? "$12.99"}
+                {config.priceDisplay}
                 <span> /month after your free week — cancel anytime</span>
               </p>
               <button
@@ -264,22 +320,7 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
           {error ? <p className="field-error">{error}</p> : null}
         </form>
       )}
-      {declined && savedChecks > 0 ? (
-        <p className="field-hint" data-testid="saved-checks-note">
-          The {savedChecks} {savedChecks === 1 ? "check" : "checks"} you&apos;ve
-          already made stay saved on this device — your history is here
-          whenever you come back.
-        </p>
-      ) : null}
-      {declined ? (
-        <p className="field-hint" data-testid="pantry-catch">
-          Not ready for a subscription? There&apos;s a one-time option:{" "}
-          <Link className="inline-link" href="/pantry">
-            the Pantry Review
-          </Link>
-          . One payment, nothing renews.
-        </p>
-      ) : null}
+      {declinedNotes}
     </div>
   );
 }

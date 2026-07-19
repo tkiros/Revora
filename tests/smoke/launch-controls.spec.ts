@@ -80,7 +80,11 @@ test("normal mode — public check completes successfully", async ({ page }) => 
   await page.getByRole("button", { name: "Check this meal" }).click();
 
   // Normal result should appear
-  await expect(page.getByText("Clear", { exact: true })).toBeVisible({ timeout: 10_000 });
+  // The redesigned card renders the verdict in both the lead and the Signal
+  // row — assert on the Signal row's testid, not bare text.
+  await expect(page.getByTestId("result-signal")).toHaveText("Clear", {
+    timeout: 10_000
+  });
   await expect(
     page.getByText("This meal looks well-balanced for your plan.")
   ).toBeVisible();

@@ -103,7 +103,8 @@ describe("GET /api/health", () => {
         nudge: "unknown",
         baiWeekly: "unknown",
         trialPrecharge: "unknown",
-        pantrySweep: "unknown"
+        pantrySweep: "unknown",
+        stripeReconcile: "unknown"
       }
     });
     expect(JSON.stringify(payload)).not.toContain("sk-preview");
@@ -136,7 +137,8 @@ describe("GET /api/health", () => {
         nudge: "unknown",
         baiWeekly: "unknown",
         trialPrecharge: "unknown",
-        pantrySweep: "unknown"
+        pantrySweep: "unknown",
+        stripeReconcile: "unknown"
       }
     });
   });

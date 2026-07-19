@@ -280,7 +280,12 @@ const COACH_FIELDS = {
 };
 
 export const CheckApiResponseSchema = z.discriminatedUnion("kind", [
-  RevoraUserResultSchema.extend(COACH_FIELDS),
+  // Result carries an optional persisted-check id (§P1.6): present only for a
+  // signed-in, consented, stored check so the client can link feedback to it.
+  RevoraUserResultSchema.extend({
+    ...COACH_FIELDS,
+    checkId: z.string().uuid().optional()
+  }),
   RevoraUserClarifySchema.extend(COACH_FIELDS),
   RevoraUserNotFoodSchema.extend(COACH_FIELDS),
   RevoraUserOutOfScopeSchema.extend(COACH_FIELDS),

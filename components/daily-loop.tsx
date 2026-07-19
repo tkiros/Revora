@@ -29,6 +29,12 @@ export function DailyLoop() {
   const [daysThisWeek, setDaysThisWeek] = useState(0);
   const [insight, setInsight] = useState<CoachInsight | null>(null);
   const [hasHistory, setHasHistory] = useState<boolean | null>(null);
+  // Distinct from "no checks yet": the server read failed and we have no local
+  // view to show, so we render an explicit retry affordance rather than lying
+  // with an empty "New here?" card during an outage (plan §7).
+  const [unavailable, setUnavailable] = useState(false);
+  // Bumped by the Retry button — bounded, manual retry only.
+  const [reloadNonce, setReloadNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,17 +46,23 @@ export function DailyLoop() {
         applyChecks(historyStore.recent(7));
       }
 
-      const { source, checks } = await loadHistory(7);
+      const result = await loadHistory(7);
       if (cancelled) {
         return;
       }
 
-      if (source === "server") {
+      if (result.source === "server") {
         // Bring any device-only checks along, then trust the server view.
         void syncLocalHistory();
-        applyChecks(checks);
+        applyChecks(result.checks);
       } else if (local.length === 0) {
-        setHasHistory(false);
+        // No local view to fall back on: an outage is unavailable+retry, a
+        // genuine signed-out/new visitor is the empty "New here?" card.
+        if (result.unavailable) {
+          setUnavailable(true);
+        } else {
+          setHasHistory(false);
+        }
       }
     })();
 
@@ -74,7 +86,32 @@ export function DailyLoop() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadNonce]);
+
+  if (unavailable) {
+    return (
+      <section
+        className="surface-card daily-loop-card"
+        data-testid="daily-loop-unavailable"
+        aria-live="polite"
+      >
+        <p className="page-copy">
+          Couldn&apos;t load your recent checks — your history is safe.{" "}
+          <button
+            type="button"
+            className="inline-link link-button"
+            data-testid="daily-loop-retry"
+            onClick={() => {
+              setUnavailable(false);
+              setReloadNonce((nonce) => nonce + 1);
+            }}
+          >
+            Retry
+          </button>
+        </p>
+      </section>
+    );
+  }
 
   if (hasHistory === null) {
     return null;

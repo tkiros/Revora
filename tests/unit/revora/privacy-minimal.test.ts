@@ -103,7 +103,14 @@ describe("privacy-minimal audit", () => {
         food: "lentil soup",
         a1c: 6.1
       },
-      { model }
+      // P1.3 §8: the route also passes the one-clarification-cap signal (false
+      // here — no x-revora-clarified header). Task 13 §P3.1: plus the snapshot
+      // sink postprocess writes the conservative-floor metadata into.
+      {
+        model,
+        clarified: false,
+        snapshot: { floorApplied: null, usedFallback: false }
+      }
     );
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({

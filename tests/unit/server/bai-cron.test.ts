@@ -266,7 +266,8 @@ describe("runBaiWeeklyCron — heartbeat (P7)", () => {
       }) as Db["insert"],
       update: testDb.db.update.bind(testDb.db),
       delete: testDb.db.delete.bind(testDb.db),
-      query: testDb.db.query
+      query: testDb.db.query,
+      transaction: testDb.db.transaction.bind(testDb.db)
     };
 
     await expect(

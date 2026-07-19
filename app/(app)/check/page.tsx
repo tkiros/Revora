@@ -10,6 +10,7 @@ import {
   IconHeart,
   IconLock
 } from "../../../components/icons";
+import { NudgeOpenTracker } from "../../../components/nudge-open-tracker";
 import { photoInputEnabled } from "../../../lib/photo-input-flag";
 
 export const metadata = { title: "Check a meal — Revora" };
@@ -21,6 +22,7 @@ export const metadata = { title: "Check a meal — Revora" };
 export default function CheckPage() {
   return (
     <div className="app-content--narrow">
+      <NudgeOpenTracker />
       <FirstRunGate />
       <div className="backbar">
         <Link className="backlink" href="/home">
