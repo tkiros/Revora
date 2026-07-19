@@ -5,6 +5,11 @@ import { useEffect, useRef, useState } from "react";
 
 import { track } from "../lib/client/analytics";
 import { submitCheck } from "../lib/client/check";
+import {
+  clarifyElapsedBucket,
+  clarifyReasonForQuestion,
+  type ClarifyReason
+} from "../lib/revora/clarify";
 import { historyStore } from "../lib/client/history-store";
 import { profileStore } from "../lib/client/profile-store";
 import { tasterStore } from "../lib/client/taster-store";
@@ -66,6 +71,15 @@ export function FoodCheckForm() {
   const [actionDone, setActionDone] = useState(false);
   const [mode, setMode] = useState<PaywallMode>("legacy");
   const foodInputRef = useRef<HTMLTextAreaElement | null>(null);
+  // One-clarification cap + clarify metrics (P1.3 §8/§10.1). Holds the reason
+  // and start time of an OUTSTANDING deterministic clarify — set when a clarify
+  // card renders, cleared when the next submission answers it. A ref, not
+  // state: it must not trigger a re-render, and it is read/written inside the
+  // submit handler only.
+  const pendingClarifyRef = useRef<{
+    reason: ClarifyReason;
+    startedAt: number;
+  } | null>(null);
 
   useEffect(() => {
     // Day-1 taster: learn the paywall mode once on mount. Fail-open to the
@@ -169,14 +183,46 @@ export function FoodCheckForm() {
       });
     }, 5_000);
 
+    // One-clarification cap (§8): if this submission answers an outstanding
+    // clarify, mark it so the server suppresses a second ambiguity question, and
+    // record the clarify as resolved (§10.1) — reason + elapsed bucket only,
+    // never the meal text.
+    const pendingClarify = pendingClarifyRef.current;
+    if (pendingClarify) {
+      pendingClarifyRef.current = null;
+      track({
+        name: "clarification_resolved",
+        props: {
+          category: pendingClarify.reason,
+          elapsed: clarifyElapsedBucket(Date.now() - pendingClarify.startedAt)
+        }
+      });
+    }
+
     try {
       // One id shared by the on-device copy and the server row (4B) so the
       // sign-in migration dedupes instead of duplicating.
       const clientId = crypto.randomUUID();
       const response = await submitCheck(result.data, {
         clientId,
-        inputMethod
+        inputMethod,
+        clarified: pendingClarify !== null
       });
+
+      // §10.1: a deterministic clarify card renders — record which of the three
+      // bounded reasons fired so clarify/resolution/abandonment rates are
+      // computable. A model-authored or generic clarify maps to no reason and
+      // is not metered. Abandonment = requested with no later resolved.
+      if (response.kind === "clarify") {
+        const reason = clarifyReasonForQuestion(response.question);
+        if (reason) {
+          pendingClarifyRef.current = { reason, startedAt: Date.now() };
+          track({
+            name: "clarification_requested",
+            props: { category: reason }
+          });
+        }
+      }
 
       // W-10: which clinical class fired. The route id only — never the input
       // that matched it, which would be health data.

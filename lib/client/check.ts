@@ -33,6 +33,9 @@ export async function submitCheck(
     // body, so the engine contract stays untouched.
     clientId?: string;
     inputMethod?: "text" | "voice" | "photo";
+    // One-clarification cap (§8/P1.3): true when this submission answers a
+    // prior clarify question, so the server suppresses a second ambiguity ask.
+    clarified?: boolean;
   }
 ): Promise<RevoraUserResponse> {
   let response: Response;
@@ -47,6 +50,7 @@ export async function submitCheck(
         ...(init?.inputMethod
           ? { "x-revora-input-method": init.inputMethod }
           : {}),
+        ...(init?.clarified ? { "x-revora-clarified": "1" } : {}),
         // W-17: cycles the server's audited coach phrase bank so a daily user
         // is not shown the same three sentences every day.
         ...(rotation !== undefined

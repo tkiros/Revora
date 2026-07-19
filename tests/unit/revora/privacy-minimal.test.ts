@@ -103,7 +103,9 @@ describe("privacy-minimal audit", () => {
         food: "lentil soup",
         a1c: 6.1
       },
-      { model }
+      // P1.3 §8: the route now also passes the one-clarification-cap signal
+      // (false here — no x-revora-clarified header on this request).
+      { model, clarified: false }
     );
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({

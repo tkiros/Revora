@@ -1,3 +1,4 @@
+import { CLARIFY_QUESTIONS } from "./clarify";
 import type { RevoraPolicyFlag } from "./schemas";
 
 export type InputPrecheck =
@@ -291,7 +292,20 @@ const NONSTARCHY_VEGETABLE_TOKENS = [
   "peppers"
 ] as const;
 
-export function classifyInputBeforeModel(food: string): InputPrecheck {
+/**
+ * @param options.clarified - The one-clarification cap (plan §8, P1.3). Set by
+ *   the check flow when this input is the user's ANSWER to a prior clarify
+ *   question (route reads the `x-revora-clarified` header). When true the
+ *   ambiguity clarify is suppressed so a resolved follow-up reaches the model
+ *   path instead of chaining into a second question — even if the resolved text
+ *   would itself trigger a DIFFERENT clarify category. not_food/injection and
+ *   the risk-raising (carbs_only / high-risk) floors are NOT suppressed: the cap
+ *   silences the question, never the safety routing.
+ */
+export function classifyInputBeforeModel(
+  food: string,
+  options?: { clarified?: boolean }
+): InputPrecheck {
   const normalized = normalize(food);
 
   if (normalized.length === 0) {
@@ -315,7 +329,9 @@ export function classifyInputBeforeModel(food: string): InputPrecheck {
     };
   }
 
-  const ambiguousQuestion = getAmbiguousQuestion(normalized);
+  const ambiguousQuestion = options?.clarified
+    ? null
+    : getAmbiguousQuestion(normalized);
   if (ambiguousQuestion) {
     return {
       kind: "clarify",
@@ -363,20 +379,198 @@ function looksLikeNonFood(food: string): boolean {
   );
 }
 
+/**
+ * Ambiguity detection (Task 3 / P1.3, journey 5).
+ *
+ * The three trigger lists are matched as WORD-BOUNDARY tokens within the input
+ * (not exact full-string equality), so "bowl of oatmeal" and "oatmeal with
+ * milk" clarify the same as bare "oatmeal". Each category then applies a
+ * resolution guard so an input that already carries the disambiguating context
+ * does NOT clarify (false-clarification prevention):
+ *
+ *  - plain_or_sweetened: resolved once the sweetness is settled — a plain marker,
+ *    a named sugar/fruit sweetener, or a real protein/veg/nut component. "milk"
+ *    is deliberately not a resolver: it says nothing about added sugar, so
+ *    "oatmeal with milk" stays ambiguous.
+ *  - protein_or_veg / underspecified: resolved once the input is a described
+ *    plate rather than a bare category word — i.e. a substantive food word
+ *    survives after the trigger is stripped.
+ *
+ * Risk-raising evidence beats clarification: if the text AROUND the trigger
+ * carries a named carbs_only/high-risk food, the resolver passes and the input
+ * falls through to the carbs_only floor instead of a "plain or sweetened?"
+ * question (e.g. "oatmeal with honey", "bowl of macaroni"). not_food/injection
+ * still runs first (looksLikeNonFood, above), and clinical precedence is upstream
+ * in service.ts — this function never sees a clinically-routed input.
+ */
 function getAmbiguousQuestion(food: string): string | null {
-  if (AMBIGUOUS_PLAIN_OR_SWEETENED.includes(food)) {
-    return "Is this plain or sweetened?";
+  if (
+    containsAny(food, AMBIGUOUS_PLAIN_OR_SWEETENED) &&
+    !plainOrSweetenedResolved(food)
+  ) {
+    return CLARIFY_QUESTIONS.plain_or_sweetened;
   }
 
-  if (AMBIGUOUS_PROTEIN_OR_VEG.includes(food)) {
-    return "Does this come with protein or nonstarchy vegetables?";
+  if (
+    containsAny(food, AMBIGUOUS_PROTEIN_OR_VEG) &&
+    !hasSubstantiveRemainder(stripTerms(food, AMBIGUOUS_PROTEIN_OR_VEG))
+  ) {
+    return CLARIFY_QUESTIONS.protein_or_veg;
   }
 
-  if (AMBIGUOUS_UNDERSPECIFIED.includes(food)) {
-    return "Can you name the specific dish or the main foods in it?";
+  if (
+    containsAny(food, AMBIGUOUS_UNDERSPECIFIED) &&
+    !hasSubstantiveRemainder(stripTerms(food, AMBIGUOUS_UNDERSPECIFIED))
+  ) {
+    return CLARIFY_QUESTIONS.underspecified;
   }
 
   return null;
+}
+
+/** Plain-side markers that settle the sweetness question by themselves. */
+const PLAIN_MARKERS = ["plain", "unsweetened", "savory", "savoury"] as const;
+
+/**
+ * Named sweeteners / fruit that resolve "plain or sweetened?" — the sugar is
+ * stated, so the question is moot (and any of these that is ALSO a named
+ * carbs_only food will floor downstream). "milk" is intentionally absent.
+ */
+const SWEETENING_RESOLVER_TOKENS = [
+  "sweetened",
+  "sugar",
+  "sugars",
+  "honey",
+  "syrup",
+  "agave",
+  "maple",
+  "molasses",
+  "jam",
+  "jelly",
+  "marmalade",
+  "nutella",
+  "chocolate",
+  "fruit",
+  "fruits",
+  "berry",
+  "berries",
+  "blueberry",
+  "blueberries",
+  "strawberry",
+  "strawberries",
+  "raspberry",
+  "raspberries",
+  "banana",
+  "bananas",
+  "raisin",
+  "raisins",
+  "granola",
+  "cinnamon",
+  "date",
+  "dates"
+] as const;
+
+/** Nuts / seeds — real components that make a bare ambiguous carb a described meal. */
+const NUT_AND_SEED_TOKENS = [
+  "nut",
+  "nuts",
+  "peanut",
+  "peanuts",
+  "almond",
+  "almonds",
+  "walnut",
+  "walnuts",
+  "pecan",
+  "pecans",
+  "cashew",
+  "cashews",
+  "seed",
+  "seeds"
+] as const;
+
+/**
+ * Small stoplist of articles, quantities, and vessels. A remainder made up
+ * solely of these (after the ambiguous trigger is stripped) is a BARE input
+ * that still needs clarifying; anything past it is a described meal.
+ */
+const AMBIGUITY_FILLER = new Set([
+  "a",
+  "an",
+  "the",
+  "some",
+  "my",
+  "of",
+  "with",
+  "and",
+  "or",
+  "for",
+  "to",
+  "in",
+  "on",
+  "just",
+  "plus",
+  "side",
+  "order",
+  "about",
+  "roughly",
+  "approximately",
+  "serving",
+  "servings",
+  "cup",
+  "cups",
+  "glass",
+  "glasses",
+  "plate",
+  "plates",
+  "bowl",
+  "bowls",
+  "piece",
+  "pieces",
+  "bit",
+  "half",
+  "quarter"
+]);
+
+/** Strip every term of a category from a COPY of the text (word-boundary). */
+function stripTerms(food: string, terms: readonly string[]): string {
+  let text = food;
+  for (const term of terms) {
+    text = text.replace(termPattern(term, "giu"), " ");
+  }
+  return text;
+}
+
+/** Does a stripped remainder still carry a non-filler content word? */
+function hasSubstantiveRemainder(remainder: string): boolean {
+  return remainder
+    .split(/[^\p{L}\p{N}]+/u)
+    .some((token) => token.length > 0 && !AMBIGUITY_FILLER.has(token));
+}
+
+/**
+ * Is the plain-vs-sweetened ambiguity already resolved by the input itself?
+ * Evaluated on the remainder AFTER the ambiguous trigger is stripped, so a bare
+ * "yogurt" (whose only content is the trigger) is NOT self-resolving.
+ */
+function plainOrSweetenedResolved(food: string): boolean {
+  // A named diet/zero/unsweetened variant ("unsweetened yogurt", "sugar free")
+  // — reuses the shared sugar-negation strip.
+  if (stripSugarNegations(food) !== food) {
+    return true;
+  }
+
+  const remainder = stripTerms(food, AMBIGUOUS_PLAIN_OR_SWEETENED);
+
+  return (
+    containsAny(remainder, PLAIN_MARKERS) ||
+    containsAny(remainder, SWEETENING_RESOLVER_TOKENS) ||
+    containsAny(remainder, PROTEIN_TOKENS) ||
+    containsAny(remainder, NONSTARCHY_VEGETABLE_TOKENS) ||
+    containsAny(remainder, NUT_AND_SEED_TOKENS) ||
+    // Risk-raising evidence beats clarification: a named sugar around the
+    // trigger routes to the carbs_only floor rather than "plain or sweetened?".
+    isCarbsOnlyMeal(remainder)
+  );
 }
 
 function isCarbsOnlyMeal(food: string): boolean {

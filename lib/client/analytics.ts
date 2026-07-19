@@ -1,3 +1,7 @@
+import type {
+  ClarifyElapsedBucket,
+  ClarifyReason
+} from "../revora/clarify";
 import type { Channel } from "./attribution";
 import type {
   ClinicalRoute,
@@ -80,6 +84,18 @@ export type AnalyticsEvent =
       name: "attribution";
       props: { reported: Channel | "skipped"; utm: Channel | "none" };
     }
+  // P1.3 §10.1: the bounded-ambiguity clarify funnel. Only the ambiguity
+  // `category` (which of the three deterministic prompts fired, a closed enum
+  // from lib/revora/clarify.ts) and an elapsed-time bucket — never the meal
+  // text or the prompt wording. Abandonment is derivable as a
+  // `clarification_requested` with no matching `clarification_resolved`, so no
+  // separate event is emitted. The prop is `category`, not the result's
+  // rationale field, which analytics must never carry.
+  | { name: "clarification_requested"; props: { category: ClarifyReason } }
+  | {
+      name: "clarification_resolved";
+      props: { category: ClarifyReason; elapsed: ClarifyElapsedBucket };
+    }
   | { name: "photo_draft"; props: { items: number; uncertain: number } };
 
 // Runtime belt-over-type-belt guard: even if a caller bypasses the type
@@ -107,7 +123,9 @@ const ALLOWED_EVENT_NAMES: ReadonlySet<AnalyticsEvent["name"]> = new Set([
   "pantry_viewed",
   "pantry_checkout_started",
   "attribution",
-  "photo_draft"
+  "photo_draft",
+  "clarification_requested",
+  "clarification_resolved"
 ]);
 
 type AnalyticsHost = {

@@ -33,7 +33,7 @@ const MAX_MODEL_ATTEMPTS = 1;
 
 export async function checkFood(
   rawRequest: unknown,
-  deps: { model: RevoraModelClient }
+  deps: { model: RevoraModelClient; clarified?: boolean }
 ): Promise<RevoraUserResponse> {
   const contract = loadSafetyContract();
   const parsedRequest = CheckRequestSchema.safeParse(rawRequest);
@@ -69,7 +69,13 @@ export async function checkFood(
     return buildOutOfScopeResponse(contract, route.band);
   }
 
-  const precheck = classifyInputBeforeModel(request.food);
+  // One-clarification cap (§8): a follow-up answer to a prior clarify (signalled
+  // by the route from the client) suppresses a second ambiguity question. The
+  // clinical route above and the not_food/carbs_only floors inside the precheck
+  // are unaffected — the cap silences the question, never the safety routing.
+  const precheck = classifyInputBeforeModel(request.food, {
+    clarified: deps.clarified
+  });
 
   if (precheck.kind === "not_food") {
     return buildNotFoodResponse(contract, precheck.examples);

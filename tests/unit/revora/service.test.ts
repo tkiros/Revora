@@ -423,3 +423,58 @@ describe("checkFood", () => {
     });
   });
 });
+
+describe("one-clarification cap (§8 / P1.3)", () => {
+  // Proven-passing MODERATE shape (mirrors the plain-bagel floor test above):
+  // grounded reason, one adjustment, one lower-glycemic swap.
+  const moderateOutput = {
+    kind: "result",
+    risk: "MODERATE",
+    reason:
+      "This may have a higher blood-sugar impact because it leans heavily on refined carbs.",
+    adjustment:
+      "If practical, add protein or nonstarchy vegetables to make it easier to handle.",
+    swap: "If you have the option, swap to a less refined version.",
+    question: null,
+    examples: [],
+    policy_flags: []
+  } as const;
+
+  it("clarifies a bare ambiguous input without calling the model", async () => {
+    const model = { generate: vi.fn().mockResolvedValue(moderateOutput) };
+
+    const first = await checkFood({ food: "oatmeal", a1c: 6.1 }, { model });
+
+    expect(first.kind).toBe("clarify");
+    expect(model.generate).not.toHaveBeenCalled();
+  });
+
+  it("suppresses the second clarify on a clarified follow-up and reaches the model", async () => {
+    const model = { generate: vi.fn().mockResolvedValue(moderateOutput) };
+
+    const resolved = await checkFood(
+      { food: "oatmeal", a1c: 6.1 },
+      { model, clarified: true }
+    );
+
+    expect(resolved.kind).toBe("result");
+    expect(model.generate).toHaveBeenCalledTimes(1);
+  });
+
+  it("never lets the cap bypass the carbs-only floor (silences the question, not the routing)", async () => {
+    const model = { generate: vi.fn().mockResolvedValue(moderateOutput) };
+
+    // "orange juice" is a named sugary drink → deterministic carbs_only floor.
+    // Even marked clarified, the precheck must still floor it, not send a bare
+    // "plain or sweetened?" — the model runs under the carbs_only flags.
+    const response = await checkFood(
+      { food: "orange juice", a1c: 6.1 },
+      { model, clarified: true }
+    );
+
+    expect(response.kind).toBe("result");
+    if (response.kind === "result") {
+      expect(response.risk).not.toBe("SAFE");
+    }
+  });
+});

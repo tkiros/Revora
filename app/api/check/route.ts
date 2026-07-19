@@ -203,7 +203,13 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
 
     try {
       const response = await checkFoodImpl(body, {
-        model: modelFactory(undefined)
+        model: modelFactory(undefined),
+        // One-clarification cap (§8/P1.3): the client sets this header when the
+        // submission is the user's answer to a prior clarify, so the precheck
+        // does not chain into a second ambiguity question. Forgeable and
+        // harmless if forged — it can only suppress a clarify, never a floor or
+        // a clinical route.
+        clarified: request.headers.get("x-revora-clarified") === "1"
       });
 
       const durationMs = now() - startedAt;

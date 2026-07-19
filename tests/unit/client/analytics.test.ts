@@ -26,7 +26,9 @@ const ALLOWED_NAMES = [
   "pantry_viewed",
   "pantry_checkout_started",
   "attribution",
-  "photo_draft"
+  "photo_draft",
+  "clarification_requested",
+  "clarification_resolved"
 ] as const;
 
 // (a) Compile-time exhaustiveness: this switch must handle every member of
@@ -54,6 +56,8 @@ function assertExhaustive(name: AnalyticsEvent["name"]): void {
     case "onboarding_started":
     case "result_helpful":
     case "clinical_route":
+    case "clarification_requested":
+    case "clarification_resolved":
       return;
     default: {
       const exhaustiveCheck: never = name;
@@ -96,7 +100,15 @@ describe("AnalyticsEvent allowlist", () => {
       { name: "pantry_viewed", props: { source: "wall_decline" } },
       { name: "pantry_checkout_started" },
       { name: "attribution", props: { reported: "reddit", utm: "none" } },
-      { name: "photo_draft", props: { items: 3, uncertain: 1 } }
+      { name: "photo_draft", props: { items: 3, uncertain: 1 } },
+      {
+        name: "clarification_requested",
+        props: { category: "plain_or_sweetened" }
+      },
+      {
+        name: "clarification_resolved",
+        props: { category: "underspecified", elapsed: "lt60s" }
+      }
     ];
 
     expect(oneOfEach.map((event) => event.name).sort()).toEqual(
