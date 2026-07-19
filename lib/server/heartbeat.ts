@@ -6,7 +6,7 @@ import { schema, type Db } from "./db";
  * of a successful run; /api/health reads staleness off it (lib/server's own
  * health probe, not lib/revora — the engine stays untouched).
  */
-export type CronName = "nudge" | "bai-weekly";
+export type CronName = "nudge" | "bai-weekly" | "stripe-reconcile";
 
 /**
  * Fail-soft by design: a heartbeat write failure must never fail the cron

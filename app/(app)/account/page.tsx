@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { signOut } from "next-auth/react";
 
 import { track } from "../../../lib/client/analytics";
@@ -41,6 +41,12 @@ export default function AccountPage() {
   // trial funnel doesn't. Default to trial (the code default) so the copy
   // never resurrects the retired free offer on a failed lookup.
   const [mode, setMode] = useState<"legacy" | "trial">("trial");
+  // Checkout-return truth (Task 8 / P2.2): after a checkout, the webhook +
+  // inbox may not have written the subscription row yet. Rather than flash a
+  // false free/paywall state at a user who just paid, we show "access is
+  // syncing" and poll /api/entitlement until premium appears.
+  const [syncing, setSyncing] = useState(false);
+  const syncStartRef = useRef<number>(0);
 
   useEffect(() => {
     fetch("/api/paywall")
@@ -61,10 +67,78 @@ export default function AccountPage() {
     // this is the only client-side moment that knows checkout completed.
     if (new URLSearchParams(window.location.search).get("subscribed") === "1") {
       track({ name: "subscribe_completed" });
+      // Enter the "syncing" surface: the entitlement poll below waits for the
+      // webhook/inbox to write the row before we render a plan state.
+      setSyncing(true);
+      syncStartRef.current = Date.now();
       // Strip the param so a refresh doesn't re-fire the event.
       window.history.replaceState(null, "", window.location.pathname);
     }
   }, []);
+
+  // While syncing, poll the entitlement endpoint until premium appears (or we
+  // give up after ~60s and let the normal state render with a gentle refresh
+  // hint). The polls are tagged so the server logs the pending→recovered
+  // transition (entitlement_pending / entitlement_recovered, §10.1).
+  useEffect(() => {
+    if (!syncing) {
+      return;
+    }
+    let cancelled = false;
+    let logged = false;
+
+    const bucket = () => {
+      const elapsed = Date.now() - syncStartRef.current;
+      if (elapsed <= 60_000) return "under_60s";
+      if (elapsed <= 5 * 60_000) return "under_5m";
+      return "under_1h";
+    };
+
+    const poll = async () => {
+      try {
+        const url = logged
+          ? "/api/entitlement"
+          : `/api/entitlement?heal=pending&waited=${bucket()}`;
+        logged = true;
+        const response = await fetch(url, { cache: "no-store" });
+        if (cancelled || !response.ok) {
+          return;
+        }
+        const data = (await response.json()) as EntitlementInfo;
+        if (data.tier === "premium") {
+          // Recovered: record the flip (server logs the latency bucket) and
+          // drop out of the syncing surface.
+          void fetch(`/api/entitlement?heal=recovered&waited=${bucket()}`, {
+            cache: "no-store"
+          }).catch(() => {});
+          if (!cancelled) {
+            setEntitlement(data);
+            setState("ready");
+            setSyncing(false);
+          }
+        }
+      } catch {
+        // Transient — the next tick retries.
+      }
+    };
+
+    void poll();
+    const interval = setInterval(poll, 2500);
+    // Bounded: stop the visual "syncing" after 60s so a genuinely stuck sync
+    // falls back to the normal (accurate) state plus a refresh hint, never an
+    // infinite spinner.
+    const stop = setTimeout(() => {
+      if (!cancelled) {
+        setSyncing(false);
+      }
+    }, 60_000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      clearTimeout(stop);
+    };
+  }, [syncing]);
 
   useEffect(() => {
     let cancelled = false;
@@ -211,7 +285,15 @@ export default function AccountPage() {
             <>
               <div className="account-section" data-testid="account-plan">
                 <h2 className="section-title">Plan</h2>
-                {entitlement?.tier === "premium" ? (
+                {syncing && entitlement?.tier !== "premium" ? (
+                  <div data-testid="entitlement-syncing" aria-live="polite">
+                    <p className="page-copy">
+                      <strong>Payment received</strong> — your access is
+                      syncing. This usually takes a few seconds, and this page
+                      updates on its own. No need to pay again.
+                    </p>
+                  </div>
+                ) : entitlement?.tier === "premium" ? (
                   <>
                     <p className="page-copy">
                       <strong>Premium</strong> — unlimited checks, full

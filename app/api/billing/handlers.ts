@@ -23,8 +23,11 @@ import {
 import { sendEmail, type SendEmailResult } from "../../../lib/server/email";
 import {
   emitBillingEvent,
-  type BillingTelemetryEvent
+  type BillingTelemetryEvent,
+  type LatencyBucket
 } from "../../../lib/server/billing/telemetry";
+import { ingestStripeEvent } from "../../../lib/server/billing/inbox";
+import { fetchStripeSubscription } from "../../../lib/server/stripe-api";
 import { verifyCancelToken } from "../../../lib/server/billing/cancel-token";
 import { paymentFailedEmailText } from "../../../lib/server/billing/emails";
 import { deleteOrderBlobs } from "../../../lib/server/blob";
@@ -140,21 +143,55 @@ function paymentReturnUrlGate(env: NodeJS.ProcessEnv): NextResponse | null {
 
 // ── GET /api/entitlement ────────────────────────────────────────────────────
 
+const LATENCY_BUCKETS: readonly LatencyBucket[] = [
+  "under_60s",
+  "under_5m",
+  "under_1h",
+  "over_1h"
+];
+
 export function createEntitlementHandler(deps: BillingDeps = {}) {
   const db = deps.db ?? getDb;
   const getSession = deps.getSession ?? getSessionInfo;
   const playLookup = deps.playLookup ?? fetchPlaySubscription;
+  const stripe = deps.stripeClient ?? defaultStripe;
   const now = deps.now ?? (() => new Date());
 
-  return async function GET() {
+  return async function GET(request?: Request) {
     const session = await getSession();
     if (!session) {
       return unauthorized();
     }
 
+    // Checkout-return truth signal (§10.1). The "access is syncing" surface
+    // tags its polls (?heal=pending while still free, ?heal=recovered on the
+    // flip to premium) so the pending→recovered transition is logged
+    // server-side without a separate endpoint. Bounded enums only — anything
+    // else is ignored, and only a signed-in caller can emit.
+    if (request) {
+      const params = new URL(request.url).searchParams;
+      const heal = params.get("heal");
+      if (heal === "pending" || heal === "recovered") {
+        const waited = params.get("waited");
+        const latency = LATENCY_BUCKETS.includes(waited as LatencyBucket)
+          ? (waited as LatencyBucket)
+          : undefined;
+        emitBillingEvent({
+          name:
+            heal === "pending"
+              ? "entitlement_pending"
+              : "entitlement_recovered",
+          provider: "stripe",
+          ...(latency ? { latency } : {})
+        });
+      }
+    }
+
     const entitlement = await getEntitlement(db(), session.userId, {
       now,
-      refreshPlaySubscription: (token) => playLookup(token)
+      refreshPlaySubscription: (token) => playLookup(token),
+      refreshStripeSubscription: (subscriptionId, fallbackPeriodEnd) =>
+        fetchStripeSubscription(stripe(), subscriptionId, fallbackPeriodEnd)
     });
 
     const [profile] = await db()
@@ -611,12 +648,65 @@ export function createStripeWebhookHandler(deps: BillingDeps = {}) {
       return NextResponse.json({ error: "Bad signature." }, { status: 400 });
     }
 
-    await applyStripeEvent(db(), event, now(), stripe, email);
-    return NextResponse.json({ received: true });
+    // Durable inbox (Task 8 / P2.2): store-then-process. The outcome picks the
+    // HTTP status so Stripe's retry machinery does the right thing.
+    //   duplicate / processed / dead_letter → 200 ack (redelivery won't help)
+    //   failed (attempts remain)            → 500 so Stripe redelivers
+    // A failed row is also retried by the reconciliation sweep, so the money
+    // path recovers even if Stripe stops redelivering.
+    const outcome = await ingestStripeEvent(db(), event, {
+      now,
+      stripe,
+      email
+    });
+
+    if (outcome === "failed") {
+      return NextResponse.json({ error: "retry" }, { status: 500 });
+    }
+    return NextResponse.json({ received: true, outcome });
   };
 }
 
-/** Exported for direct unit testing without signature plumbing. */
+/** The provider `created` time of an event as a Date, or null if absent. */
+function eventCreatedAt(event: Stripe.Event): Date | null {
+  return typeof event.created === "number"
+    ? new Date(event.created * 1000)
+    : null;
+}
+
+/**
+ * Order tolerance (Task 8 / P2.2). Latest-event-wins per providerRef: an event
+ * is stale for a row when we can PROVE it predates the newest event already
+ * applied there — both `created` timestamps present and this one strictly
+ * older. A stale event is skipped so it can never downgrade newer state (an old
+ * invoice.paid arriving after a cancellation, a replayed subscription.updated).
+ * Missing timestamps (older payloads, direct unit calls) are never stale, so
+ * the reducer behaves exactly as it did before `last_event_at` existed.
+ */
+function isStaleForRow(
+  event: Stripe.Event,
+  row: { lastEventAt: Date | null } | undefined
+): boolean {
+  const created = eventCreatedAt(event);
+  if (!created || !row?.lastEventAt) {
+    return false;
+  }
+  return created.getTime() < row.lastEventAt.getTime();
+}
+
+/** The `last_event_at` set-fragment for a write (omitted when created absent). */
+function eventStamp(event: Stripe.Event): { lastEventAt?: Date } {
+  const created = eventCreatedAt(event);
+  return created ? { lastEventAt: created } : {};
+}
+
+/**
+ * Exported for direct unit testing without signature plumbing. Idempotent and
+ * order-tolerant: replaying any event set in any order converges to the same
+ * final state (guarded by `last_event_at`), and `refunded` is terminal. The
+ * durable inbox (lib/server/billing/inbox.ts) wraps this; the raw reducer is
+ * still directly callable and safe to call more than once per event.
+ */
 export async function applyStripeEvent(
   db: Db,
   event: Stripe.Event,
@@ -641,6 +731,17 @@ export async function applyStripeEvent(
         : session.subscription?.id;
 
     if (!userId || !subscriptionId) {
+      return;
+    }
+
+    // Order tolerance + refund terminality: read the stored row first. A
+    // checkout.session.completed replayed after the subscription was refunded
+    // or after a newer event landed must NOT resurrect premium.
+    const [existingSub] = await db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.providerRef, subscriptionId));
+    if (existingSub?.status === "refunded" || isStaleForRow(event, existingSub)) {
       return;
     }
 
@@ -679,6 +780,7 @@ export async function applyStripeEvent(
         termsVersion,
         termsAcceptedAt: termsVersion ? now : null,
         currentPeriodEnd,
+        ...eventStamp(event),
         updatedAt: now
       })
       .onConflictDoUpdate({
@@ -688,6 +790,7 @@ export async function applyStripeEvent(
           priceVariant,
           termsVersion,
           termsAcceptedAt: termsVersion ? now : null,
+          ...eventStamp(event),
           updatedAt: now
         }
       });
@@ -724,8 +827,16 @@ export async function applyStripeEvent(
       return;
     }
 
-    // Only trial→active and renewals of active rows are ours to touch.
+    // Only trial→active and renewals of active rows are ours to touch. This
+    // also holds the refunded/expired line: an old invoice.paid after a
+    // cancellation or refund lands on a non-active row and is dropped here.
     if (row.status !== "trialing" && row.status !== "active") {
+      return;
+    }
+
+    // Order tolerance: a replayed invoice.paid older than the newest applied
+    // event must not re-refresh the period end backwards.
+    if (isStaleForRow(event, row)) {
       return;
     }
 
@@ -742,7 +853,12 @@ export async function applyStripeEvent(
       // already-active row are NOT conversions (new-only rule).
       await db
         .update(schema.subscriptions)
-        .set({ status: "active", currentPeriodEnd, updatedAt: now })
+        .set({
+          status: "active",
+          currentPeriodEnd,
+          ...eventStamp(event),
+          updatedAt: now
+        })
         .where(eq(schema.subscriptions.id, row.id));
       emitBillingEvent({
         name: "trial_converted",
@@ -754,7 +870,7 @@ export async function applyStripeEvent(
       // Active renewal: period-end refresh only.
       await db
         .update(schema.subscriptions)
-        .set({ currentPeriodEnd, updatedAt: now })
+        .set({ currentPeriodEnd, ...eventStamp(event), updatedAt: now })
         .where(eq(schema.subscriptions.id, row.id));
     }
     return;
@@ -777,6 +893,12 @@ export async function applyStripeEvent(
     }
     const row = found.sub;
 
+    // Order tolerance: a replayed/older failure must not re-cap or re-email a
+    // row that a newer event has already moved past.
+    if (isStaleForRow(event, row)) {
+      return;
+    }
+
     // Cap the grace window (N-07). Stripe's dunning retries a declined card for
     // ~3 weeks; mapStripeStatus turns past_due into "grace", which IS entitled,
     // and currentPeriodEnd stayed weeks out — so a card that will never clear
@@ -796,7 +918,12 @@ export async function applyStripeEvent(
 
     await db
       .update(schema.subscriptions)
-      .set({ status: "grace", currentPeriodEnd, updatedAt: now })
+      .set({
+        status: "grace",
+        currentPeriodEnd,
+        ...eventStamp(event),
+        updatedAt: now
+      })
       .where(eq(schema.subscriptions.id, row.id));
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -835,6 +962,13 @@ export async function applyStripeEvent(
     // subscription to "active" and handed back the premium we just refunded.
     // charge.refunded is the only writer of this status; nothing may undo it.
     if (existing?.status === "refunded") {
+      return;
+    }
+
+    // Order tolerance: a subscription.updated/deleted whose `created` predates
+    // the newest applied event is stale and must not overwrite newer status or
+    // period data (the classic out-of-order updated-before-refund resurrection).
+    if (isStaleForRow(event, existing)) {
       return;
     }
 
@@ -887,6 +1021,7 @@ export async function applyStripeEvent(
       .set({
         status,
         ...(periodEnd ? { currentPeriodEnd: periodEnd } : {}),
+        ...eventStamp(event),
         updatedAt: now
       })
       .where(eq(schema.subscriptions.providerRef, subscription.id));
@@ -950,7 +1085,7 @@ export async function applyStripeEvent(
     }
     const refunded = await db
       .update(schema.subscriptions)
-      .set({ status: "refunded", updatedAt: now })
+      .set({ status: "refunded", ...eventStamp(event), updatedAt: now })
       .where(eq(schema.subscriptions.providerRef, subscriptionId))
       .returning({ priceVariant: schema.subscriptions.priceVariant });
 
@@ -974,7 +1109,7 @@ export async function applyStripeEvent(
  * account/endpoint versions send a top-level invoice.subscription that
  * stripe@22's types no longer declare — resolve via a safe cast fallback.
  */
-function resolveInvoiceSubscriptionId(
+export function resolveInvoiceSubscriptionId(
   invoice: Stripe.Invoice
 ): string | undefined {
   const subRef = invoice.parent?.subscription_details?.subscription;

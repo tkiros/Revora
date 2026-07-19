@@ -4,6 +4,7 @@ import {
   check,
   date,
   index,
+  jsonb,
   pgTable,
   primaryKey,
   smallint,
@@ -215,6 +216,15 @@ export const subscriptions = pgTable(
     currentPeriodEnd: timestamp("current_period_end", {
       withTimezone: true
     }).notNull(),
+    // Stripe self-healing (Task 8 / P2.2). `lastEventAt` is the provider event
+    // `created` time of the newest webhook the reducer has applied to this row;
+    // it makes the entitlement reducer order-tolerant — a replayed or
+    // out-of-order event whose `created` predates this is stale and must not
+    // downgrade newer state (latest-event-wins per providerRef). `lastVerifiedAt`
+    // time-gates Stripe verify-on-read so a stale row is re-checked against the
+    // Stripe API at most once per hour, never on every read.
+    lastEventAt: timestamp("last_event_at", { withTimezone: true }),
+    lastVerifiedAt: timestamp("last_verified_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow()
@@ -228,6 +238,52 @@ export const subscriptions = pgTable(
     check(
       "subscriptions_status_check",
       sql`${table.status} IN ('active','trialing','canceled','grace','expired','refunded')`
+    )
+  ]
+);
+
+// Stripe self-healing (Task 8 / P2.2, §8 entity `billing_event_inbox`).
+//
+// Durable inbox for signed provider webhook events. The webhook verifies the
+// signature, writes the event HERE first, then processes it — so the money
+// path never depends on the process staying alive between "signature valid"
+// and "entitlement written". `providerEventId` is UNIQUE: a duplicate delivery
+// conflicts and is acked without re-applying. `status`/`attempts`/`lastError`
+// carry retry + dead-letter metadata for the reconciliation sweep. `payload`
+// is the verified Stripe event object (non-PAN by construction — Stripe never
+// sends card numbers), stored so a failed row can be reprocessed offline.
+export const billingEventInbox = pgTable(
+  "billing_event_inbox",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    provider: text("provider", { enum: ["stripe"] })
+      .notNull()
+      .default("stripe"),
+    providerEventId: text("provider_event_id").notNull().unique(),
+    eventType: text("event_type").notNull(),
+    payload: jsonb("payload").notNull(),
+    status: text("status", {
+      enum: ["pending", "processed", "failed", "dead_letter"]
+    })
+      .notNull()
+      .default("pending"),
+    attempts: smallint("attempts").notNull().default(0),
+    lastError: text("last_error"),
+    receivedAt: timestamp("received_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    processedAt: timestamp("processed_at", { withTimezone: true })
+  },
+  (table) => [
+    // The sweep scans non-terminal rows (pending/failed) oldest-first.
+    index("billing_event_inbox_status").on(table.status, table.receivedAt),
+    check(
+      "billing_event_inbox_provider_check",
+      sql`${table.provider} IN ('stripe')`
+    ),
+    check(
+      "billing_event_inbox_status_check",
+      sql`${table.status} IN ('pending','processed','failed','dead_letter')`
     )
   ]
 );

@@ -9,13 +9,14 @@ import { getDb, schema, type Db } from "../../../lib/server/db";
 export const runtime = "nodejs";
 
 // Staleness windows mirror each cron's own cadence with slack: bai-weekly runs
-// Mondays via vercel.json ("30 4 * * 1"); nudge, pantry-sweep and
-// trial-precharge run hourly from the Railway scheduler service (see
-// docs/runbooks/price-test.md) — all three take the same 2h window.
+// Mondays via vercel.json ("30 4 * * 1"); nudge, pantry-sweep,
+// trial-precharge and stripe-reconcile run hourly from the Railway scheduler
+// service (see docs/runbooks/price-test.md) — all four take the same 2h window.
 const NUDGE_STALE_MS = 2 * 60 * 60 * 1000; // 2 hours
 const BAI_WEEKLY_STALE_MS = 8 * 24 * 60 * 60 * 1000; // 8 days
 const TRIAL_PRECHARGE_STALE_MS = 2 * 60 * 60 * 1000; // 2 hours
 const PANTRY_SWEEP_STALE_MS = 2 * 60 * 60 * 1000; // 2 hours
+const STRIPE_RECONCILE_STALE_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 type DbProbeStatus = "ok" | "error" | "unconfigured";
 type CronProbeStatus = "ok" | "stale" | "never" | "unknown";
@@ -24,13 +25,15 @@ type CronsProbe = {
   baiWeekly: CronProbeStatus;
   trialPrecharge: CronProbeStatus;
   pantrySweep: CronProbeStatus;
+  stripeReconcile: CronProbeStatus;
 };
 
 const UNKNOWN_CRONS: CronsProbe = {
   nudge: "unknown",
   baiWeekly: "unknown",
   trialPrecharge: "unknown",
-  pantrySweep: "unknown"
+  pantrySweep: "unknown",
+  stripeReconcile: "unknown"
 };
 
 export type HealthDeps = {
@@ -147,6 +150,9 @@ async function probeDbAndCrons(
     const pantryAt = heartbeats.find(
       (row) => row.name === "pantry-sweep"
     )?.lastRunAt;
+    const reconcileAt = heartbeats.find(
+      (row) => row.name === "stripe-reconcile"
+    )?.lastRunAt;
 
     return {
       db: "ok",
@@ -154,7 +160,12 @@ async function probeDbAndCrons(
         nudge: cronStatus(nudgeAt, now, NUDGE_STALE_MS),
         baiWeekly: cronStatus(baiAt, now, BAI_WEEKLY_STALE_MS),
         trialPrecharge: cronStatus(prechargeAt, now, TRIAL_PRECHARGE_STALE_MS),
-        pantrySweep: cronStatus(pantryAt, now, PANTRY_SWEEP_STALE_MS)
+        pantrySweep: cronStatus(pantryAt, now, PANTRY_SWEEP_STALE_MS),
+        stripeReconcile: cronStatus(
+          reconcileAt,
+          now,
+          STRIPE_RECONCILE_STALE_MS
+        )
       }
     };
   } catch (error) {
