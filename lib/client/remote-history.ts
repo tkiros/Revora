@@ -1,4 +1,8 @@
-import { historyStore, type StoredCheck } from "./history-store";
+import {
+  historyStore,
+  normalizeInputMethod,
+  type StoredCheck
+} from "./history-store";
 
 /**
  * Server-backed history reads (4B): signed-in users read from the server
@@ -40,12 +44,9 @@ export async function loadHistory(days: number): Promise<{
           food: check.food,
           risk: check.risk,
           a1cBand: check.a1cBand,
-          // Preserve the true input method (text/voice/photo). Anything the
-          // server did not tag with a known method degrades to "text".
-          inputMethod:
-            check.inputMethod === "voice" || check.inputMethod === "photo"
-              ? check.inputMethod
-              : "text",
+          // Preserve the true input method (text/voice/photo); an unknown
+          // method degrades to "text" (shared helper — one mapping rule).
+          inputMethod: normalizeInputMethod(check.inputMethod),
           createdAt: check.createdAt,
           actionDoneAt: check.actionDoneAt
         })) as StoredCheck[];

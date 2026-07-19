@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   createHistoryStore,
+  normalizeInputMethod,
   type StoredCheck
 } from "../../../lib/client/history-store";
 
@@ -35,6 +36,20 @@ function daysAgoLocal(days: number, hour = 12): string {
   d.setHours(hour, 0, 0, 0);
   return d.toISOString();
 }
+
+describe("normalizeInputMethod — shared read-path mapping (plan §4.6 fidelity)", () => {
+  it("preserves every real method, including photo (no collapse to text)", () => {
+    expect(normalizeInputMethod("text")).toBe("text");
+    expect(normalizeInputMethod("voice")).toBe("voice");
+    expect(normalizeInputMethod("photo")).toBe("photo");
+  });
+
+  it("degrades unknown or missing methods to text", () => {
+    expect(normalizeInputMethod("something-else")).toBe("text");
+    expect(normalizeInputMethod(null)).toBe("text");
+    expect(normalizeInputMethod(undefined)).toBe("text");
+  });
+});
 
 describe("historyStore", () => {
   let store: ReturnType<typeof createHistoryStore>;

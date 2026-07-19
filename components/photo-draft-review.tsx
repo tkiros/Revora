@@ -21,12 +21,12 @@ export function PhotoDraftReview({
   onDiscard: () => void;
 }) {
   // Collapse exact duplicates the drafter sometimes emits, once, before the
-  // user ever sees the chips — and remember how many so we can say so.
-  const [initialCollapsed] = useState(() => dedupeDraftItems(items).collapsed);
+  // user ever sees the chips — and remember how many so we can say so. One
+  // dedupe call seeds both pieces of state (lazy init runs it a single time).
+  const [initial] = useState(() => dedupeDraftItems(items));
+  const [initialCollapsed] = useState(initial.collapsed);
   const [draftDish, setDraftDish] = useState(dish ?? "");
-  const [draftItems, setDraftItems] = useState<MealDraftItem[]>(
-    () => dedupeDraftItems(items).items
-  );
+  const [draftItems, setDraftItems] = useState<MealDraftItem[]>(initial.items);
   const [newItem, setNewItem] = useState("");
 
   const unresolved = draftItems.filter((item) => item.uncertain).length;
@@ -53,8 +53,9 @@ export function PhotoDraftReview({
       ) : null}
       {droppedItems > 0 ? (
         <p className="field-hint" data-testid="draft-truncation-notice">
-          This is a long meal, so the check will use the first{" "}
-          {composed.keptItems} of {composed.totalItems} items.
+          {composed.keptItems === 0
+            ? "This description is too long to check. Shorten it so the meal fits."
+            : `This is a long meal, so the check will use the first ${composed.keptItems} of ${composed.totalItems} items.`}
         </p>
       ) : null}
       <label htmlFor="draft-dish" className="field-label">

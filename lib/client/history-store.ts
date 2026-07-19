@@ -9,15 +9,30 @@ import type { RevoraRisk } from "./ui-state";
  * interface is the seam.
  */
 
+export type InputMethod = "text" | "voice" | "photo";
+
 export type StoredCheck = {
   clientId: string;
   food: string;
   risk: RevoraRisk;
   a1cBand: string;
-  inputMethod: "text" | "voice" | "photo";
+  inputMethod: InputMethod;
   createdAt: string; // ISO
   actionDoneAt?: string;
 };
+
+/**
+ * Single source of truth for coercing a stored `inputMethod` (untyped text in
+ * the DB, or a JSON string over the wire) onto the real union. Every read path
+ * that maps a DB/server row into a StoredCheck MUST go through this — three
+ * separate sites once each hand-rolled `=== "voice" ? "voice" : "text"`, which
+ * silently downgraded `photo` to `text` on every read (plan §4.6 fidelity).
+ */
+export function normalizeInputMethod(
+  value: string | null | undefined
+): InputMethod {
+  return value === "voice" || value === "photo" ? value : "text";
+}
 
 type StorageLike = {
   getItem(key: string): string | null;
