@@ -88,9 +88,35 @@ export const profiles = pgTable("profiles", {
   timezone: text("timezone").notNull().default("America/New_York"),
   nudgeOptIn: boolean("nudge_opt_in").notNull().default(false),
   nudgeHour: smallint("nudge_hour").notNull().default(11),
+  // Personal journey nudges (Task 19 / §P4.3). Cadence the user chose and an
+  // optional quiet-hours window the cron respects. `nudgeCadence` defaults to
+  // "daily" so existing opted-in users keep the one-per-day behavior; the quiet
+  // columns are nullable and null means "no quiet window" (never suppressed).
+  // Hours are 0–23 local-hour integers; a wrap-around window (start > end) is
+  // valid (e.g. 22 → 7). Bounded enums/ranges only — no health data here.
+  nudgeCadence: text("nudge_cadence", {
+    enum: ["daily", "few_per_week", "weekly"]
+  })
+    .notNull()
+    .default("daily"),
+  nudgeQuietStart: smallint("nudge_quiet_start"),
+  nudgeQuietEnd: smallint("nudge_quiet_end"),
   onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
   consentedAt: timestamp("consented_at", { withTimezone: true }).notNull()
-});
+}, (table) => [
+  check(
+    "profiles_nudge_cadence_check",
+    sql`${table.nudgeCadence} IN ('daily','few_per_week','weekly')`
+  ),
+  check(
+    "profiles_nudge_quiet_start_check",
+    sql`${table.nudgeQuietStart} IS NULL OR (${table.nudgeQuietStart} >= 0 AND ${table.nudgeQuietStart} <= 23)`
+  ),
+  check(
+    "profiles_nudge_quiet_end_check",
+    sql`${table.nudgeQuietEnd} IS NULL OR (${table.nudgeQuietEnd} >= 0 AND ${table.nudgeQuietEnd} <= 23)`
+  )
+]);
 
 export const checks = pgTable(
   "checks",

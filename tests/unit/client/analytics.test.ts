@@ -15,6 +15,7 @@ const ALLOWED_NAMES = [
   "onboarding_completed",
   "signin_completed",
   "nudge_opened",
+  "nudge_unsubscribed",
   "paywall_viewed",
   "subscribe_started",
   "subscribe_completed",
@@ -45,6 +46,7 @@ function assertExhaustive(name: AnalyticsEvent["name"]): void {
     case "onboarding_completed":
     case "signin_completed":
     case "nudge_opened":
+    case "nudge_unsubscribed":
     case "paywall_viewed":
     case "subscribe_started":
     case "subscribe_completed":
@@ -96,7 +98,11 @@ describe("AnalyticsEvent allowlist", () => {
       },
       { name: "onboarding_completed" },
       { name: "signin_completed" },
-      { name: "nudge_opened" },
+      {
+        name: "nudge_opened",
+        props: { class: "journey_step", stage: "1" }
+      },
+      { name: "nudge_unsubscribed" },
       { name: "paywall_viewed" },
       { name: "subscribe_started" },
       { name: "subscribe_completed" },

@@ -42,6 +42,14 @@ export type MemoryLabel =
   | "family_meal"
   | "other";
 
+// The closed nudge trigger-class vocabulary (mirror of lib/journey/nudge
+// NudgeClass). Only the class ever reaches analytics — never the nudge copy.
+export type NudgeClass = "journey_step" | "weekly_learning_ready" | "generic";
+
+// The journey stage prop shared with weekly_learning_viewed, plus "none" for a
+// non-journey (generic) nudge. A closed enum — never a raw day count.
+export type JourneyStageProp = "1" | "2" | "3" | "4" | "5" | "none";
+
 export type AnalyticsEvent =
   | {
       name: "check_completed";
@@ -74,7 +82,17 @@ export type AnalyticsEvent =
     }
   | { name: "onboarding_completed" }
   | { name: "signin_completed" }
-  | { name: "nudge_opened" }
+  // §P4.3/§10.1: a nudge notification was opened. The bounded trigger `class`
+  // and journey `stage` only (mirrors weekly_learning_viewed) — never the copy
+  // the user saw. The class + stage are read from the ?nudge/?stage params the
+  // service worker opens the app with, then the params are stripped.
+  | {
+      name: "nudge_opened";
+      props: { class: NudgeClass; stage: JourneyStageProp };
+    }
+  // §P4.3: the user turned reminders off. Presence-only — no props (opting out
+  // is the whole signal; who/when stays out of analytics).
+  | { name: "nudge_unsubscribed" }
   | { name: "paywall_viewed" }
   | { name: "subscribe_started" }
   | { name: "subscribe_completed" }
@@ -159,6 +177,7 @@ const ALLOWED_EVENT_NAMES: ReadonlySet<AnalyticsEvent["name"]> = new Set([
   "onboarding_completed",
   "signin_completed",
   "nudge_opened",
+  "nudge_unsubscribed",
   "paywall_viewed",
   "subscribe_started",
   "subscribe_completed",

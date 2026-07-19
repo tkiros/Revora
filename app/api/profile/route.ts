@@ -47,7 +47,10 @@ export function createProfileRouteHandlers(deps: ProfileRouteDeps = {}) {
           a1cBand: schema.profiles.a1cBand,
           timezone: schema.profiles.timezone,
           nudgeOptIn: schema.profiles.nudgeOptIn,
-          nudgeHour: schema.profiles.nudgeHour
+          nudgeHour: schema.profiles.nudgeHour,
+          nudgeCadence: schema.profiles.nudgeCadence,
+          nudgeQuietStart: schema.profiles.nudgeQuietStart,
+          nudgeQuietEnd: schema.profiles.nudgeQuietEnd
         })
         .from(schema.profiles)
         .where(eq(schema.profiles.userId, session.userId));
@@ -134,7 +137,12 @@ export function createProfileRouteHandlers(deps: ProfileRouteDeps = {}) {
 const NudgePrefsSchema = z
   .object({
     nudgeHour: z.number().int().min(0).max(23).optional(),
-    nudgeOptIn: z.boolean().optional()
+    nudgeOptIn: z.boolean().optional(),
+    // Personal journey nudges (Task 19 / §P4.3): cadence + optional quiet-hours
+    // window. Quiet hours are nullable (send null to clear the window).
+    nudgeCadence: z.enum(["daily", "few_per_week", "weekly"]).optional(),
+    nudgeQuietStart: z.number().int().min(0).max(23).nullable().optional(),
+    nudgeQuietEnd: z.number().int().min(0).max(23).nullable().optional()
   })
   .strict();
 

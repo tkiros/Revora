@@ -107,7 +107,7 @@ export type WeeklyLearningArtifact = {
  * (assertWeeklyBankClaimFree). Numbers ("three meals") are fine — the banned
  * patterns are about clinical CLAIMS, not digits.
  */
-type WeeklySignals = {
+export type WeeklySignals = {
   mealsExplored: number;
   savedChoices: number;
   labels: Set<ContextLabel>;
@@ -291,4 +291,37 @@ export function deriveWeeklyLearning(
     incompleteSteps,
     nextExploration
   };
+}
+
+/**
+ * The week's signals distilled from the same allowed inputs the artifact uses.
+ * Exposed so the nudge cron (lib/server/nudge.ts) can decide whether the current
+ * stage's headline intent is already met WITHOUT re-deriving the predicate
+ * logic — the STAGE_INTENTS below stay the single source of "what counts as
+ * done" for both the weekly summary and the journey_step nudge trigger.
+ */
+export function weeklySignalsFrom(
+  checks: WeeklyCheckInput[],
+  memories: WeeklyMemoryInput[]
+): WeeklySignals {
+  const labels = contextsCovered(memories);
+  return {
+    mealsExplored: distinctFoods(checks),
+    savedChoices: memories.length,
+    labels: new Set(labels),
+    favorites: memories.filter((m) => m.favorite).length
+  };
+}
+
+/**
+ * Whether the current stage's single headline intent is already satisfied this
+ * week. A stage with no intent (out of range) is treated as met — the nudge
+ * falls back to a plain reminder rather than inventing an incomplete step.
+ */
+export function currentStageIntentMet(
+  stage: Stage,
+  signals: WeeklySignals
+): boolean {
+  const intent = STAGE_INTENTS.find((i) => i.stage === stage);
+  return intent ? intent.met(signals) : true;
 }

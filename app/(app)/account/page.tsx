@@ -19,6 +19,13 @@ type EntitlementInfo = {
   currentPeriodEnd: string | null;
 };
 
+/** 24h → friendly label, e.g. 0 → "12:00 am", 13 → "1:00 pm". */
+function formatHour(hour: number): string {
+  if (hour === 0) return "12:00 am";
+  if (hour === 12) return "12:00 pm";
+  return hour < 12 ? `${hour}:00 am` : `${hour - 12}:00 pm`;
+}
+
 export default function AccountPage() {
   const [state, setState] = useState<
     "loading" | "signed_out" | "unavailable" | "ready"
@@ -27,9 +34,13 @@ export default function AccountPage() {
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [nudge, setNudge] = useState<{ optIn: boolean; hour: number } | null>(
-    null
-  );
+  const [nudge, setNudge] = useState<{
+    optIn: boolean;
+    hour: number;
+    cadence: "daily" | "few_per_week" | "weekly";
+    quietStart: number | null;
+    quietEnd: number | null;
+  } | null>(null);
   const [nudgeSaved, setNudgeSaved] = useState(false);
   const [canceled, setCanceled] = useState<{ accessUntil: string } | null>(
     null
@@ -183,11 +194,17 @@ export default function AccountPage() {
             hasProfile: boolean;
             nudgeOptIn?: boolean;
             nudgeHour?: number;
+            nudgeCadence?: "daily" | "few_per_week" | "weekly";
+            nudgeQuietStart?: number | null;
+            nudgeQuietEnd?: number | null;
           };
           if (profile.hasProfile) {
             setNudge({
               optIn: Boolean(profile.nudgeOptIn),
-              hour: profile.nudgeHour ?? 11
+              hour: profile.nudgeHour ?? 11,
+              cadence: profile.nudgeCadence ?? "daily",
+              quietStart: profile.nudgeQuietStart ?? null,
+              quietEnd: profile.nudgeQuietEnd ?? null
             });
           }
         }
@@ -214,6 +231,34 @@ export default function AccountPage() {
       window.location.assign(body.url);
     } else {
       setError(body.error ?? "Couldn't open the billing portal.");
+    }
+  }
+
+  async function patchNudge(patch: Record<string, unknown>): Promise<boolean> {
+    setNudgeSaved(false);
+    try {
+      const response = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(patch)
+      });
+      setNudgeSaved(response.ok);
+      return response.ok;
+    } catch {
+      setNudgeSaved(false);
+      return false;
+    }
+  }
+
+  async function turnOffNudges() {
+    if (!nudge) {
+      return;
+    }
+    const ok = await patchNudge({ nudgeOptIn: false });
+    if (ok) {
+      setNudge({ ...nudge, optIn: false });
+      // §P4.3: opting out is the whole signal — no props.
+      track({ name: "nudge_unsubscribed" });
     }
   }
 
@@ -447,13 +492,7 @@ export default function AccountPage() {
                         onChange={async (event) => {
                           const hour = Number(event.target.value);
                           setNudge({ ...nudge, hour });
-                          setNudgeSaved(false);
-                          const response = await fetch("/api/profile", {
-                            method: "PATCH",
-                            headers: { "content-type": "application/json" },
-                            body: JSON.stringify({ nudgeHour: hour })
-                          });
-                          setNudgeSaved(response.ok);
+                          await patchNudge({ nudgeHour: hour });
                         }}
                       >
                         {Array.from({ length: 17 }, (_, i) => i + 5).map(
@@ -468,9 +507,88 @@ export default function AccountPage() {
                           )
                         )}
                       </select>
+
+                      <label htmlFor="nudge-cadence" className="field-label">
+                        How often
+                      </label>
+                      <select
+                        id="nudge-cadence"
+                        className="text-input"
+                        value={nudge.cadence}
+                        onChange={async (event) => {
+                          const cadence = event.target
+                            .value as typeof nudge.cadence;
+                          setNudge({ ...nudge, cadence });
+                          await patchNudge({ nudgeCadence: cadence });
+                        }}
+                      >
+                        <option value="daily">Once a day</option>
+                        <option value="few_per_week">A few times a week</option>
+                        <option value="weekly">Once a week</option>
+                      </select>
+
+                      <label htmlFor="nudge-quiet" className="field-label">
+                        Quiet hours (no reminders)
+                      </label>
+                      <div className="field-row" id="nudge-quiet">
+                        <select
+                          aria-label="Quiet hours start"
+                          className="text-input"
+                          value={nudge.quietStart ?? ""}
+                          onChange={async (event) => {
+                            const raw = event.target.value;
+                            const quietStart = raw === "" ? null : Number(raw);
+                            // Clearing the start clears the whole window.
+                            const quietEnd =
+                              quietStart === null ? null : nudge.quietEnd;
+                            setNudge({ ...nudge, quietStart, quietEnd });
+                            await patchNudge({
+                              nudgeQuietStart: quietStart,
+                              nudgeQuietEnd: quietEnd
+                            });
+                          }}
+                        >
+                          <option value="">Off</option>
+                          {Array.from({ length: 24 }, (_, hour) => (
+                            <option key={hour} value={hour}>
+                              {formatHour(hour)}
+                            </option>
+                          ))}
+                        </select>
+                        <span className="field-hint">to</span>
+                        <select
+                          aria-label="Quiet hours end"
+                          className="text-input"
+                          value={nudge.quietEnd ?? ""}
+                          disabled={nudge.quietStart === null}
+                          onChange={async (event) => {
+                            const raw = event.target.value;
+                            const quietEnd = raw === "" ? null : Number(raw);
+                            setNudge({ ...nudge, quietEnd });
+                            await patchNudge({ nudgeQuietEnd: quietEnd });
+                          }}
+                        >
+                          <option value="">—</option>
+                          {Array.from({ length: 24 }, (_, hour) => (
+                            <option key={hour} value={hour}>
+                              {formatHour(hour)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
                       {nudgeSaved ? (
                         <p className="field-hint">Saved.</p>
                       ) : null}
+
+                      <button
+                        type="button"
+                        className="recheck-button"
+                        data-testid="nudge-turn-off"
+                        onClick={turnOffNudges}
+                      >
+                        Turn off reminders
+                      </button>
                     </div>
                   ) : null}
                 </div>
