@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import { dayKeyInTimezone, hourInTimezone } from "../coach/days";
+import { capabilitiesFor } from "./capabilities";
 import { getEntitlement } from "./entitlement";
 import { schema, type Db } from "./db";
 import { recordHeartbeat } from "./heartbeat";
@@ -83,7 +84,9 @@ export async function runNudgeCron(
     const entitlement = await getEntitlement(db, candidate.userId, {
       now: () => now
     });
-    if (entitlement.tier !== "premium") {
+    // The nudge is a paid capability — gate on the matrix, not an inline tier
+    // check, so "who gets a reminder" has exactly one definition (T10).
+    if (!capabilitiesFor(entitlement).nudges) {
       skipped += 1;
       continue;
     }

@@ -8,6 +8,7 @@ import {
   countChecksToday,
   FREE_DAILY_CHECKS
 } from "../../../lib/server/entitlement";
+import { capabilitiesFor } from "../../../lib/server/capabilities";
 import { fetchPlaySubscription } from "../../../lib/server/play-api";
 import { getDb, schema, type Db } from "../../../lib/server/db";
 import {
@@ -209,7 +210,10 @@ export function createEntitlementHandler(deps: BillingDeps = {}) {
     return NextResponse.json({
       ...entitlement,
       checksToday,
-      freeDailyLimit: FREE_DAILY_CHECKS
+      freeDailyLimit: FREE_DAILY_CHECKS,
+      // Additive (T10): the UI renders paid state from this server matrix rather
+      // than re-deriving the free/premium split client-side.
+      capabilities: capabilitiesFor(entitlement)
     });
   };
 }

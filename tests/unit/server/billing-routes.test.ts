@@ -896,6 +896,27 @@ describe("GET /api/entitlement", () => {
     });
     expect(typeof body.checksToday).toBe("number");
   });
+
+  it("ships the capability matrix so the UI renders paid state from server truth", async () => {
+    const GET = createEntitlementHandler({
+      ...baseDeps(),
+      playLookup: vi.fn()
+    });
+
+    const body = await (await GET()).json();
+
+    // Additive (T10): the free caller gets the metered/no-premium matrix.
+    expect(body.capabilities).toMatchObject({
+      dailyChecks: 5,
+      historyDays: 7,
+      export: true,
+      progress: false,
+      nudges: false,
+      weeklyLearning: false,
+      thinInsight: true,
+      support: "standard"
+    });
+  });
 });
 
 /**

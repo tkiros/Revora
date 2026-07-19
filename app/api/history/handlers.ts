@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import type { A1CBand } from "../../../lib/revora/a1c";
+import { FREE_HISTORY_DAYS } from "../../../lib/free-tier";
 import { decryptField, encryptField } from "../../../lib/server/crypto";
 import { getDb, schema, type Db } from "../../../lib/server/db";
 import { getEntitlement, type Entitlement } from "../../../lib/server/entitlement";
@@ -30,10 +31,11 @@ const DEFAULT_LIMIT = 50;
 // a client-side page size, not a server cap.
 const MAX_LIMIT = 200;
 const MAX_MIGRATE_BATCH = 500;
-// Free tier keeps the recent week (guest parity); the full archive is
-// premium (plan 4D: premium = history + insights + progress + nudge). This is
-// a VIEW rule, not a storage rule — the export path (data rights) ignores it.
-const FREE_HISTORY_DAYS = 7;
+// Free tier keeps the recent week (guest parity); the full archive is premium
+// (plan 4D: premium = history + progress + nudge). This is a VIEW rule, not a
+// storage rule — the export path (data rights) ignores it. FREE_HISTORY_DAYS is
+// the single source (lib/free-tier.ts): the capability matrix imports the same
+// constant so the enforced window and the promised window can never fork.
 
 // Search happens over DECRYPTED food text (encrypted at rest — no SQL LIKE, and
 // plan §P3.3 forbids a plaintext index or unsalted hash). So we decrypt-and-scan

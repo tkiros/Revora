@@ -7,7 +7,6 @@ import { signOut } from "next-auth/react";
 import { track } from "../../../lib/client/analytics";
 import { historyStore } from "../../../lib/client/history-store";
 import { profileStore } from "../../../lib/client/profile-store";
-import { longitudinalInsightsEnabled } from "../../../lib/longitudinal-insights-flag";
 
 type EntitlementInfo = {
   tier: "free" | "premium";
@@ -318,9 +317,7 @@ export default function AccountPage() {
                   <>
                     <p className="page-copy">
                       <strong>Premium</strong> — unlimited checks, full
-                      history, progress
-                      {longitudinalInsightsEnabled() ? ", insights" : ""}, and
-                      the daily reminder.
+                      history, progress, and the daily reminder.
                     </p>
                     {entitlement.currentPeriodEnd && !canceled ? (
                       <p className="field-hint" data-testid="renewal-date">

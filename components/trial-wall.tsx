@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import { track } from "../lib/client/analytics";
 import { historyStore } from "../lib/client/history-store";
 import { TERMS_VERSION } from "../lib/legal/terms";
-import { longitudinalInsightsEnabled } from "../lib/longitudinal-insights-flag";
 import { usePaywallConfig } from "../lib/client/paywall-config";
 
 // Two steps (was three): the offer, the trial mechanics, and the price all
@@ -169,9 +168,7 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
             Yesterday you checked a meal and got a cautious educational read
             instead of a pile of numbers. Your free week keeps that
             going at every meal: unlimited checks, your history on every
-            device, progress you can see
-            {longitudinalInsightsEnabled() ? ", weekly patterns from your own meals" : ""},
-            and one gentle daily reminder.
+            device, progress you can see, and one gentle daily reminder.
           </p>
           {/* The same three facts as the old trust bullets, told as the
               timeline the week actually follows (Today → Day 5 → Day 7). */}

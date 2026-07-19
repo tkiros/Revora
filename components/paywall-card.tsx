@@ -13,7 +13,6 @@ import {
 } from "../lib/client/digital-goods";
 import { FREE_DAILY_CHECKS } from "../lib/free-tier";
 import { TERMS_VERSION } from "../lib/legal/terms";
-import { longitudinalInsightsEnabled } from "../lib/longitudinal-insights-flag";
 import { type PaywallConfig, usePaywallConfig } from "../lib/client/paywall-config";
 import { playBillingEnabled } from "../lib/play-billing-flag";
 
@@ -155,12 +154,16 @@ export function PaywallCard() {
 
   return (
     <div className="paywall-card" data-testid="paywall-card">
+      {/* T10 paywall truth: every bullet is a capability the matrix marks
+          premium-true TODAY (PREMIUM_CAPABILITY_KEYS): dailyChecks, historyDays,
+          progress, nudges. The bullet that used to sell a longitudinal-insight
+          summary was removed — the thin insight is FREE onboarding value, and
+          the genuinely Premium learning artifact (capabilities.weeklyLearning)
+          ships flagged-off in T18, so the wall may not promise it yet. Pinned by
+          tests/unit/revora/paywall-capability-truth.test.ts. */}
       <ul className="page-copy expectation-list">
         <li>Unlimited daily checks</li>
         <li>Your full history, on every device</li>
-        {longitudinalInsightsEnabled() ? (
-          <li>Weekly insights from your own meals</li>
-        ) : null}
         <li>The progress view</li>
         <li>One gentle daily reminder (optional)</li>
       </ul>
