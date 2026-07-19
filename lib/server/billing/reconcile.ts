@@ -1,4 +1,4 @@
-import { and, asc, count, eq, inArray, lte } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, lt, lte } from "drizzle-orm";
 import type Stripe from "stripe";
 
 import { schema, type Db } from "../db";
@@ -40,6 +40,15 @@ const VERIFY_HORIZON_MS = 60 * 60 * 1000;
 // Charge-without-entitlement is only asserted once a paid invoice is older than
 // the 60-second SLO — before that the webhook may simply not have landed yet.
 const CHARGE_SLO_MS = 60_000;
+// The charge-without-entitlement scan looks at RECENT paid invoices (newest
+// first) inside this window, not the oldest rows — so a fresh ghost is always
+// covered even after the inbox has accumulated far more than one batch of
+// historical processed rows.
+const CHARGE_SCAN_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+// Processed inbox rows are pruned past this age. Bounds the table (and keeps the
+// charge scan's window meaningful) without losing the recovery/audit value of a
+// recently-processed event.
+const PROCESSED_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const STRIPE_PREMIUM_STATUSES: Array<
   "active" | "trialing" | "grace" | "canceled"
 > = ["active", "trialing", "grace", "canceled"];
@@ -57,6 +66,7 @@ export type ReconcileResult = {
   verified: number;
   healed: number;
   chargesWithoutEntitlement: number;
+  pruned: number;
 };
 
 export async function runStripeReconcileCron(
@@ -76,7 +86,8 @@ export async function runStripeReconcileCron(
     deadLettered: 0,
     verified: 0,
     healed: 0,
-    chargesWithoutEntitlement: 0
+    chargesWithoutEntitlement: 0,
+    pruned: 0
   };
 
   // ── 1. Reprocess pending/failed inbox rows ────────────────────────────────
@@ -126,6 +137,9 @@ export async function runStripeReconcileCron(
           lte(schema.subscriptions.currentPeriodEnd, horizon)
         )
       )
+      // Deterministic: the most-overdue rows first, so a batch-capped sweep
+      // always makes progress on the worst offenders.
+      .orderBy(asc(schema.subscriptions.currentPeriodEnd))
       .limit(RECONCILE_BATCH);
 
     for (const row of stale) {
@@ -168,22 +182,26 @@ export async function runStripeReconcileCron(
   }
 
   // ── 3. Charge-without-entitlement: paid invoice, past SLO, no row ─────────
+  // Scan the NEWEST paid invoices in a bounded recent window (not the oldest
+  // rows), so a fresh ghost is always covered even once the inbox holds far
+  // more than one batch of already-resolved historical rows.
+  const scanFloor = new Date(now.getTime() - CHARGE_SCAN_WINDOW_MS);
+  const scanCeil = new Date(now.getTime() - CHARGE_SLO_MS);
   const paidInvoices = await db
     .select()
     .from(schema.billingEventInbox)
     .where(
       and(
         eq(schema.billingEventInbox.status, "processed"),
-        eq(schema.billingEventInbox.eventType, "invoice.paid")
+        eq(schema.billingEventInbox.eventType, "invoice.paid"),
+        gte(schema.billingEventInbox.receivedAt, scanFloor),
+        lte(schema.billingEventInbox.receivedAt, scanCeil)
       )
     )
-    .orderBy(asc(schema.billingEventInbox.receivedAt))
+    .orderBy(desc(schema.billingEventInbox.receivedAt))
     .limit(RECONCILE_BATCH);
 
   for (const inboxRow of paidInvoices) {
-    if (now.getTime() - inboxRow.receivedAt.getTime() < CHARGE_SLO_MS) {
-      continue; // Within the SLO — the webhook may still be catching up.
-    }
     const event = inboxRow.payload as unknown as Stripe.Event;
     const invoice = event?.data?.object as Stripe.Invoice | undefined;
     if (!invoice) {
@@ -212,6 +230,22 @@ export async function runStripeReconcileCron(
       });
     }
   }
+
+  // ── 4. Prune old processed rows ───────────────────────────────────────────
+  // Keeps the inbox bounded and the charge scan's window honest. Only fully
+  // processed rows are eligible; pending/failed/dead-letter rows are retained
+  // for retry/audit.
+  const pruneCutoff = new Date(now.getTime() - PROCESSED_RETENTION_MS);
+  const pruned = await db
+    .delete(schema.billingEventInbox)
+    .where(
+      and(
+        eq(schema.billingEventInbox.status, "processed"),
+        lt(schema.billingEventInbox.processedAt, pruneCutoff)
+      )
+    )
+    .returning({ id: schema.billingEventInbox.id });
+  result.pruned = pruned.length;
 
   await recordHeartbeat(db, "stripe-reconcile", now);
   return result;

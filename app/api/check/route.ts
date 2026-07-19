@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import Stripe from "stripe";
 
 import type { Daypart } from "../../../lib/coach/insights";
 import { routeA1C } from "../../../lib/revora/a1c";
@@ -30,6 +31,7 @@ import {
   FREE_DAILY_CHECKS
 } from "../../../lib/server/entitlement";
 import { fetchPlaySubscription } from "../../../lib/server/play-api";
+import { fetchStripeSubscription } from "../../../lib/server/stripe-api";
 import { paywallMode } from "../../../lib/server/pricing";
 import {
   getSessionInfo,
@@ -54,8 +56,22 @@ type CheckRouteDeps = {
   db?: () => Db;
   getSession?: () => Promise<SessionInfo>;
   playLookup?: typeof fetchPlaySubscription;
+  stripeClient?: () => Stripe;
   paywallMode?: () => "legacy" | "trial";
 };
+
+// Lazy Stripe singleton for the check route's verify-on-read heal. Constructed
+// only when actually called (a stale, time-gated Stripe row) — an unset key
+// throws inside getEntitlement's guarded try, which fails toward free.
+let checkStripeSingleton: Stripe | null = null;
+function defaultCheckStripe(): Stripe {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) {
+    throw new Error("STRIPE_SECRET_KEY is not set.");
+  }
+  checkStripeSingleton ??= new Stripe(key);
+  return checkStripeSingleton;
+}
 
 // Calm upsell, never a scary wall (plan 4D): the daily loop keeps working
 // tomorrow; premium removes the limit. The count is derived from
@@ -120,6 +136,7 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
   const db = deps.db ?? getDb;
   const getSession = deps.getSession ?? getSessionInfo;
   const playLookup = deps.playLookup ?? fetchPlaySubscription;
+  const stripe = deps.stripeClient ?? defaultCheckStripe;
   const paywallModeDep = deps.paywallMode ?? (() => paywallMode());
 
   return async function POST(request: Request) {
@@ -140,7 +157,13 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
       const session = await getSession();
       if (session) {
         const entitlement = await getEntitlement(db(), session.userId, {
-          refreshPlaySubscription: (token) => playLookup(token)
+          refreshPlaySubscription: (token) => playLookup(token),
+          // Heal a lost-renewal Stripe row on the hot path too (reviewer #3):
+          // the row is only re-checked when premium-status AND past its period
+          // end AND not verified in the last hour, so this is ≤1 Stripe call
+          // per hour per row — cheap next to denying a paying user their checks.
+          refreshStripeSubscription: (subscriptionId, fallbackPeriodEnd) =>
+            fetchStripeSubscription(stripe(), subscriptionId, fallbackPeriodEnd)
         });
         const mode = paywallModeDep();
 

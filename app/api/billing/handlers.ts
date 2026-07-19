@@ -740,7 +740,8 @@ export async function applyStripeEvent(
     const [existingSub] = await db
       .select()
       .from(schema.subscriptions)
-      .where(eq(schema.subscriptions.providerRef, subscriptionId));
+      .where(eq(schema.subscriptions.providerRef, subscriptionId))
+      .for("update");
     if (existingSub?.status === "refunded" || isStaleForRow(event, existingSub)) {
       return;
     }
@@ -815,7 +816,8 @@ export async function applyStripeEvent(
     const [row] = await db
       .select()
       .from(schema.subscriptions)
-      .where(eq(schema.subscriptions.providerRef, subscriptionId));
+      .where(eq(schema.subscriptions.providerRef, subscriptionId))
+      .for("update");
     if (!row) {
       return;
     }
@@ -887,7 +889,10 @@ export async function applyStripeEvent(
       .select({ sub: schema.subscriptions, email: schema.users.email })
       .from(schema.subscriptions)
       .innerJoin(schema.users, eq(schema.subscriptions.userId, schema.users.id))
-      .where(eq(schema.subscriptions.providerRef, subscriptionId));
+      .where(eq(schema.subscriptions.providerRef, subscriptionId))
+      // Lock the subscription row only (not the joined users row) so a refund
+      // racing this dunning-grace write serializes and the refunded guard holds.
+      .for("update", { of: schema.subscriptions });
     if (!found || found.sub.status === "refunded") {
       return; // "refunded" is terminal — see the guard in subscription.updated.
     }
@@ -953,7 +958,8 @@ export async function applyStripeEvent(
     const [existing] = await db
       .select()
       .from(schema.subscriptions)
-      .where(eq(schema.subscriptions.providerRef, subscription.id));
+      .where(eq(schema.subscriptions.providerRef, subscription.id))
+      .for("update");
 
     // "refunded" is TERMINAL (N-06). Stripe does not guarantee webhook ordering,
     // so a customer.subscription.updated emitted before the refund can be

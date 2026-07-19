@@ -609,6 +609,124 @@ describe("runStripeReconcileCron", () => {
   });
 });
 
+// ── 5b. Transactional atomicity (reviewer #1) ────────────────────────────────
+
+describe("inbox — transactional atomicity", () => {
+  it("rolls back a partial subscription write when the reducer throws mid-apply", async () => {
+    // apply writes a subscription row and THEN throws — the transaction must
+    // undo the write, leaving no ghost row, and mark the inbox row failed.
+    const apply = (async (db: typeof testDb.db) => {
+      await db.insert(schema.subscriptions).values({
+        userId,
+        provider: "stripe",
+        providerRef: "sub_partial_rollback",
+        productId: "premium_monthly",
+        status: "active",
+        currentPeriodEnd: FUTURE
+      });
+      throw new Error("boom after write");
+    }) as unknown as typeof applyStripeEvent;
+
+    const event = evt("customer.subscription.updated", { id: "x" }, 100, "evt_rollback");
+    const outcome = await ingestStripeEvent(testDb.db, event, deps({ apply }));
+    expect(outcome).toBe("failed");
+
+    // The write was rolled back with the transaction.
+    const subs = await testDb.db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.providerRef, "sub_partial_rollback"));
+    expect(subs).toHaveLength(0);
+
+    // The failure record itself persists (written outside the rolled-back tx).
+    const [inbox] = await testDb.db.select().from(schema.billingEventInbox);
+    expect(inbox.status).toBe("failed");
+    expect(inbox.attempts).toBe(1);
+  });
+});
+
+// ── 5c. charge-without-entitlement window + pruning (reviewer #2) ─────────────
+
+describe("reconcile — charge scan window + pruning", () => {
+  it("catches a RECENT ghost even when >100 older processed rows exist", async () => {
+    // 100 processed invoice.paid rows OUTSIDE the 7-day scan window — under the
+    // old oldest-first, unbounded scan these would crowd out the recent ghost.
+    const old = new Date(NOW.getTime() - 10 * 24 * 60 * 60 * 1000);
+    await testDb.db.insert(schema.billingEventInbox).values(
+      Array.from({ length: 100 }, (_, i) => ({
+        provider: "stripe" as const,
+        providerEventId: `evt_old_${i}`,
+        eventType: "invoice.paid",
+        payload: evt(
+          "invoice.paid",
+          { billing_reason: "subscription_cycle", parent: { subscription_details: { subscription: `sub_old_${i}` } } },
+          100,
+          `evt_old_${i}`
+        ) as never,
+        status: "processed" as const,
+        receivedAt: old,
+        processedAt: old
+      }))
+    );
+    // One recent ghost (2 min ago, inside window, past the 60s SLO), no row.
+    await testDb.db.insert(schema.billingEventInbox).values({
+      provider: "stripe",
+      providerEventId: "evt_recent_ghost",
+      eventType: "invoice.paid",
+      payload: evt(
+        "invoice.paid",
+        { billing_reason: "subscription_cycle", parent: { subscription_details: { subscription: "sub_recent_ghost" } } },
+        100,
+        "evt_recent_ghost"
+      ) as never,
+      status: "processed",
+      receivedAt: new Date(NOW.getTime() - 2 * 60 * 1000),
+      processedAt: new Date(NOW.getTime() - 2 * 60 * 1000)
+    });
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    const result = await runStripeReconcileCron(testDb.db, { now: () => NOW });
+
+    expect(result.chargesWithoutEntitlement).toBe(1);
+    const alerts = info.mock.calls
+      .map((c) => JSON.parse(String(c[0])))
+      .filter((e) => e.name === "charge_without_entitlement");
+    expect(alerts.length).toBe(1);
+    info.mockRestore();
+  });
+
+  it("prunes processed rows older than the retention window, keeps recent ones", async () => {
+    await testDb.db.insert(schema.billingEventInbox).values([
+      {
+        provider: "stripe",
+        providerEventId: "evt_stale_processed",
+        eventType: "customer.subscription.updated",
+        payload: {} as never,
+        status: "processed",
+        receivedAt: new Date(NOW.getTime() - 40 * 24 * 60 * 60 * 1000),
+        processedAt: new Date(NOW.getTime() - 40 * 24 * 60 * 60 * 1000)
+      },
+      {
+        provider: "stripe",
+        providerEventId: "evt_fresh_processed",
+        eventType: "customer.subscription.updated",
+        payload: {} as never,
+        status: "processed",
+        receivedAt: new Date(NOW.getTime() - 5 * 24 * 60 * 60 * 1000),
+        processedAt: new Date(NOW.getTime() - 5 * 24 * 60 * 60 * 1000)
+      }
+    ]);
+
+    const result = await runStripeReconcileCron(testDb.db, { now: () => NOW });
+
+    expect(result.pruned).toBe(1);
+    const remaining = await testDb.db.select().from(schema.billingEventInbox);
+    const ids = remaining.map((r) => r.providerEventId);
+    expect(ids).toContain("evt_fresh_processed");
+    expect(ids).not.toContain("evt_stale_processed");
+  });
+});
+
 // ── 6. Delayed-event alert ───────────────────────────────────────────────────
 
 describe("inbox — delayed-event alert", () => {

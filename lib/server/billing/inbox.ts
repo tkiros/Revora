@@ -114,11 +114,26 @@ export async function ingestStripeEvent(
 }
 
 /**
- * Apply one stored inbox row's event. Marks it processed on success; on failure
- * records the error, increments attempts, and dead-letters once the ceiling is
- * hit. Idempotent: the underlying reducer is safe to re-run, so reprocessing a
- * partially-applied event never corrupts state. Used by both the webhook
- * (inline) and the reconciliation sweep (offline).
+ * Apply one stored inbox row's event inside a transaction. Marks it processed
+ * on success; on failure the transaction rolls back any partial reducer writes
+ * and the error/attempts are recorded outside it. Dead-letters once the retry
+ * ceiling is hit.
+ *
+ * Concurrency (reviewer finding #1): the whole apply runs in a transaction that
+ * FIRST re-reads the inbox row `FOR UPDATE`, so two concurrent deliveries of the
+ * SAME event serialize — the loser blocks, then sees `processed` and skips (no
+ * double reducer run, no duplicate telemetry/email). DISTINCT events touching
+ * the same subscription serialize on the subscription row: the reducer's
+ * pre-write reads take `FOR UPDATE` too (handlers.ts), so a `subscription.updated`
+ * that would overwrite a just-committed `refunded` blocks, re-reads `refunded`,
+ * and its terminal guard returns — no lost-update resurrection.
+ *
+ * (PGlite is single-connection, so true parallel interleaving can't be
+ * reproduced in tests; the transactional/rollback path is covered serially and
+ * the FOR UPDATE semantics are what protect the real node-postgres pool.)
+ *
+ * Idempotent regardless: the reducer is safe to re-run, so reprocessing a
+ * partially-applied event never corrupts state.
  */
 export async function processInboxRow(
   db: Db,
@@ -129,14 +144,37 @@ export async function processInboxRow(
   const apply = deps.apply ?? applyStripeEvent;
 
   try {
-    const event = row.payload as unknown as Stripe.Event;
-    await apply(db, event, now, deps.stripe, deps.email);
-    await db
-      .update(schema.billingEventInbox)
-      .set({ status: "processed", lastError: null, processedAt: now })
-      .where(eq(schema.billingEventInbox.id, row.id));
-    return "processed";
+    let applied = false;
+    await db.transaction(async (tx) => {
+      // Lock + re-read the inbox row: serializes concurrent processing of this
+      // exact event. A row another worker already finished is a no-op.
+      const [locked] = await tx
+        .select()
+        .from(schema.billingEventInbox)
+        .where(eq(schema.billingEventInbox.id, row.id))
+        .for("update");
+      if (
+        !locked ||
+        locked.status === "processed" ||
+        locked.status === "dead_letter"
+      ) {
+        return;
+      }
+
+      const event = locked.payload as unknown as Stripe.Event;
+      await apply(tx, event, now, deps.stripe, deps.email);
+      await tx
+        .update(schema.billingEventInbox)
+        .set({ status: "processed", lastError: null, processedAt: now })
+        .where(eq(schema.billingEventInbox.id, row.id));
+      applied = true;
+    });
+    // `applied === false` means another worker had already processed it — a
+    // duplicate from this caller's point of view, never a re-apply.
+    return applied ? "processed" : "duplicate";
   } catch (error) {
+    // The transaction rolled back every partial reducer write. Record the
+    // failed attempt outside it so the counter is durable.
     const attempts = row.attempts + 1;
     const dead = attempts >= MAX_INBOX_ATTEMPTS;
     await db

@@ -46,6 +46,9 @@ export default function AccountPage() {
   // false free/paywall state at a user who just paid, we show "access is
   // syncing" and poll /api/entitlement until premium appears.
   const [syncing, setSyncing] = useState(false);
+  // Set when the 60s syncing fallback fires without premium appearing, so the
+  // user gets an explicit refresh hint instead of a silent drop to free copy.
+  const [syncTimedOut, setSyncTimedOut] = useState(false);
   const syncStartRef = useRef<number>(0);
 
   useEffect(() => {
@@ -115,6 +118,7 @@ export default function AccountPage() {
             setEntitlement(data);
             setState("ready");
             setSyncing(false);
+            setSyncTimedOut(false);
           }
         }
       } catch {
@@ -130,6 +134,7 @@ export default function AccountPage() {
     const stop = setTimeout(() => {
       if (!cancelled) {
         setSyncing(false);
+        setSyncTimedOut(true);
       }
     }, 60_000);
 
@@ -292,6 +297,22 @@ export default function AccountPage() {
                       syncing. This usually takes a few seconds, and this page
                       updates on its own. No need to pay again.
                     </p>
+                  </div>
+                ) : syncTimedOut && entitlement?.tier !== "premium" ? (
+                  <div data-testid="entitlement-sync-timeout" aria-live="polite">
+                    <p className="page-copy">
+                      <strong>Payment received</strong> — this is taking longer
+                      than usual to sync. Your access is safe; no need to pay
+                      again. Refresh this page in a moment, and if it still
+                      doesn&apos;t show, contact support.
+                    </p>
+                    <button
+                      type="button"
+                      className="recheck-button"
+                      onClick={() => window.location.reload()}
+                    >
+                      Refresh
+                    </button>
                   </div>
                 ) : entitlement?.tier === "premium" ? (
                   <>

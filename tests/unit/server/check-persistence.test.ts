@@ -272,6 +272,55 @@ describe("trial-mode hard wall (4.4)", () => {
     expect(rows).toHaveLength(0);
   });
 
+  it("trial mode: a stale Stripe row (lost renewal webhook) heals on read so a paying user is NOT walled", async () => {
+    // Reviewer #3: without the hot-path heal, this paying user is denied checks
+    // for up to an hour. The row reads premium-status but past its paid-through.
+    const past = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const future = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    await testDb.db.insert(schema.subscriptions).values({
+      userId,
+      provider: "stripe",
+      providerRef: "sub_lostwebhook",
+      productId: "premium_monthly",
+      status: "active",
+      currentPeriodEnd: past,
+      lastVerifiedAt: null
+    });
+
+    const retrieve = vi.fn().mockResolvedValue({
+      status: "active",
+      items: {
+        data: [{ current_period_end: Math.floor(future.getTime() / 1000) }]
+      }
+    });
+
+    const POST = createCheckRouteHandler({
+      checkFoodImpl: vi.fn().mockResolvedValue(RESULT_RESPONSE),
+      emitEvent: vi.fn(),
+      modelFactory: () => ({ generate: vi.fn() }),
+      db: () => testDb.db,
+      getSession: async () => ({ userId, email: "persist@test.dev" }),
+      stripeClient: () => ({ subscriptions: { retrieve } }) as never,
+      paywallMode: () => "trial"
+    });
+
+    const response = await POST(checkRequest());
+    expect(response.status).toBe(200); // healed → not walled
+    expect(retrieve).toHaveBeenCalledWith("sub_lostwebhook");
+
+    const [row] = await testDb.db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.providerRef, "sub_lostwebhook"));
+    // Stripe reports period end in whole unix seconds, so the healed value is
+    // the second-truncated `future`; assert it moved into the future, not lapsed.
+    expect(row.currentPeriodEnd.getTime()).toBe(
+      Math.floor(future.getTime() / 1000) * 1000
+    );
+    expect(row.currentPeriodEnd.getTime()).toBeGreaterThan(Date.now());
+    expect(row.lastVerifiedAt).not.toBeNull();
+  });
+
   it("trial mode: trialing and premium users pass with no metering query", async () => {
     await testDb.db.insert(schema.subscriptions).values({
       userId,
