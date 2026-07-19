@@ -154,7 +154,7 @@ test("free-tier user sees the calm upsell prompt, not the bands", async ({
   await expectNoSeriousViolations(page);
 });
 
-test("guest (signed out) sees the same calm upsell prompt", async ({
+test("guest (signed out) sees a sign-in prompt, not the Premium upsell", async ({
   page
 }) => {
   await page.route("**/api/coach", async (route) => {
@@ -167,7 +167,62 @@ test("guest (signed out) sees the same calm upsell prompt", async ({
 
   await page.goto("/progress");
 
-  await expect(page.getByTestId("progress-locked")).toBeVisible();
+  // Error-state truth: 401 is unauthenticated, never the outage-as-upsell.
+  await expect(page.getByTestId("progress-unauthenticated")).toBeVisible();
+  await expect(page.getByTestId("progress-signin-link")).toHaveAttribute(
+    "href",
+    "/signin"
+  );
+  await expect(page.getByTestId("progress-locked")).toHaveCount(0);
+
+  await expectNoSeriousViolations(page);
+});
+
+test("a backend outage renders unavailable + retry, never the upsell", async ({
+  page
+}) => {
+  let calls = 0;
+  await page.route("**/api/coach", async (route) => {
+    calls += 1;
+    if (calls === 1) {
+      await route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "boom" })
+      });
+      return;
+    }
+    // The manual retry recovers to a premium-with-data response.
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        streak: 3,
+        weekView: [],
+        insight: null,
+        tier: "premium",
+        latestBai: {
+          weekStart: "2026-06-29",
+          score: 72,
+          adherence: 71,
+          consistency: 60,
+          action: 100,
+          prompted: 5
+        }
+      })
+    });
+  });
+
+  await page.goto("/progress");
+
+  // The 500 must not become the Premium upsell.
+  await expect(page.getByTestId("progress-unavailable")).toBeVisible();
+  await expect(page.getByTestId("progress-locked")).toHaveCount(0);
+  await expect(page.getByTestId("progress-bands")).toHaveCount(0);
+
+  // Bounded manual retry recovers the page.
+  await page.getByTestId("progress-retry").click();
+  await expect(page.getByTestId("progress-bands")).toBeVisible();
 
   await expectNoSeriousViolations(page);
 });

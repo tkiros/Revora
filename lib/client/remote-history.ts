@@ -11,53 +11,76 @@ import {
 
 export type HistorySource = "server" | "local";
 
-export async function loadHistory(days: number): Promise<{
+export type LoadHistoryResult = {
   source: HistorySource;
   checks: StoredCheck[];
-}> {
+  /**
+   * True only when the SERVER read failed (network error / 5xx / malformed
+   * body). A guest (401) is NOT unavailable — signed-out is an expected
+   * "read the on-device view" signal, not an outage. Callers use this to
+   * avoid rendering a backend failure as an empty "no checks yet" state
+   * (plan §7 / global constraint 7).
+   */
+  unavailable: boolean;
+};
+
+export async function loadHistory(days: number): Promise<LoadHistoryResult> {
+  const local = () => historyStore.recent(days);
+
+  let response: Response;
   try {
-    const response = await fetch(`/api/history?limit=200`, {
-      cache: "no-store"
-    });
-
-    if (response.ok) {
-      const body = (await response.json()) as {
-        checks: Array<{
-          clientId: string;
-          food: string;
-          risk: StoredCheck["risk"];
-          a1cBand: string;
-          inputMethod: string;
-          actionDoneAt?: string;
-          createdAt: string;
-        }>;
-      };
-
-      const cutoff = new Date();
-      cutoff.setDate(cutoff.getDate() - (days - 1));
-      cutoff.setHours(0, 0, 0, 0);
-
-      const checks = body.checks
-        .filter((check) => new Date(check.createdAt) >= cutoff)
-        .map((check) => ({
-          clientId: check.clientId,
-          food: check.food,
-          risk: check.risk,
-          a1cBand: check.a1cBand,
-          // Preserve the true input method (text/voice/photo); an unknown
-          // method degrades to "text" (shared helper — one mapping rule).
-          inputMethod: normalizeInputMethod(check.inputMethod),
-          createdAt: check.createdAt,
-          actionDoneAt: check.actionDoneAt
-        })) as StoredCheck[];
-
-      return { source: "server", checks };
-    }
+    response = await fetch(`/api/history?limit=200`, { cache: "no-store" });
   } catch {
-    // network failure → local fallback below
+    // fetch threw (offline / DNS / abort) → outage, fall back to local.
+    return { source: "local", checks: local(), unavailable: true };
   }
 
-  return { source: "local", checks: historyStore.recent(days) };
+  // 401 is the expected signed-out signal, not an outage.
+  if (response.status === 401) {
+    return { source: "local", checks: local(), unavailable: false };
+  }
+
+  if (!response.ok) {
+    // 5xx / other error → outage, local fallback but flagged unavailable.
+    return { source: "local", checks: local(), unavailable: true };
+  }
+
+  try {
+    const body = (await response.json()) as {
+      checks: Array<{
+        clientId: string;
+        food: string;
+        risk: StoredCheck["risk"];
+        a1cBand: string;
+        inputMethod: string;
+        actionDoneAt?: string;
+        createdAt: string;
+      }>;
+    };
+
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - (days - 1));
+    cutoff.setHours(0, 0, 0, 0);
+
+    const checks = body.checks
+      .filter((check) => new Date(check.createdAt) >= cutoff)
+      .map((check) => ({
+        clientId: check.clientId,
+        food: check.food,
+        risk: check.risk,
+        a1cBand: check.a1cBand,
+        // Preserve the true input method (text/voice/photo); an unknown
+        // method degrades to "text" (shared helper — one mapping rule).
+        inputMethod: normalizeInputMethod(check.inputMethod),
+        createdAt: check.createdAt,
+        actionDoneAt: check.actionDoneAt
+      })) as StoredCheck[];
+
+    return { source: "server", checks, unavailable: false };
+  } catch {
+    // 2xx with a malformed body is an outage, not empty data.
+    return { source: "local", checks: local(), unavailable: true };
+  }
 }
 
 /**

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { signOut } from "next-auth/react";
 
+import { resolveAccountLoadState } from "../../../lib/client/account-load-state";
 import { track } from "../../../lib/client/analytics";
 import { historyStore } from "../../../lib/client/history-store";
 import { profileStore } from "../../../lib/client/profile-store";
@@ -19,9 +20,9 @@ type EntitlementInfo = {
 };
 
 export default function AccountPage() {
-  const [state, setState] = useState<"loading" | "signed_out" | "ready">(
-    "loading"
-  );
+  const [state, setState] = useState<
+    "loading" | "signed_out" | "unavailable" | "ready"
+  >("loading");
   const [entitlement, setEntitlement] = useState<EntitlementInfo | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -153,11 +154,25 @@ export default function AccountPage() {
         if (cancelled) {
           return;
         }
-        if (response.status === 401) {
-          setState("signed_out");
+        // Error-state truth: only a real 401 is signed-out; a 5xx/other error
+        // is an outage, never a silent drop to free/trial plan copy.
+        const loadState = resolveAccountLoadState({
+          outcome: "response",
+          ok: response.ok,
+          status: response.status
+        });
+        if (loadState !== "ready") {
+          setState(loadState);
           return;
         }
-        setEntitlement((await response.json()) as EntitlementInfo);
+        let data: EntitlementInfo;
+        try {
+          data = (await response.json()) as EntitlementInfo;
+        } catch {
+          setState("unavailable");
+          return;
+        }
+        setEntitlement(data);
         setState("ready");
 
         const profileResponse = await fetch("/api/profile", {
@@ -178,7 +193,8 @@ export default function AccountPage() {
         }
       } catch {
         if (!cancelled) {
-          setState("signed_out");
+          // Network throw → outage, not signed-out.
+          setState(resolveAccountLoadState({ outcome: "network" }));
         }
       }
     })();
@@ -275,6 +291,22 @@ export default function AccountPage() {
 
           {state === "loading" ? (
             <p className="page-copy">Loading…</p>
+          ) : state === "unavailable" ? (
+            <div data-testid="account-unavailable" aria-live="polite">
+              <p className="page-copy">
+                We couldn&apos;t load your account just now. Your data and any
+                subscription are safe — this is on our side. Try again in a
+                moment.
+              </p>
+              <button
+                type="button"
+                className="primary-button"
+                data-testid="account-retry"
+                onClick={() => window.location.reload()}
+              >
+                Try again
+              </button>
+            </div>
           ) : state === "signed_out" ? (
             <>
               <p className="page-copy">

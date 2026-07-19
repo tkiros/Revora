@@ -68,6 +68,60 @@ describe("loadHistory input-method fidelity", () => {
   });
 });
 
+describe("loadHistory — error is not empty (plan §7)", () => {
+  function stubFetchStatus(status: number, body: unknown = {}) {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(body), {
+        status,
+        headers: { "content-type": "application/json" }
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+  }
+
+  it("flags a 5xx as unavailable (outage), falling back to local", async () => {
+    stubFetchStatus(500, { error: "boom" });
+    const result = await loadHistory(7);
+    expect(result.source).toBe("local");
+    expect(result.unavailable).toBe(true);
+  });
+
+  it("does NOT flag a 401 as unavailable — signed-out reads local", async () => {
+    stubFetchStatus(401, { error: "Sign in first." });
+    const result = await loadHistory(7);
+    expect(result.source).toBe("local");
+    expect(result.unavailable).toBe(false);
+  });
+
+  it("flags a network throw as unavailable", async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new Error("offline"));
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await loadHistory(7);
+    expect(result.source).toBe("local");
+    expect(result.unavailable).toBe(true);
+  });
+
+  it("flags a 200 with a malformed body as unavailable, not empty data", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response("not-json", {
+        status: 200,
+        headers: { "content-type": "application/json" }
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await loadHistory(7);
+    expect(result.source).toBe("local");
+    expect(result.unavailable).toBe(true);
+  });
+
+  it("marks a good server read as available", async () => {
+    stubFetchStatus(200, { checks: [] });
+    const result = await loadHistory(7);
+    expect(result.source).toBe("server");
+    expect(result.unavailable).toBe(false);
+  });
+});
+
 describe("fetchHistoryPage — search term never touches a URL (plan §16)", () => {
   function stubFetchCapture() {
     const calls: Array<{ url: string; init?: RequestInit }> = [];
