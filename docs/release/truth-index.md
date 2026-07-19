@@ -36,7 +36,7 @@ legal classification before it may stand) · **pending flag-on** (behavior built
 | C2 | Onboarding tour (`app/onboarding/page.tsx`) | High-range clinical copy hardcoded in onboarding; oatmeal chip implies instant verdict | **Copy drift fixed** (T1): high-range/boundary copy now renders from one versioned source with a drift test; profile route drift corrected. First-check chips remain honest against registry. | Product / Safety | current |
 | C3 | Paywall bullets — history (`components/*paywall*`, pricing) | "Full history, every device" | **Now true** (T9): keyset pagination, POST-body search (no meal text in URLs), export = all rows, owner-scoped delete, truthful copy + distinct error states. Replaces the old `loadHistory(7)` "last seven days on this device". | Eng / Billing | current |
 | C4 | Paywall bullets — weekly insights (`lib/coach/insights.ts`, capability matrix) | "Weekly insights are Premium" | **Bullet removed pending T18 flag-on** (T10). `capabilitiesFor` is now the single source; thin longitudinal insight is free onboarding value; false weekly-insights Premium promises removed. Weekly learning artifact (T18) is the real Premium artifact but ships **flag-off** (see FF ledger). | Product / Eng | pending flag-on |
-| C5 | Landing "weekly pattern" phrasing (`app/page.tsx:211`) | Flag-gated "weekly pattern" copy | Renders as free thin insight with the flag **off** (T10 minor). Reconcile wording when `NEXT_PUBLIC_LONGITUDINAL_INSIGHTS` / T18 enablement is decided. | Product | pending flag-on |
+| C5 | Landing "weekly pattern" phrasing (`app/page.tsx:211`) | Flag-gated "weekly pattern" copy | Provenance note: `NEXT_PUBLIC_LONGITUDINAL_INSIGHTS` **fails closed (off) when unset in code**, but §3.2 line 130 records it **enabled in the pre-branch production deployment**. Either way, T10's disposition governs — thin insight is free for all and false weekly-insights Premium promises were removed — so this phrasing renders as a **free thin insight**, not a Premium gate (T10 minor). Reconcile wording when the insight-vs-weekly-artifact decision (P2.4/T18) lands. | Product | pending flag-on |
 | C6 | Terms of Service (`/terms`) | Refund → email support; counsel draft with 2 bracketed placeholders (entity, governing law) | Directs users to support and refund macros exist, but mailbox deliverability + in-account case/SLA path are **Phase 0** work. Placeholders remain (counsel Q10). | Counsel / Owner | pending counsel |
 | C7 | Public "wellness tool, not a medical device" assertion (landing, distribution copy) | "Informational-only by design (wellness tool, not a medical device)" | **Overstated — must not stand** (K5, §16). Remove the public status assertion; counsel must classify intended use/labeling/each function vs current FDA guidance before any device-status wording. | Counsel | pending counsel |
 | C8 | "Check any meal" / cultural-coverage copy | "Check any meal" | **Too broad** (§4.3). Replace "any" with supported truthful copy until credentialed strata pass. Ontology expansion (T6 corpus) is engineering evidence only. | Product / Safety | superseded |
@@ -55,19 +55,33 @@ legal classification before it may stand) · **pending flag-on** (behavior built
 
 ## 2. Feature-flag ledger
 
-What each flag gates, its default state, and the enablement gate that may flip it on.
+What each flag gates, its **code default** (behavior when the env var is unset), its **prod state**
+(what the live production deployment was actually set to per plan §3.2 — a pre-branch snapshot, not a
+code default), and the enablement gate that may flip it on. These two columns can disagree: a flag
+can be enabled in the deployed environment while the code fails closed when unset.
 
-| Flag (env var) | Layer | What it gates | Default | Enablement gate |
-|---|---|---|---|---|
-| `NEXT_PUBLIC_MEAL_MEMORY` | Client build | Meal-memory UI: recall panel, save controls, memory controls (T14–T16) | **off** (`!== "1"`) | **Phase 2.6 discovery gate** — ≥5 of 8 completing concierge participants independently recall the memory ≥twice and continue at disclosed price (plan §2.6). |
-| `MEAL_MEMORY_ENABLED` | Server (not `NEXT_PUBLIC`) | `/api/memory/*` routes; 404 when off. Consumed by `lib/server/capabilities.ts` matrix | **off** | Same Phase 2.6 gate; both readers must be flipped together (matrix imports both). |
-| `NEXT_PUBLIC_LEARNING_JOURNEY` | Client build | Journey UI (T17 state machine), weekly learning surface (T18), journey nudges UI (T19), graduation/maintenance (T20) | **off** (`!== "1"`) | **Phase 2.6 discovery gate**, then Phase 4 human approvals (cohort preregistration T21). |
-| `LEARNING_JOURNEY_ENABLED` | Server (not `NEXT_PUBLIC`) | `/api/journey/*`, `/api/journey/weekly/*` routes; nudge triggers (`lib/server/nudge.ts`); coach route capability. Shared flag for journey + weekly learning + journey nudges (T17 minor: shared by design) | **off** | Same as above. Weekly-learning artifact is the Premium artifact only once this is on (unblocks C4). |
-| `NEXT_PUBLIC_LONGITUDINAL_INSIGHTS` | Client build | Thin longitudinal "weekly pattern" phrasing on landing/dashboard (T10) | **off** | RD review of eval-dependent phrasing + product decision on whether thin insight stays free vs replaced by weekly artifact (P2.4 / T10). |
-| `NEXT_PUBLIC_PHOTO_INPUT` | Client build | Photo → draft-chip input path (`lib/photo-input-flag.ts`) | Enabled in production per plan §3.2; behavior hardened by T4 | Photo stratum in permanent eval + credentialed review (P1.5); keep confirmation-step explicit. |
-| `NEXT_PUBLIC_PLAY_BILLING` | Client build | Google Play billing surfaces (`lib/play-billing-flag.ts`) | **off** (`!== "1"`) | Play listing / TWA readiness (separate track); byte-identical constraint holds. |
+| Flag (env var) | Layer | What it gates | Code default (unset) | Prod state (§3.2 snapshot) | Enablement gate |
+|---|---|---|---|---|---|
+| `NEXT_PUBLIC_MEAL_MEMORY` | Client build | Meal-memory UI: recall panel, save controls, memory controls (T14–T16) | **off** (`!== "1"`) | off (not set) | **Phase 2.6 discovery gate** — ≥5 of 8 completing concierge participants independently recall the memory ≥twice and continue at disclosed price (plan §2.6). |
+| `MEAL_MEMORY_ENABLED` | Server (not `NEXT_PUBLIC`) | `/api/memory/*` routes; 404 when off. Consumed by `lib/server/capabilities.ts` matrix | **off** | off (not set) | Same Phase 2.6 gate; both readers must be flipped together (matrix imports both). |
+| `NEXT_PUBLIC_LEARNING_JOURNEY` | Client build | Journey UI (T17 state machine), weekly learning surface (T18), journey nudges UI (T19), graduation/maintenance (T20) | **off** (`!== "1"`) | off (not set) | **Phase 2.6 discovery gate**, then Phase 4 human approvals (cohort preregistration T21). |
+| `LEARNING_JOURNEY_ENABLED` | Server (not `NEXT_PUBLIC`) | `/api/journey/*`, `/api/journey/weekly/*` routes; nudge triggers (`lib/server/nudge.ts`); coach route capability. Shared flag for journey + weekly learning + journey nudges (T17 minor: shared by design) | **off** | off (not set) | Same as above. Weekly-learning artifact is the Premium artifact only once this is on (unblocks C4). |
+| `NEXT_PUBLIC_LONGITUDINAL_INSIGHTS` | Client build | Thin longitudinal "weekly pattern" phrasing on landing/dashboard (T10) | **off** (`!== "1"`) | **ENABLED in production** per plan §3.2 line 130 (pre-branch snapshot) | RD review of eval-dependent phrasing + product decision on whether thin insight stays free vs replaced by weekly artifact (P2.4 / T10). **T10 disposition governs going forward:** thin insight is free for all; false weekly-insights Premium promises removed — so the enabled prod state renders as free thin insight, not a Premium gate (see C4/C5). |
+| `NEXT_PUBLIC_PHOTO_INPUT` | Client build | Photo → draft-chip input path (`lib/photo-input-flag.ts`) | **off** / fail-closed (`!== "1"`) | **ENABLED in production** per plan §3.2 line 130 (pre-branch snapshot); behavior hardened by T4 | Photo stratum in permanent eval + credentialed review (P1.5); keep confirmation-step explicit. |
+| `NEXT_PUBLIC_PLAY_BILLING` | Client build | Google Play billing surfaces (`lib/play-billing-flag.ts`) | **off** (`!== "1"`) | off (not set) | Play listing / TWA readiness (separate track); byte-identical constraint holds. |
 
 Notes:
+- **Two-column provenance:** "Code default" is what `lib/*-flag.ts` returns when the env var is unset
+  (all readers fail closed on `!== "1"`). "Prod state" is the §3.2 pre-branch production snapshot;
+  §3.2 line 130 records photo and longitudinal-insight flags as *enabled in production*. This index
+  trusts §3.2 for both the photo row and the insight row — hence they are the two rows where the two
+  columns disagree. Neither the memory nor journey flags were enabled in that snapshot.
+- **Longitudinal insight reconciliation:** the flag being enabled in prod does *not* mean a Premium
+  weekly-insights gate is live. T10 made `capabilitiesFor` the single source, removed the false
+  weekly-insights Premium promises, and treats the thin insight as free onboarding value for all
+  users. So the enabled prod flag renders as a free thin insight; C4 (bullet removed pending T18
+  flag-on) and C5 (landing "weekly pattern" phrasing) are consistent with that, not with a gated
+  Premium claim.
 - `NEXT_PUBLIC_*` flags are build-time inlined into a reviewed build; server flags gate the API and
   are the real authority (a client flag on with the server flag off yields 404s, not data).
 - Enablement of memory/journey flags is a **discovery gate (Phase 2.6)** decision, not an
