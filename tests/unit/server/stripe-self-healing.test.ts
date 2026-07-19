@@ -16,10 +16,12 @@ import {
 } from "../../../app/api/billing/handlers";
 import {
   ingestStripeEvent,
-  MAX_INBOX_ATTEMPTS
+  MAX_INBOX_ATTEMPTS,
+  processInboxRow
 } from "../../../lib/server/billing/inbox";
 import { runStripeReconcileCron } from "../../../lib/server/billing/reconcile";
 import { getEntitlement } from "../../../lib/server/entitlement";
+import { hashClaimToken } from "../../../lib/server/pantry/claims";
 import { schema } from "../../../lib/server/db";
 import { createTestDb } from "../../helpers/test-db";
 
@@ -746,5 +748,294 @@ describe("inbox — delayed-event alert", () => {
     expect(delayed.length).toBe(1);
     expect(delayed[0].latency).toBe("under_5m");
     info.mockRestore();
+  });
+});
+
+// ── 7. B1: durable, non-clobbering failure accounting ────────────────────────
+
+describe("inbox failure path (B1) — attempts off the DB, never clobbers a winner", () => {
+  it("increments attempts off the DB value, not the (possibly stale) passed row", async () => {
+    // The DB row is already at attempts=2; a caller processes it holding a STALE
+    // snapshot (attempts=0). The SQL `attempts + 1` must count from the DB's 2.
+    const [ins] = await testDb.db
+      .insert(schema.billingEventInbox)
+      .values({
+        provider: "stripe",
+        providerEventId: "evt_b1_stale",
+        eventType: "customer.subscription.updated",
+        payload: evt(
+          "customer.subscription.updated",
+          { id: "x" },
+          100,
+          "evt_b1_stale"
+        ) as never,
+        status: "failed",
+        attempts: 2,
+        receivedAt: PAST
+      })
+      .returning();
+
+    const throwingApply = (async () => {
+      throw new Error("still transient");
+    }) as unknown as typeof applyStripeEvent;
+
+    const outcome = await processInboxRow(
+      testDb.db,
+      { ...ins, attempts: 0 },
+      deps({ apply: throwingApply })
+    );
+
+    expect(outcome).toBe("failed");
+    const [row] = await testDb.db.select().from(schema.billingEventInbox);
+    expect(row.attempts).toBe(3); // 2 (DB) + 1 — NOT 0 (passed row) + 1
+  });
+
+  it("never knocks a row a concurrent worker already processed back to failed", async () => {
+    // Simulate the race: the DB row is `processed`, but this worker is running
+    // with an older `pending` snapshot and its apply is about to throw. The
+    // guarded write (and the FOR UPDATE re-read) must leave `processed` intact
+    // and page nobody.
+    const [ins] = await testDb.db
+      .insert(schema.billingEventInbox)
+      .values({
+        provider: "stripe",
+        providerEventId: "evt_b1_won",
+        eventType: "customer.subscription.updated",
+        payload: evt(
+          "customer.subscription.updated",
+          { id: "x" },
+          100,
+          "evt_b1_won"
+        ) as never,
+        status: "processed",
+        attempts: 1,
+        processedAt: PAST,
+        receivedAt: PAST
+      })
+      .returning();
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    const throwingApply = (async () => {
+      throw new Error("boom");
+    }) as unknown as typeof applyStripeEvent;
+
+    const outcome = await processInboxRow(
+      testDb.db,
+      { ...ins, status: "pending" },
+      deps({ apply: throwingApply })
+    );
+
+    expect(outcome).toBe("duplicate");
+    const [row] = await testDb.db.select().from(schema.billingEventInbox);
+    expect(row.status).toBe("processed");
+    expect(row.attempts).toBe(1); // untouched
+
+    const dead = info.mock.calls
+      .map((c) => JSON.parse(String(c[0])))
+      .filter((e) => e.name === "stripe_inbox_dead_letter");
+    expect(dead.length).toBe(0); // no false dead-letter page
+    info.mockRestore();
+  });
+});
+
+// ── 8. B2: `expired` (deleted) is terminal even against an equal-`created` update
+
+describe("reducer terminality (B2) — a deleted sub never reactivates", () => {
+  function deletedEvt(created: number) {
+    return evt(
+      "customer.subscription.deleted",
+      {
+        id: "sub_perm",
+        status: "canceled",
+        items: { data: [{ current_period_end: Math.floor(NOW.getTime() / 1000) }] }
+      },
+      created
+    );
+  }
+  function activeUpdatedEvt(created: number) {
+    return evt(
+      "customer.subscription.updated",
+      {
+        id: "sub_perm",
+        status: "active",
+        items: { data: [{ current_period_end: Math.floor(FUTURE.getTime() / 1000) }] }
+      },
+      created
+    );
+  }
+
+  it("converges to expired for a delete + an EQUAL-`created` active update, both orders", async () => {
+    // Equal `created` (200) is NOT strictly stale, so without the expired-guard
+    // an update landing after a delete would resurrect premium.
+    const deleteThenUpdate = await runSequence([
+      deletedEvt(200),
+      activeUpdatedEvt(200)
+    ]);
+    const updateThenDelete = await runSequence([
+      activeUpdatedEvt(200),
+      deletedEvt(200)
+    ]);
+
+    expect(deleteThenUpdate).toBe("expired");
+    expect(updateThenDelete).toBe("expired");
+  });
+});
+
+// ── 9. B3: a mid-fetch refund is terminal on both heal paths ──────────────────
+
+describe("verify-on-read + reconcile (B3) — a mid-fetch refund is never overwritten", () => {
+  it("getEntitlement does not resurrect a row that goes refunded during the Stripe fetch", async () => {
+    await seedSub({
+      providerRef: "sub_b3_ent",
+      status: "active",
+      currentPeriodEnd: PAST,
+      lastVerifiedAt: null
+    });
+
+    // charge.refunded commits WHILE we are out fetching the (still-active) sub.
+    const refreshStripeSubscription = vi.fn(async () => {
+      await testDb.db
+        .update(schema.subscriptions)
+        .set({ status: "refunded" })
+        .where(eq(schema.subscriptions.providerRef, "sub_b3_ent"));
+      return { status: "active" as const, currentPeriodEnd: FUTURE };
+    });
+
+    const result = await getEntitlement(testDb.db, userId, {
+      now: () => NOW,
+      refreshStripeSubscription
+    });
+
+    expect(result.tier).toBe("free"); // never grant a refunded user
+    const [row] = await testDb.db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.providerRef, "sub_b3_ent"));
+    expect(row.status).toBe("refunded"); // not overwritten to active
+  });
+
+  it("runStripeReconcileCron does not resurrect a row that goes refunded during the fetch", async () => {
+    await seedSub({
+      providerRef: "sub_b3_rec",
+      status: "active",
+      currentPeriodEnd: PAST
+    });
+
+    const stripe = () =>
+      ({
+        subscriptions: {
+          retrieve: vi.fn(async () => {
+            await testDb.db
+              .update(schema.subscriptions)
+              .set({ status: "refunded" })
+              .where(eq(schema.subscriptions.providerRef, "sub_b3_rec"));
+            return {
+              status: "active",
+              items: {
+                data: [{ current_period_end: Math.floor(FUTURE.getTime() / 1000) }]
+              }
+            };
+          })
+        }
+      }) as unknown as Stripe;
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    await runStripeReconcileCron(testDb.db, { now: () => NOW, stripe });
+
+    const [row] = await testDb.db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.providerRef, "sub_b3_rec"));
+    expect(row.status).toBe("refunded");
+    info.mockRestore();
+  });
+});
+
+// ── 10. B4: emails dispatched only AFTER the inbox transaction commits ────────
+
+describe("inbox email dispatch (B4) — post-commit, once, stable token", () => {
+  beforeAll(() => {
+    process.env.HEALTH_DATA_KEY = Buffer.alloc(32, 7).toString("base64");
+    process.env.STRIPE_PRICE_PANTRY = "price_pantry_25";
+    process.env.NEXT_PUBLIC_APP_URL = "https://revora.test";
+  });
+  afterAll(() => {
+    delete process.env.STRIPE_PRICE_PANTRY;
+  });
+  beforeEach(async () => {
+    await testDb.db.delete(schema.pantryOrders);
+  });
+
+  function pantryEvent(id: string) {
+    return evt(
+      "checkout.session.completed",
+      {
+        id: `cs_${id}`,
+        mode: "payment",
+        payment_intent: `pi_${id}`,
+        customer_details: { email: "buyer@example.com" },
+        subscription: null,
+        client_reference_id: null
+      },
+      Math.floor(NOW.getTime() / 1000),
+      `evt_${id}`
+    );
+  }
+  const pantryStripe = () =>
+    ({
+      checkout: {
+        sessions: {
+          listLineItems: vi.fn().mockResolvedValue({
+            data: [{ price: { id: "price_pantry_25" } }]
+          })
+        }
+      }
+    }) as unknown as Stripe;
+
+  it("dispatches the pantry claim email through the inbox and stamps the order once", async () => {
+    const send = vi.fn().mockResolvedValue({ ok: true });
+
+    const first = await ingestStripeEvent(
+      testDb.db,
+      pantryEvent("b4_ok"),
+      deps({ stripe: pantryStripe, email: { send } })
+    );
+    expect(first).toBe("processed");
+    // Sent AFTER the transaction committed — the order is queryable and stamped.
+    expect(send).toHaveBeenCalledTimes(1);
+
+    const [order] = await testDb.db.select().from(schema.pantryOrders);
+    expect(order.status).toBe("paid");
+    expect(order.intakeEmailSentAt).not.toBeNull();
+    const token =
+      /token=([A-Za-z0-9_-]+)/.exec(send.mock.calls[0][0].text)?.[1] ?? "";
+    expect(hashClaimToken(token)).toBe(order.claimToken);
+
+    // Redelivery of the same event id → duplicate, no second email, stable token.
+    const second = await ingestStripeEvent(
+      testDb.db,
+      pantryEvent("b4_ok"),
+      deps({ stripe: pantryStripe, email: { send } })
+    );
+    expect(second).toBe("duplicate");
+    expect(send).toHaveBeenCalledTimes(1);
+    const [orderAfter] = await testDb.db.select().from(schema.pantryOrders);
+    expect(orderAfter.claimToken).toBe(order.claimToken);
+  });
+
+  it("a reducer that throws (rolled-back tx) dispatches NO email", async () => {
+    const send = vi.fn();
+    const throwingApply = (async () => {
+      throw new Error("boom before commit");
+    }) as unknown as typeof applyStripeEvent;
+
+    const outcome = await ingestStripeEvent(
+      testDb.db,
+      evt("customer.subscription.updated", { id: "x" }, 100, "evt_b4_throw"),
+      deps({ apply: throwingApply, email: { send } })
+    );
+
+    expect(outcome).toBe("failed");
+    expect(send).not.toHaveBeenCalled();
   });
 });

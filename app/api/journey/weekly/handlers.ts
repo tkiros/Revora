@@ -128,6 +128,52 @@ function addDaysToKey(key: string, days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
+/**
+ * The UTC instant of local midnight on `dateKey` in `timeZone`. Used to place a
+ * calendar-day boundary at the right real instant for any IANA offset (U4).
+ */
+function zonedMidnightUtc(dateKey: string, timeZone: string): Date {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const naiveUtc = Date.UTC(year, month - 1, day);
+  const dtf = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  });
+  const parts: Record<string, number> = {};
+  for (const part of dtf.formatToParts(new Date(naiveUtc))) {
+    if (part.type !== "literal") {
+      parts[part.type] = Number(part.value);
+    }
+  }
+  const asUtc = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second
+  );
+  return new Date(naiveUtc - (asUtc - naiveUtc));
+}
+
+/**
+ * The last real instant of the local Mon–Sun week starting `weekStart` in
+ * `timeZone` — local midnight of the following Monday minus 1ms (U4). The stage
+ * is derived as of this instant so a stage boundary that falls inside a non-UTC
+ * week is attributed to the correct week; the old `keyToUtcMidnight(weekEnd)`
+ * used the START of Sunday UTC, mis-dating the boundary by up to a full day.
+ */
+function endOfLocalWeekInstant(weekStart: string, timeZone: string): Date {
+  const nextMonday = addDaysToKey(weekStart, 7);
+  return new Date(zonedMidnightUtc(nextMonday, timeZone).getTime() - 1);
+}
+
 /** The Monday key of the week containing `todayKey` (0=Sun..6=Sat). */
 function mondayOf(todayKey: string): string {
   const weekdayUtc = keyToUtcMidnight(todayKey).getUTCDay();
@@ -262,7 +308,7 @@ export function createWeeklyGetHandler(deps: WeeklyRouteDeps = {}) {
           }));
 
         const instant = window.completed
-          ? keyToUtcMidnight(window.weekEnd)
+          ? endOfLocalWeekInstant(window.weekStart, timezone)
           : now;
         const stage = stageAt(journey, instant);
 
@@ -339,15 +385,31 @@ async function resolveCompletedWeek(
         )
       );
   } else {
-    await db
-      .insert(schema.weeklyReflections)
-      .values({
-        userId,
-        weekStart: window.weekStart,
-        version: WEEKLY_LEARNING_VERSION,
-        artifactCiphertext: ciphertext
-      })
-      .onConflictDoNothing();
+    // E5: guard the lazy insert on the profiles (consent) row still existing, so
+    // a weekly read that races a consent withdrawal cannot resurrect a reflection
+    // for a user who has withdrawn. The profiles row is locked FOR UPDATE, so a
+    // concurrent withdrawal's profiles-delete serializes against this insert;
+    // withdrawal then deletes weekly_reflections LAST, cleaning up anything
+    // inserted just before it committed.
+    await db.transaction(async (tx) => {
+      const [profile] = await tx
+        .select({ userId: schema.profiles.userId })
+        .from(schema.profiles)
+        .where(eq(schema.profiles.userId, userId))
+        .for("update");
+      if (!profile) {
+        return; // Consent withdrawn — never create a new artifact behind the erase.
+      }
+      await tx
+        .insert(schema.weeklyReflections)
+        .values({
+          userId,
+          weekStart: window.weekStart,
+          version: WEEKLY_LEARNING_VERSION,
+          artifactCiphertext: ciphertext
+        })
+        .onConflictDoNothing();
+    });
   }
 
   return artifact;

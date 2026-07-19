@@ -1,14 +1,16 @@
-import { eq } from "drizzle-orm";
+import { and, eq, notInArray, sql } from "drizzle-orm";
 import type Stripe from "stripe";
 
 import { schema, type Db } from "../db";
+import { sendEmail } from "../email";
 import {
   emitBillingEvent,
   latencyBucket
 } from "./telemetry";
 import {
   applyStripeEvent,
-  type PantryEmailSender
+  type PantryEmailSender,
+  type PendingEmail
 } from "../../../app/api/billing/handlers";
 
 /**
@@ -143,6 +145,11 @@ export async function processInboxRow(
   const now = deps.now();
   const apply = deps.apply ?? applyStripeEvent;
 
+  // B4: emails the reducer wants sent. Collected INSIDE the transaction, but
+  // dispatched only AFTER it commits — an email must never escape a rolled-back
+  // transaction (duplicate dunning, an orphaned claim token).
+  let pendingEmails: PendingEmail[] = [];
+
   try {
     let applied = false;
     await db.transaction(async (tx) => {
@@ -162,31 +169,58 @@ export async function processInboxRow(
       }
 
       const event = locked.payload as unknown as Stripe.Event;
-      await apply(tx, event, now, deps.stripe, deps.email);
+      // No email sender passed: the reducer COLLECTS its emails and returns
+      // them (it never sends inside this tx). `?? []` tolerates an injected
+      // test `apply` that returns void.
+      pendingEmails = (await apply(tx, event, now, deps.stripe)) ?? [];
       await tx
         .update(schema.billingEventInbox)
         .set({ status: "processed", lastError: null, processedAt: now })
         .where(eq(schema.billingEventInbox.id, row.id));
       applied = true;
     });
-    // `applied === false` means another worker had already processed it — a
-    // duplicate from this caller's point of view, never a re-apply.
-    return applied ? "processed" : "duplicate";
+    if (!applied) {
+      // Another worker had already processed it — a duplicate from this
+      // caller's point of view, never a re-apply. Nothing to dispatch.
+      return "duplicate";
+    }
   } catch (error) {
-    // The transaction rolled back every partial reducer write. Record the
-    // failed attempt outside it so the counter is durable.
-    const attempts = row.attempts + 1;
-    const dead = attempts >= MAX_INBOX_ATTEMPTS;
-    await db
+    // The transaction rolled back every partial reducer write AND discarded the
+    // collected emails (they were never dispatched). Record the failed attempt
+    // outside it so the counter is durable.
+    //
+    // B1: increment `attempts` off the DB value (SQL `attempts + 1`), not the
+    // possibly-stale passed row, so concurrent failures never lose an increment;
+    // and guard the WHERE so a row a concurrent worker has already `processed`
+    // (or dead-lettered) is NEVER overwritten back to failed/dead_letter. The
+    // returned row drives the dead-letter page: we alert only if THIS write is
+    // the one that dead-lettered it.
+    const updated = await db
       .update(schema.billingEventInbox)
       .set({
-        status: dead ? "dead_letter" : "failed",
-        attempts,
+        status: sql`CASE WHEN ${schema.billingEventInbox.attempts} + 1 >= ${MAX_INBOX_ATTEMPTS} THEN 'dead_letter' ELSE 'failed' END`,
+        attempts: sql`${schema.billingEventInbox.attempts} + 1`,
         lastError: errorMessage(error)
       })
-      .where(eq(schema.billingEventInbox.id, row.id));
+      .where(
+        and(
+          eq(schema.billingEventInbox.id, row.id),
+          notInArray(schema.billingEventInbox.status, [
+            "processed",
+            "dead_letter"
+          ])
+        )
+      )
+      .returning({ status: schema.billingEventInbox.status });
 
-    if (dead) {
+    if (updated.length === 0) {
+      // A concurrent worker finished (or dead-lettered) this row first; our
+      // failed attempt neither counts nor pages.
+      return "duplicate";
+    }
+
+    const finalStatus = updated[0].status;
+    if (finalStatus === "dead_letter") {
       // Page the owner: an event we can never apply is a charged user with no
       // automatic path left.
       emitBillingEvent({
@@ -195,7 +229,46 @@ export async function processInboxRow(
         count: 1
       });
     }
-    return dead ? "dead_letter" : "failed";
+    return finalStatus === "dead_letter" ? "dead_letter" : "failed";
+  }
+
+  // Committed. Dispatch the collected emails now (B4). A send failure is
+  // best-effort — the reducer writes are already durable — and never re-runs
+  // the reducer; the pantry stamp records a real successful send only.
+  await dispatchPendingEmails(db, pendingEmails, deps.email, now);
+  return "processed";
+}
+
+/**
+ * Send the emails a committed reducer collected. Best-effort and post-commit:
+ * a send failure or an `onSent` failure never throws (the money-path writes are
+ * already durable), and a duplicate delivery re-dispatches nothing because the
+ * inbox already dedupes it to "duplicate".
+ */
+async function dispatchPendingEmails(
+  db: Db,
+  emails: PendingEmail[],
+  email: PantryEmailSender | undefined,
+  now: Date
+): Promise<void> {
+  if (emails.length === 0) {
+    return;
+  }
+  const send = email?.send ?? sendEmail;
+  for (const msg of emails) {
+    let result;
+    try {
+      result = await send({ to: msg.to, subject: msg.subject, text: msg.text });
+    } catch {
+      continue; // Never let a post-commit send failure surface as a retry.
+    }
+    if (result?.ok && msg.onSent) {
+      try {
+        await msg.onSent(db, now);
+      } catch {
+        // Stamp is best-effort; the email did go out.
+      }
+    }
   }
 }
 

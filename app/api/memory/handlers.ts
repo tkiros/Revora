@@ -183,6 +183,20 @@ function safeDecrypt(ciphertext: string | null): string | null {
   }
 }
 
+/**
+ * E4: a persisted weekly learning artifact is derived partly from the caller's
+ * memories (their label/favorite, and the anchoring check's meal text). Any
+ * memory mutation therefore staleness-invalidates the caller's cached artifacts,
+ * so drop their weekly_reflections rows and let the next weekly GET regenerate
+ * them lazily from current sources. Deleting all of the caller's rows is cheap
+ * (≤4 completed weeks) and avoids recomputing which week the row belongs to.
+ */
+async function invalidateWeeklyArtifacts(db: Db, userId: string): Promise<void> {
+  await db
+    .delete(schema.weeklyReflections)
+    .where(eq(schema.weeklyReflections.userId, userId));
+}
+
 function resolveDeps(deps: MemoryRouteDeps) {
   return {
     db: deps.db ?? getDb,
@@ -670,6 +684,7 @@ export function createMemoryEditHandler(deps: MemoryRouteDeps = {}) {
       if (updated.length === 0) {
         return notFound();
       }
+      await invalidateWeeklyArtifacts(ctx.db(), g.session.userId);
       return NextResponse.json({ ok: true });
     } catch (error) {
       return serverError(error);
@@ -712,6 +727,7 @@ export function createMemoryDeleteHandler(deps: MemoryRouteDeps = {}) {
       if (deleted.length === 0) {
         return notFound();
       }
+      await invalidateWeeklyArtifacts(ctx.db(), g.session.userId);
       return NextResponse.json({ ok: true });
     } catch (error) {
       return serverError(error);
@@ -749,6 +765,7 @@ export function createMemoryDeleteAllHandler(deps: MemoryRouteDeps = {}) {
         .where(eq(schema.mealMemories.userId, g.session.userId))
         .returning({ id: schema.mealMemories.id });
 
+      await invalidateWeeklyArtifacts(ctx.db(), g.session.userId);
       return NextResponse.json({ ok: true, deleted: deleted.length });
     } catch (error) {
       return serverError(error);
@@ -759,17 +776,22 @@ export function createMemoryDeleteAllHandler(deps: MemoryRouteDeps = {}) {
 /**
  * Data-rights export (plan §P3.4): ALL of the caller's memories with their own
  * decrypted fields + the anchoring check's food/band/risk/date, as a JSON
- * attachment. No pagination and no tier gate — this is what a person can get back
- * about themselves. Owner-only decrypt (same trust boundary as the read path).
- * Gate: flag 404 → 401 → 403.
+ * attachment. This is what a person can get back about themselves, so unlike
+ * every OTHER memory route it does NOT gate on the feature flag or the premium
+ * capability (E3) — a data-rights export must not disappear because a flag was
+ * toggled off or a subscription lapsed (history export sets the precedent, and
+ * `capabilities.ts` marks export as always-on). The ONLY gate is the session:
+ * an unauthenticated caller is 401, and the query is owner-scoped so it can only
+ * ever return the caller's own rows. Owner-only decrypt (same trust boundary as
+ * the read path).
  */
 export function createMemoryExportHandler(deps: MemoryRouteDeps = {}) {
   const ctx = resolveDeps(deps);
 
-  return async function GET(request: Request) {
-    const g = await gate(ctx);
-    if (!g.ok) {
-      return g.response;
+  return async function GET(_request: Request) {
+    const session = await ctx.getSession();
+    if (!session) {
+      return unauthorized();
     }
 
     try {
@@ -781,7 +803,7 @@ export function createMemoryExportHandler(deps: MemoryRouteDeps = {}) {
           schema.checks,
           eq(schema.mealMemories.checkId, schema.checks.id)
         )
-        .where(eq(schema.mealMemories.userId, g.session.userId))
+        .where(eq(schema.mealMemories.userId, session.userId))
         .orderBy(
           desc(schema.mealMemories.createdAt),
           desc(schema.mealMemories.id)

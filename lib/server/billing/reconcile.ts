@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte, inArray, lt, lte } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, lt, lte, ne } from "drizzle-orm";
 import type Stripe from "stripe";
 
 import { schema, type Db } from "../db";
@@ -155,7 +155,12 @@ export async function runStripeReconcileCron(
         const nowPremium =
           premiumSet.includes(fresh.status) && fresh.currentPeriodEnd > now;
 
-        await db
+        // Guard on `refunded` (B3): a charge.refunded can land during this
+        // in-flight Stripe fetch, and a refund does NOT cancel the Stripe
+        // subscription — so `fresh` still reads active/premium. Writing it back
+        // would resurrect a refunded (terminal) row. Skip the heal when the row
+        // went refunded under us.
+        const healedRows = await db
           .update(schema.subscriptions)
           .set({
             status: fresh.status,
@@ -163,7 +168,16 @@ export async function runStripeReconcileCron(
             lastVerifiedAt: now,
             updatedAt: now
           })
-          .where(eq(schema.subscriptions.id, row.id));
+          .where(
+            and(
+              eq(schema.subscriptions.id, row.id),
+              ne(schema.subscriptions.status, "refunded")
+            )
+          )
+          .returning({ id: schema.subscriptions.id });
+        if (healedRows.length === 0) {
+          continue; // Refunded mid-fetch — leave the terminal row alone.
+        }
         result.healed += 1;
 
         // The row claimed premium the provider no longer backs — an

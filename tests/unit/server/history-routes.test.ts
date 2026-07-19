@@ -40,6 +40,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
+  await testDb.db.delete(schema.weeklyReflections);
   await testDb.db.delete(schema.checks);
 });
 
@@ -644,6 +645,37 @@ describe("DELETE /api/history/:id", () => {
       new Request("http://test/api/history/anything", { method: "DELETE" })
     );
     expect(response.status).toBe(401);
+  });
+
+  it("invalidates the caller's cached weekly artifacts (E4)", async () => {
+    // A persisted weekly artifact can embed this check's meal text; deleting the
+    // source check must drop the reflection so the next weekly GET regenerates
+    // from current sources (no stale food surviving inside a cached artifact).
+    await seedAt(ownerId, "brown rice", new Date());
+    const [row] = await testDb.db
+      .select()
+      .from(schema.checks)
+      .where(eq(schema.checks.userId, ownerId));
+    await testDb.db.insert(schema.weeklyReflections).values({
+      userId: ownerId,
+      weekStart: "2026-07-06",
+      version: "1",
+      artifactCiphertext: encryptField(
+        JSON.stringify({ weekStart: "2026-07-06", repeatedUncertainty: ["brown rice"] })
+      )
+    });
+
+    const DELETE = createHistoryDeleteHandler(asUser(ownerId));
+    const response = await DELETE(
+      new Request(`http://test/api/history/${row.id}`, { method: "DELETE" })
+    );
+    expect(response.status).toBe(200);
+
+    const reflections = await testDb.db
+      .select()
+      .from(schema.weeklyReflections)
+      .where(eq(schema.weeklyReflections.userId, ownerId));
+    expect(reflections).toHaveLength(0);
   });
 });
 

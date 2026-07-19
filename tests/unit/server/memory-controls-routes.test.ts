@@ -55,6 +55,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
+  await testDb.db.delete(schema.weeklyReflections);
   await testDb.db.delete(schema.mealMemories);
   await testDb.db.delete(schema.checks);
 });
@@ -376,6 +377,62 @@ describe("meal memory delete one (DELETE /:id)", () => {
   });
 });
 
+describe("weekly-artifact invalidation on memory mutation (E4)", () => {
+  async function seedReflection() {
+    await testDb.db.insert(schema.weeklyReflections).values({
+      userId: ownerId,
+      weekStart: "2026-07-06",
+      version: "1",
+      artifactCiphertext: encryptField(JSON.stringify({ weekStart: "2026-07-06" }))
+    });
+  }
+  async function ownerReflectionCount() {
+    return (
+      await testDb.db
+        .select()
+        .from(schema.weeklyReflections)
+        .where(eq(schema.weeklyReflections.userId, ownerId))
+    ).length;
+  }
+
+  it("a memory EDIT drops the caller's cached weekly reflections", async () => {
+    const check = await seedCheck(ownerId);
+    const id = await saveMemory(ownerId, check, { favorite: true });
+    await seedReflection();
+
+    const PATCH = createMemoryEditHandler(deps(ownerId));
+    const res = await PATCH(
+      jsonRequest(`http://test/api/memory/${id}`, "PATCH", { label: "dinner" })
+    );
+    expect(res.status).toBe(200);
+    expect(await ownerReflectionCount()).toBe(0);
+  });
+
+  it("a memory DELETE drops the caller's cached weekly reflections", async () => {
+    const check = await seedCheck(ownerId);
+    const id = await saveMemory(ownerId, check, { favorite: true });
+    await seedReflection();
+
+    const DELETE = createMemoryDeleteHandler(deps(ownerId));
+    const res = await DELETE(jsonRequest(`http://test/api/memory/${id}`, "DELETE"));
+    expect(res.status).toBe(200);
+    expect(await ownerReflectionCount()).toBe(0);
+  });
+
+  it("a memory DELETE-ALL drops the caller's cached weekly reflections", async () => {
+    const check = await seedCheck(ownerId);
+    await saveMemory(ownerId, check, { favorite: true });
+    await seedReflection();
+
+    const DELETE = createMemoryDeleteAllHandler(deps(ownerId));
+    const res = await DELETE(
+      jsonRequest("http://test/api/memory", "DELETE", { confirm: true })
+    );
+    expect(res.status).toBe(200);
+    expect(await ownerReflectionCount()).toBe(0);
+  });
+});
+
 describe("meal memory delete all (DELETE)", () => {
   it("deletes every memory the caller owns, and only theirs", async () => {
     const c1 = await seedCheck(ownerId, "rice");
@@ -475,21 +532,30 @@ describe("meal memory export (GET)", () => {
     expect(body.memories).toHaveLength(0);
   });
 
-  it("gates flag 404 → session 401 → capability 403", async () => {
+  // E3: the data-rights export is the ONE memory route that is NOT gated on the
+  // feature flag or the premium capability — only the session. A person must be
+  // able to get their own data back even with the flag off or a lapsed plan.
+  it("export gates on the session ONLY (401), never the flag or capability", async () => {
     const req = () => jsonRequest("http://test/api/memory/export", "GET");
-    expect(
-      (await createMemoryExportHandler(deps(ownerId, { env: {} }))(req()))
-        .status
-    ).toBe(404);
+
+    // Unauthenticated → 401.
     expect(
       (await createMemoryExportHandler(deps(null))(req())).status
     ).toBe(401);
+
+    // Flag OFF but signed in → 200 (not 404).
+    expect(
+      (await createMemoryExportHandler(deps(ownerId, { env: {} }))(req()))
+        .status
+    ).toBe(200);
+
+    // Free (non-premium) but signed in → 200 (not 403).
     expect(
       (
         await createMemoryExportHandler(deps(ownerId, { entitlement: FREE }))(
           req()
         )
       ).status
-    ).toBe(403);
+    ).toBe(200);
   });
 });

@@ -300,7 +300,13 @@ export function createJourneyPostHandler(deps: JourneyRouteDeps = {}) {
           updatedAt: now
         });
       } else {
-        await ctx
+        // Compare-and-swap on the loaded state (U2): the UPDATE only lands if the
+        // stored state is STILL what we transitioned from. A concurrent action
+        // that already moved the journey makes this match zero rows → 409, the
+        // same "no hidden reset" semantics as an illegal transition. Without the
+        // state predicate, two in-flight actions would both apply against a stale
+        // read and silently clobber each other.
+        const updated = await ctx
           .db()
           .update(schema.learningJourneys)
           .set({
@@ -312,7 +318,19 @@ export function createJourneyPostHandler(deps: JourneyRouteDeps = {}) {
             pauseReason: next.pauseReason,
             updatedAt: now
           })
-          .where(eq(schema.learningJourneys.userId, g.session.userId));
+          .where(
+            and(
+              eq(schema.learningJourneys.userId, g.session.userId),
+              eq(schema.learningJourneys.state, journey.state as JourneyRow["state"])
+            )
+          )
+          .returning({ id: schema.learningJourneys.id });
+        if (updated.length === 0) {
+          return NextResponse.json(
+            { error: `Cannot ${action} from ${journey.state}.` },
+            { status: 409 }
+          );
+        }
       }
 
       // Maintenance mode's product-state effect on nudges (plan §P4.4 "lower

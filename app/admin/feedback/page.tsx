@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 
 import { AdminFeedbackTable } from "../../../components/admin-feedback-table";
@@ -35,7 +35,8 @@ export default async function AdminFeedbackPage() {
     .from(schema.checkFeedback)
     .innerJoin(schema.checks, eq(schema.checkFeedback.checkId, schema.checks.id))
     .where(and(eq(schema.checkFeedback.reviewStatus, "queued")))
-    .orderBy(desc(schema.checkFeedback.createdAt));
+    // Oldest-first: the longest-waiting report sits at the top of the queue.
+    .orderBy(asc(schema.checkFeedback.createdAt));
 
   return (
     <main className="page-shell">

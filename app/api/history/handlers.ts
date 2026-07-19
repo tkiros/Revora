@@ -563,6 +563,16 @@ export function createHistoryDeleteHandler(deps: RouteDeps = {}) {
       return NextResponse.json({ error: "Not found." }, { status: 404 });
     }
 
+    // E4: a persisted weekly learning artifact embeds this check's meal text
+    // (repeatedUncertainty). Deleting the source check must not leave the food
+    // living on inside a cached artifact, so drop the caller's weekly_reflections
+    // rows — the next weekly GET regenerates them lazily from current sources.
+    // Deleting all of the caller's rows is cheap (≤4 completed weeks) and avoids
+    // recomputing which week the deleted check fell in.
+    await db()
+      .delete(schema.weeklyReflections)
+      .where(eq(schema.weeklyReflections.userId, session.userId));
+
     return NextResponse.json({ ok: true });
   };
 }

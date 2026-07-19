@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 
 import { createWeeklyGetHandler } from "../../../app/api/journey/weekly/handlers";
@@ -218,5 +218,74 @@ describe("lazy persistence + idempotent regeneration", () => {
       .from(schema.weeklyReflections)
       .where(eq(schema.weeklyReflections.userId, ownerId));
     expect(row.version).toBe(WEEKLY_LEARNING_VERSION);
+  });
+});
+
+describe("completed-week stage uses the tz-aware end-of-week instant (U4)", () => {
+  afterEach(async () => {
+    // Restore the shared profile's timezone (this suite's other tests assume UTC).
+    await testDb.db
+      .update(schema.profiles)
+      .set({ timezone: "UTC" })
+      .where(eq(schema.profiles.userId, ownerId));
+  });
+
+  it("attributes a stage boundary that falls in Sunday to the correct (later) stage", async () => {
+    // A non-UTC timezone whose local end-of-week (00:00 Mon EDT ≈ 04:00 UTC) sits
+    // well after the OLD `keyToUtcMidnight(weekEnd)` = Sun 00:00 UTC.
+    await testDb.db
+      .update(schema.profiles)
+      .set({ timezone: "America/New_York" })
+      .where(eq(schema.profiles.userId, ownerId));
+
+    // Journey started Sun 2026-07-05 12:00 UTC. The stage-1→stage-2 boundary
+    // (day 7 → day 8, at 7 active days) is 2026-07-12 12:00 UTC — INSIDE the gap
+    // between the old Sun-00:00-UTC instant and the true local end-of-week.
+    //  - old instant 2026-07-12T00:00Z → 6.5 days → day 7 → stage 1 (wrong)
+    //  - new instant ~2026-07-13T03:59:59.999Z → 7.6 days → day 8 → stage 2 (right)
+    await createJourneyPostHandler(
+      deps(ownerId, { now: () => new Date("2026-07-05T12:00:00.000Z") })
+    )({ json: async () => ({ action: "start" }) } as unknown as Request);
+
+    const GET = createWeeklyGetHandler(deps(ownerId));
+    const body = await (await GET()).json();
+    const week = body.history.find(
+      (w: { weekStart: string }) => w.weekStart === "2026-07-06"
+    );
+
+    // With an empty week, the sole unmet step is that week's stage headline
+    // intent. Stage 2's intent (breakfast/lunch/dinner) — not stage 1's
+    // "save three meals" — proves the end-of-week stage was used.
+    expect(week.incompleteSteps).toEqual([
+      "Save an easy default for breakfast, lunch, and dinner."
+    ]);
+  });
+});
+
+describe("lazy persistence is guarded on consent (E5)", () => {
+  it("skips the lazy insert when the profiles (consent) row is gone", async () => {
+    // Withdrawal has removed the profile; a racing weekly read must NOT resurrect
+    // a reflection behind the erase.
+    await testDb.db
+      .delete(schema.profiles)
+      .where(eq(schema.profiles.userId, ownerId));
+
+    const GET = createWeeklyGetHandler(deps(ownerId));
+    expect((await GET()).status).toBe(200);
+
+    const rows = await testDb.db
+      .select()
+      .from(schema.weeklyReflections)
+      .where(eq(schema.weeklyReflections.userId, ownerId));
+    expect(rows).toHaveLength(0);
+
+    // Restore the shared profile for the remaining suite.
+    await testDb.db.insert(schema.profiles).values({
+      userId: ownerId,
+      a1cCiphertext: encryptField("6.1"),
+      a1cBand: "prediabetes_60_62",
+      timezone: "UTC",
+      consentedAt: new Date("2026-06-01T00:00:00.000Z")
+    });
   });
 });

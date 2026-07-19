@@ -351,4 +351,41 @@ describe("POST applies the state machine and persists", () => {
     );
     expect(res.status).toBe(400);
   });
+
+  it("CAS miss (a concurrent action already moved the journey) → 409 (U2)", async () => {
+    // Start an active journey, then process a legal `pause` against a db whose
+    // compare-and-swap UPDATE lands on zero rows — the deterministic stand-in
+    // for a concurrent action that already advanced the stored state between our
+    // read and our write. It must convert to 409, not a silent clobber.
+    await createJourneyPostHandler(deps(ownerId))(
+      postRequest({ action: "start" })
+    );
+
+    const base = deps(ownerId);
+    const stubDb = new Proxy(base.db(), {
+      get(target, prop, receiver) {
+        if (prop === "update") {
+          // Any UPDATE in this handler is the CAS write (pause does not touch
+          // profiles) — force it to report zero affected rows.
+          return () => ({
+            set: () => ({
+              where: () => ({ returning: async () => [] })
+            })
+          });
+        }
+        return Reflect.get(target, prop, receiver);
+      }
+    });
+
+    const POST = createJourneyPostHandler({ ...base, db: () => stubDb });
+    const res = await POST(postRequest({ action: "pause" }));
+    expect(res.status).toBe(409);
+
+    // The real row is untouched — still active (no hidden reset).
+    const [row] = await testDb.db
+      .select()
+      .from(schema.learningJourneys)
+      .where(eq(schema.learningJourneys.userId, ownerId));
+    expect(row.state).toBe("active");
+  });
 });
