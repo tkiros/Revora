@@ -1,4 +1,5 @@
 import { PantryBuyButton } from "../../components/pantry-buy-button";
+import { BOUNDARY_DISCLAIMER } from "../../lib/revora/boundary-copy";
 
 // Indexable on purpose: this is the cold-traffic front door for the one-time
 // Pantry Review, so no `robots: { index: false }` here (unlike the in-app
@@ -10,10 +11,6 @@ export const metadata = {
 // One string for the price line so the hero and post-report CTAs can never
 // drift apart when the price or wording changes.
 const PRICE_LINE = "$49, one payment. Nothing renews.";
-
-// Verbatim `result-footer` disclaimer from docs/safety/copy-ledger.md.
-const DISCLAIMER =
-  "Revora is informational only and is not medical advice. Talk with a doctor or registered dietitian for guidance that is specific to you.";
 
 // Sample rows reuse the LIVE report row markup from app/report/[id]/page.tsx
 // (~:24-36) verbatim — same `result-card report-item report-item--{tone}`
@@ -95,7 +92,7 @@ export default function PantryLandingPage() {
           <p className="page-copy">
             Photos are deleted after your report is delivered.
           </p>
-          <p className="result-disclaimer">{DISCLAIMER}</p>
+          <p className="result-disclaimer">{BOUNDARY_DISCLAIMER}</p>
         </section>
 
         <section className="surface-card">

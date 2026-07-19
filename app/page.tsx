@@ -7,6 +7,7 @@ import { TASTER_LIMIT } from "../lib/client/taster-store";
 import { FREE_DAILY_CHECKS } from "../lib/free-tier";
 import { longitudinalInsightsEnabled } from "../lib/longitudinal-insights-flag";
 import { photoInputEnabled } from "../lib/photo-input-flag";
+import { BOUNDARY_DISCLAIMER } from "../lib/revora/boundary-copy";
 import { RISK_LABELS } from "../lib/revora/labels";
 import { paywallMode, resolvePriceVariant } from "../lib/server/pricing";
 import { storeWaitlistUrl } from "../lib/waitlist";
@@ -477,11 +478,7 @@ export default function LandingPage() {
               <Link href="/terms">Terms</Link>
             </div>
           </div>
-          <p className="result-disclaimer">
-            Revora is informational only and is not medical advice. Talk with
-            a doctor or registered dietitian for guidance that is specific to
-            you.
-          </p>
+          <p className="result-disclaimer">{BOUNDARY_DISCLAIMER}</p>
         </footer>
       </div>
     </main>
