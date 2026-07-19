@@ -27,6 +27,7 @@ const ALLOWED_NAMES = [
   "pantry_checkout_started",
   "attribution",
   "photo_draft",
+  "result_feedback_submitted",
   "clarification_requested",
   "clarification_resolved"
 ] as const;
@@ -53,6 +54,7 @@ function assertExhaustive(name: AnalyticsEvent["name"]): void {
     case "pantry_checkout_started":
     case "attribution":
     case "photo_draft":
+    case "result_feedback_submitted":
     case "onboarding_started":
     case "result_helpful":
     case "clinical_route":
@@ -101,6 +103,7 @@ describe("AnalyticsEvent allowlist", () => {
       { name: "pantry_checkout_started" },
       { name: "attribution", props: { reported: "reddit", utm: "none" } },
       { name: "photo_draft", props: { items: 3, uncertain: 1 } },
+      { name: "result_feedback_submitted", props: { helpful: true } },
       {
         name: "clarification_requested",
         props: { category: "plain_or_sweetened" }

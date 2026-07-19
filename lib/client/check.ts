@@ -186,7 +186,11 @@ function normalizeResponse(payload: unknown): RevoraUserResponse {
           sequencingTip: asNullableString(response.sequencingTip),
           postMealAction: asNullableString(response.postMealAction),
           keepMost: asNullableString(response.keepMost),
-          disclaimer: response.disclaimer
+          disclaimer: response.disclaimer,
+          // Present only for a signed-in persisted check; absent for guests.
+          ...(typeof response.checkId === "string"
+            ? { checkId: response.checkId }
+            : {})
         } satisfies ServerResponse;
       }
       break;

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import type { Daypart } from "../../../lib/coach/insights";
@@ -233,9 +233,15 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
 
       // 4B: meal memory for signed-in users. Fail-soft by design — a broken
       // DB must never break the check itself (incident runbook scenario).
+      //
+      // The persisted id is threaded back to the client (result kind only, and
+      // only when a row was actually stored) so result-linked feedback (§P1.6)
+      // can reference it. Guests and non-persisted checks get no id — the
+      // client's feedback surface then stays anonymous.
+      let persistedCheckId: string | undefined;
       if (response.kind === "result") {
         try {
-          await persistCheck({
+          persistedCheckId = await persistCheck({
             db,
             getSession,
             body,
@@ -256,6 +262,7 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
       // used to select AUDITED copy and neither is persisted or logged.
       return NextResponse.json({
         ...response,
+        ...(persistedCheckId ? { checkId: persistedCheckId } : {}),
         ...deriveCoachOutputs(response, {
           food: readFood(body),
           rotation: readRotation(request.headers),
@@ -291,20 +298,20 @@ async function persistCheck(input: {
   body: unknown;
   risk: "SAFE" | "MODERATE" | "HIGH";
   headers: Headers;
-}): Promise<void> {
+}): Promise<string | undefined> {
   const session = await input.getSession();
   if (!session) {
-    return; // guests: nothing stored, existing promise intact
+    return undefined; // guests: nothing stored, existing promise intact
   }
 
   const parsed = CheckRequestSchema.safeParse(input.body);
   if (!parsed.success) {
-    return;
+    return undefined;
   }
 
   const route = routeA1C(parsed.data.a1c);
   if (route.kind !== "in_scope") {
-    return;
+    return undefined;
   }
 
   // A signed-in session is not consent. Persist only while the consent-bearing
@@ -315,13 +322,14 @@ async function persistCheck(input: {
     .from(schema.profiles)
     .where(eq(schema.profiles.userId, session.userId));
   if (!profile?.consentedAt) {
-    return;
+    return undefined;
   }
 
   const methodHeader = input.headers.get("x-revora-input-method");
-  const clientId = input.headers.get("x-revora-client-id");
+  const rawClientId = input.headers.get("x-revora-client-id");
+  const clientId = rawClientId && rawClientId.length <= 64 ? rawClientId : null;
 
-  await input
+  const inserted = await input
     .db()
     .insert(schema.checks)
     .values({
@@ -333,9 +341,33 @@ async function persistCheck(input: {
         methodHeader === "voice" || methodHeader === "photo"
           ? methodHeader
           : "text",
-      clientId: clientId && clientId.length <= 64 ? clientId : null
+      clientId
     })
-    .onConflictDoNothing();
+    .onConflictDoNothing()
+    .returning({ id: schema.checks.id });
+
+  if (inserted.length > 0) {
+    return inserted[0].id;
+  }
+
+  // The insert was a dedupe no-op (same clientId already stored). Recover the
+  // existing row's id so a re-submitted check still links feedback to the one
+  // canonical row rather than dropping the association.
+  if (clientId) {
+    const [existing] = await input
+      .db()
+      .select({ id: schema.checks.id })
+      .from(schema.checks)
+      .where(
+        and(
+          eq(schema.checks.userId, session.userId),
+          eq(schema.checks.clientId, clientId)
+        )
+      );
+    return existing?.id;
+  }
+
+  return undefined;
 }
 
 function getEnvironment(

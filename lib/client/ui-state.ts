@@ -15,6 +15,10 @@ export type RevoraUserResponse =
       postMealAction: string | null;
       keepMost: string | null;
       disclaimer: string;
+      // Persisted-check id (§P1.6) — present only for a signed-in, consented,
+      // stored check, so result-linked feedback can reference it. Absent for
+      // guests and non-persisted checks, which keeps feedback anonymous.
+      checkId?: string;
     }
   | {
       kind: "clarify";

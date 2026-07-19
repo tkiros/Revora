@@ -125,6 +125,60 @@ export const checks = pgTable(
   ]
 );
 
+// Result-linked structured feedback + safety queue (plan §P1.6, §4.6, §8).
+//
+// One feedback row per (check, user) — upserted on re-submit. The private
+// comment is health-adjacent free text → AES-256-GCM ciphertext, same standard
+// as checks.food; it is stored here, in the access-controlled operational
+// store, and NEVER in the analytics stream (which carries submission presence
+// only). `reviewStatus` drives the founder-only safety queue: a reason of
+// `unsafe_feeling`, or a not-helpful `wrong_food` (wrong-direction), enqueues
+// the row for human review. Feedback never trains or alters live behavior.
+export const checkFeedback = pgTable(
+  "check_feedback",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    checkId: uuid("check_id")
+      .notNull()
+      .references(() => checks.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    helpful: boolean("helpful").notNull(),
+    reason: text("reason", {
+      enum: [
+        "too_vague",
+        "wrong_food",
+        "unsafe_feeling",
+        "confusing",
+        "other"
+      ]
+    }),
+    commentCiphertext: text("comment_ciphertext"),
+    reviewStatus: text("review_status", {
+      enum: ["none", "queued", "reviewed"]
+    })
+      .notNull()
+      .default("none"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (table) => [
+    uniqueIndex("check_feedback_check_user").on(table.checkId, table.userId),
+    index("check_feedback_queue").on(table.reviewStatus, table.createdAt),
+    check(
+      "check_feedback_reason_check",
+      sql`${table.reason} IS NULL OR ${table.reason} IN ('too_vague','wrong_food','unsafe_feeling','confusing','other')`
+    ),
+    check(
+      "check_feedback_review_status_check",
+      sql`${table.reviewStatus} IN ('none','queued','reviewed')`
+    )
+  ]
+);
+
 export const pushSubscriptions = pgTable("push_subscriptions", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id")

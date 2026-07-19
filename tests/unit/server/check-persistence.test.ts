@@ -120,14 +120,35 @@ describe("check persistence (4B)", () => {
     expect(rows[0].clientId).toBe("web-123");
     expect(rows[0].foodCiphertext).not.toContain("rice");
     expect(decryptField(rows[0].foodCiphertext)).toBe("white rice and beans");
+
+    // §P1.6: the persisted id is threaded back so feedback can link to it.
+    const body = await response.json();
+    expect(body.checkId).toBe(rows[0].id);
   });
 
-  it("persists nothing for guests", async () => {
+  it("returns the same checkId on a client-id dedupe re-submit", async () => {
+    const POST = createHandler({ sessionUserId: userId });
+    const first = await POST(checkRequest({ "x-revora-client-id": "web-dup" }));
+    const second = await POST(checkRequest({ "x-revora-client-id": "web-dup" }));
+
+    const firstBody = await first.json();
+    const secondBody = await second.json();
+
+    const rows = await testDb.db.select().from(schema.checks);
+    expect(rows).toHaveLength(1);
+    expect(firstBody.checkId).toBe(rows[0].id);
+    expect(secondBody.checkId).toBe(rows[0].id);
+  });
+
+  it("persists nothing for guests and returns no checkId", async () => {
     const POST = createHandler({ sessionUserId: null });
-    await POST(checkRequest());
+    const response = await POST(checkRequest());
 
     const rows = await testDb.db.select().from(schema.checks);
     expect(rows).toHaveLength(0);
+
+    const body = await response.json();
+    expect(body.checkId).toBeUndefined();
   });
 
   it("persists nothing after stored-health-data consent is withdrawn", async () => {

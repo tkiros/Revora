@@ -96,6 +96,11 @@ export type AnalyticsEvent =
       name: "clarification_resolved";
       props: { category: ClarifyReason; elapsed: ClarifyElapsedBucket };
     }
+  // §P1.6/§10.1: result-linked feedback was submitted. Presence-only — the
+  // single `helpful` boolean is all that reaches analytics. The structured
+  // category and any private comment stay in the encrypted operational store
+  // and never travel with this event (the no-PII source scan enforces it).
+  | { name: "result_feedback_submitted"; props: { helpful: boolean } }
   | { name: "photo_draft"; props: { items: number; uncertain: number } };
 
 // Runtime belt-over-type-belt guard: even if a caller bypasses the type
@@ -124,6 +129,7 @@ const ALLOWED_EVENT_NAMES: ReadonlySet<AnalyticsEvent["name"]> = new Set([
   "pantry_checkout_started",
   "attribution",
   "photo_draft",
+  "result_feedback_submitted",
   "clarification_requested",
   "clarification_resolved"
 ]);

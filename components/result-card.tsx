@@ -206,7 +206,7 @@ export function ResultCard({
         </div>
         {/* W-30. Sits below the disclaimer, outside the guidance itself — the
             question is about Revora, not about the meal. */}
-        <ResultFeedback risk={response.risk} />
+        <ResultFeedback risk={response.risk} checkId={response.checkId} />
       </section>
     );
   }
