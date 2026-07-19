@@ -379,11 +379,37 @@ textarea.text-input {
   justify-content: space-between;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
+}
+
+.history-item-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .history-time {
   font-size: 13px;
   color: var(--text-muted);
+}
+
+/* Full-history search + date-range controls (Task 9 / P2.3). */
+.history-filters {
+  display: grid;
+  gap: 14px;
+}
+
+.history-filters-dates {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.history-filters-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
 }
 
 .recheck-button,

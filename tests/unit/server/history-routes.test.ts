@@ -4,7 +4,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   createHistoryGetHandler,
   createHistoryMigrateHandler,
-  createHistoryActionHandler
+  createHistoryActionHandler,
+  createHistoryDeleteHandler,
+  createHistoryExportHandler
 } from "../../../app/api/history/handlers";
 import { encryptField } from "../../../lib/server/crypto";
 import { schema } from "../../../lib/server/db";
@@ -47,6 +49,39 @@ function asUser(userId: string | null) {
       userId ? { userId, email: "owner@test.dev" } : null
   };
 }
+
+// The default getEntitlement (no subscription rows) reports free; inject a
+// premium entitlement to exercise the full-archive path.
+function asPremium(userId: string) {
+  return {
+    ...asUser(userId),
+    entitlementOf: async () => ({
+      tier: "premium" as const,
+      source: "stripe" as const,
+      status: "premium" as const,
+      currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    })
+  };
+}
+
+async function seedAt(
+  userId: string,
+  food: string,
+  createdAt: Date,
+  clientId?: string
+) {
+  await testDb.db.insert(schema.checks).values({
+    userId,
+    foodCiphertext: encryptField(food),
+    risk: "MODERATE",
+    a1cBand: "prediabetes_60_62",
+    inputMethod: "text",
+    clientId: clientId ?? null,
+    createdAt
+  });
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 function jsonRequest(url: string, body: unknown) {
   return new Request(url, {
@@ -364,5 +399,218 @@ describe("POST /api/history/action", () => {
 
     expect(ownerRows[0].actionDoneAt).toBeTruthy();
     expect(otherRows[0].actionDoneAt).toBeNull();
+  });
+});
+
+describe("GET /api/history — keyset pagination", () => {
+  it("walks every row exactly once across page boundaries, even at a shared timestamp", async () => {
+    // Three rows share one millisecond — a timestamp-only keyset would skip or
+    // duplicate them at a page boundary; the (createdAt, id) tiebreaker must not.
+    const shared = new Date("2026-07-10T12:00:00.000Z");
+    await seedAt(ownerId, "food-a", shared);
+    await seedAt(ownerId, "food-b", shared);
+    await seedAt(ownerId, "food-c", shared);
+    await seedAt(ownerId, "food-d", new Date("2026-07-10T09:00:00.000Z"));
+    await seedAt(ownerId, "food-e", new Date("2026-07-09T09:00:00.000Z"));
+
+    const GET = createHistoryGetHandler(asPremium(ownerId));
+    const seen: string[] = [];
+    let cursor: string | null = null;
+    let guard = 0;
+
+    do {
+      const url = new URL("http://test/api/history");
+      url.searchParams.set("limit", "2");
+      if (cursor) url.searchParams.set("cursor", cursor);
+      const body = await (await GET(new Request(url))).json();
+      for (const c of body.checks) seen.push(c.food);
+      cursor = body.nextCursor;
+      guard += 1;
+    } while (cursor && guard < 20);
+
+    expect(seen.sort()).toEqual([
+      "food-a",
+      "food-b",
+      "food-c",
+      "food-d",
+      "food-e"
+    ]);
+    // No row returned twice.
+    expect(new Set(seen).size).toBe(seen.length);
+  });
+
+  it("returns a null cursor on the final (short) page", async () => {
+    await seedAt(ownerId, "only-one", new Date("2026-07-10T12:00:00.000Z"));
+    const GET = createHistoryGetHandler(asPremium(ownerId));
+    const body = await (
+      await GET(new Request("http://test/api/history?limit=5"))
+    ).json();
+
+    expect(body.checks).toHaveLength(1);
+    expect(body.nextCursor).toBeNull();
+  });
+});
+
+describe("GET /api/history — retention window", () => {
+  it("free tier hides rows older than the 7-day window; premium sees them", async () => {
+    await seedAt(ownerId, "recent meal", new Date());
+    await seedAt(ownerId, "old meal", new Date(Date.now() - 30 * DAY_MS));
+
+    const freeBody = await (
+      await createHistoryGetHandler(asUser(ownerId))(
+        new Request("http://test/api/history")
+      )
+    ).json();
+    expect(freeBody.checks.map((c: { food: string }) => c.food)).toEqual([
+      "recent meal"
+    ]);
+    expect(freeBody.meta.tier).toBe("free");
+    expect(freeBody.meta.retention.windowDays).toBe(7);
+
+    const premiumBody = await (
+      await createHistoryGetHandler(asPremium(ownerId))(
+        new Request("http://test/api/history")
+      )
+    ).json();
+    expect(
+      premiumBody.checks.map((c: { food: string }) => c.food).sort()
+    ).toEqual(["old meal", "recent meal"]);
+    expect(premiumBody.meta.tier).toBe("premium");
+    expect(premiumBody.meta.retention.scope).toBe("full");
+    expect(premiumBody.meta.retention.windowDays).toBeNull();
+  });
+});
+
+describe("GET /api/history — search", () => {
+  it("matches decrypted food case-insensitively and reports the scan bound", async () => {
+    await seedAt(ownerId, "Lentil Soup", new Date("2026-07-10T12:00:00.000Z"));
+    await seedAt(ownerId, "chicken rice", new Date("2026-07-10T11:00:00.000Z"));
+    await seedAt(ownerId, "lentil dahl", new Date("2026-07-10T10:00:00.000Z"));
+
+    const GET = createHistoryGetHandler(asPremium(ownerId));
+    const body = await (
+      await GET(new Request("http://test/api/history?q=LENTIL"))
+    ).json();
+
+    expect(body.checks.map((c: { food: string }) => c.food).sort()).toEqual([
+      "Lentil Soup",
+      "lentil dahl"
+    ]);
+    expect(body.searchScanned).toBe(3);
+    expect(body.searchCapped).toBe(false);
+    // Search is a single bounded scan — no pagination cursor.
+    expect(body.nextCursor).toBeNull();
+  });
+
+  it("still honors the free window while searching", async () => {
+    await seedAt(ownerId, "lentil recent", new Date());
+    await seedAt(ownerId, "lentil ancient", new Date(Date.now() - 30 * DAY_MS));
+
+    const GET = createHistoryGetHandler(asUser(ownerId));
+    const body = await (
+      await GET(new Request("http://test/api/history?q=lentil"))
+    ).json();
+
+    expect(body.checks.map((c: { food: string }) => c.food)).toEqual([
+      "lentil recent"
+    ]);
+  });
+});
+
+describe("GET /api/history — date filter", () => {
+  it("filters to the inclusive UTC day range", async () => {
+    await seedAt(ownerId, "before range", new Date("2026-07-08T23:59:00.000Z"));
+    await seedAt(ownerId, "start of range", new Date("2026-07-09T00:00:00.000Z"));
+    await seedAt(ownerId, "end of range", new Date("2026-07-10T23:59:00.000Z"));
+    await seedAt(ownerId, "after range", new Date("2026-07-11T00:00:00.000Z"));
+
+    const GET = createHistoryGetHandler(asPremium(ownerId));
+    const body = await (
+      await GET(
+        new Request("http://test/api/history?from=2026-07-09&to=2026-07-10")
+      )
+    ).json();
+
+    expect(body.checks.map((c: { food: string }) => c.food).sort()).toEqual([
+      "end of range",
+      "start of range"
+    ]);
+  });
+});
+
+describe("DELETE /api/history/:id", () => {
+  it("hard-deletes the owner's row", async () => {
+    await seedAt(ownerId, "to delete", new Date());
+    const [row] = await testDb.db
+      .select()
+      .from(schema.checks)
+      .where(eq(schema.checks.userId, ownerId));
+
+    const DELETE = createHistoryDeleteHandler(asUser(ownerId));
+    const response = await DELETE(
+      new Request(`http://test/api/history/${row.id}`, { method: "DELETE" })
+    );
+
+    expect(response.status).toBe(200);
+    const remaining = await testDb.db
+      .select()
+      .from(schema.checks)
+      .where(eq(schema.checks.userId, ownerId));
+    expect(remaining).toHaveLength(0);
+  });
+
+  it("404s and preserves the row when a user targets someone else's check", async () => {
+    await seedAt(otherId, "not yours", new Date());
+    const [victim] = await testDb.db
+      .select()
+      .from(schema.checks)
+      .where(eq(schema.checks.userId, otherId));
+
+    const DELETE = createHistoryDeleteHandler(asUser(ownerId));
+    const response = await DELETE(
+      new Request(`http://test/api/history/${victim.id}`, { method: "DELETE" })
+    );
+
+    expect(response.status).toBe(404);
+    const stillThere = await testDb.db
+      .select()
+      .from(schema.checks)
+      .where(eq(schema.checks.id, victim.id));
+    expect(stillThere).toHaveLength(1);
+  });
+
+  it("401s signed-out delete", async () => {
+    const DELETE = createHistoryDeleteHandler(asUser(null));
+    const response = await DELETE(
+      new Request("http://test/api/history/anything", { method: "DELETE" })
+    );
+    expect(response.status).toBe(401);
+  });
+});
+
+describe("GET /api/history/export", () => {
+  it("returns ALL retained rows regardless of the free view window", async () => {
+    await seedAt(ownerId, "recent meal", new Date());
+    await seedAt(ownerId, "very old meal", new Date(Date.now() - 60 * DAY_MS));
+    await seedCheck(otherId, "other user meal");
+
+    // Free-tier caller: the VIEW is 7 days, but export is a data right.
+    const GET = createHistoryExportHandler(asUser(ownerId));
+    const response = await GET();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-disposition")).toContain("attachment");
+    const body = await response.json();
+    expect(body.count).toBe(2);
+    expect(body.checks.map((c: { food: string }) => c.food).sort()).toEqual([
+      "recent meal",
+      "very old meal"
+    ]);
+    expect(JSON.stringify(body)).not.toContain("other user meal");
+  });
+
+  it("401s signed-out export", async () => {
+    const GET = createHistoryExportHandler(asUser(null));
+    expect((await GET()).status).toBe(401);
   });
 });

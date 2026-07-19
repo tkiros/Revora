@@ -61,6 +61,134 @@ export async function loadHistory(days: number): Promise<{
 }
 
 /**
+ * A server history row carries a stable server `id` (the delete key) on top of
+ * the StoredCheck shape the rest of the UI already knows.
+ */
+export type ServerCheck = StoredCheck & { id: string };
+
+export type HistoryMeta = {
+  tier: "free" | "premium";
+  retention: { scope: "full" | "window"; windowDays: number | null };
+};
+
+/**
+ * Result of a paginated history read. The three statuses are deliberately
+ * distinct so the UI never renders a backend failure as a paywall (plan §7 /
+ * global constraint 7): `guest` = signed-out (401) → show the local on-device
+ * view; `error` = network/5xx → show an explicit unavailable+retry state;
+ * `ok` = server data with truthful retention meta.
+ */
+export type FetchHistoryPageResult =
+  | {
+      status: "ok";
+      checks: ServerCheck[];
+      nextCursor: string | null;
+      meta: HistoryMeta;
+      searchScanned: number | null;
+      searchCapped: boolean;
+    }
+  | { status: "guest" }
+  | { status: "error" };
+
+// The paginated UI page size. Small by design (<=50, the paginated-mode ceiling)
+// so a page is cheap; older rows arrive via nextCursor.
+export const HISTORY_PAGE_SIZE = 25;
+
+function normalizeServerCheck(check: {
+  id?: string;
+  clientId: string;
+  food: string;
+  risk: StoredCheck["risk"];
+  a1cBand: string;
+  inputMethod: string;
+  actionDoneAt?: string;
+  createdAt: string;
+}): ServerCheck {
+  return {
+    id: check.id ?? check.clientId,
+    clientId: check.clientId,
+    food: check.food,
+    risk: check.risk,
+    a1cBand: check.a1cBand,
+    // Preserve the true input method (text/voice/photo); shared mapping rule.
+    inputMethod: normalizeInputMethod(check.inputMethod),
+    createdAt: check.createdAt,
+    actionDoneAt: check.actionDoneAt
+  };
+}
+
+export async function fetchHistoryPage(params: {
+  cursor?: string | null;
+  q?: string;
+  from?: string;
+  to?: string;
+  limit?: number;
+} = {}): Promise<FetchHistoryPageResult> {
+  const search = new URLSearchParams();
+  search.set("limit", String(params.limit ?? HISTORY_PAGE_SIZE));
+  if (params.cursor) search.set("cursor", params.cursor);
+  if (params.q && params.q.trim()) search.set("q", params.q.trim());
+  if (params.from) search.set("from", params.from);
+  if (params.to) search.set("to", params.to);
+
+  let response: Response;
+  try {
+    response = await fetch(`/api/history?${search.toString()}`, {
+      cache: "no-store"
+    });
+  } catch {
+    return { status: "error" };
+  }
+
+  if (response.status === 401) {
+    return { status: "guest" };
+  }
+  if (!response.ok) {
+    return { status: "error" };
+  }
+
+  try {
+    const body = (await response.json()) as {
+      checks: Array<Parameters<typeof normalizeServerCheck>[0]>;
+      nextCursor?: string | null;
+      searchScanned?: number;
+      searchCapped?: boolean;
+      meta?: HistoryMeta;
+    };
+    return {
+      status: "ok",
+      checks: body.checks.map(normalizeServerCheck),
+      nextCursor: body.nextCursor ?? null,
+      meta: body.meta ?? {
+        tier: "free",
+        retention: { scope: "window", windowDays: 7 }
+      },
+      searchScanned:
+        typeof body.searchScanned === "number" ? body.searchScanned : null,
+      searchCapped: body.searchCapped ?? false
+    };
+  } catch {
+    return { status: "error" };
+  }
+}
+
+/**
+ * Per-check delete. Returns true on success; the caller removes the row from its
+ * view. Any failure returns false so the UI can surface a non-destructive error
+ * without optimistically dropping a row that still exists on the server.
+ */
+export async function deleteHistoryCheck(id: string): Promise<boolean> {
+  try {
+    const response = await fetch(`/api/history/${encodeURIComponent(id)}`, {
+      method: "DELETE"
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Idempotent local→server sync (dedupe on client_id server-side). Runs on
  * sign-in (welcome page) and opportunistically from the daily loop.
  */
