@@ -2773,3 +2773,40 @@ button.inline-link {
   margin: 16px 0 0;
   font-size: 14px;
 }
+
+/* Task 7 (P2.1): neutral pending/retry for the server-authoritative paywall
+   config. While the commercial contract is unknown we show a shimmering
+   placeholder where the price would be — never a guessed price. */
+.paywall-config-pending {
+  margin: 16px 0;
+}
+
+.paywall-config-pending .plan-card-price.skeleton-line {
+  display: block;
+  min-height: 1.6em;
+  width: 60%;
+  border-radius: 8px;
+  background: linear-gradient(
+    90deg,
+    var(--surface-muted) 25%,
+    var(--border-soft) 37%,
+    var(--surface-muted) 63%
+  );
+  background-size: 400% 100%;
+  animation: revora-skeleton 1.4s ease-in-out infinite;
+}
+
+@keyframes revora-skeleton {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paywall-config-pending .plan-card-price.skeleton-line {
+    animation: none;
+  }
+}

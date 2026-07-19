@@ -14,40 +14,30 @@ import {
 import { FREE_DAILY_CHECKS } from "../lib/free-tier";
 import { TERMS_VERSION } from "../lib/legal/terms";
 import { longitudinalInsightsEnabled } from "../lib/longitudinal-insights-flag";
+import { type PaywallConfig, usePaywallConfig } from "../lib/client/paywall-config";
 import { playBillingEnabled } from "../lib/play-billing-flag";
 
 /**
  * Soft paywall (plan 4D): after value, never at the first-session aha. In the
  * TWA it runs Play Billing; in the browser it redirects to Stripe Checkout.
  * All copy claims-audited: capability framing only, no outcome promises.
+ *
+ * Task 7 (P2.1): prices are server-authoritative. Until GET /api/paywall
+ * answers with a config that passes the client zod schema, the card renders a
+ * neutral loading/retry state and NO price — it never falls back to a hard-coded
+ * ladder that could differ from what checkout will actually charge.
  */
 export function PaywallCard() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [playPrices, setPlayPrices] = useState<Record<string, string>>({});
   const [usesPlay, setUsesPlay] = useState(false);
-  const [monthlyDisplay, setMonthlyDisplay] = useState<string | null>(null);
-  const [annualDisplay, setAnnualDisplay] = useState<string | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const { state, retry } = usePaywallConfig();
+  const config = state.status === "ready" ? state.config : null;
 
   useEffect(() => {
     track({ name: "paywall_viewed" });
-
-    // Monthly display price comes from the paywall config (the variant the
-    // checkout will actually charge) — never a second hard-coded ladder.
-    fetch("/api/paywall")
-      .then((r) => r.json())
-      .then((cfg: { priceDisplay?: unknown; annualDisplay?: unknown }) => {
-        if (typeof cfg.priceDisplay === "string") {
-          setMonthlyDisplay(cfg.priceDisplay);
-        }
-        if (typeof cfg.annualDisplay === "string") {
-          setAnnualDisplay(cfg.annualDisplay);
-        }
-      })
-      .catch(() => {
-        // keep the fallback label
-      });
 
     if (playBillingEnabled() && isPlayBillingAvailable()) {
       setUsesPlay(true);
@@ -58,7 +48,7 @@ export function PaywallCard() {
           );
         })
         .catch(() => {
-          // fall back to the default labels
+          // fall back to the config labels
         });
     }
   }, []);
@@ -163,34 +153,6 @@ export function PaywallCard() {
     }
   }
 
-  // Play prices win in the TWA; otherwise the paywall config's monthly
-  // variant; the literal only as the offline fallback.
-  const monthlyLabel =
-    playPrices[PLAY_SKUS.monthly] ?? `${monthlyDisplay ?? "$12.99"}/mo`;
-  // Annual price comes from the paywall config (single source in
-  // lib/server/pricing.ts); the literal only as the offline fallback.
-  const annualLabel =
-    playPrices[PLAY_SKUS.annual] ?? `${annualDisplay ?? "$99.99"}/yr`;
-  // Savings vs 12 months of the live monthly variant; hidden when the math
-  // doesn't hold (cheap variants, Play-priced currencies).
-  const monthlyNumber = Number.parseFloat(
-    (monthlyDisplay ?? "$12.99").replace(/[^0-9.]/g, "")
-  );
-  const annualNumber = Number.parseFloat(
-    (annualDisplay ?? "$99.99").replace(/[^0-9.]/g, "")
-  );
-  const annualSavingsPct =
-    Number.isFinite(monthlyNumber) &&
-    monthlyNumber > 0 &&
-    Number.isFinite(annualNumber) &&
-    annualNumber > 0
-      ? Math.round((1 - annualNumber / (monthlyNumber * 12)) * 100)
-      : 0;
-  const annualNote =
-    !playPrices[PLAY_SKUS.annual] && annualSavingsPct >= 10
-      ? ` /year — save about ${annualSavingsPct}% vs monthly`
-      : " /year";
-
   return (
     <div className="paywall-card" data-testid="paywall-card">
       <ul className="page-copy expectation-list">
@@ -208,7 +170,7 @@ export function PaywallCard() {
           make (PRODUCT.md §Design Principles 4, "No fabricated data").
           `data-recommended` still drives the visual emphasis; it just no longer
           lies about why. The annual card's "Best value" flag stays: it is
-          computed from the live prices (annualSavingsPct above), not asserted
+          computed from the live prices (annualSavingsPct below), not asserted
           about a user base. Enforced by the "social-proof" family in
           claims-boundary-copy.test.ts — which is why this comment describes the
           old flag rather than quoting it. */}
@@ -225,42 +187,22 @@ export function PaywallCard() {
           renewal and the refund policy.
         </span>
       </label>
-      <div className="plan-card" data-recommended="">
-        <p className="plan-card-price">
-          {monthlyDisplay ?? "$12.99"}
-          <span> /month</span>
-        </p>
-        <button
-          type="button"
-          className="primary-button"
-          disabled={busy !== null || !termsAccepted}
-          data-testid="subscribe-monthly"
-          onClick={() => subscribe("monthly")}
-        >
-          {busy === "monthly" ? "Opening…" : `Monthly — ${monthlyLabel}`}
-        </button>
-      </div>
-      <div className="plan-card">
-        <p className="plan-card-flag">Best value</p>
-        <p className="plan-card-price">
-          $99.99
-          <span>{annualNote}</span>
-        </p>
-        <button
-          type="button"
-          className="secondary-button"
-          disabled={busy !== null || !termsAccepted}
-          data-testid="subscribe-annual"
-          onClick={() => subscribe("annual")}
-        >
-          {busy === "annual" ? "Opening…" : `Annual — ${annualLabel}`}
-        </button>
-      </div>
+      {state.status === "ready" ? (
+        <PaywallPlans
+          config={state.config}
+          playPrices={playPrices}
+          busy={busy}
+          termsAccepted={termsAccepted}
+          onSubscribe={subscribe}
+        />
+      ) : (
+        <PaywallConfigNotice status={state.status} onRetry={retry} />
+      )}
       {usesPlay ? (
         <button
           type="button"
           className="link-button"
-          disabled={busy !== null || !termsAccepted}
+          disabled={busy !== null || !termsAccepted || config === null}
           data-testid="restore-purchases"
           onClick={() => restorePurchases()}
         >
@@ -273,6 +215,136 @@ export function PaywallCard() {
         not behind an email.
       </p>
       {error ? <p className="field-error">{error}</p> : null}
+    </div>
+  );
+}
+
+/**
+ * The price-bearing plan cards. Rendered only once the server config is known —
+ * every price here derives from `config` (the variant checkout will actually
+ * charge) or the Play SKU price, never a literal.
+ */
+function PaywallPlans({
+  config,
+  playPrices,
+  busy,
+  termsAccepted,
+  onSubscribe
+}: {
+  config: PaywallConfig;
+  playPrices: Record<string, string>;
+  busy: string | null;
+  termsAccepted: boolean;
+  onSubscribe: (plan: "monthly" | "annual") => void;
+}) {
+  // Play prices win in the TWA; otherwise the config's monthly variant.
+  const monthlyLabel =
+    playPrices[PLAY_SKUS.monthly] ?? `${config.priceDisplay}/mo`;
+
+  // Savings vs 12 months of the live monthly variant; hidden when the math
+  // doesn't hold (cheap variants, Play-priced currencies) or annual is off.
+  const monthlyNumber = Number.parseFloat(
+    config.priceDisplay.replace(/[^0-9.]/g, "")
+  );
+  const annualNumber = config.annualDisplay
+    ? Number.parseFloat(config.annualDisplay.replace(/[^0-9.]/g, ""))
+    : NaN;
+  const annualSavingsPct =
+    Number.isFinite(monthlyNumber) &&
+    monthlyNumber > 0 &&
+    Number.isFinite(annualNumber) &&
+    annualNumber > 0
+      ? Math.round((1 - annualNumber / (monthlyNumber * 12)) * 100)
+      : 0;
+  const annualLabel = config.annualDisplay
+    ? playPrices[PLAY_SKUS.annual] ?? `${config.annualDisplay}/yr`
+    : null;
+  const annualNote =
+    !playPrices[PLAY_SKUS.annual] && annualSavingsPct >= 10
+      ? ` /year — save about ${annualSavingsPct}% vs monthly`
+      : " /year";
+
+  return (
+    <>
+      <div className="plan-card" data-recommended="">
+        <p className="plan-card-price">
+          {config.priceDisplay}
+          <span> /month</span>
+        </p>
+        <button
+          type="button"
+          className="primary-button"
+          disabled={busy !== null || !termsAccepted}
+          data-testid="subscribe-monthly"
+          onClick={() => onSubscribe("monthly")}
+        >
+          {busy === "monthly" ? "Opening…" : `Monthly — ${monthlyLabel}`}
+        </button>
+      </div>
+      {/* Annual is shown only when the server authorized a price for it — an
+          unconfigured annual (annualDisplay === null) must never render a
+          guessed number checkout won't honor. */}
+      {config.annualDisplay ? (
+        <div className="plan-card">
+          <p className="plan-card-flag">Best value</p>
+          <p className="plan-card-price">
+            {config.annualDisplay}
+            <span>{annualNote}</span>
+          </p>
+          <button
+            type="button"
+            className="secondary-button"
+            disabled={busy !== null || !termsAccepted}
+            data-testid="subscribe-annual"
+            onClick={() => onSubscribe("annual")}
+          >
+            {busy === "annual" ? "Opening…" : `Annual — ${annualLabel}`}
+          </button>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * Neutral pending/retry state (global constraint §7): while authority is
+ * unknown, show a skeleton and — on failure — an explicit retry, never a price.
+ */
+function PaywallConfigNotice({
+  status,
+  onRetry
+}: {
+  status: "pending" | "error";
+  onRetry: () => void;
+}) {
+  return (
+    <div
+      className="paywall-config-pending"
+      data-testid="paywall-config-pending"
+      aria-live="polite"
+    >
+      <div className="plan-card" aria-hidden={status === "error" ? undefined : true}>
+        <p className="plan-card-price skeleton-line" aria-hidden="true">
+          &nbsp;
+        </p>
+        {status === "error" ? (
+          <>
+            <p className="field-hint">
+              We couldn&apos;t load the plan details just now.
+            </p>
+            <button
+              type="button"
+              className="secondary-button"
+              data-testid="paywall-config-retry"
+              onClick={onRetry}
+            >
+              Retry
+            </button>
+          </>
+        ) : (
+          <p className="field-hint">Loading plan details…</p>
+        )}
+      </div>
     </div>
   );
 }
