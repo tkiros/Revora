@@ -54,4 +54,11 @@ npx web-push generate-vapid-keys   # → VAPID_*
 ```
 
 Migrations: `DATABASE_URL=<railway-url> npx drizzle-kit migrate` (run per
-Railway Postgres environment: dev → preview → prod).
+Railway Postgres environment: dev → preview → prod). The canonical production
+database is the Railway service named `Postgres` (the `Postgres-D2oG` /
+`Postgres-FOMu` services are empty orphans — never migrate those). The
+production journal was baselined 2026-07-19 (`drizzle.__drizzle_migrations`
+seeded 0000–0012); if a database was ever schema-pushed by hand instead of
+migrated, re-baseline with
+`DATABASE_URL=<url> node scripts/baseline-drizzle-journal.mjs` (dry-run flag
+available) before trusting `drizzle-kit migrate`.

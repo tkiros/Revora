@@ -26,15 +26,42 @@ export async function captureServerError(
   stage: "model" | "route"
 ): Promise<void> {
   try {
+    // Production builds minify class names, so `constructor.name` degrades to
+    // one-letter junk ("b") in the tag stream (seen live: ANDROID-2/3/4).
+    // Prefer `error.name`, which Zod/pg/OpenAI set explicitly as a string
+    // property that survives bundling; keep constructor.name only as fallback.
+    //
+    // Tags bypass the beforeSend scrubber by design, so both values pass a
+    // machine-token allowlist before tagging: identifier charset only, no
+    // spaces or "@" — a food string, email, or prompt fragment can never
+    // ride along even if a future error stuffs PII into `name`/`code`.
+    const cause = error as {
+      name?: unknown;
+      code?: unknown;
+      status?: unknown;
+      constructor?: { name?: string };
+    };
+    const machineToken = (v: unknown): string | undefined =>
+      typeof v === "string" && /^[A-Za-z0-9_.-]{2,40}$/.test(v)
+        ? v
+        : undefined;
+    const name = machineToken(cause?.name);
     const tags: Record<string, string> = {
       stage,
       errorClass:
-        (error as { constructor?: { name?: string } })?.constructor?.name ??
+        (name !== "Error" ? name : undefined) ??
+        machineToken(cause?.constructor?.name) ??
         "Unknown"
     };
-    const status = (error as { status?: unknown })?.status;
-    if (typeof status === "number") {
-      tags.httpStatus = String(status);
+    // PII-free machine codes: Postgres SQLSTATE ("42P01"), node errno
+    // ("ECONNREFUSED"), OpenAI error codes — the triage signal the redacted
+    // message can't carry.
+    const code = machineToken(cause?.code);
+    if (code !== undefined) {
+      tags.errorCode = code;
+    }
+    if (typeof cause?.status === "number") {
+      tags.httpStatus = String(cause.status);
     }
 
     Sentry.captureException(error, { tags });

@@ -40,3 +40,4 @@ vercel-env*.txt
 
 # video-engine rendered assets (large binaries; regenerate from specs)
 video-engine/output/**/assets/
+.gstack/

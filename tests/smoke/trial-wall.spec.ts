@@ -87,10 +87,15 @@ test("taster: first-run walk lands a guided oatmeal check and meters used===1", 
   await page.route("**/api/check", (route) => route.fulfill({ json: RESULT_STUB }));
 
   // Fresh context → home bounces a brand-new visitor into the tour. The
-  // redirect is a client effect gated on the home bundle hydrating, so allow a
-  // cold-compile-tolerant window (all 7 specs hit this server in parallel).
+  // redirect is a client effect gated on the home bundle hydrating, AND the
+  // URL only commits after /onboarding's RSC payload arrives — so this window
+  // covers TWO cold Turbopack compiles on a loaded 2-core CI runner (all 7
+  // spec files compile :3100 routes in parallel). 30s failed twice on CI
+  // (2026-07-19, both mobile projects, retries included) while identical code
+  // passed locally in 2s; 60s keeps 30s of headroom inside the 90s budget for
+  // the warm remainder of the walk.
   await page.goto(`${TRIAL}/check`);
-  await expect(page).toHaveURL(/\/onboarding$/, { timeout: 30_000 });
+  await expect(page).toHaveURL(/\/onboarding$/, { timeout: 60_000 });
 
   // Walk welcome → segment → attribution → a1c → expectations → first_check
   // (mirrors onboarding.spec).
