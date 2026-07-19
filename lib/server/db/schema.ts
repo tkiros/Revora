@@ -1,5 +1,6 @@
 import { isNotNull, sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   check,
   date,
@@ -289,6 +290,54 @@ export const mealMemories = pgTable(
     check(
       "meal_memories_label_check",
       sql`${table.label} IS NULL OR ${table.label} IN ('breakfast','lunch','dinner','snack','restaurant','travel','family_meal','other')`
+    )
+  ]
+);
+
+// 90-day Learning Journey (plan §P4.1, §8 entity `learning_journeys`:
+// "Explicit state machine; no hidden reset"). ONE row per user (`user_id`
+// UNIQUE) — the journey is a singleton per account. There is NO stage column:
+// the stage and current day are DERIVED purely from startedAt + now + pause
+// history (lib/journey/state.ts), the single source, so a stored stage can
+// never drift from the day math. The `not_started` state is the ABSENCE of a
+// row — the persisted `state` enum is only the four post-start states. Pause
+// freezes the day count: `accumulated_pause_ms` banks completed pauses and
+// `paused_at` marks the live one. Nothing here feeds the check engine (global
+// constraint §1) — a journey is a frame around the product, never an input to a
+// verdict.
+export const learningJourneys = pgTable(
+  "learning_journeys",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .unique()
+      .references(() => users.id, { onDelete: "cascade" }),
+    state: text("state", {
+      enum: ["active", "paused", "graduated", "maintenance"]
+    }).notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    pausedAt: timestamp("paused_at", { withTimezone: true }),
+    // Frozen paused time from all resumed pauses, in ms. bigint (not integer):
+    // a long-paused journey can bank more ms than a 32-bit int holds. `mode:
+    // "number"` — the value is always well within Number.MAX_SAFE_INTEGER
+    // (90 days ≈ 7.8e9 ms), so the JS number round-trips exactly.
+    accumulatedPauseMs: bigint("accumulated_pause_ms", { mode: "number" })
+      .notNull()
+      .default(0),
+    graduatedAt: timestamp("graduated_at", { withTimezone: true }),
+    maintenanceAt: timestamp("maintenance_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (table) => [
+    check(
+      "learning_journeys_state_check",
+      sql`${table.state} IN ('active','paused','graduated','maintenance')`
     )
   ]
 );

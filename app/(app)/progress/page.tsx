@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { DisclaimerLine } from "../../../components/disclaimer-line";
+import { JourneyCard } from "../../../components/journey-card";
 import { BAI_BAND_COPY, bandOf, type BaiBand } from "../../../lib/coach/bai";
 import {
   resolveProgressState,
@@ -141,6 +142,11 @@ export default function ProgressPage() {
             followed through with, never a prediction about a lab result.
           </p>
         </section>
+
+        {/* Learning journey (Task 17). Self-gating: renders nothing unless the
+            build flag is on AND the caller is an entitled premium user, so it is
+            invisible for free users and pre-rollout builds. */}
+        <JourneyCard />
 
         {state === "loading" ? (
           <section className="surface-card hero-card">
