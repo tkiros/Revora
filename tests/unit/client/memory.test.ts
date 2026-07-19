@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { recallMealMemory } from "../../../lib/client/memory";
+import {
+  recallMealMemory,
+  shouldEmitRecalled
+} from "../../../lib/client/memory";
 
 function jsonFetch(body: unknown, status = 200) {
   return vi.fn(
@@ -65,5 +68,32 @@ describe("recallMealMemory", () => {
   it("fails soft to [] on a malformed body (no matches array)", async () => {
     const fetchImpl = jsonFetch({ nope: true });
     expect(await recallMealMemory("white rice", fetchImpl)).toEqual([]);
+  });
+});
+
+describe("shouldEmitRecalled — meal_memory_recalled emit gate", () => {
+  it("emits on the first meal with ≥1 visible match", () => {
+    expect(shouldEmitRecalled("white rice", 1, null)).toBe(true);
+  });
+
+  it("does NOT re-emit for the same meal (StrictMode / re-render dedupe)", () => {
+    // Already emitted for this exact food → suppressed.
+    expect(shouldEmitRecalled("white rice", 1, "white rice")).toBe(false);
+  });
+
+  it("emits again for a SECOND, different recalled meal in the same session", () => {
+    // Last emit was for "white rice"; a new meal recalls and must emit again.
+    expect(shouldEmitRecalled("oatmeal", 2, "white rice")).toBe(true);
+  });
+
+  it("re-emits when the user returns to a prior meal after checking another", () => {
+    // Panel last emitted for "oatmeal"; back to "white rice" → emit again.
+    expect(shouldEmitRecalled("white rice", 1, "oatmeal")).toBe(true);
+  });
+
+  it("does NOT emit when every match was session-dismissed (renders null)", () => {
+    // Matches exist server-side but all are dismissed → 0 visible → no emit.
+    expect(shouldEmitRecalled("white rice", 0, null)).toBe(false);
+    expect(shouldEmitRecalled("white rice", 0, "oatmeal")).toBe(false);
   });
 });

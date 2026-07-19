@@ -9,6 +9,7 @@ import {
   MEMORY_EASE_OPTIONS,
   MEMORY_LABEL_OPTIONS,
   recallMealMemory,
+  shouldEmitRecalled,
   type RecalledMemory
 } from "../lib/client/memory";
 
@@ -81,7 +82,15 @@ export function MealMemoryRecall({ food }: { food?: string }) {
   const [dismissed, setDismissed] = useState<Set<string>>(() =>
     typeof window === "undefined" ? new Set() : readDismissed()
   );
-  const trackedRef = useRef(false);
+  // A ref mirror of `dismissed`, read inside the recall effect so the emit
+  // decision sees session-dismissed ids WITHOUT making `dismissed` an effect
+  // dependency — dismissing a match must never re-fire the recall network call.
+  const dismissedRef = useRef(dismissed);
+  // The food this panel last emitted `meal_memory_recalled` for. Keyed on food
+  // (not a once-per-session boolean) so a SECOND, different recalled meal in the
+  // same session emits again, while a StrictMode double-invoke for the same meal
+  // does not (plan §P3.3/§10.1).
+  const emittedForRef = useRef<string | null>(null);
 
   const enabled = mealMemoryUiEnabled() && Boolean(food);
 
@@ -96,10 +105,14 @@ export function MealMemoryRecall({ food }: { food?: string }) {
         return;
       }
       setMatches(found);
-      // §10.1: the panel is showing prior memory for this meal. Match CLASS only
-      // ("exact" at launch) — no meal text, no count. Emitted once per mount.
-      if (found.length > 0 && !trackedRef.current) {
-        trackedRef.current = true;
+      // §10.1: emit when the panel renders with ≥1 VISIBLE match — matches whose
+      // only entries were session-dismissed render null and must not emit. Match
+      // CLASS only ("exact" at launch): no meal text, no count.
+      const visibleCount = found.filter(
+        (m) => !dismissedRef.current.has(m.id)
+      ).length;
+      if (shouldEmitRecalled(food, visibleCount, emittedForRef.current)) {
+        emittedForRef.current = food;
         track({ name: "meal_memory_recalled", props: { match: "exact" } });
       }
     })();
@@ -122,6 +135,9 @@ export function MealMemoryRecall({ food }: { food?: string }) {
       const next = new Set(current);
       next.add(id);
       persistDismissed(next);
+      // Keep the ref in sync so a later recall of the same meal sees the
+      // dismissal and correctly suppresses both the panel and the emit.
+      dismissedRef.current = next;
       return next;
     });
   }

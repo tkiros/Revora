@@ -144,6 +144,28 @@ export async function recallMealMemory(
 }
 
 /**
+ * Whether the recall panel should emit `meal_memory_recalled` for this render
+ * (plan §P3.3/§10.1). The event fires each time the panel renders with ≥1 VISIBLE
+ * match — so:
+ *  - `visibleMatchCount` (matches AFTER session-dismissals) must be ≥1: a meal
+ *    whose only matches were dismissed renders nothing and must not emit.
+ *  - it is keyed on `food`, not a once-per-session boolean: a SECOND, different
+ *    recalled meal in the same session emits again. `lastEmittedFood` is the food
+ *    the panel last emitted for; re-emitting only when the meal changed also
+ *    dedupes a StrictMode double-invoke for the same meal.
+ *
+ * Pure + colocated on the seam so it is unit-testable without a jsdom/component
+ * harness (this repo has none — same pattern as food-check-form's gate helpers).
+ */
+export function shouldEmitRecalled(
+  food: string,
+  visibleMatchCount: number,
+  lastEmittedFood: string | null
+): boolean {
+  return visibleMatchCount >= 1 && food !== lastEmittedFood;
+}
+
+/**
  * Bounded analytics summary of a save — memory FIELD TYPES, never their contents
  * (plan §P3.2/§10.1). Kept next to the seam so both the component's props and the
  * event stay in one place; the choice/note strings are reduced to a boolean here
