@@ -353,6 +353,13 @@ export const learningJourneys = pgTable(
       .default(0),
     graduatedAt: timestamp("graduated_at", { withTimezone: true }),
     maintenanceAt: timestamp("maintenance_at", { withTimezone: true }),
+    // Why the CURRENT pause was taken (plan §P4.4). Bounded enum, nullable: null
+    // whenever the journey is not paused, or when a pause was taken without a
+    // reason. Set on pause, cleared on resume (lib/journey/state.ts). A bounded
+    // reason class — never free text, never health data.
+    pauseReason: text("pause_reason", {
+      enum: ["need_a_break", "life_event", "not_useful_now", "other"]
+    }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -364,6 +371,10 @@ export const learningJourneys = pgTable(
     check(
       "learning_journeys_state_check",
       sql`${table.state} IN ('active','paused','graduated','maintenance')`
+    ),
+    check(
+      "learning_journeys_pause_reason_check",
+      sql`${table.pauseReason} IS NULL OR ${table.pauseReason} IN ('need_a_break','life_event','not_useful_now','other')`
     )
   ]
 );

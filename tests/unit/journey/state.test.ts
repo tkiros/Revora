@@ -6,10 +6,12 @@ import {
   completedStages,
   currentDay,
   currentStage,
+  graduateToMaintenance,
   isComplete,
   JourneyTransitionError,
   JOURNEY_LENGTH_DAYS,
   NOT_STARTED,
+  PAUSE_REASONS,
   type Journey,
   type JourneyAction,
   type JourneyState
@@ -31,6 +33,7 @@ function active(overrides: Partial<Journey> = {}): Journey {
     accumulatedPauseMs: 0,
     graduatedAt: null,
     maintenanceAt: null,
+    pauseReason: null,
     ...overrides
   };
 }
@@ -234,5 +237,53 @@ describe("completedStages count for graduation event", () => {
     expect(completedStages(active(), atDay(75))).toBe(4);
     expect(completedStages(active(), atDay(89))).toBe(4); // day 90, stage 5 not "past"
     expect(completedStages(active(), atDay(120))).toBe(5); // all five behind
+  });
+});
+
+describe("pause reason storage (plan §P4.4)", () => {
+  it("pause stores the supplied reason", () => {
+    const paused = applyAction(active(), "pause", atDay(3), "life_event");
+    expect(paused.state).toBe("paused");
+    expect(paused.pauseReason).toBe("life_event");
+  });
+
+  it("pause with no reason stores null", () => {
+    const paused = applyAction(active(), "pause", atDay(3));
+    expect(paused.pauseReason).toBeNull();
+  });
+
+  it("resume clears the pause reason (like pausedAt)", () => {
+    const paused = applyAction(active(), "pause", atDay(3), "need_a_break");
+    const resumed = applyAction(paused, "resume", atDay(3, DAY_MS));
+    expect(resumed.state).toBe("active");
+    expect(resumed.pauseReason).toBeNull();
+  });
+
+  it("every PAUSE_REASONS value is accepted and round-trips", () => {
+    for (const reason of PAUSE_REASONS) {
+      expect(applyAction(active(), "pause", atDay(3), reason).pauseReason).toBe(
+        reason
+      );
+    }
+  });
+});
+
+describe("graduateToMaintenance single-flow helper (plan §P4.4)", () => {
+  it("walks active → maintenance in one step, stamping both timestamps", () => {
+    const at = atDay(90);
+    const next = graduateToMaintenance(active(), at);
+    expect(next.state).toBe("maintenance");
+    expect(next.graduatedAt).toEqual(at);
+    expect(next.maintenanceAt).toEqual(at);
+  });
+
+  it("throws from a non-active journey (the graduate leg fails first)", () => {
+    const paused = applyAction(active(), "pause", atDay(3));
+    expect(() => graduateToMaintenance(paused, atDay(3))).toThrow(
+      JourneyTransitionError
+    );
+    expect(() => graduateToMaintenance(NOT_STARTED, START)).toThrow(
+      JourneyTransitionError
+    );
   });
 });

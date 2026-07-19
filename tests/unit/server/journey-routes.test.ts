@@ -7,6 +7,7 @@ import {
 } from "../../../app/api/journey/handlers";
 import type { Entitlement } from "../../../lib/server/entitlement";
 import { schema } from "../../../lib/server/db";
+import { encryptField } from "../../../lib/server/crypto";
 import { createTestDb } from "../../helpers/test-db";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -29,7 +30,10 @@ const FREE: Entitlement = {
 let testDb: Awaited<ReturnType<typeof createTestDb>>;
 let ownerId: string;
 
+const TEST_KEY = Buffer.alloc(32, 7).toString("base64");
+
 beforeAll(async () => {
+  process.env.HEALTH_DATA_KEY = TEST_KEY;
   testDb = await createTestDb();
   const [owner] = await testDb.db
     .insert(schema.users)
@@ -40,11 +44,32 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await testDb.close();
+  delete process.env.HEALTH_DATA_KEY;
 });
 
 beforeEach(async () => {
   await testDb.db.delete(schema.learningJourneys);
+  await testDb.db.delete(schema.profiles);
 });
+
+/** Insert a minimal profile for the owner with a given nudge cadence. */
+async function seedProfile(cadence: "daily" | "few_per_week" | "weekly") {
+  await testDb.db.insert(schema.profiles).values({
+    userId: ownerId,
+    a1cCiphertext: encryptField("6.1"),
+    a1cBand: "prediabetes_60_62",
+    nudgeCadence: cadence,
+    consentedAt: new Date("2026-01-01T00:00:00.000Z")
+  });
+}
+
+async function ownerCadence() {
+  const [row] = await testDb.db
+    .select({ cadence: schema.profiles.nudgeCadence })
+    .from(schema.profiles)
+    .where(eq(schema.profiles.userId, ownerId));
+  return row?.cadence ?? null;
+}
 
 function deps(
   userId: string | null,
@@ -179,6 +204,115 @@ describe("POST applies the state machine and persists", () => {
       postRequest({ action: "maintenance" })
     );
     expect((await maintRes.json()).journey.state).toBe("maintenance");
+  });
+
+  it("pause with a bounded reason persists pause_reason (plan §P4.4)", async () => {
+    await createJourneyPostHandler(deps(ownerId))(
+      postRequest({ action: "start" })
+    );
+    const res = await createJourneyPostHandler(deps(ownerId))(
+      postRequest({ action: "pause", reason: "life_event" })
+    );
+    expect(res.status).toBe(200);
+    expect((await res.json()).journey.state).toBe("paused");
+    const [row] = await testDb.db
+      .select()
+      .from(schema.learningJourneys)
+      .where(eq(schema.learningJourneys.userId, ownerId));
+    expect(row.pauseReason).toBe("life_event");
+
+    // Resuming clears the stored reason (like paused_at).
+    const resume = await createJourneyPostHandler(deps(ownerId))(
+      postRequest({ action: "resume" })
+    );
+    expect(resume.status).toBe(200);
+    const [after] = await testDb.db
+      .select()
+      .from(schema.learningJourneys)
+      .where(eq(schema.learningJourneys.userId, ownerId));
+    expect(after.pauseReason).toBeNull();
+  });
+
+  it("pause with no reason stores null pause_reason", async () => {
+    await createJourneyPostHandler(deps(ownerId))(
+      postRequest({ action: "start" })
+    );
+    await createJourneyPostHandler(deps(ownerId))(
+      postRequest({ action: "pause" })
+    );
+    const [row] = await testDb.db
+      .select()
+      .from(schema.learningJourneys)
+      .where(eq(schema.learningJourneys.userId, ownerId));
+    expect(row.pauseReason).toBeNull();
+  });
+
+  it("pause with an out-of-enum reason → 400 (bounded enum only)", async () => {
+    await createJourneyPostHandler(deps(ownerId))(
+      postRequest({ action: "start" })
+    );
+    const res = await createJourneyPostHandler(deps(ownerId))(
+      postRequest({ action: "pause", reason: "just_because" })
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("graduate_maintenance walks active → maintenance in ONE request", async () => {
+    await createJourneyPostHandler(deps(ownerId))(
+      postRequest({ action: "start" })
+    );
+    const res = await createJourneyPostHandler(deps(ownerId))(
+      postRequest({ action: "graduate_maintenance" })
+    );
+    expect(res.status).toBe(200);
+    expect((await res.json()).journey.state).toBe("maintenance");
+    const [row] = await testDb.db
+      .select()
+      .from(schema.learningJourneys)
+      .where(eq(schema.learningJourneys.userId, ownerId));
+    expect(row.state).toBe("maintenance");
+    expect(row.graduatedAt).not.toBeNull();
+    expect(row.maintenanceAt).not.toBeNull();
+  });
+
+  it("graduate_maintenance from not_started → 409, no row created", async () => {
+    const res = await createJourneyPostHandler(deps(ownerId))(
+      postRequest({ action: "graduate_maintenance" })
+    );
+    expect(res.status).toBe(409);
+    const rows = await testDb.db
+      .select()
+      .from(schema.learningJourneys)
+      .where(eq(schema.learningJourneys.userId, ownerId));
+    expect(rows).toHaveLength(0);
+  });
+
+  it("entering maintenance relaxes a DAILY nudge cadence to WEEKLY", async () => {
+    await seedProfile("daily");
+    await createJourneyPostHandler(deps(ownerId))(
+      postRequest({ action: "start" })
+    );
+    await createJourneyPostHandler(deps(ownerId))(
+      postRequest({ action: "graduate_maintenance" })
+    );
+    expect(await ownerCadence()).toBe("weekly");
+  });
+
+  it("entering maintenance leaves a non-daily cadence untouched", async () => {
+    await seedProfile("few_per_week");
+    await createJourneyPostHandler(deps(ownerId))(
+      postRequest({ action: "start" })
+    );
+    await createJourneyPostHandler(deps(ownerId))(
+      postRequest({ action: "graduate" })
+    );
+    // Cadence unchanged after graduate (not yet maintenance).
+    expect(await ownerCadence()).toBe("few_per_week");
+    await createJourneyPostHandler(deps(ownerId))(
+      postRequest({ action: "maintenance" })
+    );
+    // Still untouched — we only ever relax daily → weekly.
+    expect(await ownerCadence()).toBe("few_per_week");
   });
 
   it("illegal transition (resume when not paused) → 409, row unchanged", async () => {

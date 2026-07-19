@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -8,9 +8,11 @@ import {
   completedStages,
   currentDay,
   currentStage,
+  graduateToMaintenance,
   isComplete,
   JourneyTransitionError,
   NOT_STARTED,
+  PAUSE_REASONS,
   type Journey,
   type JourneyAction
 } from "../../../lib/journey/state";
@@ -32,9 +34,11 @@ import { getSessionInfo, type SessionInfo } from "../../../lib/server/session";
  * descriptor copy. POST applies one explicit action (start/pause/resume/
  * graduate/maintenance) through the same pure state machine, server-side.
  *
- * The UI exposes only start/pause/resume today (Task 20 wires graduate/
- * maintenance + pause reasons), but the endpoint accepts the full action set so
- * the state machine is complete and testable end to end.
+ * The endpoint accepts the full action set — start/pause/resume/graduate/
+ * maintenance plus the `graduate_maintenance` convenience that runs both
+ * explicit day-90 transitions in one request (plan §P4.4). `pause` takes an
+ * optional bounded `reason`; entering maintenance relaxes a daily nudge cadence
+ * to weekly (the lower-intensity product-state effect).
  *
  * Gate order is identical to every other Phase 3/4 route (flag 404 → 401 → 403):
  *   1. server flag OFF  → 404  (feature not in this build; endpoint inert until
@@ -65,8 +69,25 @@ export const JOURNEY_ACTIONS = [
   "maintenance"
 ] as const satisfies readonly JourneyAction[];
 
+/**
+ * The action set the ENDPOINT accepts. The five above are the pure state-machine
+ * transitions; `graduate_maintenance` is the plan §P4.4 day-90 "graduate into
+ * maintenance" convenience — one request that runs both explicit transitions
+ * (lib/journey/state.graduateToMaintenance) so the UI needn't fire two POSTs and
+ * risk a half-applied graduate.
+ */
+export const JOURNEY_API_ACTIONS = [
+  ...JOURNEY_ACTIONS,
+  "graduate_maintenance"
+] as const;
+
 const JourneyActionSchema = z
-  .object({ action: z.enum(JOURNEY_ACTIONS) })
+  .object({
+    action: z.enum(JOURNEY_API_ACTIONS),
+    // Optional bounded pause reason (plan §P4.4). Only meaningful for `pause`;
+    // ignored for every other action. Never free text.
+    reason: z.enum(PAUSE_REASONS).optional()
+  })
   .strict();
 
 function unauthorized() {
@@ -140,6 +161,7 @@ type JourneyRow = {
   accumulatedPauseMs: number;
   graduatedAt: Date | null;
   maintenanceAt: Date | null;
+  pauseReason: Journey["pauseReason"];
 };
 
 /** The caller's stored journey, or the not-started sentinel when there is no row. */
@@ -154,7 +176,8 @@ async function loadJourney(
       pausedAt: schema.learningJourneys.pausedAt,
       accumulatedPauseMs: schema.learningJourneys.accumulatedPauseMs,
       graduatedAt: schema.learningJourneys.graduatedAt,
-      maintenanceAt: schema.learningJourneys.maintenanceAt
+      maintenanceAt: schema.learningJourneys.maintenanceAt,
+      pauseReason: schema.learningJourneys.pauseReason
     })
     .from(schema.learningJourneys)
     .where(eq(schema.learningJourneys.userId, userId));
@@ -170,7 +193,8 @@ async function loadJourney(
       pausedAt: typed.pausedAt,
       accumulatedPauseMs: typed.accumulatedPauseMs,
       graduatedAt: typed.graduatedAt,
-      maintenanceAt: typed.maintenanceAt
+      maintenanceAt: typed.maintenanceAt,
+      pauseReason: typed.pauseReason
     },
     exists: true
   };
@@ -186,6 +210,7 @@ function serializeJourney(journey: Journey, now: Date) {
       stage,
       isComplete: isComplete(journey, now),
       completedStages: completedStages(journey, now),
+      pauseReason: journey.pauseReason,
       startedAt: journey.startedAt ? journey.startedAt.toISOString() : null,
       pausedAt: journey.pausedAt ? journey.pausedAt.toISOString() : null,
       graduatedAt: journey.graduatedAt
@@ -230,7 +255,7 @@ export function createJourneyPostHandler(deps: JourneyRouteDeps = {}) {
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid request." }, { status: 400 });
     }
-    const { action } = parsed.data;
+    const { action, reason } = parsed.data;
     const now = ctx.now();
 
     try {
@@ -238,7 +263,15 @@ export function createJourneyPostHandler(deps: JourneyRouteDeps = {}) {
 
       let next: Journey;
       try {
-        next = applyAction(journey, action, now);
+        next =
+          action === "graduate_maintenance"
+            ? graduateToMaintenance(journey, now)
+            : applyAction(
+                journey,
+                action,
+                now,
+                action === "pause" ? reason ?? null : null
+              );
       } catch (error) {
         if (error instanceof JourneyTransitionError) {
           // Well-formed request, wrong state → 409. No hidden reset.
@@ -262,6 +295,7 @@ export function createJourneyPostHandler(deps: JourneyRouteDeps = {}) {
           accumulatedPauseMs: next.accumulatedPauseMs,
           graduatedAt: next.graduatedAt,
           maintenanceAt: next.maintenanceAt,
+          pauseReason: next.pauseReason,
           createdAt: now,
           updatedAt: now
         });
@@ -275,9 +309,29 @@ export function createJourneyPostHandler(deps: JourneyRouteDeps = {}) {
             accumulatedPauseMs: next.accumulatedPauseMs,
             graduatedAt: next.graduatedAt,
             maintenanceAt: next.maintenanceAt,
+            pauseReason: next.pauseReason,
             updatedAt: now
           })
           .where(eq(schema.learningJourneys.userId, g.session.userId));
+      }
+
+      // Maintenance mode's product-state effect on nudges (plan §P4.4 "lower
+      // intensity"; Task 19): entering maintenance drops a DAILY cadence to
+      // WEEKLY. We only ever relax `daily` → `weekly` — a user who already chose
+      // `few_per_week`/`weekly` is left alone, and after maintenance the user can
+      // freely turn the cadence back up in settings. Fail-open scope: this only
+      // fires when the transition landed on `maintenance`.
+      if (next.state === "maintenance") {
+        await ctx
+          .db()
+          .update(schema.profiles)
+          .set({ nudgeCadence: "weekly" })
+          .where(
+            and(
+              eq(schema.profiles.userId, g.session.userId),
+              eq(schema.profiles.nudgeCadence, "daily")
+            )
+          );
       }
 
       return NextResponse.json(serializeJourney(next, now));

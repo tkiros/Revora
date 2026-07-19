@@ -50,6 +50,18 @@ export type NudgeClass = "journey_step" | "weekly_learning_ready" | "generic";
 // non-journey (generic) nudge. A closed enum — never a raw day count.
 export type JourneyStageProp = "1" | "2" | "3" | "4" | "5" | "none";
 
+// The closed pauseReason vocabulary (mirror of lib/journey/state PauseReason).
+// Only the bounded CLASS reaches analytics — never free text. Kept as a local
+// mirror so this client module never imports server/journey internals. NOTE the
+// prop is named `pauseReason`, a distinct bounded enum — deliberately NOT the
+// bare free-text carrier the no-PII source scan forbids, whose guard stays
+// intact (it targets the result rationale field, never this bounded class).
+export type PauseReasonProp =
+  | "need_a_break"
+  | "life_event"
+  | "not_useful_now"
+  | "other";
+
 export type AnalyticsEvent =
   | {
       name: "check_completed";
@@ -161,6 +173,29 @@ export type AnalyticsEvent =
   // only fires when a stage exists (an active journey); a summary viewed with no
   // journey emits nothing.
   | { name: "weekly_learning_viewed"; props: { stage: "1" | "2" | "3" | "4" | "5" } }
+  // §P4.4/§10.1: the user paused their journey. Bounded props only — the current
+  // journey STAGE ("1".."5"; a paused journey always has a stage) and the closed
+  // pauseReason CLASS. Never a day count, never free text. Pausing is a
+  // legitimate outcome (global constraint §9), not a failure.
+  | {
+      name: "journey_paused";
+      props: {
+        stage: "1" | "2" | "3" | "4" | "5";
+        pauseReason: PauseReasonProp;
+      };
+    }
+  // §P4.4/§10.1: the user graduated (a SUCCESS outcome — global constraint §9).
+  // The ONLY prop is the completed-stage COUNT as a closed "0".."5" bucket
+  // (lib/journey/state.completedStages, clamped) — never a day count or any
+  // health data.
+  | {
+      name: "journey_graduated";
+      props: { completedStages: "0" | "1" | "2" | "3" | "4" | "5" };
+    }
+  // §P4.4/§10.1: the user chose to continue in maintenance mode. The ONLY prop is
+  // the bounded offer `variant` — "standard" today (price experiments are
+  // human-gated; no price reaches analytics).
+  | { name: "maintenance_selected"; props: { variant: "standard" } }
   | { name: "photo_draft"; props: { items: number; uncertain: number } };
 
 // Runtime belt-over-type-belt guard: even if a caller bypasses the type
@@ -195,7 +230,10 @@ const ALLOWED_EVENT_NAMES: ReadonlySet<AnalyticsEvent["name"]> = new Set([
   "clarification_resolved",
   "meal_memory_saved",
   "meal_memory_recalled",
-  "weekly_learning_viewed"
+  "weekly_learning_viewed",
+  "journey_paused",
+  "journey_graduated",
+  "maintenance_selected"
 ]);
 
 type AnalyticsHost = {

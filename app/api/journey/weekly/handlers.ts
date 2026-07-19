@@ -163,7 +163,8 @@ async function loadJourney(db: Db, userId: string): Promise<Journey> {
       pausedAt: schema.learningJourneys.pausedAt,
       accumulatedPauseMs: schema.learningJourneys.accumulatedPauseMs,
       graduatedAt: schema.learningJourneys.graduatedAt,
-      maintenanceAt: schema.learningJourneys.maintenanceAt
+      maintenanceAt: schema.learningJourneys.maintenanceAt,
+      pauseReason: schema.learningJourneys.pauseReason
     })
     .from(schema.learningJourneys)
     .where(eq(schema.learningJourneys.userId, userId));
@@ -176,7 +177,8 @@ async function loadJourney(db: Db, userId: string): Promise<Journey> {
     pausedAt: row.pausedAt,
     accumulatedPauseMs: row.accumulatedPauseMs,
     graduatedAt: row.graduatedAt,
-    maintenanceAt: row.maintenanceAt
+    maintenanceAt: row.maintenanceAt,
+    pauseReason: row.pauseReason
   };
 }
 

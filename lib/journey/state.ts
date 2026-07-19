@@ -42,6 +42,25 @@ export type JourneyAction =
   | "maintenance";
 
 /**
+ * Why the user paused (plan §P4.4 pause path). A bounded enum — never free text —
+ * stored on the journey row and carried (as the same closed set) by the
+ * `journey_paused` analytics event. Honest, non-judgmental options only: pausing
+ * is a legitimate choice, not a failure (global constraint §9).
+ */
+export type PauseReason =
+  | "need_a_break"
+  | "life_event"
+  | "not_useful_now"
+  | "other";
+
+export const PAUSE_REASONS = [
+  "need_a_break",
+  "life_event",
+  "not_useful_now",
+  "other"
+] as const satisfies readonly PauseReason[];
+
+/**
  * The plain, db-free journey shape. The persisted row maps 1:1 onto this (minus
  * id/userId/timestamps the route owns). `not_started` is represented by
  * `NOT_STARTED` below — the route uses it when the user has no row yet.
@@ -58,6 +77,12 @@ export type Journey = {
   graduatedAt: Date | null;
   /** When the user chose maintenance; null until then. */
   maintenanceAt: Date | null;
+  /**
+   * Why the CURRENT pause was taken; null unless `paused` (cleared on resume,
+   * like `pausedAt`). A bounded enum — see {@link PauseReason}. The UI may pause
+   * without collecting a reason, in which case this stays null.
+   */
+  pauseReason: PauseReason | null;
 };
 
 /** The sentinel a user has before they ever start (no DB row). */
@@ -67,7 +92,8 @@ export const NOT_STARTED: Journey = Object.freeze({
   pausedAt: null,
   accumulatedPauseMs: 0,
   graduatedAt: null,
-  maintenanceAt: null
+  maintenanceAt: null,
+  pauseReason: null
 });
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -124,7 +150,8 @@ export class JourneyTransitionError extends Error {
 export function applyAction(
   journey: Journey,
   action: JourneyAction,
-  now: Date
+  now: Date,
+  reason: PauseReason | null = null
 ): Journey {
   switch (action) {
     case "start":
@@ -137,14 +164,17 @@ export function applyAction(
         pausedAt: null,
         accumulatedPauseMs: 0,
         graduatedAt: null,
-        maintenanceAt: null
+        maintenanceAt: null,
+        pauseReason: null
       };
 
     case "pause":
       if (journey.state !== "active") {
         throw new JourneyTransitionError(journey.state, action);
       }
-      return { ...journey, state: "paused", pausedAt: now };
+      // `reason` is optional — a pause with no reason stores null. It is only
+      // ever read for a `paused` journey; graduate/maintenance never inspect it.
+      return { ...journey, state: "paused", pausedAt: now, pauseReason: reason };
 
     case "resume": {
       if (journey.state !== "paused" || !journey.pausedAt) {
@@ -157,7 +187,9 @@ export function applyAction(
         ...journey,
         state: "active",
         pausedAt: null,
-        accumulatedPauseMs: journey.accumulatedPauseMs + pausedSpan
+        accumulatedPauseMs: journey.accumulatedPauseMs + pausedSpan,
+        // The reason belonged to the pause we just ended — clear it, like pausedAt.
+        pauseReason: null
       };
     }
 
@@ -182,6 +214,18 @@ export function applyAction(
       throw new JourneyTransitionError(journey.state, never);
     }
   }
+}
+
+/**
+ * The day-90 "graduate into maintenance" flow (plan §P4.4) as ONE step, built by
+ * composing the two explicit transitions — graduate (active → graduated) then
+ * maintenance (graduated → maintenance) — so both are honored and no new hidden
+ * transition is introduced. Throws `JourneyTransitionError` if the journey is not
+ * `active` (the graduate leg fails first). The result carries BOTH `graduatedAt`
+ * and `maintenanceAt` stamped at `now`.
+ */
+export function graduateToMaintenance(journey: Journey, now: Date): Journey {
+  return applyAction(applyAction(journey, "graduate", now), "maintenance", now);
 }
 
 /**

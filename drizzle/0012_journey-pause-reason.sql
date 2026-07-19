@@ -1,0 +1,2 @@
+ALTER TABLE "learning_journeys" ADD COLUMN "pause_reason" text;--> statement-breakpoint
+ALTER TABLE "learning_journeys" ADD CONSTRAINT "learning_journeys_pause_reason_check" CHECK ("learning_journeys"."pause_reason" IS NULL OR "learning_journeys"."pause_reason" IN ('need_a_break','life_event','not_useful_now','other'));
