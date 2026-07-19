@@ -196,6 +196,41 @@ function parseToExclusive(value: string | null): Date | null {
   return d;
 }
 
+type Retention = (typeof HISTORY_RETENTION)[keyof typeof HISTORY_RETENTION];
+
+function retentionFor(entitlement: Entitlement): Retention {
+  return entitlement.tier === "premium"
+    ? HISTORY_RETENTION.premium
+    : HISTORY_RETENTION.free;
+}
+
+/**
+ * Owner + free-tier VIEW window + optional date filter. Shared by the paginated
+ * read (GET) and the search (POST) so both honor the same retention and date
+ * bounds — search must never leak rows outside the caller's visible window.
+ */
+function buildBaseConditions(
+  userId: string,
+  retention: Retention,
+  fromDate: Date | null,
+  toExclusive: Date | null
+): SQL[] {
+  const conditions: SQL[] = [eq(schema.checks.userId, userId)];
+  if (retention.windowDays !== null) {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - (retention.windowDays - 1));
+    cutoff.setHours(0, 0, 0, 0);
+    conditions.push(gte(schema.checks.createdAt, cutoff));
+  }
+  if (fromDate) {
+    conditions.push(gte(schema.checks.createdAt, fromDate));
+  }
+  if (toExclusive) {
+    conditions.push(lt(schema.checks.createdAt, toExclusive));
+  }
+  return conditions;
+}
+
 export function createHistoryGetHandler(deps: RouteDeps = {}) {
   const db = deps.db ?? getDb;
   const getSession = deps.getSession ?? getSessionInfo;
@@ -213,33 +248,18 @@ export function createHistoryGetHandler(deps: RouteDeps = {}) {
       Math.max(Number(url.searchParams.get("limit")) || DEFAULT_LIMIT, 1),
       MAX_LIMIT
     );
-    const query = (url.searchParams.get("q") ?? "").trim().slice(0, 160);
-    const searching = query.length > 0;
 
-    // Base conditions: owner, then the server-enforced free-tier VIEW window,
-    // then any explicit date filter, then the keyset cursor (or legacy before).
-    const conditions: SQL[] = [eq(schema.checks.userId, session.userId)];
-
+    // NOTE: this GET carries NO `q`. Meal text is health data and plan §16
+    // forbids it in URLs/logs — search is POST-only (createHistorySearchHandler).
+    // cursor/from/to are not health text and may stay on the query string.
     const entitlement = await entitlementOf(db(), session.userId);
-    const retention =
-      entitlement.tier === "premium"
-        ? HISTORY_RETENTION.premium
-        : HISTORY_RETENTION.free;
-    if (retention.windowDays !== null) {
-      const cutoff = new Date();
-      cutoff.setDate(cutoff.getDate() - (retention.windowDays - 1));
-      cutoff.setHours(0, 0, 0, 0);
-      conditions.push(gte(schema.checks.createdAt, cutoff));
-    }
-
-    const fromDate = parseFromDate(url.searchParams.get("from"));
-    const toExclusive = parseToExclusive(url.searchParams.get("to"));
-    if (fromDate) {
-      conditions.push(gte(schema.checks.createdAt, fromDate));
-    }
-    if (toExclusive) {
-      conditions.push(lt(schema.checks.createdAt, toExclusive));
-    }
+    const retention = retentionFor(entitlement);
+    const conditions = buildBaseConditions(
+      session.userId,
+      retention,
+      parseFromDate(url.searchParams.get("from")),
+      parseToExclusive(url.searchParams.get("to"))
+    );
 
     // Keyset pagination: (createdAt, id) DESC. The cursor is the last row of the
     // previous page; the next page is everything strictly older than it. Legacy
@@ -247,47 +267,13 @@ export function createHistoryGetHandler(deps: RouteDeps = {}) {
     const cursorParam = url.searchParams.get("cursor");
     const cursor = cursorParam ? decodeCursor(cursorParam) : null;
     if (cursor) {
-      conditions.push(
-        or(
-          lt(schema.checks.createdAt, cursor.t),
-          and(
-            eq(schema.checks.createdAt, cursor.t),
-            lt(schema.checks.id, cursor.id)
-          )
-        ) as SQL
-      );
+      conditions.push(keysetOlderThan(cursor));
     } else {
       const beforeParam = url.searchParams.get("before");
       const before = beforeParam ? new Date(beforeParam) : null;
       if (before && !Number.isNaN(before.getTime())) {
         conditions.push(lt(schema.checks.createdAt, before));
       }
-    }
-
-    // Search reads plaintext food, so it cannot run in SQL — decrypt-and-scan
-    // the most-recent rows up to a hard cap and filter in memory. No cursor for
-    // search (single bounded scan); the client sees searchScanned/searchCapped.
-    if (searching) {
-      const scanRows = await db()
-        .select()
-        .from(schema.checks)
-        .where(and(...conditions))
-        .orderBy(desc(schema.checks.createdAt), desc(schema.checks.id))
-        .limit(SEARCH_SCAN_CAP);
-
-      const needle = query.toLowerCase();
-      const matches = scanRows
-        .map((row) => ({ row, food: safeDecrypt(row.foodCiphertext) }))
-        .filter((entry) => entry.food.toLowerCase().includes(needle));
-
-      return NextResponse.json({
-        checks: matches.map(({ row, food }) => toResponseCheck(row, food)),
-        nextCursor: null,
-        nextBefore: null,
-        searchScanned: scanRows.length,
-        searchCapped: scanRows.length === SEARCH_SCAN_CAP,
-        meta: { tier: entitlement.tier, retention }
-      });
     }
 
     const rows = await db()
@@ -307,6 +293,86 @@ export function createHistoryGetHandler(deps: RouteDeps = {}) {
       nextCursor: last ? encodeCursor(last.createdAt, last.id) : null,
       // Kept for backward compatibility with any timestamp-only caller.
       nextBefore: last ? last.createdAt.toISOString() : null,
+      meta: { tier: entitlement.tier, retention }
+    });
+  };
+}
+
+function keysetOlderThan(cursor: { t: Date; id: string }): SQL {
+  return or(
+    lt(schema.checks.createdAt, cursor.t),
+    and(eq(schema.checks.createdAt, cursor.t), lt(schema.checks.id, cursor.id))
+  ) as SQL;
+}
+
+const SearchRequestSchema = z
+  .object({
+    // Meal text — carried in the POST body, never the URL (plan §16).
+    q: z.string().trim().min(1).max(160),
+    from: z.string().optional(),
+    to: z.string().optional(),
+    // Accepted for forward-compatibility; search is a single bounded scan today
+    // (nextCursor is always null), so these do not paginate the result.
+    cursor: z.string().optional(),
+    limit: z.number().int().positive().optional()
+  })
+  .strict();
+
+/**
+ * Search over DECRYPTED food text. Food is encrypted at rest, so there is no SQL
+ * LIKE and (plan §P3.3) no plaintext index / unsalted hash. The query term is
+ * health data, so it travels in the POST body — never a query string (plan §16,
+ * no health text in URLs/logs). We decrypt-and-scan the caller's most-recent
+ * rows (within their retention window + any date filter) up to a hard cap and
+ * match in memory, reporting searchScanned/searchCapped so the bound is honest.
+ */
+export function createHistorySearchHandler(deps: RouteDeps = {}) {
+  const db = deps.db ?? getDb;
+  const getSession = deps.getSession ?? getSessionInfo;
+  const entitlementOf =
+    deps.entitlementOf ?? ((d: Db, userId: string) => getEntitlement(d, userId));
+
+  return async function POST(request: Request) {
+    const session = await getSession();
+    if (!session) {
+      return unauthorized();
+    }
+
+    const parsed = SearchRequestSchema.safeParse(await readJson(request));
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid search request." },
+        { status: 400 }
+      );
+    }
+
+    const entitlement = await entitlementOf(db(), session.userId);
+    const retention = retentionFor(entitlement);
+    const conditions = buildBaseConditions(
+      session.userId,
+      retention,
+      parseFromDate(parsed.data.from ?? null),
+      parseToExclusive(parsed.data.to ?? null)
+    );
+
+    const scanRows = await db()
+      .select()
+      .from(schema.checks)
+      .where(and(...conditions))
+      .orderBy(desc(schema.checks.createdAt), desc(schema.checks.id))
+      .limit(SEARCH_SCAN_CAP);
+
+    const needle = parsed.data.q.toLowerCase();
+    const matches = scanRows
+      .map((row) => ({ row, food: safeDecrypt(row.foodCiphertext) }))
+      .filter((entry) => entry.food.toLowerCase().includes(needle));
+
+    return NextResponse.json({
+      checks: matches.map(({ row, food }) => toResponseCheck(row, food)),
+      nextCursor: null,
+      nextBefore: null,
+      searchScanned: scanRows.length,
+      searchCapped: scanRows.length === SEARCH_SCAN_CAP,
       meta: { tier: entitlement.tier, retention }
     });
   };

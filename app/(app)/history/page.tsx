@@ -34,6 +34,7 @@ export default function HistoryPage() {
   const [meta, setMeta] = useState<HistoryMeta | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState(false);
 
   // Applied filters (what the current list reflects) vs. the input drafts.
   const [queryDraft, setQueryDraft] = useState("");
@@ -92,15 +93,20 @@ export default function HistoryPage() {
       return;
     }
     setLoadingMore(true);
+    setLoadMoreError(false);
+    // Load more only runs for the paginated (non-search) view; searching yields
+    // a single bounded result with no cursor.
     const result = await fetchHistoryPage({
       cursor: nextCursor,
-      q: applied.q || undefined,
       from: applied.from || undefined,
       to: applied.to || undefined
     });
     if (result.status === "ok") {
       setChecks((prev) => [...prev, ...result.checks]);
       setNextCursor(result.nextCursor);
+    } else {
+      // Keep the cursor so Retry works; surface a non-destructive inline error.
+      setLoadMoreError(true);
     }
     setLoadingMore(false);
   }
@@ -172,7 +178,7 @@ export default function HistoryPage() {
                   : "Your recent checks, synced to your account."}
         </p>
 
-        {status !== "error" && (
+        {status !== "error" && !hasFilters && (
           <ol className="week-strip" data-testid="week-strip">
             {weekStrip.map((day) => (
               <li
@@ -363,15 +369,27 @@ export default function HistoryPage() {
               </ul>
 
               {status === "ready" && nextCursor && (
-                <button
-                  type="button"
-                  className="recheck-button link-button"
-                  data-testid="load-more"
-                  onClick={() => void onLoadMore()}
-                  disabled={loadingMore}
-                >
-                  {loadingMore ? "Loading…" : "Load more"}
-                </button>
+                <div className="history-load-more">
+                  <button
+                    type="button"
+                    className="recheck-button link-button"
+                    data-testid="load-more"
+                    onClick={() => void onLoadMore()}
+                    disabled={loadingMore}
+                  >
+                    {loadingMore
+                      ? "Loading…"
+                      : loadMoreError
+                        ? "Couldn't load more — Retry"
+                        : "Load more"}
+                  </button>
+                  {loadMoreError && (
+                    <p className="field-hint" data-testid="load-more-error">
+                      Something went wrong loading more checks. Your history is
+                      safe — try again.
+                    </p>
+                  )}
+                </div>
               )}
             </>
           )}

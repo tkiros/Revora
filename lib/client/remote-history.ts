@@ -124,18 +124,33 @@ export async function fetchHistoryPage(params: {
   to?: string;
   limit?: number;
 } = {}): Promise<FetchHistoryPageResult> {
-  const search = new URLSearchParams();
-  search.set("limit", String(params.limit ?? HISTORY_PAGE_SIZE));
-  if (params.cursor) search.set("cursor", params.cursor);
-  if (params.q && params.q.trim()) search.set("q", params.q.trim());
-  if (params.from) search.set("from", params.from);
-  if (params.to) search.set("to", params.to);
+  const query = params.q?.trim();
 
   let response: Response;
   try {
-    response = await fetch(`/api/history?${search.toString()}`, {
-      cache: "no-store"
-    });
+    if (query) {
+      // Meal text is health data — plan §16 forbids it in URLs/logs, so the
+      // search term travels in a POST body, NEVER the query string.
+      response = await fetch(`/api/history/search`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({
+          q: query,
+          from: params.from || undefined,
+          to: params.to || undefined
+        })
+      });
+    } else {
+      const search = new URLSearchParams();
+      search.set("limit", String(params.limit ?? HISTORY_PAGE_SIZE));
+      if (params.cursor) search.set("cursor", params.cursor);
+      if (params.from) search.set("from", params.from);
+      if (params.to) search.set("to", params.to);
+      response = await fetch(`/api/history?${search.toString()}`, {
+        cache: "no-store"
+      });
+    }
   } catch {
     return { status: "error" };
   }

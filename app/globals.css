@@ -412,6 +412,12 @@ textarea.text-input {
   gap: 10px;
 }
 
+.history-load-more {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
 .recheck-button,
 .action-done-button {
   min-height: 40px;

@@ -6,7 +6,8 @@ import {
   createHistoryMigrateHandler,
   createHistoryActionHandler,
   createHistoryDeleteHandler,
-  createHistoryExportHandler
+  createHistoryExportHandler,
+  createHistorySearchHandler
 } from "../../../app/api/history/handlers";
 import { encryptField } from "../../../lib/server/crypto";
 import { schema } from "../../../lib/server/db";
@@ -481,15 +482,19 @@ describe("GET /api/history — retention window", () => {
   });
 });
 
-describe("GET /api/history — search", () => {
+describe("POST /api/history/search", () => {
+  // Search is POST-only: the query term is meal text (health data), which plan
+  // §16 forbids in URLs/logs — so it travels in the request body, never a URL.
   it("matches decrypted food case-insensitively and reports the scan bound", async () => {
     await seedAt(ownerId, "Lentil Soup", new Date("2026-07-10T12:00:00.000Z"));
     await seedAt(ownerId, "chicken rice", new Date("2026-07-10T11:00:00.000Z"));
     await seedAt(ownerId, "lentil dahl", new Date("2026-07-10T10:00:00.000Z"));
 
-    const GET = createHistoryGetHandler(asPremium(ownerId));
+    const POST = createHistorySearchHandler(asPremium(ownerId));
     const body = await (
-      await GET(new Request("http://test/api/history?q=LENTIL"))
+      await POST(
+        jsonRequest("http://test/api/history/search", { q: "LENTIL" })
+      )
     ).json();
 
     expect(body.checks.map((c: { food: string }) => c.food).sort()).toEqual([
@@ -506,14 +511,68 @@ describe("GET /api/history — search", () => {
     await seedAt(ownerId, "lentil recent", new Date());
     await seedAt(ownerId, "lentil ancient", new Date(Date.now() - 30 * DAY_MS));
 
-    const GET = createHistoryGetHandler(asUser(ownerId));
+    const POST = createHistorySearchHandler(asUser(ownerId));
     const body = await (
-      await GET(new Request("http://test/api/history?q=lentil"))
+      await POST(
+        jsonRequest("http://test/api/history/search", { q: "lentil" })
+      )
     ).json();
 
     expect(body.checks.map((c: { food: string }) => c.food)).toEqual([
       "lentil recent"
     ]);
+  });
+
+  it("honors a date filter passed in the body", async () => {
+    await seedAt(ownerId, "lentil in range", new Date("2026-07-09T12:00:00.000Z"));
+    await seedAt(ownerId, "lentil out of range", new Date("2026-07-20T12:00:00.000Z"));
+
+    const POST = createHistorySearchHandler(asPremium(ownerId));
+    const body = await (
+      await POST(
+        jsonRequest("http://test/api/history/search", {
+          q: "lentil",
+          from: "2026-07-09",
+          to: "2026-07-09"
+        })
+      )
+    ).json();
+
+    expect(body.checks.map((c: { food: string }) => c.food)).toEqual([
+      "lentil in range"
+    ]);
+  });
+
+  it("401s signed-out search and 400s an empty query", async () => {
+    const signedOut = createHistorySearchHandler(asUser(null));
+    expect(
+      (
+        await signedOut(
+          jsonRequest("http://test/api/history/search", { q: "x" })
+        )
+      ).status
+    ).toBe(401);
+
+    const POST = createHistorySearchHandler(asPremium(ownerId));
+    expect(
+      (
+        await POST(jsonRequest("http://test/api/history/search", { q: "" }))
+      ).status
+    ).toBe(400);
+  });
+
+  it("GET /api/history ignores any q on the query string (search is POST-only)", async () => {
+    await seedAt(ownerId, "chicken rice", new Date("2026-07-10T12:00:00.000Z"));
+    await seedAt(ownerId, "lentil dahl", new Date("2026-07-10T11:00:00.000Z"));
+
+    // A stray ?q= must NOT filter — it is simply ignored by the paginated read.
+    const GET = createHistoryGetHandler(asPremium(ownerId));
+    const body = await (
+      await GET(new Request("http://test/api/history?q=lentil"))
+    ).json();
+
+    expect(body.checks).toHaveLength(2);
+    expect(body.searchScanned).toBeUndefined();
   });
 });
 
