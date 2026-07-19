@@ -31,7 +31,8 @@ const ALLOWED_NAMES = [
   "clarification_requested",
   "clarification_resolved",
   "meal_memory_saved",
-  "meal_memory_recalled"
+  "meal_memory_recalled",
+  "weekly_learning_viewed"
 ] as const;
 
 // (a) Compile-time exhaustiveness: this switch must handle every member of
@@ -64,6 +65,7 @@ function assertExhaustive(name: AnalyticsEvent["name"]): void {
     case "clarification_resolved":
     case "meal_memory_saved":
     case "meal_memory_recalled":
+    case "weekly_learning_viewed":
       return;
     default: {
       const exhaustiveCheck: never = name;
@@ -126,7 +128,8 @@ describe("AnalyticsEvent allowlist", () => {
           label: "breakfast"
         }
       },
-      { name: "meal_memory_recalled", props: { match: "exact" } }
+      { name: "meal_memory_recalled", props: { match: "exact" } },
+      { name: "weekly_learning_viewed", props: { stage: "3" } }
     ];
 
     expect(oneOfEach.map((event) => event.name).sort()).toEqual(

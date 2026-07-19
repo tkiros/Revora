@@ -136,6 +136,13 @@ export type AnalyticsEvent =
   // user-confirmed-relation match and never emitted yet. No count, no meal text,
   // no band — presence of a recall at a given match class is all analytics needs.
   | { name: "meal_memory_recalled"; props: { match: "exact" | "user_confirmed" } }
+  // §P4.2/§10.1: the weekly learning summary rendered. The ONLY prop is the
+  // current journey STAGE — a closed "1".."5" enum (lib/journey/state). Never
+  // the artifact contents: `repeatedUncertainty` echoes the user's own meal text
+  // and stays in the encrypted operational store, never in analytics. The event
+  // only fires when a stage exists (an active journey); a summary viewed with no
+  // journey emits nothing.
+  | { name: "weekly_learning_viewed"; props: { stage: "1" | "2" | "3" | "4" | "5" } }
   | { name: "photo_draft"; props: { items: number; uncertain: number } };
 
 // Runtime belt-over-type-belt guard: even if a caller bypasses the type
@@ -168,7 +175,8 @@ const ALLOWED_EVENT_NAMES: ReadonlySet<AnalyticsEvent["name"]> = new Set([
   "clarification_requested",
   "clarification_resolved",
   "meal_memory_saved",
-  "meal_memory_recalled"
+  "meal_memory_recalled",
+  "weekly_learning_viewed"
 ]);
 
 type AnalyticsHost = {

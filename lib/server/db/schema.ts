@@ -342,6 +342,38 @@ export const learningJourneys = pgTable(
   ]
 );
 
+// Weekly learning artifact (plan §P4.2, §8 entity `weekly_reflections`:
+// "Versioned weekly learning artifact. Derived only from allowed fields;
+// reproducible."). ONE row per (user, week): the deterministic projection
+// (lib/journey/weekly-learning.deriveWeeklyLearning) for a COMPLETED week,
+// persisted lazily the first time it is requested — there is no cron. The
+// CURRENT (in-progress) week is computed on the fly and never stored, so a row
+// here is always a finished, reproducible week.
+//
+// `artifactCiphertext` is the AES-256-GCM ciphertext of the artifact JSON. The
+// artifact carries `repeatedUncertainty` — the user's OWN meal text echoed back
+// to them — so it is health-adjacent and encrypted at rest, same standard as
+// checks.food (global constraint §5); it is decrypted only for the owner on
+// read. `version` is the projection version (WEEKLY_LEARNING_VERSION) the row
+// was built at: a persisted row from an older version is ignored and recomputed
+// so a versioned re-projection can never silently mix schemas. Nothing here
+// feeds the check engine (global constraint §1).
+export const weeklyReflections = pgTable(
+  "weekly_reflections",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    weekStart: date("week_start").notNull(),
+    version: text("version").notNull(),
+    artifactCiphertext: text("artifact_ciphertext").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.weekStart] })]
+);
+
 export const pushSubscriptions = pgTable("push_subscriptions", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id")

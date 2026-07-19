@@ -5,7 +5,9 @@ import { useCallback, useEffect, useState } from "react";
 
 import { DisclaimerLine } from "../../../components/disclaimer-line";
 import { JourneyCard } from "../../../components/journey-card";
+import { LearningSummary } from "../../../components/learning-summary";
 import { BAI_BAND_COPY, bandOf, type BaiBand } from "../../../lib/coach/bai";
+import { learningJourneyUiEnabled } from "../../../lib/learning-journey-flag";
 import {
   resolveProgressState,
   type LatestBai,
@@ -76,6 +78,11 @@ function formatWeekStart(weekStart: string): string {
 }
 
 export default function ProgressPage() {
+  // When the Learning Journey build flag is on, the plainly-named weekly
+  // "Your learning summary" (plan §P4.2) REPLACES the BAI band block below; with
+  // the flag off, the BAI behavior is unchanged. The BAI cron still runs and
+  // /api/coach still returns it — this only swaps the SURFACE.
+  const learningEnabled = learningJourneyUiEnabled();
   const [state, setState] = useState<ProgressState>("loading");
   const [latestBai, setLatestBai] = useState<LatestBai | null>(null);
   // Bumped by the Retry button — bounded, manual retry only (no auto-retry
@@ -147,6 +154,12 @@ export default function ProgressPage() {
             build flag is on AND the caller is an entitled premium user, so it is
             invisible for free users and pre-rollout builds. */}
         <JourneyCard />
+
+        {/* Premium weekly value (plan §P4.2). Self-gating + error-truthful; when
+            the flag is on it renders in place of the BAI band block below (which
+            is suppressed while `learningEnabled`). For guest / non-premium it
+            renders nothing — the BAI states below still own that messaging. */}
+        {learningEnabled ? <LearningSummary /> : null}
 
         {state === "loading" ? (
           <section className="surface-card hero-card">
@@ -222,7 +235,7 @@ export default function ProgressPage() {
           </section>
         ) : null}
 
-        {state === "empty" ? (
+        {state === "empty" && !learningEnabled ? (
           <section className="surface-card hero-card" data-testid="progress-empty">
             <h2 className="section-title">Building your first week</h2>
             <p className="page-copy">
@@ -236,7 +249,7 @@ export default function ProgressPage() {
           </section>
         ) : null}
 
-        {state === "ready" && latestBai && bandCopy ? (
+        {state === "ready" && latestBai && bandCopy && !learningEnabled ? (
           <section className="surface-card hero-card" data-testid="progress-bands">
             <p className="hero-eyebrow">
               Week of {formatWeekStart(latestBai.weekStart)}

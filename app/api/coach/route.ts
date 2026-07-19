@@ -2,6 +2,7 @@ import { and, desc, eq, gte } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { computeCoachView } from "../../../lib/coach/compute";
+import { capabilitiesFor } from "../../../lib/server/capabilities";
 import { getDb, schema, type Db } from "../../../lib/server/db";
 import { getEntitlement } from "../../../lib/server/entitlement";
 import {
@@ -54,10 +55,12 @@ export function createCoachRouteHandler(deps: CoachRouteDeps = {}) {
 
     const view = computeCoachView(rows, timezone, now());
 
-    // Progress/BAI is a premium surface (plan 4D entitlement split).
+    // Progress/BAI is a premium surface (plan 4D entitlement split). The gate is
+    // the single capability matrix (`progress`), not a re-derived tier check, so
+    // this route can never fork from lib/server/capabilities (T10 addendum).
     const entitlement = await getEntitlement(db(), session.userId, { now });
     let latestBai = null;
-    if (entitlement.tier === "premium") {
+    if (capabilitiesFor(entitlement).progress) {
       const [row] = await db()
         .select()
         .from(schema.baiWeekly)

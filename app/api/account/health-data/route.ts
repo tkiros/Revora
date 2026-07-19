@@ -51,6 +51,12 @@ export function createHealthDataDeleteHandler(
     await db()
       .delete(schema.baiWeekly)
       .where(eq(schema.baiWeekly.userId, session.userId));
+    // Weekly learning artifacts embed the user's own meal text (encrypted). Like
+    // meal memories below, the check cascade would remove them via no FK — this
+    // table references only users — so delete them EXPLICITLY on withdrawal.
+    await db()
+      .delete(schema.weeklyReflections)
+      .where(eq(schema.weeklyReflections.userId, session.userId));
     // Meal memories are health-adjacent (encrypted choice/note). The check
     // cascade below already removes them via the memory→check FK, but withdrawal
     // deletes health rows EXPLICITLY rather than relying on FK ordering — the
