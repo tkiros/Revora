@@ -301,7 +301,7 @@ test("normal response before five seconds", async ({ page }) => {
 
   await page.getByRole("button", { name: "Check this meal" }).click();
 
-  await expect(page.getByText("Clear", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("result-signal")).toHaveText("Clear");
   await expect(
     page.getByText("This looks balanced enough for your usual plan.")
   ).toBeVisible();

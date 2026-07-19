@@ -84,6 +84,7 @@ type CaseResult = {
   disallowedRiskHit: boolean;
   harmfulIfSafe: boolean;
   acceptableRisks: string[] | null;
+  knownGap: boolean;
   harmfulSafe: boolean;
   response: RevoraUserResponse;
 };
@@ -287,6 +288,7 @@ async function runModelOverCorpus(
         (evalCase.disallowRisk ?? []).includes(response.risk),
       harmfulIfSafe: evalCase.harmfulIfSafe,
       acceptableRisks: evalCase.acceptableRisks ?? null,
+      knownGap: evalCase.knownGap ?? false,
       harmfulSafe,
       response
     });
@@ -323,7 +325,11 @@ function summarize(modelId: string, results: CaseResult[]) {
       harmfulIfSafe: r.harmfulIfSafe,
       acceptableRisks: (r.acceptableRisks ?? undefined) as
         | ("SAFE" | "MODERATE" | "HIGH")[]
-        | undefined
+        | undefined,
+      // P1.4 known-gap marker: the rubric tracks these in the corpus report and
+      // excludes them from the hard gate — dropping the field here made the
+      // bakeoff gate on gaps the corpus explicitly declared.
+      knownGap: r.knownGap
     },
     response: r.response
   }));

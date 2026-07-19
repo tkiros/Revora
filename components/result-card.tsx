@@ -164,7 +164,11 @@ export function ResultCard({
         ) : null}
         <div className="anatomy-row" data-risk={response.risk}>
           <span className="anatomy-label">Signal</span>
-          <span className="anatomy-signal" data-risk={response.risk}>
+          <span
+            className="anatomy-signal"
+            data-risk={response.risk}
+            data-testid="result-signal"
+          >
             <VerdictIcon size={20} />
             {RISK_LABELS[response.risk]}
           </span>
