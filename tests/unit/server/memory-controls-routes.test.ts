@@ -395,6 +395,21 @@ describe("weekly-artifact invalidation on memory mutation (E4)", () => {
     ).length;
   }
 
+  it("a memory UPSERT drops the caller's cached weekly reflections", async () => {
+    const check = await seedCheck(ownerId);
+    await seedReflection();
+
+    const POST = createMemoryUpsertHandler(deps(ownerId));
+    const res = await POST(
+      jsonRequest("http://test/api/memory", "POST", {
+        checkId: check,
+        favorite: true
+      })
+    );
+    expect(res.status).toBe(200);
+    expect(await ownerReflectionCount()).toBe(0);
+  });
+
   it("a memory EDIT drops the caller's cached weekly reflections", async () => {
     const check = await seedCheck(ownerId);
     const id = await saveMemory(ownerId, check, { favorite: true });

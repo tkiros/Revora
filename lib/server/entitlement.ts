@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte, ne } from "drizzle-orm";
+import { and, count, desc, eq, gte, notInArray } from "drizzle-orm";
 
 import { dayKeyInTimezone } from "../coach/days";
 import { schema, type Db } from "./db";
@@ -150,12 +150,11 @@ export async function getEntitlement(
           row.providerRef,
           row.currentPeriodEnd
         );
-        // Guard on `refunded` (B3): a charge.refunded can commit during this
-        // in-flight Stripe fetch, and a refund does NOT cancel the Stripe
-        // subscription — so `fresh` still reads premium. Writing it back (and
-        // returning premium) would resurrect a refunded (terminal) row. If the
-        // guarded update matched nothing, the row went refunded under us: do
-        // not heal and do not grant.
+        // Guard on the terminal statuses (B2/B3): a charge.refunded or
+        // subscription.deleted can commit during this in-flight Stripe fetch —
+        // writing `fresh` back (and returning premium) would resurrect a
+        // refunded/expired (terminal) row. If the guarded update matched
+        // nothing, the row went terminal under us: do not heal, do not grant.
         const healed = await db
           .update(schema.subscriptions)
           .set({
@@ -167,7 +166,7 @@ export async function getEntitlement(
           .where(
             and(
               eq(schema.subscriptions.id, row.id),
-              ne(schema.subscriptions.status, "refunded")
+              notInArray(schema.subscriptions.status, ["refunded", "expired"])
             )
           )
           .returning({ id: schema.subscriptions.id });

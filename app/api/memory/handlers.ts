@@ -376,6 +376,10 @@ export function createMemoryUpsertHandler(deps: MemoryRouteDeps = {}) {
         }
       });
 
+    // Upserts change memory content the weekly artifact may have projected —
+    // same staleness rule as edit/delete.
+    await invalidateWeeklyArtifacts(db(), session.userId);
+
     return NextResponse.json({ ok: true });
   };
 }

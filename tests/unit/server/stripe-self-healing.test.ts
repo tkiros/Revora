@@ -949,6 +949,72 @@ describe("verify-on-read + reconcile (B3) — a mid-fetch refund is never overwr
     expect(row.status).toBe("refunded");
     info.mockRestore();
   });
+
+  it("getEntitlement does not resurrect a row that goes expired during the Stripe fetch", async () => {
+    await seedSub({
+      providerRef: "sub_exp_ent",
+      status: "active",
+      currentPeriodEnd: PAST,
+      lastVerifiedAt: null
+    });
+
+    // subscription.deleted → expired commits WHILE we are out fetching.
+    const refreshStripeSubscription = vi.fn(async () => {
+      await testDb.db
+        .update(schema.subscriptions)
+        .set({ status: "expired" })
+        .where(eq(schema.subscriptions.providerRef, "sub_exp_ent"));
+      return { status: "active" as const, currentPeriodEnd: FUTURE };
+    });
+
+    const result = await getEntitlement(testDb.db, userId, {
+      now: () => NOW,
+      refreshStripeSubscription
+    });
+
+    expect(result.tier).toBe("free");
+    const [row] = await testDb.db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.providerRef, "sub_exp_ent"));
+    expect(row.status).toBe("expired");
+  });
+
+  it("runStripeReconcileCron does not resurrect a row that goes expired during the fetch", async () => {
+    await seedSub({
+      providerRef: "sub_exp_rec",
+      status: "active",
+      currentPeriodEnd: PAST
+    });
+
+    const stripe = () =>
+      ({
+        subscriptions: {
+          retrieve: vi.fn(async () => {
+            await testDb.db
+              .update(schema.subscriptions)
+              .set({ status: "expired" })
+              .where(eq(schema.subscriptions.providerRef, "sub_exp_rec"));
+            return {
+              status: "active",
+              items: {
+                data: [{ current_period_end: Math.floor(FUTURE.getTime() / 1000) }]
+              }
+            };
+          })
+        }
+      }) as unknown as Stripe;
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    await runStripeReconcileCron(testDb.db, { now: () => NOW, stripe });
+
+    const [row] = await testDb.db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.providerRef, "sub_exp_rec"));
+    expect(row.status).toBe("expired");
+    info.mockRestore();
+  });
 });
 
 // ── 10. B4: emails dispatched only AFTER the inbox transaction commits ────────

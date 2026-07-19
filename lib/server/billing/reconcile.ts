@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte, inArray, lt, lte, ne } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, lt, lte, notInArray } from "drizzle-orm";
 import type Stripe from "stripe";
 
 import { schema, type Db } from "../db";
@@ -155,11 +155,10 @@ export async function runStripeReconcileCron(
         const nowPremium =
           premiumSet.includes(fresh.status) && fresh.currentPeriodEnd > now;
 
-        // Guard on `refunded` (B3): a charge.refunded can land during this
-        // in-flight Stripe fetch, and a refund does NOT cancel the Stripe
-        // subscription — so `fresh` still reads active/premium. Writing it back
-        // would resurrect a refunded (terminal) row. Skip the heal when the row
-        // went refunded under us.
+        // Guard on the terminal statuses (B2/B3): a charge.refunded or
+        // subscription.deleted can land during this in-flight Stripe fetch —
+        // writing `fresh` back would resurrect a refunded/expired (terminal)
+        // row. Skip the heal when the row went terminal under us.
         const healedRows = await db
           .update(schema.subscriptions)
           .set({
@@ -171,12 +170,12 @@ export async function runStripeReconcileCron(
           .where(
             and(
               eq(schema.subscriptions.id, row.id),
-              ne(schema.subscriptions.status, "refunded")
+              notInArray(schema.subscriptions.status, ["refunded", "expired"])
             )
           )
           .returning({ id: schema.subscriptions.id });
         if (healedRows.length === 0) {
-          continue; // Refunded mid-fetch — leave the terminal row alone.
+          continue; // Went terminal mid-fetch — leave the row alone.
         }
         result.healed += 1;
 

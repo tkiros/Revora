@@ -103,6 +103,7 @@ export default function MemoryPage() {
   const [loadMoreError, setLoadMoreError] = useState(false);
   const [query, setQuery] = useState("");
   const [searchError, setSearchError] = useState(false);
+  const [searchNote, setSearchNote] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<EditDraft | null>(null);
@@ -143,6 +144,7 @@ export default function MemoryPage() {
       setMemories(page.memories);
       setNextOffset(page.nextOffset);
       setLoadMoreError(false);
+      setSearchNote(null); // full list, not a bounded search
       setStatus("ready");
     } catch {
       setStatus("error");
@@ -185,6 +187,7 @@ export default function MemoryPage() {
     event.preventDefault();
     const term = query.trim();
     setSearchError(false);
+    setSearchNote(null);
     if (!term) {
       // Empty search returns to the full list.
       await loadList();
@@ -199,6 +202,12 @@ export default function MemoryPage() {
       return;
     }
     setMemories(result.memories);
+    // Honest bounds: a capped scan is a partial answer — say so.
+    setSearchNote(
+      result.searchCapped
+        ? `Searched your ${result.searchScanned} most recent saved meals.`
+        : null
+    );
     // Search returns a single bounded result set — no pagination cursor.
     setNextOffset(null);
     setLoadMoreError(false);
@@ -339,6 +348,12 @@ export default function MemoryPage() {
           {searchError ? (
             <p className="placeholder-copy" data-testid="memory-search-error">
               Search didn&apos;t work just now. Please try again.
+            </p>
+          ) : null}
+
+          {searchNote ? (
+            <p className="placeholder-copy" data-testid="memory-search-note">
+              {searchNote}
             </p>
           ) : null}
 

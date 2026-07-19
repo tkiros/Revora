@@ -89,7 +89,22 @@ describe("searchMealMemories", () => {
   it("returns ok:true with the memories on success", async () => {
     const fetchImpl = jsonFetch({ memories: [{ id: "1" }], searchScanned: 1 });
     const result = await searchMealMemories("rice", fetchImpl);
-    expect(result).toEqual({ ok: true, memories: [{ id: "1" }] });
+    expect(result).toEqual({
+      ok: true,
+      memories: [{ id: "1" }],
+      searchScanned: 1,
+      searchCapped: false
+    });
+  });
+
+  it("passes the honest scan bounds through when the scan hit the cap", async () => {
+    const fetchImpl = jsonFetch({
+      memories: [{ id: "1" }],
+      searchScanned: 500,
+      searchCapped: true
+    });
+    const result = await searchMealMemories("rice", fetchImpl);
+    expect(result).toMatchObject({ searchScanned: 500, searchCapped: true });
   });
 
   it("does NOT hit the network for a blank term", async () => {

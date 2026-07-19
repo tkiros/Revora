@@ -125,7 +125,15 @@ export type MemoryEditInput = {
 export async function searchMealMemories(
   q: string,
   fetchImpl: typeof fetch = fetch
-): Promise<{ ok: true; memories: SavedMemory[] } | { ok: false }> {
+): Promise<
+  | {
+      ok: true;
+      memories: SavedMemory[];
+      searchScanned: number | null;
+      searchCapped: boolean;
+    }
+  | { ok: false }
+> {
   const trimmed = q.trim();
   if (!trimmed) {
     return { ok: false };
@@ -145,7 +153,20 @@ export async function searchMealMemories(
       body !== null &&
       Array.isArray((body as { memories?: unknown }).memories)
     ) {
-      return { ok: true, memories: (body as { memories: SavedMemory[] }).memories };
+      const parsed = body as {
+        memories: SavedMemory[];
+        searchScanned?: unknown;
+        searchCapped?: unknown;
+      };
+      return {
+        ok: true,
+        memories: parsed.memories,
+        // Honest-bounds passthrough: the server scans a bounded window and
+        // reports it — the page must never present a capped scan as complete.
+        searchScanned:
+          typeof parsed.searchScanned === "number" ? parsed.searchScanned : null,
+        searchCapped: parsed.searchCapped === true
+      };
     }
     return { ok: false };
   } catch {
