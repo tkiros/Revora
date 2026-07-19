@@ -83,7 +83,7 @@ const StoredCheckSchema = z
     food: z.string().trim().min(1).max(160),
     risk: z.enum(["SAFE", "MODERATE", "HIGH"]),
     a1cBand: z.enum(A1C_BANDS),
-    inputMethod: z.enum(["text", "voice"]),
+    inputMethod: z.enum(["text", "voice", "photo"]),
     createdAt: boundedTimestamp(),
     actionDoneAt: boundedTimestamp().optional()
   })

@@ -40,7 +40,12 @@ export async function loadHistory(days: number): Promise<{
           food: check.food,
           risk: check.risk,
           a1cBand: check.a1cBand,
-          inputMethod: check.inputMethod === "voice" ? "voice" : "text",
+          // Preserve the true input method (text/voice/photo). Anything the
+          // server did not tag with a known method degrades to "text".
+          inputMethod:
+            check.inputMethod === "voice" || check.inputMethod === "photo"
+              ? check.inputMethod
+              : "text",
           createdAt: check.createdAt,
           actionDoneAt: check.actionDoneAt
         })) as StoredCheck[];

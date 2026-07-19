@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import type { MealDraftItem } from "../lib/meal/photo-extract";
-import { composeDraftText } from "../lib/client/photo-draft";
+import { composeDraft, dedupeDraftItems } from "../lib/client/photo-draft";
 
 /** D5 confirm-before-verdict review card. Uncertain chips must be tapped
  *  (confirm) or removed before the draft can be used — no blanket accept of
@@ -20,20 +20,43 @@ export function PhotoDraftReview({
   onConfirm: (text: string) => void;
   onDiscard: () => void;
 }) {
+  // Collapse exact duplicates the drafter sometimes emits, once, before the
+  // user ever sees the chips — and remember how many so we can say so.
+  const [initialCollapsed] = useState(() => dedupeDraftItems(items).collapsed);
   const [draftDish, setDraftDish] = useState(dish ?? "");
-  const [draftItems, setDraftItems] = useState<MealDraftItem[]>(items);
+  const [draftItems, setDraftItems] = useState<MealDraftItem[]>(
+    () => dedupeDraftItems(items).items
+  );
   const [newItem, setNewItem] = useState("");
 
   const unresolved = draftItems.filter((item) => item.uncertain).length;
   const isEmpty = draftDish.trim() === "" && draftItems.length === 0;
 
+  // Honest length-cap surface: composing over FOOD_MAX_LENGTH silently sheds
+  // detail (plan §P1.5). Show what the check will actually use before confirm.
+  const composed = composeDraft(draftDish.trim() || null, draftItems);
+  const droppedItems = composed.totalItems - composed.keptItems;
+
   return (
     <section className="draft-card" data-testid="photo-draft-review">
       <p className="result-eyebrow">Check the draft</p>
       <p className="field-hint">
-        This is Revora&apos;s best guess from your photo. Fix anything that&apos;s
-        off — tap the highlighted items to confirm them.
+        {isEmpty
+          ? "Revora couldn't make out the food in this photo. Add the items below, or discard and type the meal instead."
+          : "This is Revora's best guess from your photo. Fix anything that's off — tap the highlighted items to confirm them."}
       </p>
+      {initialCollapsed > 0 ? (
+        <p className="field-hint" data-testid="draft-dedupe-notice">
+          Combined {initialCollapsed} repeated item
+          {initialCollapsed === 1 ? "" : "s"} the photo listed twice.
+        </p>
+      ) : null}
+      {droppedItems > 0 ? (
+        <p className="field-hint" data-testid="draft-truncation-notice">
+          This is a long meal, so the check will use the first{" "}
+          {composed.keptItems} of {composed.totalItems} items.
+        </p>
+      ) : null}
       <label htmlFor="draft-dish" className="field-label">
         Dish
       </label>
@@ -106,9 +129,7 @@ export function PhotoDraftReview({
         className="primary-button"
         data-testid="draft-confirm-button"
         disabled={unresolved > 0 || isEmpty}
-        onClick={() =>
-          onConfirm(composeDraftText(draftDish.trim() || null, draftItems))
-        }
+        onClick={() => onConfirm(composed.text)}
       >
         {unresolved > 0
           ? `Confirm ${unresolved} highlighted item${unresolved === 1 ? "" : "s"} first`

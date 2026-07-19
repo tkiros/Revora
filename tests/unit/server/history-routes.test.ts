@@ -56,13 +56,18 @@ function jsonRequest(url: string, body: unknown) {
   });
 }
 
-async function seedCheck(userId: string, food: string, clientId?: string) {
+async function seedCheck(
+  userId: string,
+  food: string,
+  clientId?: string,
+  inputMethod: "text" | "voice" | "photo" = "text"
+) {
   await testDb.db.insert(schema.checks).values({
     userId,
     foodCiphertext: encryptField(food),
     risk: "MODERATE",
     a1cBand: "prediabetes_60_62",
-    inputMethod: "text",
+    inputMethod,
     clientId: clientId ?? null
   });
 }
@@ -87,6 +92,18 @@ describe("GET /api/history", () => {
     expect(body.checks).toHaveLength(1);
     expect(body.checks[0].food).toBe("lentil soup");
     expect(JSON.stringify(body)).not.toContain("other users pasta");
+  });
+
+  it("round-trips the photo input method through DB → API (no collapse to text)", async () => {
+    await seedCheck(ownerId, "chicken and rice bowl", "photo-1", "photo");
+
+    const GET = createHistoryGetHandler(asUser(ownerId));
+    const response = await GET(new Request("http://test/api/history"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.checks).toHaveLength(1);
+    expect(body.checks[0].inputMethod).toBe("photo");
   });
 
   it("caps the page size", async () => {
@@ -257,6 +274,37 @@ describe("POST /api/history/migrate", () => {
       expect(response.status).toBe(200);
       expect((await response.json()).imported).toBe(bands.length);
     });
+  });
+
+  it("accepts a photo-method entry and stores it as photo (no collapse to text)", async () => {
+    const POST = createHistoryMigrateHandler(asUser(ownerId));
+    const response = await POST(
+      jsonRequest("http://test/api/history/migrate", {
+        checks: [{ ...storedCheck("photo-mig-1"), inputMethod: "photo" }]
+      })
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.imported).toBe(1);
+
+    const rows = await testDb.db
+      .select()
+      .from(schema.checks)
+      .where(eq(schema.checks.userId, ownerId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].inputMethod).toBe("photo");
+  });
+
+  it("rejects an inputMethod the app itself would never write", async () => {
+    const POST = createHistoryMigrateHandler(asUser(ownerId));
+    const response = await POST(
+      jsonRequest("http://test/api/history/migrate", {
+        checks: [{ ...storedCheck("bad-method"), inputMethod: "telepathy" }]
+      })
+    );
+
+    expect(response.status).toBe(400);
   });
 
   it("rejects oversized payloads", async () => {
