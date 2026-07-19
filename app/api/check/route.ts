@@ -4,8 +4,13 @@ import Stripe from "stripe";
 
 import type { Daypart } from "../../../lib/coach/insights";
 import { routeA1C } from "../../../lib/revora/a1c";
-import { deriveCoachOutputs } from "../../../lib/revora/coach-outputs";
+import { CLARIFY_QUESTIONS, type ClarifyReason } from "../../../lib/revora/clarify";
+import {
+  deriveCoachOutputs,
+  type CoachOutputs
+} from "../../../lib/revora/coach-outputs";
 import { buildRetryResponse } from "../../../lib/revora/fallback";
+import type { SnapshotMetadata } from "../../../lib/revora/postprocess";
 import {
   activeModelId,
   createOpenAIRevoraModelClient,
@@ -16,7 +21,10 @@ import {
   CONTRACT_VERSION,
   loadSafetyContract
 } from "../../../lib/revora/safety-contract";
-import { CheckRequestSchema } from "../../../lib/revora/schemas";
+import {
+  CheckRequestSchema,
+  type RevoraUserResponse
+} from "../../../lib/revora/schemas";
 import { captureServerError } from "../../../lib/revora/sentry-capture";
 import { checkFood } from "../../../lib/revora/service";
 import {
@@ -224,6 +232,14 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
       await captureServerError(error, "route");
     }
 
+    // Task 13 snapshot sink: postprocess writes which conservative floor fired
+    // (if any) here, so the persisted card records what the user actually saw.
+    // Starts as "no floor"; a mocked checkFoodImpl leaves it untouched.
+    const snapshot: SnapshotMetadata = {
+      floorApplied: null,
+      usedFallback: false
+    };
+
     try {
       const response = await checkFoodImpl(body, {
         model: modelFactory(undefined),
@@ -232,7 +248,8 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
         // does not chain into a second ambiguity question. Forgeable and
         // harmless if forged — it can only suppress a clarify, never a floor or
         // a clinical route.
-        clarified: request.headers.get("x-revora-clarified") === "1"
+        clarified: request.headers.get("x-revora-clarified") === "1",
+        snapshot
       });
 
       const durationMs = now() - startedAt;
@@ -254,8 +271,24 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
         contractVersion: CONTRACT_VERSION
       });
 
-      // 4B: meal memory for signed-in users. Fail-soft by design — a broken
-      // DB must never break the check itself (incident runbook scenario).
+      // Decision card v2 (plan P1): coach outputs are derived rule-based from
+      // the engine response at the route layer — the engine stays untouched.
+      //
+      // W-17: the food text decides suppression (a drink gets no plate-
+      // sequencing tip) and the rotation counter cycles the phrase bank so a
+      // daily user is not read the same three sentences every day. Both are
+      // used to select AUDITED copy and neither is logged. Computed ONCE here so
+      // the persisted snapshot card is byte-identical to what the client renders.
+      const coach = deriveCoachOutputs(response, {
+        food: readFood(body),
+        rotation: readRotation(request.headers),
+        seed: request.headers.get("x-revora-client-id") ?? undefined,
+        daypart: readDaypart(request.headers)
+      });
+
+      // 4B / §P3.1: immutable meal-memory snapshot for signed-in users.
+      // Fail-soft by design — a broken DB must never break the check itself
+      // (incident runbook scenario).
       //
       // The persisted id is threaded back to the client (result kind only, and
       // only when a row was actually stored) so result-linked feedback (§P1.6)
@@ -268,7 +301,9 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
             db,
             getSession,
             body,
-            risk: response.risk,
+            result: response,
+            coach,
+            snapshot,
             headers: request.headers
           });
         } catch (error) {
@@ -276,22 +311,10 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
         }
       }
 
-      // Decision card v2 (plan P1): coach outputs are derived rule-based from
-      // the engine response at the route layer — the engine stays untouched.
-      //
-      // W-17: the food text decides suppression (a drink gets no plate-
-      // sequencing tip) and the rotation counter cycles the phrase bank so a
-      // daily user is not read the same three sentences every day. Both are
-      // used to select AUDITED copy and neither is persisted or logged.
       return NextResponse.json({
         ...response,
         ...(persistedCheckId ? { checkId: persistedCheckId } : {}),
-        ...deriveCoachOutputs(response, {
-          food: readFood(body),
-          rotation: readRotation(request.headers),
-          seed: request.headers.get("x-revora-client-id") ?? undefined,
-          daypart: readDaypart(request.headers)
-        })
+        ...coach
       });
     } catch (error) {
       // Surface schema/infra throws to Sentry (awaited, guarded, no-op without
@@ -319,7 +342,9 @@ async function persistCheck(input: {
   db: () => Db;
   getSession: () => Promise<SessionInfo>;
   body: unknown;
-  risk: "SAFE" | "MODERATE" | "HIGH";
+  result: Extract<RevoraUserResponse, { kind: "result" }>;
+  coach: CoachOutputs;
+  snapshot: SnapshotMetadata;
   headers: Headers;
 }): Promise<string | undefined> {
   const session = await input.getSession();
@@ -352,19 +377,60 @@ async function persistCheck(input: {
   const rawClientId = input.headers.get("x-revora-client-id");
   const clientId = rawClientId && rawClientId.length <= 64 ? rawClientId : null;
 
+  // §P3.1 immutable snapshot: encrypt the exact card the user saw (verdict +
+  // coach fields) as one JSON blob — same AES-256-GCM standard as food, so no
+  // plaintext card content is ever at rest.
+  const result = input.result;
+  const cardCiphertext = encryptField(
+    JSON.stringify({
+      risk: result.risk,
+      reason: result.reason,
+      adjustment: result.adjustment,
+      swap: result.swap,
+      sequencingTip: input.coach.sequencingTip,
+      postMealAction: input.coach.postMealAction,
+      keepMost: input.coach.keepMost
+    })
+  );
+
+  // Clarification asked (§P3.1). The QUESTION is not health text: it is one of
+  // three approved deterministic strings reconstructed from a bounded category
+  // the client sends (same closed enum analytics already carries), never the
+  // raw question or meal text over the wire. Stored only when this check truly
+  // resolved a clarification. The ANSWER is this check's own normalized input
+  // (foodCiphertext), so clarifyAnswerCiphertext stays null by construction.
+  const wasClarified = input.headers.get("x-revora-clarified") === "1";
+  const clarifyQuestion = wasClarified
+    ? clarifyQuestionFromHeader(input.headers)
+    : null;
+
   const inserted = await input
     .db()
     .insert(schema.checks)
     .values({
       userId: session.userId,
       foodCiphertext: encryptField(parsed.data.food),
-      risk: input.risk,
+      risk: result.risk,
+      responseKind: result.kind,
       a1cBand: route.band,
       inputMethod:
         methodHeader === "voice" || methodHeader === "photo"
           ? methodHeader
           : "text",
-      clientId
+      clientId,
+      // Immutable snapshot fields — written once, here, never updated.
+      cardCiphertext,
+      routeType: result.kind,
+      clarifyQuestionCiphertext: clarifyQuestion
+        ? encryptField(clarifyQuestion)
+        : null,
+      clarifyAnswerCiphertext: null,
+      wasClarified,
+      promptVersion: PROMPT_VERSION,
+      contractVersion: CONTRACT_VERSION,
+      modelId: activeModelId(),
+      floorApplied: input.snapshot.floorApplied,
+      usedFallback: input.snapshot.usedFallback
     })
     .onConflictDoNothing()
     .returning({ id: schema.checks.id });
@@ -442,6 +508,25 @@ function readRotation(headers: Headers): number | undefined {
 
   const parsed = Number.parseInt(raw, 10);
   return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+/**
+ * The approved clarify question this check resolved (§P3.1), reconstructed from
+ * the bounded category header (`x-revora-clarify-category`).
+ *
+ * The client sends the closed `ClarifyReason` enum — the SAME bounded value it
+ * already puts on the `clarification_resolved` analytics event — never the raw
+ * question or the meal text (plan §16: no health text in headers/URLs). The
+ * server maps it to the canonical approved copy, so the stored question is
+ * exactly what was asked and can never be a fabricated or user-authored string.
+ * An absent/unknown category yields null (older clients, curl).
+ */
+function clarifyQuestionFromHeader(headers: Headers): string | null {
+  const category = headers.get("x-revora-clarify-category");
+  if (category && Object.prototype.hasOwnProperty.call(CLARIFY_QUESTIONS, category)) {
+    return CLARIFY_QUESTIONS[category as ClarifyReason];
+  }
+  return null;
 }
 
 const DAYPARTS: readonly Daypart[] = ["breakfast", "lunch", "dinner"];

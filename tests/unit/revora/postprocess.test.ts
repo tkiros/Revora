@@ -11,7 +11,8 @@ import {
   groundReason,
   hasSugarEvidence,
   mentionsMealComponent,
-  postprocessModelOutput
+  postprocessModelOutput,
+  type SnapshotMetadata
 } from "../../../lib/revora/postprocess";
 import { loadSafetyContract } from "../../../lib/revora/safety-contract";
 import type { RevoraModelOutput } from "../../../lib/revora/schemas";
@@ -196,6 +197,65 @@ describe("postprocessModelOutput", () => {
     expect(result.risk).toBe("MODERATE");
     expect(result.adjustment).toContain("protein or nonstarchy vegetables");
     expect(result.swap).toContain("less refined");
+  });
+
+  // Task 13 (§P3.1): the optional snapshot sink records which conservative floor
+  // fired, so the persisted card can carry safety-floor/fallback metadata. The
+  // sink is a pure out-param — response content is unchanged whether present or
+  // not.
+  it("records the conservative floor that fired into the snapshot sink", () => {
+    const sink: SnapshotMetadata = { floorApplied: null, usedFallback: false };
+    const response = postprocessModelOutput(
+      makeModelOutput({
+        kind: "carbs_only",
+        adjustment: "Start with vegetables before the carbs.",
+        policy_flags: ["carbs_only"]
+      }),
+      {
+        contract,
+        route: routeA1C(6.1),
+        precheckFlags: ["carbs_only"],
+        snapshot: sink
+      }
+    );
+
+    expect(response).toEqual(buildCarbsOnlyResponse(contract, "MODERATE"));
+    expect(sink.floorApplied).toBe("carbs_only");
+    expect(sink.usedFallback).toBe(true);
+  });
+
+  it("leaves the snapshot sink untouched when the model draft stands", () => {
+    const sink: SnapshotMetadata = { floorApplied: null, usedFallback: false };
+    postprocessModelOutput(makeModelOutput({ policy_flags: [] }), {
+      contract,
+      route: routeA1C(6.1),
+      precheckFlags: [],
+      snapshot: sink
+    });
+
+    expect(sink.floorApplied).toBeNull();
+    expect(sink.usedFallback).toBe(false);
+  });
+
+  it("high-risk floor stamps the sink with high_risk", () => {
+    const sink: SnapshotMetadata = { floorApplied: null, usedFallback: false };
+    applyConservativeFloors(
+      {
+        risk: "SAFE",
+        reason: "This looks like a reasonable fit.",
+        adjustment: null,
+        swap: null
+      },
+      {
+        contract,
+        route: routeA1C(6.1),
+        precheckFlags: ["high_risk"],
+        snapshot: sink
+      }
+    );
+
+    expect(sink.floorApplied).toBe("high_risk");
+    expect(sink.usedFallback).toBe(true);
   });
 });
 

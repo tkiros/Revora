@@ -212,7 +212,10 @@ export function FoodCheckForm() {
       const response = await submitCheck(result.data, {
         clientId,
         inputMethod,
-        clarified: pendingClarify !== null
+        clarified: pendingClarify !== null,
+        // §P3.1: the bounded reason of the clarify being answered, so the server
+        // can persist which approved question was asked. Bounded enum, not text.
+        clarifyCategory: pendingClarify?.reason
       });
 
       // §10.1: a deterministic clarify card renders — record which of the three

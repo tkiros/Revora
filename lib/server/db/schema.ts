@@ -109,6 +109,47 @@ export const checks = pgTable(
       .default("text"),
     clientId: text("client_id"),
     actionDoneAt: timestamp("action_done_at", { withTimezone: true }),
+    // ── Immutable check-result snapshot (Task 13 / §P3.1, §8 `check_results`) ──
+    //
+    // APPEND-ONLY BOUNDARY. Every column below is written EXACTLY ONCE, at
+    // insert, by persistCheck() (app/api/check/route.ts). No handler updates any
+    // of them — a rerun creates a NEW row, never overwriting an old card (§12
+    // immutable snapshots). The ONLY post-insert mutation of a checks row is
+    // `actionDoneAt` (createHistoryActionHandler), which is user-activity
+    // metadata, not snapshot content; that boundary is asserted by
+    // check-snapshot.test.ts.
+    //
+    // All are nullable so the migration is forward/backward compatible: rows
+    // written before this task keep working and read back as null (we never
+    // invent a card we did not store). `cardCiphertext` holds the encrypted JSON
+    // card the user actually saw {risk, reason, adjustment, swap, coach fields};
+    // health-adjacent, so AES-256-GCM like foodCiphertext.
+    cardCiphertext: text("card_ciphertext"),
+    // Plaintext route/response class — NOT sensitive (mirrors responseKind).
+    // Only in-scope results are persisted, so this is "result" today; the column
+    // exists so the snapshot carries its own route class if that boundary widens.
+    routeType: text("route_type"),
+    // Clarification asked + answer supplied (§P3.1). The QUESTION is one of three
+    // approved deterministic strings (lib/revora/clarify.ts) reconstructed
+    // server-side from a bounded category — never health text, encrypted anyway.
+    // The ANSWER is, by construction, this check's own normalized input
+    // (foodCiphertext), so clarifyAnswerCiphertext is left null rather than
+    // duplicating encrypted health text; `wasClarified` records that this result
+    // resolved a one-question clarification.
+    clarifyQuestionCiphertext: text("clarify_question_ciphertext"),
+    clarifyAnswerCiphertext: text("clarify_answer_ciphertext"),
+    wasClarified: boolean("was_clarified").notNull().default(false),
+    // Reproducibility stamps (plaintext version strings).
+    promptVersion: text("prompt_version"),
+    contractVersion: text("contract_version"),
+    modelId: text("model_id"),
+    // Safety-floor + fallback metadata surfaced from postprocess. `floorApplied`
+    // is the conservative floor that fired (null when the model draft stood);
+    // `usedFallback` is true when a floor/template replaced that draft.
+    floorApplied: text("floor_applied", {
+      enum: ["high_risk", "carbs_only", "borderline"]
+    }),
+    usedFallback: boolean("used_fallback").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow()
@@ -122,6 +163,10 @@ export const checks = pgTable(
     check(
       "checks_input_method_check",
       sql`${table.inputMethod} IN ('text','voice','photo')`
+    ),
+    check(
+      "checks_floor_applied_check",
+      sql`${table.floorApplied} IS NULL OR ${table.floorApplied} IN ('high_risk','carbs_only','borderline')`
     )
   ]
 );

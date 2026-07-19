@@ -382,6 +382,46 @@ export function createHistorySearchHandler(deps: RouteDeps = {}) {
 
 type CheckRow = typeof schema.checks.$inferSelect;
 
+/**
+ * The decrypted immutable card (§P3.1) — the exact verdict + coach copy the user
+ * saw at check time. Typed export so Task 15's recall panel renders a stored
+ * card from a single trusted shape instead of re-deriving one. Every field is
+ * nullable: the whole object is null for rows written before Task 13, and coach
+ * fields are null for SAFE cards.
+ */
+export const RecalledCardSchema = z
+  .object({
+    risk: z.enum(["SAFE", "MODERATE", "HIGH"]),
+    reason: z.string(),
+    adjustment: z.string().nullable(),
+    swap: z.string().nullable(),
+    sequencingTip: z.string().nullable(),
+    postMealAction: z.string().nullable(),
+    keepMost: z.string().nullable()
+  })
+  .strict();
+
+export type RecalledCard = z.infer<typeof RecalledCardSchema>;
+
+/**
+ * Decode the encrypted card blob to the typed card, or null. Fail-soft like the
+ * food read path: an unreadable (rotated-key) or malformed blob degrades to null
+ * — a recalled card that cannot be shown, never an error that takes the whole
+ * history list down.
+ */
+function decodeCard(ciphertext: string | null): RecalledCard | null {
+  if (!ciphertext) {
+    return null;
+  }
+  try {
+    const parsed: unknown = JSON.parse(decryptField(ciphertext));
+    const card = RecalledCardSchema.safeParse(parsed);
+    return card.success ? card.data : null;
+  } catch {
+    return null;
+  }
+}
+
 function toResponseCheck(row: CheckRow, food: string) {
   return {
     id: row.id,
@@ -391,7 +431,20 @@ function toResponseCheck(row: CheckRow, food: string) {
     a1cBand: row.a1cBand,
     inputMethod: row.inputMethod,
     actionDoneAt: row.actionDoneAt?.toISOString(),
-    createdAt: row.createdAt.toISOString()
+    createdAt: row.createdAt.toISOString(),
+    // §P3.1 snapshot fields — additive, and null for pre-Task-13 rows so old
+    // callers and old data both keep working unchanged.
+    card: decodeCard(row.cardCiphertext),
+    routeType: row.routeType ?? null,
+    wasClarified: row.wasClarified,
+    clarifyQuestion: row.clarifyQuestionCiphertext
+      ? safeDecrypt(row.clarifyQuestionCiphertext)
+      : null,
+    promptVersion: row.promptVersion ?? null,
+    contractVersion: row.contractVersion ?? null,
+    modelId: row.modelId ?? null,
+    floorApplied: row.floorApplied ?? null,
+    usedFallback: row.usedFallback
   };
 }
 
@@ -451,6 +504,11 @@ export function createHistoryActionHandler(deps: RouteDeps = {}) {
       return NextResponse.json({ error: "Invalid request." }, { status: 400 });
     }
 
+    // APPEND-ONLY BOUNDARY (§12 / Task 13): `actionDoneAt` is user-activity
+    // metadata, not snapshot content — it is the ONE field a stored check may
+    // change after insert. This `.set` must never touch a snapshot column
+    // (card/risk/reason/versions/floor/clarify*); a rerun creates a new row
+    // instead of overwriting an old card. Guarded by check-snapshot.test.ts.
     await db()
       .update(schema.checks)
       .set({ actionDoneAt: new Date() })

@@ -10,7 +10,11 @@ import {
 } from "./fallback";
 import { classifyInputBeforeModel } from "./input-precheck";
 import type { RevoraModelClient } from "./openai-client";
-import { assertNoForbiddenClaims, postprocessModelOutput } from "./postprocess";
+import {
+  assertNoForbiddenClaims,
+  postprocessModelOutput,
+  type SnapshotMetadata
+} from "./postprocess";
 import { buildRevoraPrompt } from "./prompt";
 import { captureServerError } from "./sentry-capture";
 import {
@@ -33,7 +37,17 @@ const MAX_MODEL_ATTEMPTS = 1;
 
 export async function checkFood(
   rawRequest: unknown,
-  deps: { model: RevoraModelClient; clarified?: boolean }
+  deps: {
+    model: RevoraModelClient;
+    clarified?: boolean;
+    /**
+     * Optional Task 13 snapshot sink. When supplied, the conservative-floor
+     * metadata that postprocess computes is written here for the caller to
+     * persist. Absent for every other caller (pantry, evals), so their
+     * behavior is unchanged.
+     */
+    snapshot?: SnapshotMetadata;
+  }
 ): Promise<RevoraUserResponse> {
   const contract = loadSafetyContract();
   const parsedRequest = CheckRequestSchema.safeParse(rawRequest);
@@ -102,7 +116,8 @@ export async function checkFood(
         contract,
         route,
         precheckFlags,
-        request.food
+        request.food,
+        deps.snapshot
       );
     } catch (error) {
       // Single attempt: fail closed to controlled retry copy. The provider error
@@ -121,7 +136,8 @@ function mapModelOutput(
   contract: ReturnType<typeof loadSafetyContract>,
   route: ReturnType<typeof routeA1C>,
   precheckFlags: RevoraPolicyFlag[],
-  food: string
+  food: string,
+  snapshot?: SnapshotMetadata
 ): RevoraUserResponse {
   switch (modelOutput.kind) {
     case "result":
@@ -130,7 +146,8 @@ function mapModelOutput(
         contract,
         route,
         precheckFlags,
-        food
+        food,
+        snapshot
       });
     case "clarify":
       // The clarify and not_food arms bypass postprocess entirely, so before
