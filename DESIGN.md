@@ -152,6 +152,40 @@ reassurance, never streak pressure. Binding rules for ANY progress element:
 - Weekly progress bars (`dash-bai-*`) are qualitative (labels like "Building"),
   premium-real or free-example, hidden entirely below 5 checks.
 
+## Home meal-check hero (added 2026-07-19, approved A+D+C composite)
+
+The dashboard's Committed color moment is no longer a link card — it is the
+meal check itself (`components/home-check-hero.tsx`, `.meal-hero`). Rules:
+
+- Accent-filled card (24px radius, the one shadow), eyebrow "Meal check",
+  title "What are you eating?", one text input (18px radius, 52px tall) and
+  one pill submit ("Check meal", `data-testid="dash-check-cta"`).
+- It is a HAND-OFF, not a second check surface: the typed meal rides the
+  `revora.recheck` sessionStorage prefill into `/check`, which remains the one
+  place a check runs (taster gate, A1C, voice/photo, results). Never duplicate
+  the check flow on Home.
+- Stays the first interactive element above the fold at <768px (shell rule).
+
+## Result anatomy (added 2026-07-19, approved A+D+C composite)
+
+The verdict card (`.result-anatomy`, verdict branch of
+`components/result-card.tsx`) is a labeled document, not a poster:
+
+- Permission-first header on `--accent-tint`: kicker "A practical next step",
+  the most practical action as the lead line (adjustment → swap → keepMost;
+  SAFE leads with its own label), and the orientation line "A guide from your
+  entry." The load-bearing boundary copy stays in the fineprint, visible with
+  the result — never behind a disclosure.
+- Rows: Meal (echo + input method) · Signal (verdict icon + label, the ONLY
+  tinted row — verdict tokens, information not decoration) · Why (reason) ·
+  Try (remaining actions + "I did it").
+- Trust link "How Revora chooses a signal" → `/how-it-works`, 44px target.
+- Card surface stays white; verdict color appears only on the border and the
+  Signal row. Non-result kinds (upsell/clinical/clarify/retry) keep the flat
+  card.
+- The raw risk-class words (SAFE/MODERATE/HIGH) never render as user copy —
+  labels come from `lib/revora/labels.ts` only.
+
 ## Motion (added 2026-07-07 revamp)
 
 A small sanctioned layer — CSS only, no animation libraries:

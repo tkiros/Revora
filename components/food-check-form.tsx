@@ -68,6 +68,12 @@ export function FoodCheckForm() {
   } | null>(null);
   const [photoNotice, setPhotoNotice] = useState<string | null>(null);
   const [lastCheckId, setLastCheckId] = useState<string | null>(null);
+  // Snapshot of the submitted meal + method for the result's Meal row —
+  // read at success time so edits to the field don't rewrite the echo.
+  const [lastMeal, setLastMeal] = useState<{
+    food: string;
+    method: "text" | "voice" | "photo";
+  } | null>(null);
   const [actionDone, setActionDone] = useState(false);
   const [mode, setMode] = useState<PaywallMode>("legacy");
   const foodInputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -248,6 +254,7 @@ export function FoodCheckForm() {
           createdAt: new Date().toISOString()
         });
         setLastCheckId(clientId);
+        setLastMeal({ food: result.data.food, method: inputMethod });
         setActionDone(false);
         track({
           name: "check_completed",
@@ -471,6 +478,8 @@ export function FoodCheckForm() {
         <>
           <ResultCard
             response={uiState.response}
+            food={lastMeal?.food}
+            inputMethod={lastMeal?.method}
             actionDone={actionDone}
             onActionDone={
               lastCheckId

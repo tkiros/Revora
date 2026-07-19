@@ -85,8 +85,10 @@ describe("upsellVariant", () => {
 
 // §6.x "Enjoy it anyway" keep-most line. MODERATE/HIGH cards carry it (keepMost
 // non-null); SAFE and null keepMost skip it, since the JSX guards on the field.
-// The result-list order is keep-most → swap → adjustment → sequencing →
-// post-meal, so the two enjoyment DOs (keep-most + swap) lead the list.
+// Anatomy since 2026-07-19 (approved A+D+C composite): the most practical
+// action (adjustment → swap → keepMost) LEADS the card as the permission-first
+// headline; the Try list carries the remainder, keep-most before swap, then
+// sequencing → post-meal.
 describe("result-list keep-most line", () => {
   it("renders the keep-most enjoyment line, guarded by keepMost", () => {
     expect(RESULT_CARD_SOURCE).toContain('data-testid="keep-most"');
@@ -97,17 +99,25 @@ describe("result-list keep-most line", () => {
     expect(RESULT_CARD_SOURCE).toMatch(/response\.keepMost\s*\?/);
   });
 
-  it("orders keep-most before swap before adjustment in the list", () => {
+  it("leads with the practical action, permission-first", () => {
+    // The lead chain: adjustment first (it is the meal-specific ask), then
+    // swap, then the keep-most permission. SAFE (all three nulled by 7.2)
+    // falls through to its own verdict label.
+    expect(RESULT_CARD_SOURCE).toContain(
+      "response.adjustment ?? response.swap ?? response.keepMost"
+    );
+    expect(RESULT_CARD_SOURCE).toContain("{lead ?? RISK_LABELS[response.risk]}");
+    // Adjustment never renders as a list row — it is the headline. A
+    // reintroduced "Adjustment:" row would duplicate the lead.
+    expect(RESULT_CARD_SOURCE).not.toContain("<strong>Adjustment:</strong>");
+  });
+
+  it("orders keep-most before swap in the Try list", () => {
     const keepMostIdx = RESULT_CARD_SOURCE.indexOf('data-testid="keep-most"');
     const swapIdx = RESULT_CARD_SOURCE.indexOf("<strong>Swap:</strong>");
-    const adjustmentIdx = RESULT_CARD_SOURCE.indexOf(
-      "<strong>Adjustment:</strong>"
-    );
     expect(keepMostIdx).toBeGreaterThan(-1);
     expect(swapIdx).toBeGreaterThan(-1);
-    expect(adjustmentIdx).toBeGreaterThan(-1);
     expect(keepMostIdx).toBeLessThan(swapIdx);
-    expect(swapIdx).toBeLessThan(adjustmentIdx);
   });
 });
 

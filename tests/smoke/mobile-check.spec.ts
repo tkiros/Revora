@@ -321,10 +321,15 @@ test("result readability", async ({ page }) => {
   const reason = page.getByText("This looks balanced enough for your usual plan.");
 
   await expect(resultCard).toBeVisible();
-  // SAFE verdict carries the --safe-bg tint (#ecfdf5) since the 2026-07-07
-  // revamp — the card is no longer plain white.
-  await expect(resultCard).toHaveCSS("background-color", "rgb(236, 253, 245)");
+  // Result anatomy (2026-07-19 approved direction): the card is a white
+  // surface with the verdict border; the --safe-bg tint (#ecfdf5) lives ONLY
+  // in the Signal row — information, not decoration.
+  await expect(resultCard).toHaveCSS("background-color", "rgb(255, 255, 255)");
   await expect(resultCard).toHaveCSS("border-top-width", "2px");
+  await expect(resultCard.locator('.anatomy-row[data-risk="SAFE"]')).toHaveCSS(
+    "background-color",
+    "rgb(236, 253, 245)"
+  );
   await expect(reason).toHaveCSS("color", "rgb(30, 41, 59)");
 
   const reasonFontSize = await reason.evaluate((element) =>

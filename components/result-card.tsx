@@ -13,7 +13,6 @@ import {
   IconArrowRight,
   IconCheck,
   IconHeart,
-  IconLeaf,
   IconPause
 } from "./icons";
 
@@ -100,98 +99,152 @@ export function PantryEntry() {
   );
 }
 
+// Meal-row input-method meta ("how you told us"), quiet context only.
+const METHOD_WORDS = { text: "Typed", voice: "Spoken", photo: "Photo" } as const;
+
 export function ResultCard({
   response,
   actionDone,
-  onActionDone
+  onActionDone,
+  food,
+  inputMethod
 }: {
   response: RevoraUserResponse;
   actionDone?: boolean;
   onActionDone?: () => void;
+  /** The checked meal text, echoed in the Meal row when the caller has it. */
+  food?: string;
+  inputMethod?: keyof typeof METHOD_WORDS;
 }) {
   if (response.kind === "result") {
     const VerdictIcon = RISK_ICONS[response.risk];
+    // Permission-first anatomy (approved direction 2026-07-19): the most
+    // practical action LEADS the card; the verdict is supporting status in the
+    // Signal row below. postprocess.assertNoUnsafeSafeFields guarantees SAFE
+    // never carries adjustment/swap, so a SAFE card leads with its own label.
+    const lead = response.adjustment ?? response.swap ?? response.keepMost;
+    const hasTryRows = Boolean(
+      (response.keepMost && lead !== response.keepMost) ||
+        (response.swap && lead !== response.swap) ||
+        response.sequencingTip ||
+        response.postMealAction
+    );
     return (
       <section
         aria-live="polite"
-        className="result-card"
+        className="result-card result-anatomy"
         data-testid="result-card"
         data-kind={response.kind}
         data-risk={response.risk}
       >
-        <p className="result-eyebrow">Revora result</p>
-        <p className="result-title verdict-title" data-risk={response.risk}>
-          <VerdictIcon size={26} />
-          {RISK_LABELS[response.risk]}
-        </p>
-        <p className="result-copy">{response.reason}</p>
-        <div className="result-list">
-          {response.keepMost ? (
-            <p className="result-row" data-testid="keep-most">
-              <IconHeart size={16} />
-              <span>
-                <strong>Enjoy it anyway:</strong> {response.keepMost}
-              </span>
-            </p>
-          ) : null}
-          {response.swap ? (
-            <p className="result-row">
-              <IconArrowRight size={16} />
-              <span>
-                <strong>Swap:</strong> {response.swap}
-              </span>
-            </p>
-          ) : null}
-          {response.adjustment ? (
-            <p className="result-row">
-              <IconLeaf size={16} />
-              <span>
-                <strong>Adjustment:</strong> {response.adjustment}
-              </span>
-            </p>
-          ) : null}
-          {/* W-17 honest framing. These two rows used to read "Eat it in this
-              order:" and "After this meal:", which implied Revora had picked
-              them FOR this meal. It had not — they were the same two sentences
-              on every flagged result. The labels now say what is true: these
-              are general strategies, not a reading of your plate. The reason,
-              adjustment, and swap above are the meal-specific parts. */}
-          {response.sequencingTip ? (
-            <p className="result-row" data-testid="sequencing-tip">
-              <IconArrowRight size={16} />
-              <span>
-                <strong>A pattern that helps many people:</strong>{" "}
-                {response.sequencingTip}
-              </span>
-            </p>
-          ) : null}
-          {response.postMealAction ? (
-            <div data-testid="post-meal-action">
-              <p className="result-row">
-                <IconCheck size={16} />
-                <span>
-                  <strong>A calm next step:</strong> {response.postMealAction}
+        <header className="result-permission">
+          <p className="result-eyebrow">
+            {lead ? "A practical next step" : "Revora result"}
+          </p>
+          <p className="result-lead">{lead ?? RISK_LABELS[response.risk]}</p>
+          {/* Orientation line only — the load-bearing boundary copy stays in
+              the fineprint below (ledger rows general-guidance-01 +
+              result-footer), visible with the result, never behind a
+              disclosure. */}
+          <p className="result-boundary">A guide from your entry.</p>
+        </header>
+        {food ? (
+          <div className="anatomy-row" data-testid="anatomy-meal">
+            <span className="anatomy-label">Meal</span>
+            <span className="anatomy-meal">
+              {food}
+              {inputMethod ? (
+                <span className="anatomy-method">
+                  {METHOD_WORDS[inputMethod]}
                 </span>
-              </p>
-              {onActionDone ? (
-                actionDone ? (
-                  <p className="action-done-note" data-testid="action-done-note">
-                    Nice — logged for your week.
+              ) : null}
+            </span>
+          </div>
+        ) : null}
+        <div className="anatomy-row" data-risk={response.risk}>
+          <span className="anatomy-label">Signal</span>
+          <span className="anatomy-signal" data-risk={response.risk}>
+            <VerdictIcon size={20} />
+            {RISK_LABELS[response.risk]}
+          </span>
+        </div>
+        <div className="anatomy-row">
+          <span className="anatomy-label">Why</span>
+          <p className="anatomy-copy">{response.reason}</p>
+        </div>
+        {hasTryRows ? (
+          <div className="anatomy-row">
+            <span className="anatomy-label">Try</span>
+            <div className="result-list">
+              {response.keepMost && lead !== response.keepMost ? (
+                <p className="result-row" data-testid="keep-most">
+                  <IconHeart size={16} />
+                  <span>
+                    <strong>Enjoy it anyway:</strong> {response.keepMost}
+                  </span>
+                </p>
+              ) : null}
+              {response.swap && lead !== response.swap ? (
+                <p className="result-row">
+                  <IconArrowRight size={16} />
+                  <span>
+                    <strong>Swap:</strong> {response.swap}
+                  </span>
+                </p>
+              ) : null}
+              {/* W-17 honest framing. These two rows used to read "Eat it in
+                  this order:" and "After this meal:", which implied Revora had
+                  picked them FOR this meal. It had not — they were the same two
+                  sentences on every flagged result. The labels now say what is
+                  true: these are general strategies, not a reading of your
+                  plate. The lead, swap, and Why above are the meal-specific
+                  parts. */}
+              {response.sequencingTip ? (
+                <p className="result-row" data-testid="sequencing-tip">
+                  <IconArrowRight size={16} />
+                  <span>
+                    <strong>A pattern that helps many people:</strong>{" "}
+                    {response.sequencingTip}
+                  </span>
+                </p>
+              ) : null}
+              {response.postMealAction ? (
+                <div data-testid="post-meal-action">
+                  <p className="result-row">
+                    <IconCheck size={16} />
+                    <span>
+                      <strong>A calm next step:</strong>{" "}
+                      {response.postMealAction}
+                    </span>
                   </p>
-                ) : (
-                  <button
-                    type="button"
-                    className="action-done-button"
-                    data-testid="action-done-button"
-                    onClick={onActionDone}
-                  >
-                    I did it
-                  </button>
-                )
+                  {onActionDone ? (
+                    actionDone ? (
+                      <p
+                        className="action-done-note"
+                        data-testid="action-done-note"
+                      >
+                        Nice — logged for your week.
+                      </p>
+                    ) : (
+                      <button
+                        type="button"
+                        className="action-done-button"
+                        data-testid="action-done-button"
+                        onClick={onActionDone}
+                      >
+                        I did it
+                      </button>
+                    )
+                  ) : null}
+                </div>
               ) : null}
             </div>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
+        <Link className="result-how" href="/how-it-works">
+          How Revora chooses a signal
+          <IconArrowRight size={15} />
+        </Link>
         <div className="result-fineprint">
           {/* `general-guidance-01` ledger row (docs/safety/copy-ledger.md): the
               T1 honesty line — verdicts are band-general, never a prediction of
