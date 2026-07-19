@@ -323,7 +323,10 @@ function PaywallConfigNotice({
       data-testid="paywall-config-pending"
       aria-live="polite"
     >
-      <div className="plan-card" aria-hidden={status === "error" ? undefined : true}>
+      <div className="plan-card">
+        {/* Only the visual shimmer is hidden from assistive tech; the status
+            text below stays in the aria-live region so a loading/failed state
+            is announced (matches trial-wall's pending block). */}
         <p className="plan-card-price skeleton-line" aria-hidden="true">
           &nbsp;
         </p>

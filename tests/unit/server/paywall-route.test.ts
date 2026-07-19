@@ -40,4 +40,40 @@ describe("GET /api/paywall — server commercial contract", () => {
       }
     }
   });
+
+  // Honest inverse of the :3100 e2e dummy (billing-pages.spec asserts the annual
+  // card RENDERS when STRIPE_PRICE_ANNUAL is set). Production may leave the var
+  // unset; here we prove the server then reports annual as NOT offered, so the
+  // client's `{config.annualDisplay ? <annual/> : null}` gate correctly hides
+  // the annual card rather than showing a guessed price.
+  it("reports annual as not offered when STRIPE_PRICE_ANNUAL is unset", async () => {
+    const prior = process.env.STRIPE_PRICE_ANNUAL;
+    delete process.env.STRIPE_PRICE_ANNUAL;
+    try {
+      const body = await (await GET()).json();
+      expect(body.annualDisplay).toBeNull();
+      expect(body.annualMonthlyEquivalent).toBeNull();
+      // Still a valid, full contract — the client shows monthly + pending-free.
+      expect(PaywallConfigSchema.safeParse(body).success).toBe(true);
+    } finally {
+      if (prior !== undefined) {
+        process.env.STRIPE_PRICE_ANNUAL = prior;
+      }
+    }
+  });
+
+  // strictObject tripwire: if the route ever adds/renames a field, the client's
+  // zod parse would reject the body and drop to the pending/retry state — this
+  // asserts the guard is live so that drift fails loudly in CI, not in prod.
+  it("rejects an unexpected extra field (strict contract)", () => {
+    const body = {
+      mode: "trial",
+      variant: "1299",
+      priceDisplay: "$12.99",
+      annualDisplay: null,
+      annualMonthlyEquivalent: null,
+      surpriseField: "drift"
+    };
+    expect(PaywallConfigSchema.safeParse(body).success).toBe(false);
+  });
 });

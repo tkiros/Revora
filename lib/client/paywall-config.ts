@@ -14,7 +14,9 @@ import { z } from "zod";
  * response; a backend failure is an explicit unavailable state, never a
  * silently-different contract).
  */
-export const PaywallConfigSchema = z.object({
+// strictObject: an unknown extra field fails the parse, so the route contract
+// test trips the moment the server body drifts from this exact shape.
+export const PaywallConfigSchema = z.strictObject({
   mode: z.enum(["legacy", "trial"]),
   variant: z.enum(["999", "1299", "1999"]),
   priceDisplay: z.string().min(1),
