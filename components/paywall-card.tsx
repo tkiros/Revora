@@ -26,6 +26,23 @@ import { playBillingEnabled } from "../lib/play-billing-flag";
  * neutral loading/retry state and NO price — it never falls back to a hard-coded
  * ladder that could differ from what checkout will actually charge.
  */
+
+/**
+ * Whether "Restore a previous purchase" is disabled (B5). Restore is a Play-only
+ * reinstall path that re-verifies each token server-side — it has NOTHING to do
+ * with the checkout `config` load. Gating it on `config === null` meant a config
+ * error/pending state stranded a returning subscriber who could not re-verify a
+ * purchase they already own. Only a live action (busy) or unaccepted terms may
+ * block restore; the price-bearing subscribe buttons stay config-gated elsewhere.
+ * Pure so the gate is unit-testable without a component render.
+ */
+export function isRestoreDisabled(
+  busy: string | null,
+  termsAccepted: boolean
+): boolean {
+  return busy !== null || !termsAccepted;
+}
+
 export function PaywallCard() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +50,6 @@ export function PaywallCard() {
   const [usesPlay, setUsesPlay] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const { state, retry } = usePaywallConfig();
-  const config = state.status === "ready" ? state.config : null;
 
   useEffect(() => {
     track({ name: "paywall_viewed" });
@@ -205,7 +221,7 @@ export function PaywallCard() {
         <button
           type="button"
           className="link-button"
-          disabled={busy !== null || !termsAccepted || config === null}
+          disabled={isRestoreDisabled(busy, termsAccepted)}
           data-testid="restore-purchases"
           onClick={() => restorePurchases()}
         >

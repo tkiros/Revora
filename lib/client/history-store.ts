@@ -137,6 +137,17 @@ export function createHistoryStore(storage: StorageLike | null) {
       );
     },
 
+    /**
+     * Drop a check from the on-device store by its clientId (deletion is real,
+     * plan §16). Called after a server delete succeeds so the daily-loop
+     * `syncLocalHistory` — which re-migrates every local row on the next visit —
+     * can never resurrect a row the user just deleted (privacy finding E1).
+     * Mirrors `markActionDone`: read → filter → write, no-op when absent.
+     */
+    remove(clientId: string): void {
+      write(read().filter((check) => check.clientId !== clientId));
+    },
+
     clear(): void {
       storage?.removeItem(STORAGE_KEY);
     }

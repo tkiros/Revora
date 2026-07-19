@@ -54,3 +54,22 @@ export async function submitResultFeedback(
     return false;
   }
 }
+
+/**
+ * Pure success/failure decision for the "Not really" structured report (U1).
+ *
+ * The reason path is a SAFETY report surface — a user can be telling us a result
+ * felt unsafe. So its submit is awaited and its outcome is honest: a successful
+ * POST advances to the acknowledgment, a failed one KEEPS the reason view (with a
+ * working Send) and flags the failure so the UI can offer a retry — it must never
+ * show a false "Noted." for a report that never reached us.
+ *
+ * Colocated on the seam so the decision is unit-testable without a jsdom/component
+ * harness (this repo has none — same pattern as the food-check-form gate helpers).
+ */
+export function resolveFeedbackSend(ok: boolean): {
+  step: "done" | "reason";
+  failed: boolean;
+} {
+  return ok ? { step: "done", failed: false } : { step: "reason", failed: true };
+}

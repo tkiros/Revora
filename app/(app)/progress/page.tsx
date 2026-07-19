@@ -10,6 +10,7 @@ import { BAI_BAND_COPY, bandOf, type BaiBand } from "../../../lib/coach/bai";
 import { learningJourneyUiEnabled } from "../../../lib/learning-journey-flag";
 import {
   resolveProgressState,
+  shouldShowBai,
   type LatestBai,
   type ProgressState
 } from "../../../lib/coach/progress-state";
@@ -85,6 +86,14 @@ export default function ProgressPage() {
   const learningEnabled = learningJourneyUiEnabled();
   const [state, setState] = useState<ProgressState>("loading");
   const [latestBai, setLatestBai] = useState<LatestBai | null>(null);
+  // Whether the learning summary actually rendered a surface. Defaults true so
+  // BAI stays hidden while the summary loads (no flash); it flips false only if
+  // the summary self-nulls (guest / not-premium / flag-off), at which point BAI
+  // becomes the honest fallback rather than a blank page (U10).
+  const [learningShown, setLearningShown] = useState(true);
+  const handleLearningResolved = useCallback((shown: boolean) => {
+    setLearningShown(shown);
+  }, []);
   // Bumped by the Retry button — bounded, manual retry only (no auto-retry
   // storms against an already-struggling backend).
   const [reloadNonce, setReloadNonce] = useState(0);
@@ -138,6 +147,8 @@ export default function ProgressPage() {
 
   const band: BaiBand | null = latestBai ? bandOf(latestBai.score) : null;
   const bandCopy = band ? BAI_BAND_COPY[band] : null;
+  // Show BAI when the flag is off, OR when the learning summary rendered nothing.
+  const showBai = shouldShowBai(learningEnabled, learningShown);
 
   return (
     <div className="app-content--narrow">
@@ -159,7 +170,9 @@ export default function ProgressPage() {
             the flag is on it renders in place of the BAI band block below (which
             is suppressed while `learningEnabled`). For guest / non-premium it
             renders nothing — the BAI states below still own that messaging. */}
-        {learningEnabled ? <LearningSummary /> : null}
+        {learningEnabled ? (
+          <LearningSummary onResolved={handleLearningResolved} />
+        ) : null}
 
         {state === "loading" ? (
           <section className="surface-card hero-card">
@@ -235,7 +248,7 @@ export default function ProgressPage() {
           </section>
         ) : null}
 
-        {state === "empty" && !learningEnabled ? (
+        {state === "empty" && showBai ? (
           <section className="surface-card hero-card" data-testid="progress-empty">
             <h2 className="section-title">Building your first week</h2>
             <p className="page-copy">
@@ -249,7 +262,7 @@ export default function ProgressPage() {
           </section>
         ) : null}
 
-        {state === "ready" && latestBai && bandCopy && !learningEnabled ? (
+        {state === "ready" && latestBai && bandCopy && showBai ? (
           <section className="surface-card hero-card" data-testid="progress-bands">
             <p className="hero-eyebrow">
               Week of {formatWeekStart(latestBai.weekStart)}

@@ -6,6 +6,7 @@ import { track } from "../lib/client/analytics";
 import {
   FEEDBACK_COMMENT_MAX,
   FEEDBACK_REASON_OPTIONS,
+  resolveFeedbackSend,
   submitResultFeedback,
   type FeedbackReason
 } from "../lib/client/feedback";
@@ -41,6 +42,8 @@ export function ResultFeedback({
   const [helpful, setHelpful] = useState<boolean | null>(null);
   const [reason, setReason] = useState<FeedbackReason | null>(null);
   const [comment, setComment] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sendFailed, setSendFailed] = useState(false);
 
   if (step === "done") {
     return (
@@ -54,19 +57,22 @@ export function ResultFeedback({
 
   // Aggregate signal for every user; structured POST only when the check was
   // persisted (checkId present). Emitting the presence-only submitted event is
-  // gated on the POST succeeding.
+  // gated on the POST succeeding. Resolves the POST ok so the SAFETY report path
+  // (onSendReason) can await it and surface an honest failure — a guest with no
+  // checkId has nothing to send and resolves true (nothing failed).
   async function sendStructured(input: {
     helpful: boolean;
     reason?: FeedbackReason;
     comment?: string;
-  }) {
+  }): Promise<boolean> {
     if (!checkId) {
-      return;
+      return true;
     }
     const ok = await submitResultFeedback(checkId, input);
     if (ok) {
       track({ name: "result_feedback_submitted", props: { helpful: input.helpful } });
     }
+    return ok;
   }
 
   function onYes() {
@@ -83,13 +89,21 @@ export function ResultFeedback({
     setStep(checkId ? "reason" : "done");
   }
 
-  function onSendReason() {
-    void sendStructured({
+  // SAFETY report path: await the submit and be honest about the outcome. A
+  // failed send KEEPS the reason view with a working Send and shows a retry hint
+  // — it must never acknowledge ("Noted.") a report that never reached us.
+  async function onSendReason() {
+    setSending(true);
+    setSendFailed(false);
+    const ok = await sendStructured({
       helpful: false,
       reason: reason ?? undefined,
       comment: comment || undefined
     });
-    setStep("done");
+    const resolved = resolveFeedbackSend(ok);
+    setSending(false);
+    setSendFailed(resolved.failed);
+    setStep(resolved.step);
   }
 
   if (step === "reason") {
@@ -132,20 +146,31 @@ export function ResultFeedback({
           onChange={(event) => setComment(event.target.value.slice(0, FEEDBACK_COMMENT_MAX))}
           rows={2}
         />
+        {sendFailed ? (
+          <p
+            className="field-error"
+            data-testid="feedback-send-error"
+            role="alert"
+          >
+            Couldn&apos;t send that — please try again.
+          </p>
+        ) : null}
         <div className="feedback-buttons">
           <button
             type="button"
             className="feedback-button"
             data-testid="feedback-send"
-            onClick={onSendReason}
+            onClick={() => void onSendReason()}
+            disabled={sending}
           >
-            Send
+            {sending ? "Sending…" : sendFailed ? "Try again" : "Send"}
           </button>
           <button
             type="button"
             className="feedback-skip"
             data-testid="feedback-skip"
             onClick={() => setStep("done")}
+            disabled={sending}
           >
             Skip
           </button>

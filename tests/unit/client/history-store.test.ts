@@ -133,6 +133,32 @@ describe("historyStore", () => {
     expect(stored?.actionDoneAt).toBeTruthy();
   });
 
+  it("remove() drops a check by clientId (deletion is real — E1)", () => {
+    store.add(check({ clientId: "keep", createdAt: daysAgoLocal(0) }));
+    store.add(check({ clientId: "gone", createdAt: daysAgoLocal(1) }));
+
+    store.remove("gone");
+
+    expect(store.all().map((c) => c.clientId)).toEqual(["keep"]);
+  });
+
+  it("remove() is a no-op for an unknown clientId", () => {
+    store.add(check({ clientId: "a" }));
+    store.remove("does-not-exist");
+    expect(store.all().map((c) => c.clientId)).toEqual(["a"]);
+  });
+
+  it("a removed check is absent from the migrate payload — no resurrection (E1)", () => {
+    // syncLocalHistory posts historyStore.all() to /api/history/migrate; after a
+    // real delete the row must not be in that payload or the daily loop would
+    // re-create it on the next visit.
+    store.add(check({ clientId: "deleted", createdAt: daysAgoLocal(0) }));
+    store.remove("deleted");
+
+    const migratePayload = store.all();
+    expect(migratePayload.some((c) => c.clientId === "deleted")).toBe(false);
+  });
+
   it("clear() empties the store", () => {
     store.add(check());
     store.clear();

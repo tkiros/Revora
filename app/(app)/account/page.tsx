@@ -7,6 +7,10 @@ import { signOut } from "next-auth/react";
 import { resolveAccountLoadState } from "../../../lib/client/account-load-state";
 import { track } from "../../../lib/client/analytics";
 import { historyStore } from "../../../lib/client/history-store";
+import {
+  resolveNudgeSave,
+  type NudgeSettings
+} from "../../../lib/client/nudge-settings";
 import { profileStore } from "../../../lib/client/profile-store";
 
 type EntitlementInfo = {
@@ -34,14 +38,9 @@ export default function AccountPage() {
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [nudge, setNudge] = useState<{
-    optIn: boolean;
-    hour: number;
-    cadence: "daily" | "few_per_week" | "weekly";
-    quietStart: number | null;
-    quietEnd: number | null;
-  } | null>(null);
+  const [nudge, setNudge] = useState<NudgeSettings | null>(null);
   const [nudgeSaved, setNudgeSaved] = useState(false);
+  const [nudgeError, setNudgeError] = useState(false);
   const [canceled, setCanceled] = useState<{ accessUntil: string } | null>(
     null
   );
@@ -248,6 +247,22 @@ export default function AccountPage() {
       setNudgeSaved(false);
       return false;
     }
+  }
+
+  // Optimistic apply-or-rollback for a single reminder-field change (U9). The UI
+  // shows `next` immediately; if the PATCH fails we roll back to `prior` and flag
+  // it, so a field can never silently claim a value the server never stored.
+  async function saveNudge(
+    prior: NudgeSettings,
+    next: NudgeSettings,
+    patch: Record<string, unknown>
+  ): Promise<void> {
+    setNudge(next);
+    setNudgeError(false);
+    const ok = await patchNudge(patch);
+    const resolved = resolveNudgeSave(prior, next, ok);
+    setNudge(resolved.nudge);
+    setNudgeError(resolved.failed);
   }
 
   async function turnOffNudges() {
@@ -489,10 +504,13 @@ export default function AccountPage() {
                         id="nudge-hour"
                         className="text-input"
                         value={nudge.hour}
-                        onChange={async (event) => {
+                        onChange={(event) => {
                           const hour = Number(event.target.value);
-                          setNudge({ ...nudge, hour });
-                          await patchNudge({ nudgeHour: hour });
+                          void saveNudge(
+                            nudge,
+                            { ...nudge, hour },
+                            { nudgeHour: hour }
+                          );
                         }}
                       >
                         {Array.from({ length: 17 }, (_, i) => i + 5).map(
@@ -515,11 +533,14 @@ export default function AccountPage() {
                         id="nudge-cadence"
                         className="text-input"
                         value={nudge.cadence}
-                        onChange={async (event) => {
+                        onChange={(event) => {
                           const cadence = event.target
-                            .value as typeof nudge.cadence;
-                          setNudge({ ...nudge, cadence });
-                          await patchNudge({ nudgeCadence: cadence });
+                            .value as NudgeSettings["cadence"];
+                          void saveNudge(
+                            nudge,
+                            { ...nudge, cadence },
+                            { nudgeCadence: cadence }
+                          );
                         }}
                       >
                         <option value="daily">Once a day</option>
@@ -535,17 +556,20 @@ export default function AccountPage() {
                           aria-label="Quiet hours start"
                           className="text-input"
                           value={nudge.quietStart ?? ""}
-                          onChange={async (event) => {
+                          onChange={(event) => {
                             const raw = event.target.value;
                             const quietStart = raw === "" ? null : Number(raw);
                             // Clearing the start clears the whole window.
                             const quietEnd =
                               quietStart === null ? null : nudge.quietEnd;
-                            setNudge({ ...nudge, quietStart, quietEnd });
-                            await patchNudge({
-                              nudgeQuietStart: quietStart,
-                              nudgeQuietEnd: quietEnd
-                            });
+                            void saveNudge(
+                              nudge,
+                              { ...nudge, quietStart, quietEnd },
+                              {
+                                nudgeQuietStart: quietStart,
+                                nudgeQuietEnd: quietEnd
+                              }
+                            );
                           }}
                         >
                           <option value="">Off</option>
@@ -561,11 +585,14 @@ export default function AccountPage() {
                           className="text-input"
                           value={nudge.quietEnd ?? ""}
                           disabled={nudge.quietStart === null}
-                          onChange={async (event) => {
+                          onChange={(event) => {
                             const raw = event.target.value;
                             const quietEnd = raw === "" ? null : Number(raw);
-                            setNudge({ ...nudge, quietEnd });
-                            await patchNudge({ nudgeQuietEnd: quietEnd });
+                            void saveNudge(
+                              nudge,
+                              { ...nudge, quietEnd },
+                              { nudgeQuietEnd: quietEnd }
+                            );
                           }}
                         >
                           <option value="">—</option>
@@ -577,7 +604,15 @@ export default function AccountPage() {
                         </select>
                       </div>
 
-                      {nudgeSaved ? (
+                      {nudgeError ? (
+                        <p
+                          className="field-error"
+                          data-testid="nudge-save-error"
+                          role="alert"
+                        >
+                          Couldn&apos;t save — try again.
+                        </p>
+                      ) : nudgeSaved ? (
                         <p className="field-hint">Saved.</p>
                       ) : null}
 

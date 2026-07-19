@@ -191,20 +191,12 @@ export function FoodCheckForm() {
     }, 5_000);
 
     // One-clarification cap (§8): if this submission answers an outstanding
-    // clarify, mark it so the server suppresses a second ambiguity question, and
-    // record the clarify as resolved (§10.1) — reason + elapsed bucket only,
-    // never the meal text.
+    // clarify, mark it so the server suppresses a second ambiguity question.
+    // Read the pending clarify here, but DO NOT clear the ref or record the
+    // resolution yet — that only happens once submitCheck actually resolves
+    // (below). A thrown submit must leave the ref intact so the retry still
+    // carries clarified:true and re-records resolution on success (U3).
     const pendingClarify = pendingClarifyRef.current;
-    if (pendingClarify) {
-      pendingClarifyRef.current = null;
-      track({
-        name: "clarification_resolved",
-        props: {
-          category: pendingClarify.reason,
-          elapsed: clarifyElapsedBucket(Date.now() - pendingClarify.startedAt)
-        }
-      });
-    }
 
     try {
       // One id shared by the on-device copy and the server row (4B) so the
@@ -218,6 +210,21 @@ export function FoodCheckForm() {
         // can persist which approved question was asked. Bounded enum, not text.
         clarifyCategory: pendingClarify?.reason
       });
+
+      // The submit resolved — the outstanding clarify is now genuinely answered.
+      // Clear the pending ref and record the resolution (§10.1) — reason +
+      // elapsed bucket only, never the meal text. Done here (not before the
+      // await) so a thrown submit leaves the ref intact for the retry (U3).
+      if (pendingClarify) {
+        pendingClarifyRef.current = null;
+        track({
+          name: "clarification_resolved",
+          props: {
+            category: pendingClarify.reason,
+            elapsed: clarifyElapsedBucket(Date.now() - pendingClarify.startedAt)
+          }
+        });
+      }
 
       // §10.1: a deterministic clarify card renders — record which of the three
       // bounded reasons fired so clarify/resolution/abandonment rates are

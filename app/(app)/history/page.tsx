@@ -9,6 +9,7 @@ import { historyStore, type StoredCheck } from "../../../lib/client/history-stor
 import {
   deleteHistoryCheck,
   fetchHistoryPage,
+  loadHistory,
   type HistoryMeta,
   type ServerCheck
 } from "../../../lib/client/remote-history";
@@ -31,6 +32,11 @@ export default function HistoryPage() {
 
   const [status, setStatus] = useState<ViewStatus>("loading");
   const [checks, setChecks] = useState<ServerCheck[]>([]);
+  // The week strip is a fixed 7-day at-a-glance view (pre-T9 behavior). It has
+  // its OWN 7-day source rather than reading the paginated 25-row page: a first
+  // page can span far more than a week (so the strip would miss recent days) or
+  // fewer than 7 days (so it would look empty). Kept separate from `checks` (U7).
+  const [weekChecks, setWeekChecks] = useState<StoredCheck[]>([]);
   const [meta, setMeta] = useState<HistoryMeta | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -88,6 +94,18 @@ export default function HistoryPage() {
     void loadFirstPage({ q: "", from: "", to: "" });
   }, [loadFirstPage]);
 
+  // Fixed 7-day source for the week strip, independent of the paginated list.
+  // loadHistory falls back to the on-device store for guests/outages, so the
+  // strip stays honest without its own error surface.
+  const loadWeek = useCallback(async () => {
+    const result = await loadHistory(7);
+    setWeekChecks(result.checks);
+  }, []);
+
+  useEffect(() => {
+    void loadWeek();
+  }, [loadWeek]);
+
   async function onLoadMore() {
     if (!nextCursor || loadingMore) {
       return;
@@ -137,7 +155,12 @@ export default function HistoryPage() {
     }
     const ok = await deleteHistoryCheck(check.id);
     if (ok) {
+      // Deletion is real (plan §16 / privacy finding E1): drop the on-device
+      // copy too, or the daily-loop `syncLocalHistory` re-migrates it on the
+      // next visit and resurrects the row the user just deleted.
+      historyStore.remove(check.clientId);
       setChecks((prev) => prev.filter((c) => c.id !== check.id));
+      setWeekChecks((prev) => prev.filter((c) => c.clientId !== check.clientId));
     } else {
       window.alert("Could not delete that check. Please try again.");
     }
@@ -156,7 +179,7 @@ export default function HistoryPage() {
   const isPremium = meta?.tier === "premium";
   const hasFilters = Boolean(applied.q || applied.from || applied.to);
 
-  const weekStrip = verdictWeekView(checks, localDayKey).map((day) => ({
+  const weekStrip = verdictWeekView(weekChecks, localDayKey).map((day) => ({
     ...day,
     label: DAY_LABELS[new Date(`${day.key}T00:00:00`).getDay()]
   }));

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   resolveProgressState,
+  shouldShowBai,
   type CoachFetchResult
 } from "../../../lib/coach/progress-state";
 
@@ -88,5 +89,20 @@ describe("resolveProgressState", () => {
         response(200, { tier: "premium", latestBai: { weekStart: "x" } })
       ).state
     ).toBe("empty");
+  });
+});
+
+describe("shouldShowBai — BAI fallback vs learning summary (U10)", () => {
+  it("shows BAI whenever the learning flag is off, regardless of summary state", () => {
+    expect(shouldShowBai(false, true)).toBe(true);
+    expect(shouldShowBai(false, false)).toBe(true);
+  });
+
+  it("suppresses BAI when the flag is on AND the summary actually rendered", () => {
+    expect(shouldShowBai(true, true)).toBe(false);
+  });
+
+  it("falls back to BAI when the flag is on but the summary rendered nothing (guest/not-premium/flag-off self-null)", () => {
+    expect(shouldShowBai(true, false)).toBe(true);
   });
 });

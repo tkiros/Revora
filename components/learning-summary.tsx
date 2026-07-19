@@ -105,7 +105,16 @@ function count(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`;
 }
 
-export function LearningSummary() {
+export function LearningSummary({
+  onResolved
+}: {
+  /**
+   * Reports up whether this summary is occupying the progress surface (U10).
+   * `false` means it rendered NOTHING (guest / not-premium / flag-off self-null),
+   * so the page must fall back to its BAI blocks rather than leave a blank page.
+   */
+  onResolved?: (shown: boolean) => void;
+} = {}) {
   const [status, setStatus] = useState<ViewStatus>("loading");
   const [payload, setPayload] = useState<WeeklyPayload | null>(null);
 
@@ -155,6 +164,19 @@ export function LearningSummary() {
       });
     }
   }, [status, payload]);
+
+  // Whether we render any surface at all. We render NOTHING only when hidden
+  // (guest / not-premium / flag-off) or when a "ready" payload has no current
+  // artifact — in both cases the progress page must show BAI instead (U10). A
+  // loading/error card DOES occupy the surface, so BAI stays suppressed then.
+  const rendersSurface =
+    status === "loading" ||
+    status === "error" ||
+    (status === "ready" && payload?.current != null);
+
+  useEffect(() => {
+    onResolved?.(rendersSurface);
+  }, [rendersSurface, onResolved]);
 
   if (status === "hidden") {
     return null;

@@ -96,6 +96,11 @@ export default function MemoryPage() {
     mealMemoryUiEnabled() ? "loading" : "unavailable"
   );
   const [memories, setMemories] = useState<SavedMemory[]>([]);
+  // Server caps a page at 50 (MAX_LIMIT) and returns `nextOffset` for the rest;
+  // consuming it lets a user with >50 memories reach all of them (U6).
+  const [nextOffset, setNextOffset] = useState<number | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState(false);
   const [query, setQuery] = useState("");
   const [searchError, setSearchError] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -103,6 +108,21 @@ export default function MemoryPage() {
   const [draft, setDraft] = useState<EditDraft | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
+
+  function parseMemoryPage(body: unknown): {
+    memories: SavedMemory[];
+    nextOffset: number | null;
+  } {
+    if (typeof body !== "object" || body === null) {
+      return { memories: [], nextOffset: null };
+    }
+    const record = body as { memories?: SavedMemory[]; nextOffset?: unknown };
+    return {
+      memories: record.memories ?? [],
+      nextOffset:
+        typeof record.nextOffset === "number" ? record.nextOffset : null
+    };
+  }
 
   async function loadList(): Promise<void> {
     try {
@@ -119,15 +139,37 @@ export default function MemoryPage() {
         setStatus("error");
         return;
       }
-      const body: unknown = await response.json();
-      const list =
-        typeof body === "object" && body !== null
-          ? ((body as { memories?: SavedMemory[] }).memories ?? [])
-          : [];
-      setMemories(list);
+      const page = parseMemoryPage(await response.json());
+      setMemories(page.memories);
+      setNextOffset(page.nextOffset);
+      setLoadMoreError(false);
       setStatus("ready");
     } catch {
       setStatus("error");
+    }
+  }
+
+  // Append the next page. A failure here is a non-destructive inline error —
+  // never blows the loaded list away to the full-page error surface.
+  async function onLoadMore(): Promise<void> {
+    if (nextOffset === null || loadingMore) {
+      return;
+    }
+    setLoadingMore(true);
+    setLoadMoreError(false);
+    try {
+      const response = await fetch(`/api/memory?offset=${nextOffset}`);
+      if (!response.ok) {
+        setLoadMoreError(true);
+        return;
+      }
+      const page = parseMemoryPage(await response.json());
+      setMemories((prev) => [...prev, ...page.memories]);
+      setNextOffset(page.nextOffset);
+    } catch {
+      setLoadMoreError(true);
+    } finally {
+      setLoadingMore(false);
     }
   }
 
@@ -157,6 +199,9 @@ export default function MemoryPage() {
       return;
     }
     setMemories(result.memories);
+    // Search returns a single bounded result set — no pagination cursor.
+    setNextOffset(null);
+    setLoadMoreError(false);
     setStatus("ready");
   }
 
@@ -509,6 +554,33 @@ export default function MemoryPage() {
               ))}
             </ul>
           )}
+
+          {nextOffset !== null && !query ? (
+            <div className="memory-load-more">
+              <button
+                type="button"
+                className="recheck-button"
+                data-testid="memory-load-more"
+                onClick={() => void onLoadMore()}
+                disabled={loadingMore}
+              >
+                {loadingMore
+                  ? "Loading…"
+                  : loadMoreError
+                    ? "Couldn't load more — Retry"
+                    : "Load more"}
+              </button>
+              {loadMoreError ? (
+                <p
+                  className="placeholder-copy"
+                  data-testid="memory-load-more-error"
+                >
+                  Something went wrong loading more. Your memory is safe — try
+                  again.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="memory-danger" data-testid="memory-delete-all">
             {confirmDeleteAll ? (

@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { submitResultFeedback } from "../../../lib/client/feedback";
+import {
+  resolveFeedbackSend,
+  submitResultFeedback
+} from "../../../lib/client/feedback";
 
 const CHECK_ID = "11111111-1111-4111-8111-111111111111";
 
@@ -62,5 +65,18 @@ describe("submitResultFeedback", () => {
     const failing = vi.fn(async () => new Response("nope", { status: 500 }));
     const ok = await submitResultFeedback(CHECK_ID, { helpful: true }, failing);
     expect(ok).toBe(false);
+  });
+});
+
+describe("resolveFeedbackSend — SAFETY report success/failure decision (U1)", () => {
+  it("advances to the acknowledgment only when the POST succeeded", () => {
+    expect(resolveFeedbackSend(true)).toEqual({ step: "done", failed: false });
+  });
+
+  it("keeps the reason view and flags failure when the POST failed — never a false 'Noted.'", () => {
+    expect(resolveFeedbackSend(false)).toEqual({
+      step: "reason",
+      failed: true
+    });
   });
 });
