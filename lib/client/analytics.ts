@@ -30,6 +30,18 @@ type CheckResponseKind = RevoraUserResponse["kind"];
 // analytics — Task 2.7/4.2 import this same type for the checkout call sites.
 export type PriceVariant = "999" | "1299" | "1999";
 
+// The closed meal-memory label vocabulary (mirror of the schema/API enum). Only
+// the label CLASS ever reaches analytics — never the user's note or choice text.
+export type MemoryLabel =
+  | "breakfast"
+  | "lunch"
+  | "dinner"
+  | "snack"
+  | "restaurant"
+  | "travel"
+  | "family_meal"
+  | "other";
+
 export type AnalyticsEvent =
   | {
       name: "check_completed";
@@ -101,6 +113,22 @@ export type AnalyticsEvent =
   // category and any private comment stay in the encrypted operational store
   // and never travel with this event (the no-PII source scan enforces it).
   | { name: "result_feedback_submitted"; props: { helpful: boolean } }
+  // §P3.2/§10.1: a meal memory was saved. Memory FIELD TYPES only, never their
+  // contents (plan §P3.2 "Do not ... place raw health text in analytics"). Every
+  // prop is a bounded presence/enum: whether choice/note text exists (booleans,
+  // not the text), the repeat preference as a closed tri-state, the favorite
+  // flag, and the label CLASS or "none". The choice/note strings themselves stay
+  // in the encrypted operational store and never travel with this event.
+  | {
+      name: "meal_memory_saved";
+      props: {
+        hasChoice: boolean;
+        hasNote: boolean;
+        wouldRepeat: "yes" | "no" | "unset";
+        favorite: boolean;
+        label: MemoryLabel | "none";
+      };
+    }
   | { name: "photo_draft"; props: { items: number; uncertain: number } };
 
 // Runtime belt-over-type-belt guard: even if a caller bypasses the type
@@ -131,7 +159,8 @@ const ALLOWED_EVENT_NAMES: ReadonlySet<AnalyticsEvent["name"]> = new Set([
   "photo_draft",
   "result_feedback_submitted",
   "clarification_requested",
-  "clarification_resolved"
+  "clarification_resolved",
+  "meal_memory_saved"
 ]);
 
 type AnalyticsHost = {

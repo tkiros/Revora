@@ -1,4 +1,5 @@
 import { FREE_DAILY_CHECKS, FREE_HISTORY_DAYS } from "../free-tier";
+import { mealMemoryServerEnabled } from "../meal-memory-flag";
 import type { Entitlement } from "./entitlement";
 
 /**
@@ -42,11 +43,13 @@ export type Capabilities = {
 };
 
 /**
- * Flags for premium features that do not exist yet. The flag MODULES land with
- * their features (T14: mealMemory, T17-18: learning journey); until then the
- * matrix reads the server-side env directly, defaulting off. The capability is
- * therefore BOTH premium-gated AND unavailable until the feature ships — a
- * premium user with the flag off still sees `false`.
+ * Flags for premium features that gate on a server-side rollout env. The flag
+ * MODULES own the env-name truth (T14: lib/meal-memory-flag.ts reads
+ * `MEAL_MEMORY_ENABLED`; T17-18: learning journey reads
+ * `LEARNING_JOURNEY_ENABLED`). The matrix imports the meal-memory reader so the
+ * env name is defined once and can never fork from the routes that 404 on the
+ * same flag. The capability is therefore BOTH premium-gated AND unavailable
+ * until the feature ships — a premium user with the flag off still sees `false`.
  */
 export type CapabilityFlagEnv = {
   MEAL_MEMORY_ENABLED?: string;
@@ -76,7 +79,7 @@ export function capabilitiesFor(
     dailyChecks: premium ? "unlimited" : FREE_DAILY_CHECKS,
     historyDays: premium ? "all" : FREE_HISTORY_DAYS,
     export: true,
-    mealMemory: premium && env.MEAL_MEMORY_ENABLED === "1",
+    mealMemory: premium && mealMemoryServerEnabled(env),
     weeklyLearning: premium && env.LEARNING_JOURNEY_ENABLED === "1",
     progress: premium,
     nudges: premium,

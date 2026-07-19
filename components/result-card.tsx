@@ -7,6 +7,7 @@ import type {
 } from "../lib/client/ui-state";
 import { RISK_LABELS } from "../lib/revora/labels";
 import { DisclaimerLine } from "./disclaimer-line";
+import { MealMemorySave } from "./meal-memory-save";
 import { ResultFeedback } from "./result-feedback";
 import {
   IconAlert,
@@ -260,6 +261,10 @@ export function ResultCard({
         {/* W-30. Sits below the disclaimer, outside the guidance itself — the
             question is about Revora, not about the meal. */}
         <ResultFeedback risk={response.risk} checkId={response.checkId} />
+        {/* §P3.2 save-to-memory. Self-gates: renders nothing without the build
+            flag, a persisted checkId, and server entitlement — so landing/demo
+            cards (no checkId) never show it. Never an input to the card above. */}
+        <MealMemorySave checkId={response.checkId} />
       </section>
     );
   }

@@ -225,6 +225,74 @@ export const checkFeedback = pgTable(
   ]
 );
 
+// User-authored meal memory (plan §P3.2, §8 entity `meal_memories`).
+//
+// The user attaches, to a check they already ran: what they chose, whether they
+// would choose it again, how easy it felt, a private note, a favorite flag, and
+// a self-chosen label. NEVER an input to card-band logic — nothing in
+// lib/revora/* imports this table, and meal-memory-non-interference.test.ts
+// asserts that structurally (global constraint §1). Memory is anchored on a
+// check (`checkId`, cascade) and unique per (user, check) so a save upserts the
+// single row rather than piling duplicates.
+//
+// Free text is health-adjacent → AES-256-GCM ciphertext, same standard as
+// checks.food: `choiceCiphertext` ("what I chose") and `noteCiphertext` (the
+// private note). The reflections that must stay QUERYABLE / bounded are stored
+// as closed enums, NOT free text: `easeReflection` (easy|okay|hard) and `label`
+// (a fixed meal-context vocabulary). `wouldRepeat` is a plain nullable boolean.
+// Deliberately absent: any glucose reading, any risk band derived from the
+// note, any claim a choice "worked" — this phase does not infer or interpret
+// health outcomes (plan §P3.2 "Do not").
+export const mealMemories = pgTable(
+  "meal_memories",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    checkId: uuid("check_id")
+      .notNull()
+      .references(() => checks.id, { onDelete: "cascade" }),
+    choiceCiphertext: text("choice_ciphertext"),
+    wouldRepeat: boolean("would_repeat"),
+    easeReflection: text("ease_reflection", {
+      enum: ["easy", "okay", "hard"]
+    }),
+    noteCiphertext: text("note_ciphertext"),
+    favorite: boolean("favorite").notNull().default(false),
+    label: text("label", {
+      enum: [
+        "breakfast",
+        "lunch",
+        "dinner",
+        "snack",
+        "restaurant",
+        "travel",
+        "family_meal",
+        "other"
+      ]
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (table) => [
+    uniqueIndex("meal_memories_user_check").on(table.userId, table.checkId),
+    index("meal_memories_user").on(table.userId, table.createdAt.desc()),
+    check(
+      "meal_memories_ease_check",
+      sql`${table.easeReflection} IS NULL OR ${table.easeReflection} IN ('easy','okay','hard')`
+    ),
+    check(
+      "meal_memories_label_check",
+      sql`${table.label} IS NULL OR ${table.label} IN ('breakfast','lunch','dinner','snack','restaurant','travel','family_meal','other')`
+    )
+  ]
+);
+
 export const pushSubscriptions = pgTable("push_subscriptions", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id")
