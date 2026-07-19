@@ -1,18 +1,50 @@
 /**
- * The betrayal-aha demo (handoff §7): the product in action, as static
- * fixture markup using the REAL result-card classes — always pixel-true,
- * crawlable, and claims-audited via the copy ledger. No live check runs here.
+ * The live-example demo (handoff §7): the product in action, as static fixture
+ * markup using the REAL result-card classes — always pixel-true, crawlable, and
+ * claims-audited via the copy ledger. No live check runs here.
+ *
+ * It shows the HONEST oatmeal sequence (Plan §P1.1 / K1): the user types
+ * "oatmeal", Revora asks one clarifying question instead of guessing, the user
+ * supplies the missing context, and only THEN does the card appear. The three
+ * interaction strings (input, question, answer) come from the promise registry
+ * — not retyped here — so `promise-registry.test.ts` pins the clarify question
+ * to the precheck's real output and blocks the deploy if the flow ever changes.
  */
+import { OATMEAL_EXAMPLE } from "../lib/revora/promise-registry";
 import { DisclaimerLine } from "./disclaimer-line";
 import { IconAlert, IconArrowRight, IconLeaf } from "./icons";
 
 export function DemoCheckCard() {
+  const example = OATMEAL_EXAMPLE;
   return (
-    <section className="surface-card hero-card" aria-label="Example check" data-testid="demo-check-card">
+    <section
+      className="surface-card hero-card"
+      aria-label="Example check"
+      data-testid="demo-check-card"
+    >
       <p className="status-eyebrow">A real example</p>
+
+      {/* Step 1 — the user enters a genuinely ambiguous food. */}
       <p className="page-copy">
-        You type: <strong>oatmeal</strong>
+        You type: <strong>{example.input}</strong>
       </p>
+
+      {/* Step 2 — Revora asks one clarifying question instead of guessing. */}
+      <div
+        className="result-card"
+        data-kind="clarify"
+        data-testid="demo-clarify"
+      >
+        <p className="result-eyebrow">Need one more detail</p>
+        <p className="page-copy">{example.expectedClarifyQuestion}</p>
+      </div>
+
+      {/* Step 3 — the user supplies the missing context. */}
+      <p className="page-copy">
+        You answer: <strong>{example.followUp}</strong>
+      </p>
+
+      {/* Step 4 — the resulting card. */}
       <div className="result-card" data-risk="MODERATE">
         <p className="result-eyebrow">Revora result</p>
         <p className="result-title verdict-title" data-risk="MODERATE">

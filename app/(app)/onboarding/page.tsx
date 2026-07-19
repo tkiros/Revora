@@ -14,6 +14,7 @@ import {
   HIGH_RANGE_MESSAGE
 } from "../../../lib/revora/boundary-copy";
 import { RISK_LABELS } from "../../../lib/revora/labels";
+import { promotedInputsFor } from "../../../lib/revora/promise-registry";
 import { track } from "../../../lib/client/analytics";
 import {
   storedUtmChannel,
@@ -57,8 +58,11 @@ const ATTRIBUTION_CHIPS: ReadonlyArray<{ label: string; channel: Channel }> = [
 
 // The guided-first-check foods — everyday items whose impact surprises almost
 // everyone, so the very first check earns an "oh, huh" moment. Varied by what
-// brought the user here; the classics are the default.
-const FIRST_CHECK_CLASSICS = ["oatmeal", "banana", "orange juice"] as const;
+// brought the user here; the classics are the default. Derived from the promise
+// registry (the single source for every PROMOTED example) so the tour and the
+// landing demo can never drift — and so the deploy-blocking fixture test guards
+// that each classic still takes the route the tour implies.
+const FIRST_CHECK_CLASSICS = promotedInputsFor("onboarding");
 export const FIRST_CHECK_CHIPS_BY_SEGMENT: Record<
   Segment,
   readonly string[]
