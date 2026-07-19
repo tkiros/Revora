@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { mealMemoryServerEnabled } from "../../../lib/meal-memory-flag";
+import { normalize as normalizeFood } from "../../../lib/revora/input-precheck";
 import { capabilitiesFor } from "../../../lib/server/capabilities";
 import { decryptField, encryptField } from "../../../lib/server/crypto";
 import { getDb, schema, type Db } from "../../../lib/server/db";
@@ -67,6 +68,25 @@ export const MEMORY_LABEL_VALUES = [
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
+
+// Honest bounded scan for exact recall (plan §P3.3). Recall decrypts and compares
+// the caller's own memories to the just-checked food — no hash index, no fuzzy
+// search (§P3.3 "Prefer user-confirmed matching over opaque semantic inference";
+// global constraint §5 "never … an unsalted hash of meal text"). The cap mirrors
+// the Task 9 history search honesty: the newest 200 saved memories are searched,
+// and a memory older than that is simply not recalled rather than pretending to
+// scan an unbounded archive on every completed check.
+export const RECALL_SCAN_LIMIT = 200;
+
+// The just-checked meal text, transported in the POST BODY (never a URL — global
+// constraint §5, health data must not appear in URLs). Bounds mirror the check
+// request's food field (1..MAX_FOOD_LENGTH).
+const RECALL_FOOD_MAX = 160;
+const MemoryRecallSchema = z
+  .object({
+    food: z.string().trim().min(1).max(RECALL_FOOD_MAX)
+  })
+  .strict();
 
 const MemoryUpsertSchema = z
   .object({
@@ -276,5 +296,107 @@ export function createMemoryListHandler(deps: MemoryRouteDeps = {}) {
       memories,
       nextOffset: rows.length === limit ? offset + limit : null
     });
+  };
+}
+
+/**
+ * Recall (plan §P3.3): after a completed check, surface the caller's OWN prior
+ * saved memories whose meal text matches the just-checked meal, so the client can
+ * render the "Your meal memory" panel below the current card and offer a one-tap
+ * re-check.
+ *
+ * Matching is EXACT normalized-string equality — the same normalizer the input
+ * precheck uses (lib/revora/input-precheck.normalize), so "White Rice " recalls a
+ * saved "white rice". Deliberately NOT fuzzy or semantic at launch (§P3.3), and
+ * NO search index: the newest RECALL_SCAN_LIMIT memories are decrypted and
+ * compared in memory. There is no hash of meal text anywhere (global constraint
+ * §5). The food rides the POST body, never the URL (§5).
+ *
+ * READ-ONLY and non-interfering: this never writes, and nothing here (or its
+ * result) feeds the check engine (global constraint §1). The client calls it only
+ * AFTER a result renders.
+ *
+ * Gate order is identical to the other memory routes: flag 404 → session 401 →
+ * capability 403.
+ */
+export function createMemoryRecallHandler(deps: MemoryRouteDeps = {}) {
+  const { db, getSession, entitlementOf, env } = resolveDeps(deps);
+
+  return async function POST(request: Request) {
+    if (!mealMemoryServerEnabled(env)) {
+      return notFound();
+    }
+
+    const session = await getSession();
+    if (!session) {
+      return unauthorized();
+    }
+
+    const entitlement = await entitlementOf(db(), session.userId);
+    if (!capabilitiesFor(entitlement, env).mealMemory) {
+      return forbidden();
+    }
+
+    const parsed = MemoryRecallSchema.safeParse(await readJson(request));
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+    }
+
+    const target = normalizeFood(parsed.data.food);
+
+    // Bounded scan: the caller's newest RECALL_SCAN_LIMIT saved memories, joined
+    // to the check that anchors each so we can compare its (encrypted) food.
+    const rows = await db()
+      .select({
+        id: schema.mealMemories.id,
+        checkId: schema.mealMemories.checkId,
+        choiceCiphertext: schema.mealMemories.choiceCiphertext,
+        wouldRepeat: schema.mealMemories.wouldRepeat,
+        ease: schema.mealMemories.easeReflection,
+        noteCiphertext: schema.mealMemories.noteCiphertext,
+        favorite: schema.mealMemories.favorite,
+        label: schema.mealMemories.label,
+        savedAt: schema.mealMemories.createdAt,
+        foodCiphertext: schema.checks.foodCiphertext,
+        risk: schema.checks.risk,
+        a1cBand: schema.checks.a1cBand,
+        checkedAt: schema.checks.createdAt
+      })
+      .from(schema.mealMemories)
+      .innerJoin(schema.checks, eq(schema.mealMemories.checkId, schema.checks.id))
+      .where(eq(schema.mealMemories.userId, session.userId))
+      .orderBy(
+        desc(schema.mealMemories.createdAt),
+        desc(schema.mealMemories.id)
+      )
+      .limit(RECALL_SCAN_LIMIT);
+
+    const matches = rows
+      .map((row) => {
+        const food = safeDecrypt(row.foodCiphertext);
+        return { row, food };
+      })
+      // Exact normalized-string equality only — no substring / fuzzy match. An
+      // unreadable (rotated-key) row can never accidentally match a real meal.
+      .filter(({ food }) => food !== null && normalizeFood(food) === target)
+      .map(({ row, food }) => ({
+        id: row.id,
+        checkId: row.checkId,
+        // Owner-only decrypt — the stored meal text, so the client can pre-fill
+        // it into the standard input path for a one-tap re-check.
+        food,
+        risk: row.risk,
+        band: row.a1cBand,
+        choice: safeDecrypt(row.choiceCiphertext),
+        wouldRepeat: row.wouldRepeat,
+        ease: row.ease,
+        note: safeDecrypt(row.noteCiphertext),
+        favorite: row.favorite,
+        label: row.label,
+        savedAt: row.savedAt.toISOString(),
+        checkedAt: row.checkedAt.toISOString()
+      }));
+
+    return NextResponse.json({ matches });
   };
 }

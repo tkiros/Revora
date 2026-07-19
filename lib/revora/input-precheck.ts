@@ -368,7 +368,10 @@ export function classifyInputBeforeModel(
   };
 }
 
-function normalize(food: string): string {
+// Exported for reuse by the memory recall handler (Task 15 / §P3.3): exact
+// recall must normalize the just-checked food the SAME way the precheck does, so
+// "White Rice " recalls a saved "white rice". One normalizer, no second copy.
+export function normalize(food: string): string {
   return food.trim().toLowerCase().replace(/\s+/g, " ");
 }
 

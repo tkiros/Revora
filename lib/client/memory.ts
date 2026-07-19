@@ -83,6 +83,67 @@ export async function saveMealMemory(
 }
 
 /**
+ * A prior saved memory the recall endpoint matched to the just-checked meal
+ * (plan §P3.3). All owner-only free text is already decrypted server-side; the
+ * client only renders it back to its owner. `food` is the stored meal text used
+ * to pre-fill a one-tap re-check.
+ */
+export type RecalledMemory = {
+  id: string;
+  checkId: string;
+  food: string | null;
+  risk: "SAFE" | "MODERATE" | "HIGH";
+  band: string;
+  choice: string | null;
+  wouldRepeat: boolean | null;
+  ease: MemoryEase | null;
+  note: string | null;
+  favorite: boolean;
+  label: MemoryLabel | null;
+  savedAt: string;
+  checkedAt: string;
+};
+
+/**
+ * Recall the caller's prior saved memories matching a just-checked meal (§P3.3).
+ * The meal text rides the POST BODY, never a URL (global constraint §5). Called
+ * only AFTER a result renders (render-after-result) so recall never precedes the
+ * check. Fail-soft: any error or non-2xx (403 free, 404 flag-off, 401 guest,
+ * network) resolves to an empty list — recall is a courtesy, never an error or a
+ * paywall (global constraint §7).
+ */
+export async function recallMealMemory(
+  food: string,
+  fetchImpl: typeof fetch = fetch
+): Promise<RecalledMemory[]> {
+  const trimmed = food.trim();
+  if (!trimmed) {
+    return [];
+  }
+  try {
+    const response = await fetchImpl("/api/memory/recall", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ food: trimmed })
+    });
+    if (!response.ok) {
+      return [];
+    }
+    const body: unknown = await response.json();
+    if (
+      typeof body === "object" &&
+      body !== null &&
+      Array.isArray((body as { matches?: unknown }).matches)
+    ) {
+      return (body as { matches: RecalledMemory[] }).matches;
+    }
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Bounded analytics summary of a save — memory FIELD TYPES, never their contents
  * (plan §P3.2/§10.1). Kept next to the seam so both the component's props and the
  * event stay in one place; the choice/note strings are reduced to a boolean here

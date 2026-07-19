@@ -27,6 +27,7 @@ import type { MealDraftItem } from "../lib/meal/photo-extract";
 import { photoInputEnabled } from "../lib/photo-input-flag";
 import type { PhotoDraftResult } from "../lib/client/photo-draft";
 import { IconKeyboard } from "./icons";
+import { MealMemoryRecall } from "./meal-memory-recall";
 import { PhotoDraftReview } from "./photo-draft-review";
 import { PhotoInputButton } from "./photo-input-button";
 import { RequestStatus } from "./request-status";
@@ -505,6 +506,13 @@ export function FoodCheckForm() {
             uiState.response.kind === "result" ? uiState.response.risk : undefined
           ) ? (
             <PantryEntry />
+          ) : null}
+          {/* §P3.3 recall panel: render-after-result only, and only for a
+              completed meal card. Self-gates on the build flag + the server's
+              answer (guest/free/flag-off get no matches), so it never shows as a
+              paywall or an error. Reads memory; never feeds the engine above. */}
+          {uiState.response.kind === "result" ? (
+            <MealMemoryRecall food={lastMeal?.food} />
           ) : null}
         </>
       ) : (

@@ -129,6 +129,13 @@ export type AnalyticsEvent =
         label: MemoryLabel | "none";
       };
     }
+  // §P3.3/§10.1: the "Your meal memory" panel rendered below a completed check
+  // with ≥1 prior saved memory that matched the just-checked meal. The ONLY prop
+  // is the match CLASS — a closed enum. "exact" ships in Task 15 (exact
+  // normalized-string match); "user_confirmed" is reserved for a future
+  // user-confirmed-relation match and never emitted yet. No count, no meal text,
+  // no band — presence of a recall at a given match class is all analytics needs.
+  | { name: "meal_memory_recalled"; props: { match: "exact" | "user_confirmed" } }
   | { name: "photo_draft"; props: { items: number; uncertain: number } };
 
 // Runtime belt-over-type-belt guard: even if a caller bypasses the type
@@ -160,7 +167,8 @@ const ALLOWED_EVENT_NAMES: ReadonlySet<AnalyticsEvent["name"]> = new Set([
   "result_feedback_submitted",
   "clarification_requested",
   "clarification_resolved",
-  "meal_memory_saved"
+  "meal_memory_saved",
+  "meal_memory_recalled"
 ]);
 
 type AnalyticsHost = {
