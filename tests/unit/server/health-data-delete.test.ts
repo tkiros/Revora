@@ -39,11 +39,20 @@ describe("DELETE /api/account/health-data", () => {
       a1cBand: "prediabetes_60_62",
       consentedAt: new Date()
     });
-    await testDb.db.insert(schema.checks).values({
+    const [check] = await testDb.db
+      .insert(schema.checks)
+      .values({
+        userId: user.id,
+        foodCiphertext: encryptField("meal"),
+        risk: "MODERATE",
+        a1cBand: "prediabetes_60_62"
+      })
+      .returning({ id: schema.checks.id });
+    await testDb.db.insert(schema.mealMemories).values({
       userId: user.id,
-      foodCiphertext: encryptField("meal"),
-      risk: "MODERATE",
-      a1cBand: "prediabetes_60_62"
+      checkId: check.id,
+      noteCiphertext: encryptField("private note"),
+      favorite: true
     });
     await testDb.db.insert(schema.baiWeekly).values({
       userId: user.id,
@@ -87,7 +96,13 @@ describe("DELETE /api/account/health-data", () => {
         .where(eq(schema.subscriptions.userId, user.id))
     ).toHaveLength(1);
 
-    for (const table of ["profiles", "checks", "bai_weekly", "push_subscriptions"]) {
+    for (const table of [
+      "profiles",
+      "checks",
+      "meal_memories",
+      "bai_weekly",
+      "push_subscriptions"
+    ]) {
       const result = await testDb.raw.query(
         `SELECT count(*)::int AS n FROM ${table} WHERE user_id = '${user.id}'`
       );

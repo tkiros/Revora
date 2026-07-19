@@ -83,6 +83,155 @@ export async function saveMealMemory(
 }
 
 /**
+ * A saved memory as the list/search/export endpoints return it (plan §P3.2/§P3.4).
+ * All owner-only free text is already decrypted server-side; the client only
+ * renders it back to its owner. Shared by the memory page and the client seams so
+ * the wire shape lives in one place.
+ */
+export type SavedMemory = {
+  id: string;
+  checkId: string;
+  food: string | null;
+  risk: "SAFE" | "MODERATE" | "HIGH";
+  choice: string | null;
+  wouldRepeat: boolean | null;
+  ease: MemoryEase | null;
+  note: string | null;
+  favorite: boolean;
+  label: MemoryLabel | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+// User-authored fields only (plan §P3.4). Absent → left unchanged; `null` clears a
+// nullable field; the server whitelist rejects any snapshot/check field. `favorite`
+// is never null.
+export type MemoryEditInput = {
+  choice?: string | null;
+  wouldRepeat?: boolean | null;
+  ease?: MemoryEase | null;
+  note?: string | null;
+  favorite?: boolean;
+  label?: MemoryLabel | null;
+};
+
+/**
+ * Search the caller's own memories by a meal-text term (plan §P3.4). The term is
+ * health data and rides the POST BODY, never a URL (global constraint §5). Returns
+ * a discriminated result so the page can tell an EMPTY search from a FAILED one
+ * (error-truth, global constraint §7): `{ ok:false }` is a real failure to surface
+ * as a retry state, never an empty list. Caller must not call with a blank term.
+ */
+export async function searchMealMemories(
+  q: string,
+  fetchImpl: typeof fetch = fetch
+): Promise<{ ok: true; memories: SavedMemory[] } | { ok: false }> {
+  const trimmed = q.trim();
+  if (!trimmed) {
+    return { ok: false };
+  }
+  try {
+    const response = await fetchImpl("/api/memory/search", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ q: trimmed })
+    });
+    if (!response.ok) {
+      return { ok: false };
+    }
+    const body: unknown = await response.json();
+    if (
+      typeof body === "object" &&
+      body !== null &&
+      Array.isArray((body as { memories?: unknown }).memories)
+    ) {
+      return { ok: true, memories: (body as { memories: SavedMemory[] }).memories };
+    }
+    return { ok: false };
+  } catch {
+    return { ok: false };
+  }
+}
+
+/**
+ * Field-level edit of a memory's user-authored fields (plan §P3.4). Only the keys
+ * present in `patch` are sent, so the server merges rather than replacing. Free
+ * text is trimmed; an emptied field is sent as `null` to clear it. Resolves the
+ * boolean ok so the page can surface a calm failure without throwing.
+ */
+export async function editMealMemory(
+  id: string,
+  patch: MemoryEditInput,
+  fetchImpl: typeof fetch = fetch
+): Promise<boolean> {
+  const body: Record<string, unknown> = {};
+  if (patch.choice !== undefined) {
+    const trimmed = patch.choice?.trim();
+    body.choice = trimmed ? trimmed : null;
+  }
+  if (patch.note !== undefined) {
+    const trimmed = patch.note?.trim();
+    body.note = trimmed ? trimmed : null;
+  }
+  if (patch.wouldRepeat !== undefined) {
+    body.wouldRepeat = patch.wouldRepeat;
+  }
+  if (patch.ease !== undefined) {
+    body.ease = patch.ease;
+  }
+  if (patch.favorite !== undefined) {
+    body.favorite = patch.favorite;
+  }
+  if (patch.label !== undefined) {
+    body.label = patch.label;
+  }
+
+  try {
+    const response = await fetchImpl(`/api/memory/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+/** Delete a single memory the caller owns (plan §P3.4). */
+export async function deleteMealMemory(
+  id: string,
+  fetchImpl: typeof fetch = fetch
+): Promise<boolean> {
+  try {
+    const response = await fetchImpl(`/api/memory/${id}`, { method: "DELETE" });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Delete every memory the caller owns (plan §P3.4). Sends the explicit
+ * `{ confirm: true }` the server requires; the page gates this behind a calm
+ * two-step confirm (no dark pattern).
+ */
+export async function deleteAllMealMemories(
+  fetchImpl: typeof fetch = fetch
+): Promise<boolean> {
+  try {
+    const response = await fetchImpl("/api/memory", {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ confirm: true })
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * A prior saved memory the recall endpoint matched to the just-checked meal
  * (plan §P3.3). All owner-only free text is already decrypted server-side; the
  * client only renders it back to its owner. `food` is the stored meal text used

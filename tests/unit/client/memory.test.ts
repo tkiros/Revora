@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  deleteAllMealMemories,
+  deleteMealMemory,
+  editMealMemory,
   recallMealMemory,
+  searchMealMemories,
   shouldEmitRecalled
 } from "../../../lib/client/memory";
 
@@ -68,6 +72,90 @@ describe("recallMealMemory", () => {
   it("fails soft to [] on a malformed body (no matches array)", async () => {
     const fetchImpl = jsonFetch({ nope: true });
     expect(await recallMealMemory("white rice", fetchImpl)).toEqual([]);
+  });
+});
+
+describe("searchMealMemories", () => {
+  it("POSTs the trimmed term in the body, never the URL", async () => {
+    const fetchImpl = jsonFetch({ memories: [], searchScanned: 0 });
+    await searchMealMemories("  rice ", fetchImpl);
+    const { url, body, method } = callOf(fetchImpl);
+    expect(url).toBe("/api/memory/search");
+    expect(url).not.toContain("rice");
+    expect(method).toBe("POST");
+    expect(body).toEqual({ q: "rice" });
+  });
+
+  it("returns ok:true with the memories on success", async () => {
+    const fetchImpl = jsonFetch({ memories: [{ id: "1" }], searchScanned: 1 });
+    const result = await searchMealMemories("rice", fetchImpl);
+    expect(result).toEqual({ ok: true, memories: [{ id: "1" }] });
+  });
+
+  it("does NOT hit the network for a blank term", async () => {
+    const fetchImpl = jsonFetch({ memories: [] });
+    expect(await searchMealMemories("   ", fetchImpl)).toEqual({ ok: false });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("returns ok:false (a real failure, not empty) on non-2xx or throw", async () => {
+    for (const status of [401, 403, 404, 500]) {
+      const fetchImpl = jsonFetch({ error: "nope" }, status);
+      expect(await searchMealMemories("rice", fetchImpl)).toEqual({ ok: false });
+    }
+    const throwing = vi.fn(async () => {
+      throw new Error("offline");
+    });
+    expect(await searchMealMemories("rice", throwing)).toEqual({ ok: false });
+  });
+});
+
+describe("editMealMemory", () => {
+  it("PATCHes only the provided fields, trimming free text", async () => {
+    const fetchImpl = jsonFetch({ ok: true });
+    await editMealMemory("mem-1", { ease: "hard", note: "  kept " }, fetchImpl);
+    const { url, body, method } = callOf(fetchImpl);
+    expect(url).toBe("/api/memory/mem-1");
+    expect(method).toBe("PATCH");
+    expect(body).toEqual({ ease: "hard", note: "kept" });
+  });
+
+  it("sends null to clear a field emptied by the user", async () => {
+    const fetchImpl = jsonFetch({ ok: true });
+    await editMealMemory("mem-1", { note: "   " }, fetchImpl);
+    const { body } = callOf(fetchImpl);
+    expect(body).toEqual({ note: null });
+  });
+
+  it("resolves false on a failure without throwing", async () => {
+    const fetchImpl = jsonFetch({ error: "x" }, 500);
+    expect(await editMealMemory("mem-1", { favorite: true }, fetchImpl)).toBe(
+      false
+    );
+  });
+});
+
+describe("deleteMealMemory", () => {
+  it("DELETEs the single memory by id", async () => {
+    const fetchImpl = jsonFetch({ ok: true });
+    expect(await deleteMealMemory("mem-9", fetchImpl)).toBe(true);
+    const [url, init] = fetchImpl.mock.calls[0] as unknown as [
+      string,
+      RequestInit
+    ];
+    expect(url).toBe("/api/memory/mem-9");
+    expect(init.method).toBe("DELETE");
+  });
+});
+
+describe("deleteAllMealMemories", () => {
+  it("DELETEs /api/memory with the explicit confirm the server requires", async () => {
+    const fetchImpl = jsonFetch({ ok: true, deleted: 3 });
+    expect(await deleteAllMealMemories(fetchImpl)).toBe(true);
+    const { url, body, method } = callOf(fetchImpl);
+    expect(url).toBe("/api/memory");
+    expect(method).toBe("DELETE");
+    expect(body).toEqual({ confirm: true });
   });
 });
 

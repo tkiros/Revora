@@ -51,6 +51,13 @@ export function createHealthDataDeleteHandler(
     await db()
       .delete(schema.baiWeekly)
       .where(eq(schema.baiWeekly.userId, session.userId));
+    // Meal memories are health-adjacent (encrypted choice/note). The check
+    // cascade below already removes them via the memory→check FK, but withdrawal
+    // deletes health rows EXPLICITLY rather than relying on FK ordering — the
+    // table postdates this handler, so name it here so intent can't silently drift.
+    await db()
+      .delete(schema.mealMemories)
+      .where(eq(schema.mealMemories.userId, session.userId));
     await db()
       .delete(schema.checks)
       .where(eq(schema.checks.userId, session.userId));
