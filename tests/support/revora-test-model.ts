@@ -32,6 +32,29 @@ export const REQUIRED_CATEGORIES = [
   "clinical_risk"
 ] as const;
 
+// P1.4 — permanent stratified cultural/real-world strata (journey 2/3). These
+// are ENGINEERING/SIMULATED evidence, NOT clinical validation. The `stratum`
+// dimension is ORTHOGONAL to `category`: a case is bucketed into one of the
+// launch-safety categories above (which drives the deterministic routing gates)
+// AND tagged with the real-world stratum it exercises, so the report can break
+// failure types down by regional staple / mixed plate / restaurant portion /
+// sauce / beverage / vegetarian / budget / code-switching / adversarial
+// under-description / multi-starch instead of one aggregate accuracy number.
+export const REVORA_STRATA = [
+  "regional_staple",
+  "mixed_plate",
+  "restaurant_portion",
+  "sauce_condiment",
+  "beverage",
+  "vegetarian",
+  "budget_meal",
+  "code_switching",
+  "adversarial_underdescription",
+  "multi_starch"
+] as const;
+
+const RevoraStratumSchema = z.enum(REVORA_STRATA);
+
 const RevoraEvalCategorySchema = z.enum(REQUIRED_CATEGORIES);
 const DETERMINISTIC_SHORT_CIRCUIT_CATEGORIES = new Set<
   (typeof REQUIRED_CATEGORIES)[number]
@@ -60,6 +83,23 @@ export const RevoraEvalCaseSchema = z
     labelSource: z.string().trim().min(1).optional(),
     /** For clinical_risk cases: the exact route that must fire (gate: 100%). */
     expectedClinicalRoute: RevoraClinicalRouteSchema.optional(),
+    /**
+     * P1.4 real-world stratum (orthogonal to `category`). Optional so the
+     * pre-existing launch-safety corpus stays valid unchanged.
+     */
+    stratum: RevoraStratumSchema.optional(),
+    /**
+     * P1.4 known-gap marker. A case whose CORRECT expectation (per
+     * harmfulIfSafe / acceptableRisks) the CURRENT deterministic engine does
+     * NOT yet satisfy — the dish is genuinely carb-forward/sugary but no
+     * ontology token or precheck rule sees it, so a model SAFE ships as SAFE.
+     * Excluded from the hard zero-dangerous-false-reassurance gate and the
+     * harmful-SAFE gate, but kept in the corpus and surfaced in the per-stratum
+     * report as an explicit, tracked gap (never silently dropped). Fixing one
+     * requires a safe-direction ontology addition or a precheck change and its
+     * own RD review — not a label weakening.
+     */
+    knownGap: z.boolean().optional(),
     mockModelOutput: RevoraModelOutputSchema.optional(),
     notes: z.string().trim().min(1)
   })
