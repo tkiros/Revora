@@ -77,7 +77,9 @@ describe("POST /api/profile", () => {
 
     expect(response.status).toBe(400);
     const body = await response.json();
-    expect(body.error).toMatch(/range used for diabetes/i);
+    expect(body.error).toMatch(
+      /range clinicians use when evaluating Type 2 diabetes/i
+    );
   });
 
   it("creates the profile with encrypted A1C, band, timezone, consent stamp", async () => {

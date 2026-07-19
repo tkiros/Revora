@@ -5,6 +5,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { routeA1C } from "../../../lib/revora/a1c";
+// Single source of A1C boundary + disclaimer copy (SAFETY-OWNED). Onboarding is
+// a client component and cannot read the ledger from disk, so it imports the
+// canonical literals instead of retyping them (which is how they once drifted).
+import {
+  BELOW_RANGE_MESSAGE,
+  BOUNDARY_DISCLAIMER,
+  HIGH_RANGE_MESSAGE
+} from "../../../lib/revora/boundary-copy";
 import { RISK_LABELS } from "../../../lib/revora/labels";
 import { track } from "../../../lib/client/analytics";
 import {
@@ -13,16 +21,6 @@ import {
 } from "../../../lib/client/attribution";
 import { profileStore } from "../../../lib/client/profile-store";
 import { IconAlert, IconCheck, IconPause } from "../../../components/icons";
-
-const DISCLAIMER =
-  "Revora is informational only and is not medical advice. Talk with a doctor or registered dietitian for guidance that is specific to you.";
-
-// Approved boundary copy (docs/safety/copy-ledger.md; a1c-band-rubric.md) —
-// out-of-range A1C values get guidance, never a verdict.
-const BELOW_RANGE_MESSAGE =
-  "Revora is designed for the prediabetes A1C range of 5.7% to 6.4%. This value sits below that range, so use a doctor or registered dietitian for guidance that is specific to you.";
-const HIGH_RANGE_MESSAGE =
-  "This A1C value falls in a range used for diabetes and is outside Revora's prediabetes-only MVP. For personalized next steps, talk with a doctor or registered dietitian.";
 
 type Step =
   | "welcome"
@@ -378,7 +376,7 @@ export default function OnboardingPage() {
               <p className="page-copy" data-testid="boundary-message">
                 {boundaryMessage}
               </p>
-              <p className="result-disclaimer">{DISCLAIMER}</p>
+              <p className="result-disclaimer">{BOUNDARY_DISCLAIMER}</p>
               <Link className="primary-button link-button" href="/">
                 Back to the home page
               </Link>
@@ -407,7 +405,7 @@ export default function OnboardingPage() {
                 </li>
                 <li>It is information to decide with, not medical advice.</li>
               </ul>
-              <p className="result-disclaimer">{DISCLAIMER}</p>
+              <p className="result-disclaimer">{BOUNDARY_DISCLAIMER}</p>
               <button
                 type="button"
                 className="primary-button"

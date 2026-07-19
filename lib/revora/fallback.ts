@@ -1,3 +1,4 @@
+import { BELOW_RANGE_MESSAGE, HIGH_RANGE_MESSAGE } from "./boundary-copy";
 import type { ClinicalRoute } from "./clinical-risk";
 import {
   RevoraUserClarifySchema,
@@ -151,10 +152,12 @@ export function buildOutOfScopeResponse(
   return RevoraUserOutOfScopeSchema.parse({
     kind: "out_of_scope",
     route,
+    // Single-sourced from lib/revora/boundary-copy.ts (SAFETY-OWNED); the drift
+    // test pins these equal to the approved below/high-range-route ledger rows.
     message:
       route === "below_prediabetes_range"
-        ? contract.copy.belowRangeRoute
-        : contract.copy.highRangeRoute,
+        ? BELOW_RANGE_MESSAGE
+        : HIGH_RANGE_MESSAGE,
     disclaimer: contract.copy.disclaimer
   });
 }
