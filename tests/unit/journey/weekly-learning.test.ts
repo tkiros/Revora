@@ -7,6 +7,10 @@ import {
   WEEKLY_LEARNING_VERSION,
   assertWeeklyBankClaimFree,
   deriveWeeklyLearning,
+  experimentFromContext,
+  experimentFromRepeat,
+  uncertaintyFromContext,
+  uncertaintyFromRepeat,
   type WeeklyLearningInputs
 } from "../../../lib/journey/weekly-learning";
 import { assertNoForbiddenClaims } from "../../../lib/revora/postprocess";
@@ -36,7 +40,11 @@ describe("deriveWeeklyLearning — deterministic projection", () => {
       contextsCovered: [],
       repeatedUncertainty: [],
       incompleteSteps: [],
-      nextExploration: DEFAULT_EXPLORATION
+      nextExploration: DEFAULT_EXPLORATION,
+      // v2: with nothing checked and nothing saved, the experiment falls back
+      // to the stage/default exploration and nothing is "open" yet.
+      experiment: DEFAULT_EXPLORATION,
+      uncertaintyToClose: null
     });
   });
 
@@ -61,7 +69,7 @@ describe("deriveWeeklyLearning — deterministic projection", () => {
     );
 
     expect(artifact).toEqual({
-      version: "1",
+      version: "2",
       weekStart: WEEK_START,
       // distinct normalized foods: white rice, oatmeal, grilled salmon
       mealsExplored: 3,
@@ -73,7 +81,10 @@ describe("deriveWeeklyLearning — deterministic projection", () => {
       repeatedUncertainty: ["oatmeal", "White Rice"],
       // stage 1, only saved 3 this week → save_three MET → no incomplete steps
       incompleteSteps: [],
-      nextExploration: STAGE_KEPT_UP_EXPLORATION
+      nextExploration: STAGE_KEPT_UP_EXPLORATION,
+      // v2 priority: a repeated-uncertain food beats everything else.
+      experiment: experimentFromRepeat("oatmeal"),
+      uncertaintyToClose: uncertaintyFromRepeat("oatmeal")
     });
   });
 
@@ -154,8 +165,53 @@ describe("determinism + versioning", () => {
   });
 
   it("the version is stamped onto the artifact and overridable", () => {
-    expect(deriveWeeklyLearning(fixture, WEEK_START).version).toBe("1");
+    expect(deriveWeeklyLearning(fixture, WEEK_START).version).toBe("2");
     expect(deriveWeeklyLearning(fixture, WEEK_START, "9").version).toBe("9");
+  });
+});
+
+describe("v2 experiment + uncertaintyToClose (RV-6)", () => {
+  it("priority 2: with no repeats, an uncovered mealtime drives both fields", () => {
+    const artifact = deriveWeeklyLearning(
+      inputs({
+        checks: [{ food: "salad", risk: "SAFE", wasClarified: false }],
+        memories: [
+          { label: "lunch", favorite: false },
+          { label: "dinner", favorite: false }
+        ],
+        stage: 2
+      }),
+      WEEK_START
+    );
+    expect(artifact.experiment).toBe(experimentFromContext("breakfast"));
+    expect(artifact.uncertaintyToClose).toBe(uncertaintyFromContext("breakfast"));
+  });
+
+  it("priority 3: no repeats and nothing saved yet — falls back to the stage exploration, nothing open", () => {
+    const artifact = deriveWeeklyLearning(
+      inputs({
+        checks: [{ food: "salad", risk: "SAFE", wasClarified: false }],
+        stage: 1
+      }),
+      WEEK_START
+    );
+    expect(artifact.experiment).toBe(artifact.nextExploration);
+    expect(artifact.uncertaintyToClose).toBeNull();
+  });
+
+  it("is deterministic: same inputs, byte-identical v2 fields", () => {
+    const shared = inputs({
+      checks: [
+        { food: "congee", risk: "MODERATE", wasClarified: false },
+        { food: "congee", risk: "MODERATE", wasClarified: false }
+      ],
+      memories: [{ label: "dinner", favorite: false }],
+      stage: 2
+    });
+    const a = deriveWeeklyLearning(shared, WEEK_START);
+    const b = deriveWeeklyLearning(shared, WEEK_START);
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    expect(a.experiment).toBe(experimentFromRepeat("congee"));
   });
 });
 
@@ -172,10 +228,12 @@ describe("no forbidden clinical claims in the fixed bank", () => {
     expect(() => assertWeeklyBankClaimFree(contract)).not.toThrow();
   });
 
-  it("the bank has copy for all five stages plus the two defaults", () => {
-    // 5 intents × (incomplete + exploration) + 2 defaults = 12 strings.
-    expect(WEEKLY_LEARNING_COPY).toHaveLength(12);
+  it("the bank has copy for all five stages, the defaults, and the v2 frames", () => {
+    // 5 intents × (incomplete + exploration) + 2 defaults = 12 fixed strings,
+    // + v2 (RV-6): 2 repeat frames + 8 labels × 2 context frames = 18 more.
+    expect(WEEKLY_LEARNING_COPY).toHaveLength(30);
     expect(WEEKLY_LEARNING_COPY).toContain(DEFAULT_EXPLORATION);
     expect(WEEKLY_LEARNING_COPY).toContain(STAGE_KEPT_UP_EXPLORATION);
+    expect(WEEKLY_LEARNING_COPY).toContain(experimentFromRepeat("your meal"));
   });
 });
