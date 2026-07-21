@@ -135,6 +135,15 @@ describe("matchRouteLimit (W-11)", () => {
     expect(matchRouteLimit("/", "POST")).toBeNull();
   });
 
+  it("limits POST /api/support/case fail-CLOSED — every accepted case emails the inbox (P0.4)", () => {
+    expect(matchRouteLimit("/api/support/case", "POST")).toEqual({
+      kind: "abuse",
+      bucket: "support_ip",
+      failClosed: true
+    });
+    expect(matchRouteLimit("/api/support/case", "GET")).toBeNull();
+  });
+
   // BC-7: billing doors get an abuse budget — pantry-checkout in particular
   // is unauthenticated and opens Stripe sessions.
   it("limits POST billing routes with the billing_ip bucket", () => {

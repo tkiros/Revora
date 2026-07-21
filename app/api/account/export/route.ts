@@ -52,6 +52,14 @@ export function createAccountExportHandler(deps: Deps = {}) {
       .where(eq(schema.pantryOrders.userId, session.userId))
       .orderBy(desc(schema.pantryOrders.createdAt));
 
+    // P0.4: support-case messages are user-authored personal data — the
+    // export gains them in the same PR that creates them.
+    const supportCases = await db()
+      .select()
+      .from(schema.supportCases)
+      .where(eq(schema.supportCases.userId, session.userId))
+      .orderBy(desc(schema.supportCases.createdAt));
+
     const exported = {
       exportedAt: now().toISOString(),
       profile: profile
@@ -77,6 +85,13 @@ export function createAccountExportHandler(deps: Deps = {}) {
         notes: row.notesCiphertext ? safeDecrypt(row.notesCiphertext) : null,
         report: row.reportCiphertext ? safeDecrypt(row.reportCiphertext) : null,
         deliveredAt: row.deliveredAt
+      })),
+      supportCases: supportCases.map((row) => ({
+        kind: row.kind,
+        message: safeDecrypt(row.messageCiphertext),
+        status: row.status,
+        createdAt: row.createdAt,
+        resolvedAt: row.resolvedAt
       })),
       // The other two data sets have dedicated export endpoints; point at
       // them rather than duplicating their (large) payloads here.

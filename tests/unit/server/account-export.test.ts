@@ -47,6 +47,11 @@ beforeAll(async () => {
     notesCiphertext: encryptField("mostly cooking at home"),
     reportCiphertext: encryptField("Report body")
   });
+  await testDb.db.insert(schema.supportCases).values({
+    userId,
+    kind: "refund",
+    messageCiphertext: encryptField("Charged twice for July.")
+  });
 });
 
 afterAll(async () => {
@@ -85,5 +90,21 @@ describe("GET /api/account/export (PR-5)", () => {
     expect(body.pantryOrders[0].a1c).toBe("6.2");
     expect(body.pantryOrders[0].notes).toBe("mostly cooking at home");
     expect(body.pantryOrders[0].report).toBe("Report body");
+  });
+
+  it("includes support cases — user-authored personal data (P0.4)", async () => {
+    const GET = createAccountExportHandler({
+      db: () => testDb.db,
+      getSession: async () => ({ userId, email: "export@test.dev" }),
+      now: () => NOW
+    });
+
+    const body = (await (await GET()).json()) as {
+      supportCases: Array<{ kind: string; message: string; status: string }>;
+    };
+    expect(body.supportCases).toHaveLength(1);
+    expect(body.supportCases[0].kind).toBe("refund");
+    expect(body.supportCases[0].message).toBe("Charged twice for July.");
+    expect(body.supportCases[0].status).toBe("open");
   });
 });
