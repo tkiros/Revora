@@ -37,13 +37,56 @@ export type CoachFetchResult =
   | { outcome: "network" }
   | { outcome: "response"; ok: boolean; status: number; body: unknown };
 
+/** One day of the verdict week strip, as serialized by /api/coach (C7). */
+export type VerdictWeekDayWire = {
+  key: string;
+  checked: boolean;
+  risk: "SAFE" | "MODERATE" | "HIGH" | null;
+};
+
+export type CoachInsightWire = { id: string; text: string };
+
 export type ProgressResolution = {
   state: ProgressState;
   latestBai: LatestBai | null;
+  /** Free-computable week facts (C7: free /journey gets real content). */
+  verdictWeek: VerdictWeekDayWire[] | null;
+  insight: CoachInsightWire | null;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function asVerdictWeek(value: unknown): VerdictWeekDayWire[] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+  const days: VerdictWeekDayWire[] = [];
+  for (const entry of value) {
+    if (!isRecord(entry) || typeof entry.key !== "string") {
+      return null;
+    }
+    const risk = entry.risk;
+    days.push({
+      key: entry.key,
+      checked: entry.checked === true,
+      risk:
+        risk === "SAFE" || risk === "MODERATE" || risk === "HIGH" ? risk : null
+    });
+  }
+  return days;
+}
+
+function asInsight(value: unknown): CoachInsightWire | null {
+  if (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    typeof value.text === "string"
+  ) {
+    return { id: value.id, text: value.text };
+  }
+  return null;
 }
 
 function asLatestBai(value: unknown): LatestBai | null {
@@ -74,7 +117,9 @@ export function resolveProgressState(
 ): ProgressResolution {
   const unavailable: ProgressResolution = {
     state: "unavailable",
-    latestBai: null
+    latestBai: null,
+    verdictWeek: null,
+    insight: null
   };
 
   // fetch threw → the backend is unreachable, not "locked".
@@ -84,7 +129,12 @@ export function resolveProgressState(
 
   // Signed-out is its own state: prompt sign-in, never sell.
   if (result.status === 401) {
-    return { state: "unauthenticated", latestBai: null };
+    return {
+      state: "unauthenticated",
+      latestBai: null,
+      verdictWeek: null,
+      insight: null
+    };
   }
 
   // Any other non-2xx (5xx, and defensively 4xx like 403/404/500) is an
@@ -98,18 +148,23 @@ export function resolveProgressState(
     return unavailable;
   }
 
+  // Week facts + insight are free-computable and ride every well-formed
+  // success (C7: a free /journey shows real content, never a full-page lock).
+  const verdictWeek = asVerdictWeek(result.body.verdictWeek);
+  const insight = asInsight(result.body.insight);
+
   // A well-formed success response is the ONLY path that can produce the
   // honest upsell (free) or the data states (empty/ready).
   if (result.body.tier !== "premium") {
-    return { state: "free", latestBai: null };
+    return { state: "free", latestBai: null, verdictWeek, insight };
   }
 
   const latestBai = asLatestBai(result.body.latestBai);
   if (!latestBai) {
-    return { state: "empty", latestBai: null };
+    return { state: "empty", latestBai: null, verdictWeek, insight };
   }
 
-  return { state: "ready", latestBai };
+  return { state: "ready", latestBai, verdictWeek, insight };
 }
 
 /**

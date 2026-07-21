@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { DisclaimerLine } from "../../../components/disclaimer-line";
+import { SavedMealsSection } from "../../../components/saved-meals-section";
 import { historyStore, type StoredCheck } from "../../../lib/client/history-store";
 import {
   deleteHistoryCheck,
@@ -187,17 +188,17 @@ export default function HistoryPage() {
   return (
     <div className="app-content--narrow">
       <section className="surface-card hero-card">
-        <p className="hero-eyebrow">Your check history</p>
-        <h1 className="page-title">Meal memory</h1>
+        <p className="hero-eyebrow">What worked for you</p>
+        <h1 className="page-title">My meals</h1>
         <p className="page-copy">
           {status === "loading"
-            ? "Loading your history…"
+            ? "Loading your meals…"
             : status === "error"
-              ? "We could not reach your history just now."
+              ? "We could not reach your checks just now."
               : status === "guest"
                 ? "The checks you've made on this device. Sign in to keep them synced across every device."
                 : isPremium
-                  ? "Your full check history, synced to your account."
+                  ? "Everything you've checked and saved, synced to your account."
                   : "Your recent checks, synced to your account."}
         </p>
 
@@ -318,6 +319,8 @@ export default function HistoryPage() {
           </form>
         </section>
       )}
+
+      {status === "ready" ? <SavedMealsSection /> : null}
 
       {isServer && (
         <section className="surface-card hero-card">

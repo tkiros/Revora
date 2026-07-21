@@ -2,6 +2,7 @@ import { and, desc, eq, gte } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { computeCoachView } from "../../../lib/coach/compute";
+import { dayKeyInTimezone, verdictWeekView } from "../../../lib/coach/days";
 import { longitudinalInsightsServerEnabled } from "../../../lib/longitudinal-insights-flag";
 import { capabilitiesFor } from "../../../lib/server/capabilities";
 import { getDb, schema, type Db } from "../../../lib/server/db";
@@ -86,7 +87,21 @@ export function createCoachRouteHandler(deps: CoachRouteDeps = {}) {
       }
     }
 
-    return NextResponse.json({ ...view, tier: entitlement.tier, latestBai });
+    // C7 (additive): the verdict week strip moved to /journey, which renders
+    // from THIS response — the same server-side derivation Home used. Free-
+    // computable, so free users get real week facts instead of a page-lock.
+    const verdictWeek = verdictWeekView(
+      rows,
+      dayKeyInTimezone(timezone),
+      now()
+    );
+
+    return NextResponse.json({
+      ...view,
+      tier: entitlement.tier,
+      latestBai,
+      verdictWeek
+    });
   };
 }
 

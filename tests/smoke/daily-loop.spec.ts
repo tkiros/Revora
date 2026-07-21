@@ -64,14 +64,14 @@ test("checks build the on-device day: today list, streak, action ack", async ({
   expect(stored[0].inputMethod).toBe("text");
 });
 
-test("history page shows the week strip and one-tap re-check prefills the form", async ({
+test("meals page shows the week strip and one-tap re-check prefills the form", async ({
   page
 }) => {
   await stubModerate(page);
   await page.goto("/check?stay=1");
   await runCheck(page, "plain bagel");
 
-  await page.goto("/history");
+  await page.goto("/meals");
   await expect(page.getByTestId("week-strip")).toBeVisible();
   await expect(page.getByTestId("history-list")).toContainText("plain bagel");
   await expect(page.getByText("Be careful")).toBeVisible();
@@ -91,8 +91,8 @@ test("history page shows the week strip and one-tap re-check prefills the form",
   ).toHaveValue("plain bagel");
 });
 
-test("empty history page is calm and passes axe", async ({ page }) => {
-  await page.goto("/history");
+test("empty meals page is calm and passes axe", async ({ page }) => {
+  await page.goto("/meals");
 
   await expect(page.getByTestId("history-empty")).toBeVisible();
 

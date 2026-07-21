@@ -25,13 +25,38 @@ export type PlanBoxData = {
   meta: string;
   isFree: boolean;
   signedIn: boolean;
+  /** True when the box carries actionable billing truth the user must not
+   * miss — a running trial or a won't-renew end date (C7 eng-review D2).
+   * Home renders the box only in these states; steady-state "Renews {date}"
+   * and the free upsell stay in the sidebar + /account.
+   * ponytail: payment-issue (grace) isn't surfaced here — the row-level
+   * "grace" status never reaches this display read; the payment-failed email
+   * covers it. Wire it through getEntitlement if that ever proves too weak. */
+  attention: boolean;
 };
+
+/**
+ * C7 eng-review D2: Home renders the plan box only when it carries billing
+ * truth the user must not miss — a running trial or a scheduled non-renewal.
+ * Steady premium ("Renews {date}") and the free tier stay sidebar/account-only.
+ */
+export function planBoxAttention(entitlement: {
+  tier: string;
+  status?: string | null;
+  cancelAtPeriodEnd?: boolean;
+}): boolean {
+  return (
+    entitlement.tier === "premium" &&
+    (entitlement.cancelAtPeriodEnd === true || entitlement.status === "trialing")
+  );
+}
 
 const GUEST_BOX: PlanBoxData = {
   planName: "Free plan",
   meta: "The daily check is free.",
   isFree: true,
-  signedIn: false
+  signedIn: false,
+  attention: false
 };
 
 function formatDate(date: Date, timezone: string): string {
@@ -78,7 +103,8 @@ export const getPlanBox = cache(async (): Promise<PlanBoxData> => {
         planName: "Revora Premium",
         meta,
         isFree: false,
-        signedIn: true
+        signedIn: true,
+        attention: planBoxAttention(entitlement)
       };
     }
 
@@ -88,7 +114,8 @@ export const getPlanBox = cache(async (): Promise<PlanBoxData> => {
       planName: "Free plan",
       meta: `${left} of ${FREE_DAILY_CHECKS} free checks left today`,
       isFree: true,
-      signedIn: true
+      signedIn: true,
+      attention: false
     };
   } catch {
     // DB or session hiccup: the shell still renders; the box shows the

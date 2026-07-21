@@ -1,5 +1,21 @@
 # TODOS
 
+## Admin support-case viewer
+- **What:** `/admin/support` page listing `support_cases` (decrypt message, mark resolved), patterned on `components/admin-feedback-table.tsx` + its `reviewStatus` workflow.
+- **Why:** P0.4 ships inbox-only triage (encrypted row + full-content email to support@); that stops scaling once ticket volume grows. The `status` column already exists for this.
+- **Pros:** Existing admin pattern to copy; closes the loop on case status.
+- **Cons:** Admin surface + decrypt path = security-review burden; pointless below ~5 tickets/week.
+- **Context:** Decided during /plan-eng-review 2026-07-21 (C7 four-jobs plan, D5). Trigger condition: sustained ticket volume, not speculation.
+- **Depends on / blocked by:** P0.4 shipped (C7 branch).
+
+## Retire or re-purpose the BAI composite score
+- **What:** Decide to drop the composite score/band from `lib/coach/bai.ts` + `bai_weekly` (KEEP the raw adherence/action/prompted fields — the /journey recap uses them), or formally re-purpose the score as internal-only S2 measurement.
+- **Why:** After RV-3 (2026-07-21) the score is computed weekly but shown to no one. Computed-but-invisible scores invite accidental re-surfacing; the in-tree retirement note (`lib/server/bai-cron.ts:10-17`, T18) predates RV-3 and is stale.
+- **Pros:** Prevents the usage-frequency score from quietly coming back; removes dead compute.
+- **Cons:** Touches the S2 concierge-study measurement plan — needs the owner and the study protocol in the room.
+- **Context:** Decided during /plan-eng-review 2026-07-21 (C7 plan, D6). RV-3's fix was presentation-level (non-scored recap); the pipeline was deliberately left running for S2 measurement.
+- **Depends on / blocked by:** RV-3 shipped (C7 branch); S2 study decisions.
+
 ## In-app photo-assist for subscribers
 - **What:** Reuse the Pantry Review pipeline's vision-extraction module + confirm-before-verdict screen inside the daily check flow (`checks.inputMethod = 'photo'` finally gets written).
 - **Why:** Turns the one-off report build into the app's flagship retention feature; the confirm-screen pattern is already buyer-tested by then.

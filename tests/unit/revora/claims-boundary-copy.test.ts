@@ -302,6 +302,8 @@ const EXTRA_SOURCES = [
   "lib/revora/labels.ts",
   "lib/coach/insights.ts",
   "lib/coach/bai.ts",
+  "lib/coach/recap.ts",
+  "lib/coach/next-action.ts",
   "lib/server/pantry/emails.ts",
   "lib/server/billing/emails.ts",
   "docs/runbooks/marketing-assets.md"
