@@ -1,16 +1,18 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { AppNav } from "../../components/app-nav";
-import { IconCheck, IconPerson } from "../../components/icons";
+import { IconCheck } from "../../components/icons";
 import { PlanBox } from "../../components/plan-box";
 import { getPlanBox } from "../../lib/server/plan-box";
 
 /**
- * The (app) shell (M1 dashboard plan). Nested inside the root layout —
- * NEVER a second root layout (route-group remount footgun). Below 1024px:
- * top bar (brand + Account, no hamburger — decision #13); from 1024px:
- * fixed sidebar with nav + plan box. Route-group pages keep their URLs.
+ * The (app) shell (M1 dashboard plan; C7 four-jobs restructure 2026-07-21).
+ * Nested inside the root layout — NEVER a second root layout (route-group
+ * remount footgun). Below 1024px: top bar (brand only) + fixed bottom tab bar
+ * (Home · My meals · Check · My journey · Account, still no hamburger); from
+ * 1024px: fixed sidebar with the same five links + plan box. The inactive nav
+ * wrapper is display:none at each breakpoint, so only one nav landmark exists
+ * in the accessibility tree at a time. Route-group pages keep their URLs.
  */
 export default async function AppShellLayout({
   children
@@ -30,7 +32,7 @@ export default async function AppShellLayout({
           </span>
           <span>Revora</span>
         </div>
-        <AppNav />
+        <AppNav variant="sidebar" />
         <div className="app-sidebar-foot">
           <PlanBox data={planBox} />
         </div>
@@ -43,15 +45,15 @@ export default async function AppShellLayout({
           </span>
           <span>Revora</span>
         </div>
-        <Link className="app-topbar-account" href="/account">
-          <IconPerson size={18} />
-          Account
-        </Link>
       </header>
 
       <main className="app-content" id="app-content" tabIndex={-1}>
         {children}
       </main>
+
+      <div className="app-tabbar">
+        <AppNav variant="tabbar" />
+      </div>
     </div>
   );
 }

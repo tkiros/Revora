@@ -64,8 +64,8 @@ export default function CheckPage() {
         <DemoCheckCard />
 
         <footer className="page-footer">
-          <Link href="/history">Your week</Link>
-          <Link href="/progress">Progress</Link>
+          <Link href="/meals">My meals</Link>
+          <Link href="/journey">My journey</Link>
           <Link href="/get-the-app">Get the app</Link>
           <Link href="/privacy">Privacy</Link>
           <Link href="/terms">Terms</Link>

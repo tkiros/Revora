@@ -52,6 +52,13 @@ const nextConfig: NextConfig = {
   // one distDir). Inert in every normal run — NEXT_DIST_DIR is unset, so this is
   // exactly ".next".
   distDir: process.env.NEXT_DIST_DIR || ".next",
+  // C7 four-jobs restructure (2026-07-21): old bookmarks and deep links keep
+  // working. /memory folded into /meals as its "Saved meals" section.
+  redirects: async () => [
+    { source: "/history", destination: "/meals", permanent: true },
+    { source: "/memory", destination: "/meals", permanent: true },
+    { source: "/progress", destination: "/journey", permanent: true }
+  ],
   // A stray ~/package-lock.json (unrelated home-dir tooling) makes Next infer
   // the wrong workspace root and warn about multiple lockfiles (E2E-08).
   // Pin the root to this repo.

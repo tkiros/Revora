@@ -147,3 +147,22 @@ export function IconCheckCircle(props: IconProps) {
     </svg>
   );
 }
+
+/** My Meals — a saved/remembered place (C7 four-jobs nav, 2026-07-21). */
+export function IconBookmark(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M7 4h10v16l-5-3.5L7 20V4z" />
+    </svg>
+  );
+}
+
+/** My Journey — direction/learning (C7 four-jobs nav, 2026-07-21). */
+export function IconCompass(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M15.2 8.8l-2 4.4-4.4 2 2-4.4 4.4-2z" />
+    </svg>
+  );
+}
