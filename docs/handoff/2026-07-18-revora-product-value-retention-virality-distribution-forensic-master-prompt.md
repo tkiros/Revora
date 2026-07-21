@@ -159,6 +159,20 @@ Do not hide ambiguity behind attractive numbers.
 
 If Revora lacks production users, events, cohort data, payment data, cancellation reasons, interview evidence, referral telemetry, or content-performance data, state that plainly. Do not estimate existing retention or virality from UI design. In that case, produce a falsifiable forecast and an instrumentation/experiment plan, clearly marked as such.
 
+
+
+
+## 9. The residual list — These are known issues - completely ingnore these for now
+
+  1. DNS (biggest lever): revora.bio has no nameservers at all right now. At your registrar, point them to ns1.vercel-dns.com / ns2.vercel-dns.com — that single change
+  lights up the domain, the Resend records I pre-staged, OG link previews, and Stripe return URLs (all URLs already point at https://revora.bio; link cards and post-checkout  redirects are broken until this is done).
+  2. Resend: after DNS, press Verify on revora.bio in Resend and set AUTH_EMAIL_FROM to a @revora.bio address. Resend currently has zero verified domains — customer  magic-link email cannot deliver until this.
+  3. Stripe dashboard (~15 min, live key is sealed in Vercel so I couldn't): add the live webhook endpoint /api/billing/stripe/webhook with the six handled events, pin API  version 2025-03-31.basil+, put the signing secret into STRIPE_WEBHOOK_SECRET, and save a default live-mode portal config. Without the webhook, a live payment succeeds but  entitlement never flips — do this before announcing.
+  4. Umami: no instance exists anywhere; deploy the Umami template from the Railway dashboard (CLI needs a TTY), then set the two NEXT_PUBLIC_UMAMI_* vars. Funnel is blind  until then.
+  5. Hygiene: rotate the exposed keys (openr.md OpenRouter key — now also the prod model key — plus the ones in history 213ab8a), and consider deleting the stray duplicate  Vercel project revora-irj3 (it rebuilds every push with no prod env; I don't delete infrastructure unasked).
+
+
+
 ---
 
 ## Required working method

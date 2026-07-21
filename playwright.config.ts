@@ -139,6 +139,15 @@ export default defineConfig({
       use: {
         ...devices["iPhone 12"]
       }
+    },
+    // AA-10: the app ships a desktop sidebar layout that no project ever
+    // exercised — desktop-only regressions (sidebar nav, wide-viewport CSS)
+    // were invisible to CI.
+    {
+      name: "Desktop Chrome",
+      use: {
+        ...devices["Desktop Chrome"]
+      }
     }
   ]
 });
