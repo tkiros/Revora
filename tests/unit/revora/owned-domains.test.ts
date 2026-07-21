@@ -34,6 +34,10 @@ const UNOWNED = [
 ];
 
 const OWNED_SUFFIX = "@revora.plus";
+// Senders may live on a subdomain of the owned apex (contact.revora.plus is
+// the Resend-verified sending domain; the apex keeps registrar forwarding
+// for the support inbox).
+const OWNED_SENDER = /@(?:[a-z0-9-]+\.)?revora\.plus>?$/;
 
 function sourceFiles(rel: string): string[] {
   const abs = path.join(ROOT, rel);
@@ -52,7 +56,7 @@ function sourceFiles(rel: string): string[] {
 describe("owned domains", () => {
   it("sends and shows only addresses on a domain we own", () => {
     expect(SUPPORT_EMAIL.endsWith(OWNED_SUFFIX)).toBe(true);
-    expect(EMAIL_FROM).toContain(OWNED_SUFFIX);
+    expect(EMAIL_FROM).toMatch(OWNED_SENDER);
   });
 
   it("has no unowned domain anywhere in shipped source", () => {

@@ -161,6 +161,12 @@ export default function PrivacyPage() {
             Payment providers may retain transaction records under their own
             legal and accounting obligations.
           </li>
+          <li>
+            Billing event records (from our payment providers) are kept for up
+            to 30 days for payment reliability and dispute handling. Buyer
+            contact details are removed from these records as soon as the
+            event is processed.
+          </li>
         </ul>
 
         <h2>Your choices and rights</h2>

@@ -4,7 +4,11 @@ import { z } from "zod";
 
 import type { A1CBand } from "../../../lib/revora/a1c";
 import { FREE_HISTORY_DAYS } from "../../../lib/free-tier";
-import { decryptField, encryptField } from "../../../lib/server/crypto";
+import {
+  decryptField,
+  encryptField,
+  safeDecrypt
+} from "../../../lib/server/crypto";
 import { getDb, schema, type Db } from "../../../lib/server/db";
 import { getEntitlement, type Entitlement } from "../../../lib/server/entitlement";
 import {
@@ -622,12 +626,7 @@ export function createHistoryExportHandler(deps: RouteDeps = {}) {
   };
 }
 
-function safeDecrypt(ciphertext: string): string {
-  try {
-    return decryptField(ciphertext);
-  } catch {
-    // A row that cannot decrypt (rotated key) degrades to a placeholder —
-    // never an error that blocks the whole history.
-    return "(unreadable entry)";
-  }
-}
+// safeDecrypt is imported from lib/server/crypto: a rotated-key row degrades to
+// a placeholder quietly, but a failing auth tag (corruption or tampering) is
+// reported to Sentry. The old inline copy here conflated the two and swallowed
+// tamper silently on the highest-traffic health-data read path (PR-3).

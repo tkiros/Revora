@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, gte, isNull } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { hashClaimToken } from "../../../lib/server/pantry/claims";
@@ -45,7 +45,14 @@ export function createPantryClaimHandler(deps: Deps = {}) {
           and(
             eq(schema.pantryOrders.claimToken, hashClaimToken(token)),
             isNull(schema.pantryOrders.userId),
-            eq(schema.pantryOrders.status, "paid")
+            eq(schema.pantryOrders.status, "paid"),
+            // PR-4: claim links expire with the unclaimed-order retention
+            // window — after 90 days the sweep erases the order, so a token
+            // that old must stop binding (support can re-issue manually).
+            gte(
+              schema.pantryOrders.createdAt,
+              new Date(now().getTime() - 90 * 24 * 60 * 60 * 1000)
+            )
           )
         );
     }

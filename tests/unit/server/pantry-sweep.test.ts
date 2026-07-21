@@ -162,4 +162,39 @@ describe("runPantrySweep", () => {
       .where(eq(schema.cronHeartbeat.name, "pantry-sweep"));
     expect(beat.lastRunAt.toISOString()).toBe(NOW.toISOString());
   });
+
+  // PR-4: an unclaimed paid order holds buyer email + Stripe IDs with no user
+  // FK — account deletion can never reach it, so the sweep must.
+  it("erases unclaimed paid orders older than 90 days, keeps younger and claimed ones", async () => {
+    const daysAgo = (d: number) => new Date(NOW.getTime() - d * 86_400_000);
+    const stale = await makeOrder({
+      status: "paid",
+      intakeEmailSentAt: hoursAgo(1),
+      createdAt: daysAgo(91)
+    });
+    const fresh = await makeOrder({
+      status: "paid",
+      intakeEmailSentAt: hoursAgo(1),
+      createdAt: daysAgo(30)
+    });
+    // Old but claimed (userId set): the user's own data-rights flows own it.
+    const [user] = await testDb.db
+      .insert(schema.users)
+      .values({ email: "claimer@example.com" })
+      .returning();
+    const claimed = await makeOrder({
+      status: "claimed",
+      userId: user.id,
+      intakeEmailSentAt: hoursAgo(1),
+      createdAt: daysAgo(120)
+    });
+
+    const result = await runPantrySweep(makeDeps());
+
+    expect(result.erasedUnclaimed).toBe(1);
+    const remaining = await testDb.db.select().from(schema.pantryOrders);
+    const ids = remaining.map((order) => order.id).sort();
+    expect(ids).toEqual([fresh.id, claimed.id].sort());
+    expect(ids).not.toContain(stale.id);
+  });
 });

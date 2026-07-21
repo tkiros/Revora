@@ -1,5 +1,33 @@
 import type { NextConfig } from "next";
 
+// P0.3: a production deploy without measurement is a silent analytics outage —
+// the funnel reads as zero and nobody notices. Fail the BUILD when production
+// is missing the analytics env, unless the owner explicitly waives it
+// (REVORA_ALLOW_NO_MEASUREMENT=1) for a deliberate dark launch. The Sentry
+// client DSN is warn-only until one is provisioned — client error reporting
+// missing is bad, but not worth blocking a deploy the analytics gate allows.
+if (
+  process.env.VERCEL_ENV === "production" &&
+  process.env.REVORA_ALLOW_NO_MEASUREMENT !== "1"
+) {
+  const missing = [
+    !process.env.NEXT_PUBLIC_UMAMI_SRC && "NEXT_PUBLIC_UMAMI_SRC",
+    !process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID && "NEXT_PUBLIC_UMAMI_WEBSITE_ID"
+  ].filter((v): v is string => Boolean(v));
+  if (missing.length > 0) {
+    throw new Error(
+      `Production build without measurement: set ${missing.join(", ")} ` +
+        "(or REVORA_ALLOW_NO_MEASUREMENT=1 to deploy dark deliberately)."
+    );
+  }
+  if (!process.env.NEXT_PUBLIC_SENTRY_DSN) {
+    console.warn(
+      "⚠ NEXT_PUBLIC_SENTRY_DSN is not set — client-side errors will be " +
+        "invisible in production. Provision a Sentry DSN and add it to Vercel."
+    );
+  }
+}
+
 const nextConfig: NextConfig = {
   // E2E-only lever: lets tests/smoke/trial-wall.spec.ts run a second `next dev`
   // (PAYWALL_MODE=trial, port 3101) alongside the default legacy server by
