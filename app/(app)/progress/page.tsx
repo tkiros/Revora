@@ -14,10 +14,10 @@ import {
   type LatestBai,
   type ProgressState
 } from "../../../lib/coach/progress-state";
+import { SUPPORT_EMAIL } from "../../../lib/revora/contact";
 
 // The support path used across the app (privacy/terms/account) — a plain
 // mailto so an outage surface never dead-ends the user.
-const SUPPORT_EMAIL = "support@revora.bio";
 
 /**
  * Progress / BAI view (plan P6). Fetches the already-premium-gated

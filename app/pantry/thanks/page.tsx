@@ -1,4 +1,4 @@
-const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL ?? "support@revora.bio";
+import { SUPPORT_EMAIL } from "../../../lib/revora/contact";
 
 export const metadata = {
   title: "Pantry Review — Revora",

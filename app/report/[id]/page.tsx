@@ -7,13 +7,13 @@ import {
 } from "../../../lib/server/pantry/report-view";
 import type { ReportItem } from "../../../lib/server/pantry/process";
 import { getSessionInfo } from "../../../lib/server/session";
+import { SUPPORT_EMAIL } from "../../../lib/revora/contact";
 
 export const metadata = {
   title: "Your Pantry Review — Revora",
   robots: { index: false, follow: false }
 };
 
-const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL ?? "support@revora.bio";
 
 const BAND_LABEL: Record<string, string> = {
   prediabetes_57_59: "5.7% – 5.9%",

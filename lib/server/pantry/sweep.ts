@@ -4,6 +4,7 @@ import { reapOrphanBlobs, reapPantryBlobs, type BlobLister } from "../blob";
 import { schema } from "../db";
 import { generateClaimToken } from "./claims";
 import { intakeEmailText } from "./emails";
+import { SUPPORT_EMAIL } from "../../revora/contact";
 import {
   deliverReport,
   processPantryOrder,
@@ -161,7 +162,7 @@ export async function runPantrySweep(deps: SweepDeps): Promise<{
     );
   if (stuck.length > 0) {
     await deps.email.send({
-      to: process.env.SUPPORT_EMAIL ?? "support@revora.bio",
+      to: SUPPORT_EMAIL,
       subject: `Pantry orders stuck >2h: ${stuck.length}`,
       text: stuck
         .map((order) => `${order.id} — ${order.status} since ${order.updatedAt.toISOString()}`)

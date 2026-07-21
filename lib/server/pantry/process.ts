@@ -9,6 +9,7 @@ import { schema, type Db } from "../db";
 import { sendEmail, type SendEmailResult } from "../email";
 import { bandRepresentativeA1c } from "./band";
 import { reportEmailText } from "./emails";
+import { SUPPORT_EMAIL } from "../../revora/contact";
 
 /**
  * The ONLY place pantry items are judged — and they are judged exclusively by
@@ -246,7 +247,7 @@ async function finishNeedsManual(
   // so retaining them would only break the privacy promise (N-23).
   await deleteOrderBlobs(deps.db, orderId, deps.deleteBlobs);
   await deps.email.send({
-    to: process.env.SUPPORT_EMAIL ?? "support@revora.bio",
+    to: SUPPORT_EMAIL,
     subject: `Pantry order needs manual review: ${orderId}`,
     text: `Order ${orderId}: ${why}. Handle via /admin/pantry.`
   });

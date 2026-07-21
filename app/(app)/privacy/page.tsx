@@ -4,6 +4,7 @@ import Link from "next/link";
 import { longitudinalInsightsEnabled } from "../../../lib/longitudinal-insights-flag";
 import { photoInputEnabled } from "../../../lib/photo-input-flag";
 import { loadSafetyContract } from "../../../lib/revora/safety-contract";
+import { SUPPORT_EMAIL } from "../../../lib/revora/contact";
 
 export const metadata: Metadata = {
   title: "Privacy · Revora",
@@ -12,7 +13,6 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   const { copy } = loadSafetyContract();
-  const supportEmail = process.env.SUPPORT_EMAIL ?? "support@revora.bio";
   const operatorName = process.env.LEGAL_ENTITY_NAME?.trim() || "Revora";
   const photoEnabled = photoInputEnabled();
   const insightsEnabled = longitudinalInsightsEnabled();
@@ -173,7 +173,7 @@ export default function PrivacyPage() {
         <p>
           You may ask to access, correct, export, or delete personal information
           and may appeal a denied request by replying with “Privacy appeal” to{" "}
-          <a href={`mailto:${supportEmail}`}>{supportEmail}</a>. Revora will
+          <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>. Revora will
           verify the request using the existing account or another reasonable
           method. Rights vary by location; Revora will honor mandatory rights
           that apply to you.
@@ -189,14 +189,14 @@ export default function PrivacyPage() {
         <h2>Children</h2>
         <p>
           Revora is for adults 18 and older and is not directed to children. If
-          you believe a child submitted information, contact {supportEmail}.
+          you believe a child submitted information, contact {SUPPORT_EMAIL}.
         </p>
 
         <h2>Changes and contact</h2>
         <p>
           Material changes will appear here with a new effective date and, when
           appropriate, an account notice. Privacy questions and requests:
-          {" "}<a href={`mailto:${supportEmail}`}>{supportEmail}</a>.
+          {" "}<a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
         </p>
 
         <p className="result-disclaimer">{copy.disclaimer}</p>

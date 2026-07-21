@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { WEB_REFUND_WINDOW_DAYS } from "../../../lib/legal/terms";
 import { loadSafetyContract } from "../../../lib/revora/safety-contract";
+import { SUPPORT_EMAIL } from "../../../lib/revora/contact";
 
 export const metadata: Metadata = {
   title: "Terms · Revora",
@@ -11,7 +12,6 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   const { copy } = loadSafetyContract();
-  const supportEmail = process.env.SUPPORT_EMAIL ?? "support@revora.bio";
   const operatorName = process.env.LEGAL_ENTITY_NAME?.trim() || "Revora";
 
   return (
@@ -80,7 +80,7 @@ export default function TermsPage() {
 
         <h2>Refund policy</h2>
         <p>
-          For web subscriptions processed through Stripe, email {supportEmail}
+          For web subscriptions processed through Stripe, email {SUPPORT_EMAIL}
           within {WEB_REFUND_WINDOW_DAYS} calendar days of your first paid
           charge for a refund of that first charge. Revora also refunds verified
           duplicate or unauthorized charges. Later renewal charges are normally
@@ -155,7 +155,7 @@ export default function TermsPage() {
         <h2>Contact</h2>
         <p>
           Questions, refund requests, or legal notices: {" "}
-          <a href={`mailto:${supportEmail}`}>{supportEmail}</a>.
+          <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
         </p>
 
         <p className="result-disclaimer">{copy.disclaimer}</p>
