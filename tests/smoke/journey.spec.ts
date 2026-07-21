@@ -244,10 +244,16 @@ test("a backend outage renders unavailable + retry, never the upsell", async ({
   await expectNoSeriousViolations(page);
 });
 
-test("legacy /progress permanently redirects to /journey", async ({ page }) => {
+test("legacy paths permanently redirect to the four-job routes", async ({
+  page
+}) => {
   await stubCoach(page, 401, { error: "Sign in first." });
   await page.goto("/progress");
   await expect(page).toHaveURL(/\/journey$/);
+  await page.goto("/history");
+  await expect(page).toHaveURL(/\/meals$/);
+  await page.goto("/memory");
+  await expect(page).toHaveURL(/\/meals$/);
 });
 
 test("how-it-works page discloses methodology and has no a11y violations", async ({

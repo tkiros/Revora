@@ -74,6 +74,9 @@ test("meals page shows the week strip and one-tap re-check prefills the form", a
   await page.goto("/meals");
   await expect(page.getByTestId("week-strip")).toBeVisible();
   await expect(page.getByTestId("history-list")).toContainText("plain bagel");
+  // Meal-memory flag is OFF on this server: the saved-meals section simply
+  // does not exist — no upsell noise on the merged surface (C7 plan).
+  await expect(page.getByTestId("saved-meals-section")).toHaveCount(0);
   await expect(page.getByText("Be careful")).toBeVisible();
 
   const results = await new AxeBuilder({ page })
