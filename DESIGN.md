@@ -63,7 +63,7 @@ colors decoratively.
 ## Class vocabulary (reuse before writing CSS)
 
 - Structure (legacy pages): `page-shell` → `page-frame` → `surface-card`
-- Structure (app shell, 2026-07-10): `app-root` → `app-sidebar`/`app-topbar` + `app-content` → `dash-card`; nav = `app-nav`/`app-navlink`; billing = `plan-box`; dashboard = `dash-grid`/`dash-cta`/`dash-week`/`dash-bai-*` (see §App shell)
+- Structure (app shell, 2026-07-10; C7 2026-07-21): `app-root` → `app-sidebar`/`app-topbar`/`app-tabbar` + `app-content` → `dash-card`; nav = `app-nav`/`app-navlink` (sidebar), `app-tab`/`app-tab-action` (tab bar); billing = `plan-box`; dashboard = `dash-cta`; journey = `journey-doc`/`dash-week` (see §App shell)
 - Headers: `hero-eyebrow`/`status-eyebrow`/`result-eyebrow` + `page-title` + `page-copy`
 - Forms: `form-card` · `form-grid` · `field-stack` · `field-label` · `text-input` · `field-hint` · `field-error` · `primary-button` · `voice-input-button`
 - Feedback: `request-status` · `status-card` · `result-card` (+ risk border tokens) · `result-disclaimer` · `placeholder-card`
@@ -128,9 +128,9 @@ The calm acknowledgment after a user's first completed check. Rules:
 - Appears at most once per day, only when the streak is new (streak === 1).
   On the dashboard it renders above the greeting; on `/check` it stays inside
   the daily-loop card.
-- (Amended 2026-07-10, dashboard plan.) The streak chip is no longer the only
-  progress ornament — the dashboard's verdict week strip and weekly progress
-  bars join it. All progress UI obeys §Progress surfaces below.
+- (Amended 2026-07-10, dashboard plan; re-amended 2026-07-21, C7.) The
+  verdict week strip and the weekly recap live on /journey, not the
+  dashboard. All progress UI obeys §Progress surfaces below.
 
 ## Progress surfaces — reassurance, not gamification (added 2026-07-10)
 
@@ -146,11 +146,16 @@ reassurance, never streak pressure. Binding rules for ANY progress element:
   shows its most careful verdict (worst-of-day, `lib/coach/days.ts
   verdictWeekView`) with the verdict ICON inside the mark — shape carries the
   signal for colorblind users — plus a per-day `sr-only` sentence.
-- Illustrative data is always labeled: free-tier progress bars carry the
-  "Example — this is how it looks" tag (`dash-example-tag`). Unlabeled
-  example data on a health surface is banned (credibility is honesty).
-- Weekly progress bars (`dash-bai-*`) are qualitative (labels like "Building"),
-  premium-real or free-example, hidden entirely below 5 checks.
+- Illustrative data is always labeled: unlabeled example data on a health
+  surface is banned (credibility is honesty).
+- (Replaced 2026-07-21, RV-3.) The weekly view is the NON-SCORED recap
+  (`lib/coach/recap.ts`, rendered on /journey): facts that only grow, stated
+  as plain counts. No composite score, no band words ("Building", "On
+  track"), no percentages — a more-confident user who checks less must never
+  read "progress declined". The posture line is standing copy: "Checking
+  less as you get more confident is how this is meant to work." The
+  bai_weekly pipeline still computes internally (S2 measurement); its score
+  is never rendered.
 
 ## Home meal-check hero (added 2026-07-19, approved A+D+C composite)
 
@@ -203,7 +208,8 @@ A small sanctioned layer — CSS only, no animation libraries:
 `components/icons.tsx` is the entire icon vocabulary: Check, Alert, Pause
 (verdicts) · Keyboard, Mic, Camera (input methods) · Lock, Leaf, Heart, EyeOff
 (trust) · ArrowRight · Home, Person, CheckCircle (app-shell nav, added
-2026-07-10). Hand-written 24-viewbox strokes, `stroke: currentColor`,
+2026-07-10) · Bookmark (My meals), Compass (My journey) (C7 nav, added
+2026-07-21). Hand-written 24-viewbox strokes, `stroke: currentColor`,
 sized by `--icon-sm` (16px) / `--icon` (20px). Icons always sit next to text,
 never alone, never decorative-only, always `aria-hidden`. Adding a glyph means
 editing that file and this list — no icon libraries.
@@ -215,25 +221,32 @@ The responsive frame for `(app)` routes; the marketing landing keeps its own
 
 | Range | Content column | Navigation | Dashboard grid |
 |---|---|---|---|
-| < 1024px (designed at 375) | `app-content` max 520px | top bar: brand + "Account" pill. NO hamburger — Week/Progress are dashboard sections, not destinations | single column |
-| ≥ 1024px | max 1000px + 280px fixed sidebar | sidebar: Home · Check a meal · Account + plan box (`plan-box`) | `dash-grid` 1fr / 340px |
+| < 1024px (designed at 375) | `app-content` max 520px | bottom tab bar (`app-tabbar`), five slots: Home · My meals · Check (the one accent-filled action) · My journey · Account; top bar: brand only. Still no hamburger (C7 four jobs, 2026-07-21) | single column |
+| ≥ 1024px | max 1000px + 280px fixed sidebar | sidebar: Home · My meals · Check a meal · My journey · Account + plan box (`plan-box`) | single column |
 | ≥ 1440px | max 1120px | same sidebar | same |
 
 Rules:
 
-- The nav flips top-bar → sidebar at exactly **1024px**. `<nav aria-label="Main">`,
+- The nav flips tab-bar → sidebar at exactly **1024px**; the inactive nav
+  wrapper is `display:none`, so only one `Main` landmark exists at a time.
+  `<nav aria-label="Main">`,
   `aria-current="page"` on the active link (`--accent-tint` fill +
   `--accent-strong` text), 44px+ targets, skip-to-content link
   (`app-skip`) as the shell's first focusable.
 - The plan box shows the plan name AND the billing date ("Renews {date}" /
   "Trial ends {date}") — a display-only entitlement read; hiding the renewal
-  date from active subscribers is banned.
+  date from active subscribers is banned. (Amended 2026-07-21, C7 eng-review
+  D2:) Home renders the plan box ONLY when it carries actionable billing
+  truth — a running trial or a scheduled non-renewal (`planBoxAttention`);
+  the sidebar and /account always render the full box. The
+  hiding-the-renewal-date ban binds every rendered plan box.
 - The check CTA (`dash-cta`) is the one Committed color moment on the
   dashboard (accent-filled card). At <768px it is the first interactive
   element above the fold — the dashboard never adds friction before the
   core action.
-- Day-0 empty state is the DEFAULT design, not a fallback: hollow-dot week
-  preview + one CTA + `dash-preview-note`; no fake data, no guilt copy.
+- Day-0 empty state is the DEFAULT design, not a fallback: one CTA + the
+  Today card carrying the `dash-preview-note` warmth (the hollow-dot week
+  preview lives on /journey since C7); no fake data, no guilt copy.
 - Everything in the shell is assembled from tokens: no new colors, the one
   card shadow, radii from the scale.
 
