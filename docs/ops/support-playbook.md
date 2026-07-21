@@ -6,8 +6,9 @@ matches the in-app voice (`docs/product-marketing.md`,
 stay inside `docs/safety/claims-boundary.md` — no medical determinations,
 clinical advice, disease outcomes, or North-Star carve-outs.
 
-**Support address:** `support@revora.bio` (or the production `SUPPORT_EMAIL`
-value if the operator changes it).
+**Support address:** `support@revora.plus` — the single constant in
+`lib/revora/contact.ts`. It is no longer an environment variable; change it
+there and every surface moves together.
 
 ---
 

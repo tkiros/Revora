@@ -5,6 +5,7 @@ import { runNudgeCron, type PushSendResult } from "../../../../lib/server/nudge"
 import { getDb, type Db } from "../../../../lib/server/db";
 import { captureServerError } from "../../../../lib/revora/sentry-capture";
 import { isAuthorizedCron } from "../../../../lib/server/timing-safe";
+import { SUPPORT_EMAIL } from "../../../../lib/revora/contact";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -30,7 +31,7 @@ async function defaultSend(
       return "error";
     }
     webpush.setVapidDetails(
-      `mailto:${process.env.SUPPORT_EMAIL ?? "support@revora.bio"}`,
+      `mailto:${SUPPORT_EMAIL}`,
       publicKey,
       privateKey
     );

@@ -4,6 +4,7 @@ import Resend from "next-auth/providers/resend";
 
 import { getDb, schema } from "./lib/server/db";
 import { checkEmailCooldown } from "./lib/revora/rate-limit";
+import { EMAIL_FROM } from "./lib/revora/contact";
 
 /**
  * Auth.js v5 — email magic-link via Resend, database sessions in Railway
@@ -16,7 +17,6 @@ import { checkEmailCooldown } from "./lib/revora/rate-limit";
  * safe (builds, tests) and auth simply isn't available.
  */
 
-const EMAIL_FROM = process.env.AUTH_EMAIL_FROM ?? "Revora <signin@revora.app>";
 
 const adapter = process.env.DATABASE_URL
   ? DrizzleAdapter(getDb() as unknown as Parameters<typeof DrizzleAdapter>[0], {

@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { EMAIL_FROM } from "../revora/contact";
 
 /**
  * One transactional-email door for everything that is not a NextAuth magic
@@ -10,7 +11,6 @@ import path from "node:path";
  * attachments or templates.
  */
 
-const EMAIL_FROM = process.env.AUTH_EMAIL_FROM ?? "Revora <signin@revora.app>";
 
 export type SendEmailInput = { to: string; subject: string; text: string };
 export type SendEmailResult = { ok: true } | { ok: false; status: number };

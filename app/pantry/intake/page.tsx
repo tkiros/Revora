@@ -5,6 +5,7 @@ import { PantryIntakeFlow } from "../../../components/pantry-intake-flow";
 import { decryptField } from "../../../lib/server/crypto";
 import { getDb, schema } from "../../../lib/server/db";
 import { getSessionInfo } from "../../../lib/server/session";
+import { SUPPORT_EMAIL } from "../../../lib/revora/contact";
 
 export const metadata = {
   title: "Your Pantry Review — Revora",
@@ -21,7 +22,6 @@ const OPEN_STATUSES = [
   "ready"
 ] as const;
 
-const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL ?? "support@revora.bio";
 
 export default async function PantryIntakePage() {
   const session = await getSessionInfo();

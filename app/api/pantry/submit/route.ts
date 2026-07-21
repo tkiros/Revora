@@ -15,6 +15,7 @@ import { encryptField } from "../../../../lib/server/crypto";
 import { getDb, schema, type Db } from "../../../../lib/server/db";
 import { sendEmail, type SendEmailResult } from "../../../../lib/server/email";
 import { bandRepresentativeA1c } from "../../../../lib/server/pantry/band";
+import { SUPPORT_EMAIL } from "../../../../lib/revora/contact";
 import {
   getSessionInfo,
   type SessionInfo
@@ -223,7 +224,7 @@ export function createPantrySubmitHandler(deps: Deps = {}) {
         .set({ status: "needs_manual", updatedAt: now() })
         .where(eq(schema.pantryOrders.id, order.id));
       await email.send({
-        to: process.env.SUPPORT_EMAIL ?? "support@revora.bio",
+        to: SUPPORT_EMAIL,
         subject: `Pantry order needs manual review: ${order.id}`,
         text: `Extraction produced zero items for order ${order.id} (${failedPhotos} photo(s) failed). Handle via /admin/pantry.`
       });
