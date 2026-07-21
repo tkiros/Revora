@@ -59,6 +59,24 @@ export async function runPrechargeSweep(
     );
 
   for (const { sub, email } of due) {
+    // RE-03/BC-10: claim-before-send. The old shape was stamp-after-send, so
+    // two overlapping runs both read the unstamped row and both emailed
+    // "you'll be charged". The atomic claim (same pattern as pantry/process)
+    // makes exactly one run own the send; a lost claim just moves on.
+    const claimed = await db
+      .update(schema.subscriptions)
+      .set({ preChargeEmailSentAt: now, updatedAt: now })
+      .where(
+        and(
+          eq(schema.subscriptions.id, sub.id),
+          isNull(schema.subscriptions.preChargeEmailSentAt)
+        )
+      )
+      .returning({ id: schema.subscriptions.id });
+    if (claimed.length === 0) {
+      continue; // another run claimed this row between select and update
+    }
+
     const amountDisplay = priceVariantDisplay(sub.priceVariant);
     const chargeDateText = sub.currentPeriodEnd.toLocaleDateString("en-US", {
       month: "long",
@@ -78,12 +96,6 @@ export async function runPrechargeSweep(
 
     const result = await deps.email.send({ to: email, ...message });
     if (result.ok) {
-      // Stamp only on a confirmed send — a failure leaves the row untouched so
-      // the next hourly pass retries it.
-      await db
-        .update(schema.subscriptions)
-        .set({ preChargeEmailSentAt: now, updatedAt: now })
-        .where(eq(schema.subscriptions.id, sub.id));
       emitBillingEvent({
         name: "precharge_email_sent",
         priceVariant:
@@ -91,6 +103,12 @@ export async function runPrechargeSweep(
           undefined
       });
       sent += 1;
+    } else {
+      // Send failed: release the claim so the next hourly pass retries.
+      await db
+        .update(schema.subscriptions)
+        .set({ preChargeEmailSentAt: null, updatedAt: now })
+        .where(eq(schema.subscriptions.id, sub.id));
     }
   }
 

@@ -185,6 +185,7 @@ export const config = {
     "/api/check",
     "/api/check/photo-draft",
     "/api/trial/start",
-    "/api/auth/:path*"
+    "/api/auth/:path*",
+    "/api/billing/:path*"
   ]
 };

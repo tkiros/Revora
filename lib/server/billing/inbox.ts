@@ -175,7 +175,19 @@ export async function processInboxRow(
       pendingEmails = (await apply(tx, event, now, deps.stripe)) ?? [];
       await tx
         .update(schema.billingEventInbox)
-        .set({ status: "processed", lastError: null, processedAt: now })
+        .set({
+          status: "processed",
+          lastError: null,
+          processedAt: now,
+          // BC-8/PR-1: the reducer is done with this event — buyer PII
+          // (email, name, address) has no reason to outlive processing, and
+          // the inbox has no user FK so account deletion can never reach it.
+          // The redacted payload keeps the structural fields the reconcile
+          // charge scan still reads (billing_reason, subscription refs).
+          payload: redactBillingPayload(
+            locked.payload as Record<string, unknown>
+          )
+        })
         .where(eq(schema.billingEventInbox.id, row.id));
       applied = true;
     });
@@ -277,4 +289,41 @@ function errorMessage(error: unknown): string {
     return error.message.slice(0, 500);
   }
   return String(error).slice(0, 500);
+}
+
+// BC-8/PR-1: buyer-identifying keys removed (recursively) from a processed
+// event's stored payload. Denylist, not allowlist, so the structural fields
+// the reconcile charge scan needs (billing_reason, parent.subscription_details,
+// ids, amounts) survive untouched.
+const PII_PAYLOAD_KEYS = new Set([
+  "customer_details",
+  "customer_email",
+  "customer_name",
+  "customer_address",
+  "customer_shipping",
+  "billing_details",
+  "receipt_email",
+  "shipping",
+  "email",
+  "name",
+  "address",
+  "phone"
+]);
+
+/** Deep-copy `value` with every PII key dropped. Exported for tests. */
+export function redactBillingPayload<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((item) => redactBillingPayload(item)) as unknown as T;
+  }
+  if (value !== null && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [key, inner] of Object.entries(value)) {
+      if (PII_PAYLOAD_KEYS.has(key)) {
+        continue;
+      }
+      out[key] = redactBillingPayload(inner);
+    }
+    return out as T;
+  }
+  return value;
 }

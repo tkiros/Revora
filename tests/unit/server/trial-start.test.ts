@@ -85,7 +85,9 @@ it("creates the user, sends the magic link, and returns a trial checkout url", a
       }
     },
     metadata: { terms_version: TERMS_VERSION },
-    success_url: "https://app/trial/started",
+    // BC-3: the template param lets the return page sync entitlement
+    // server-side even when the webhook is unregistered.
+    success_url: "https://app/trial/started?session_id={CHECKOUT_SESSION_ID}",
     cancel_url: "https://app/subscribe?declined=1"
   });
 });

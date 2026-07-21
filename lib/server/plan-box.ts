@@ -63,8 +63,11 @@ export const getPlanBox = cache(async (): Promise<PlanBoxData> => {
       const date = entitlement.currentPeriodEnd
         ? formatDate(entitlement.currentPeriodEnd, timezone)
         : null;
-      const meta =
-        entitlement.status === "trialing"
+      const meta = entitlement.cancelAtPeriodEnd
+        ? date
+          ? `Access until ${date} — will not renew`
+          : "Will not renew"
+        : entitlement.status === "trialing"
           ? date
             ? `Trial ends ${date}`
             : "Trial active"

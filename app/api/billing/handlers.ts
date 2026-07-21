@@ -360,7 +360,7 @@ export function createPlayRtdnHandler(deps: BillingDeps = {}) {
     // Only update subscriptions we know (the verify call creates the row and
     // binds it to a user — RTDN alone cannot attribute a purchase).
     const [existing] = await db()
-      .select()
+      .select({ id: schema.subscriptions.id })
       .from(schema.subscriptions)
       .where(eq(schema.subscriptions.providerRef, purchaseToken));
 
@@ -370,14 +370,34 @@ export function createPlayRtdnHandler(deps: BillingDeps = {}) {
 
     try {
       const info = await playLookup(purchaseToken);
-      await db()
-        .update(schema.subscriptions)
-        .set({
-          status: info.status,
-          currentPeriodEnd: info.currentPeriodEnd,
-          updatedAt: now()
-        })
-        .where(eq(schema.subscriptions.id, existing.id));
+      // BC-4: two RTDNs for the same purchase (renewal + refund) can race.
+      // Lock the row, re-read status under the lock, and hold the same
+      // guards as the Stripe reducer: refunded/expired are terminal, and the
+      // paid-through date never moves backwards — EXCEPT when Play itself
+      // reports a revocation (refund/expiry), which must always land.
+      await db().transaction(async (tx) => {
+        const [row] = await tx
+          .select()
+          .from(schema.subscriptions)
+          .where(eq(schema.subscriptions.id, existing.id))
+          .for("update");
+        if (!row || row.status === "refunded" || row.status === "expired") {
+          return;
+        }
+        const isRevocation =
+          info.status === "refunded" || info.status === "expired";
+        if (!isRevocation && info.currentPeriodEnd < row.currentPeriodEnd) {
+          return; // stale lookup ordered behind a newer renewal
+        }
+        await tx
+          .update(schema.subscriptions)
+          .set({
+            status: info.status,
+            currentPeriodEnd: info.currentPeriodEnd,
+            updatedAt: now()
+          })
+          .where(eq(schema.subscriptions.id, row.id));
+      });
     } catch {
       // Lookup failure: nack via 500 so Pub/Sub retries with backoff.
       return NextResponse.json({ error: "retry" }, { status: 500 });
@@ -469,7 +489,10 @@ export function createStripeCheckoutHandler(deps: BillingDeps = {}) {
       subscription_data: {
         metadata: { terms_version: parsed.data.termsVersion }
       },
-      success_url: `${appUrl}/account?subscribed=1`,
+      // BC-3: the {CHECKOUT_SESSION_ID} template lets the return page run a
+      // server-side retrieve+upsert, so entitlement flips even if the webhook
+      // is unregistered or delayed.
+      success_url: `${appUrl}/account?subscribed=1&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/subscribe`
     });
 
@@ -585,58 +608,90 @@ export function createStripePortalHandler(deps: BillingDeps = {}) {
 const CANCELABLE = new Set(["trialing", "active", "grace"]);
 
 /**
- * One-tap cancel (docs/adr/billing.md, anti-Klinio). GET is the signed-out
- * email link — its trust anchor is the verified token, never a session; POST
- * is the account-page button behind the session. Both flip
- * `cancel_at_period_end` on Stripe so entitlement runs out the paid period,
- * and both are idempotent (a second click re-runs the same harmless update).
+ * One-tap cancel (docs/adr/billing.md, anti-Klinio). The signed-out email
+ * link's trust anchor is the verified token, never a session; the account-page
+ * button is session-gated. Both flip `cancel_at_period_end` on Stripe so
+ * entitlement runs out the paid period, and both are idempotent (a second
+ * click re-runs the same harmless update).
+ *
+ * BC-1/SA-8: GET must NEVER mutate. Mail scanners (Proofpoint, Defender
+ * safe-links) issue the GET at delivery time, which silently canceled a trial
+ * before the human ever read the email. GET now only verifies the token and
+ * redirects to a confirm page; the mutation lives exclusively in POST, which
+ * accepts the same token in the body (scanners do not submit forms).
  */
 export function createCancelHandlers(deps: BillingDeps = {}) {
   const db = deps.db ?? getDb;
   const getSession = deps.getSession ?? getSessionInfo;
   const stripe = deps.stripeClient ?? defaultStripe;
+  const now = deps.now ?? (() => new Date());
 
-  // GET /api/billing/cancel?token=… — from the pre-charge email, works
-  // signed-out. Never dedupe or log by the raw token (it is suffix-malleable);
-  // the verify result is the only trust anchor.
-  async function GET(request: Request): Promise<NextResponse> {
-    const url = new URL(request.url);
-    const canceled = (invalid: boolean) =>
-      NextResponse.redirect(
-        new URL(invalid ? "/canceled?invalid=1" : "/canceled", url),
-        303
-      );
-
-    const verified = verifyCancelToken(url.searchParams.get("token") ?? "");
-    if (!verified) {
-      return canceled(true);
-    }
-
-    const [row] = await db()
-      .select()
-      .from(schema.subscriptions)
-      .where(eq(schema.subscriptions.id, verified.subRowId));
-
-    if (row && row.provider === "stripe" && CANCELABLE.has(row.status)) {
-      await stripe().subscriptions.update(row.providerRef, {
-        cancel_at_period_end: true
+  async function cancelRow(row: typeof schema.subscriptions.$inferSelect) {
+    await stripe().subscriptions.update(row.providerRef, {
+      cancel_at_period_end: true
+    });
+    // BC-2: persist immediately so a page reload shows "will not renew"
+    // without waiting for the customer.subscription.updated webhook.
+    await db()
+      .update(schema.subscriptions)
+      .set({ cancelAtPeriodEnd: true, updatedAt: now() })
+      .where(eq(schema.subscriptions.id, row.id));
+    if (row.status === "trialing") {
+      emitBillingEvent({
+        name: "trial_canceled",
+        priceVariant:
+          (row.priceVariant as BillingTelemetryEvent["priceVariant"]) ??
+          undefined
       });
-      if (row.status === "trialing") {
-        emitBillingEvent({
-          name: "trial_canceled",
-          priceVariant:
-            (row.priceVariant as BillingTelemetryEvent["priceVariant"]) ??
-            undefined
-        });
-      }
     }
-
-    return canceled(false);
   }
 
-  // POST /api/billing/cancel — the account-page one-tap button. Session-gated;
-  // cancels the caller's own Stripe row only.
-  async function POST(): Promise<NextResponse> {
+  // GET /api/billing/cancel?token=… — from the pre-charge email, works
+  // signed-out. Verify-and-redirect ONLY; no side effects. Never dedupe or log
+  // by the raw token (it is suffix-malleable); the verify result is the only
+  // trust anchor.
+  async function GET(request: Request): Promise<NextResponse> {
+    const url = new URL(request.url);
+    const token = url.searchParams.get("token") ?? "";
+
+    if (!verifyCancelToken(token)) {
+      return NextResponse.redirect(new URL("/canceled?invalid=1", url), 303);
+    }
+
+    const confirm = new URL("/canceled/confirm", url);
+    confirm.searchParams.set("token", token);
+    return NextResponse.redirect(confirm, 303);
+  }
+
+  // POST /api/billing/cancel — the account-page one-tap button (session), or
+  // the email-link confirm page (body token). Cancels one Stripe row only.
+  async function POST(request?: Request): Promise<NextResponse> {
+    const body = request
+      ? ((await readJson(request)) as { token?: unknown } | null)
+      : null;
+    const token = typeof body?.token === "string" ? body.token : null;
+
+    if (token) {
+      const verified = verifyCancelToken(token);
+      if (!verified) {
+        return NextResponse.json(
+          { error: "This cancel link has expired." },
+          { status: 400 }
+        );
+      }
+      const [row] = await db()
+        .select()
+        .from(schema.subscriptions)
+        .where(eq(schema.subscriptions.id, verified.subRowId));
+
+      if (row && row.provider === "stripe" && CANCELABLE.has(row.status)) {
+        await cancelRow(row);
+      }
+      // Idempotent + non-oracular: a lapsed or already-canceled row confirms
+      // the same way — the caller holds a valid token either way.
+      return NextResponse.json({ ok: true });
+    }
+
     const session = await getSession();
     if (!session) {
       return unauthorized();
@@ -659,9 +714,7 @@ export function createCancelHandlers(deps: BillingDeps = {}) {
       );
     }
 
-    await stripe().subscriptions.update(row.providerRef, {
-      cancel_at_period_end: true
-    });
+    await cancelRow(row);
 
     return NextResponse.json({ ok: true, accessUntil: row.currentPeriodEnd });
   }
@@ -714,6 +767,65 @@ export function createStripeWebhookHandler(deps: BillingDeps = {}) {
       return NextResponse.json({ error: "retry" }, { status: 500 });
     }
     return NextResponse.json({ received: true, outcome });
+  };
+}
+
+// ── POST /api/billing/stripe/sync ───────────────────────────────────────────
+
+const SyncSchema = z
+  .object({ sessionId: z.string().trim().min(1).max(255) })
+  .strict();
+
+/**
+ * BC-3 defense-in-depth: without a registered live webhook, a first real
+ * purchase never creates a `subscriptions` row, so NO local path (entitlement
+ * read, self-heal, reconcile — all iterate existing rows) can ever flip
+ * premium, and the one-trial-ever gate never trips. The success-URL return
+ * carries {CHECKOUT_SESSION_ID}; this endpoint retrieves the session from
+ * Stripe (the caller's word is never enough — the session id is only a lookup
+ * key) and runs it through the same idempotent reducer the webhook uses.
+ *
+ * Unauthenticated by design: the buyer may not be signed in yet (trial flow —
+ * the magic link is still in their inbox). All state written comes from
+ * Stripe's API, and the reducer's terminal/stale guards hold as usual. The
+ * synthetic event carries no `created`, so it can never mark a real webhook
+ * event stale.
+ */
+export function createCheckoutSyncHandler(deps: BillingDeps = {}) {
+  const db = deps.db ?? getDb;
+  const stripe = deps.stripeClient ?? defaultStripe;
+  const now = deps.now ?? (() => new Date());
+
+  return async function POST(request: Request) {
+    const parsed = SyncSchema.safeParse(await readJson(request));
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+    }
+
+    let session: Stripe.Checkout.Session;
+    try {
+      session = await stripe().checkout.sessions.retrieve(
+        parsed.data.sessionId
+      );
+    } catch {
+      // Unknown/foreign session id or Stripe unreachable — nothing to sync.
+      return NextResponse.json({ ok: false }, { status: 404 });
+    }
+
+    // Subscription checkouts only. Pantry (mode=payment) stays webhook-only:
+    // its reducer mints a claim token + email, which must not fire from an
+    // unauthenticated return URL.
+    if (session.mode !== "subscription" || session.status !== "complete") {
+      return NextResponse.json({ ok: false });
+    }
+
+    const synthetic = {
+      type: "checkout.session.completed",
+      data: { object: session }
+    } as Stripe.Event;
+    await applyStripeEvent(db(), synthetic, now(), stripe);
+
+    return NextResponse.json({ ok: true });
   };
 }
 
@@ -789,15 +901,20 @@ export async function applyStripeEvent(
       return pending;
     }
 
-    // Order tolerance + refund terminality: read the stored row first. A
+    // Order tolerance + terminal statuses: read the stored row first. A
     // checkout.session.completed replayed after the subscription was refunded
-    // or after a newer event landed must NOT resurrect premium.
+    // or deleted (expired), or after a newer event landed, must NOT resurrect
+    // premium (BC-9: expired is terminal here exactly as in subscription.updated).
     const [existingSub] = await db
       .select()
       .from(schema.subscriptions)
       .where(eq(schema.subscriptions.providerRef, subscriptionId))
       .for("update");
-    if (existingSub?.status === "refunded" || isStaleForRow(event, existingSub)) {
+    if (
+      existingSub?.status === "refunded" ||
+      existingSub?.status === "expired" ||
+      isStaleForRow(event, existingSub)
+    ) {
       return pending;
     }
 
@@ -836,6 +953,7 @@ export async function applyStripeEvent(
         termsVersion,
         termsAcceptedAt: termsVersion ? now : null,
         currentPeriodEnd,
+        cancelAtPeriodEnd: subscription?.cancel_at_period_end === true,
         ...eventStamp(event),
         updatedAt: now
       })
@@ -846,6 +964,9 @@ export async function applyStripeEvent(
           priceVariant,
           termsVersion,
           termsAcceptedAt: termsVersion ? now : null,
+          ...(subscription
+            ? { cancelAtPeriodEnd: subscription.cancel_at_period_end === true }
+            : {}),
           ...eventStamp(event),
           updatedAt: now
         }
@@ -1096,6 +1217,9 @@ export async function applyStripeEvent(
       .set({
         status,
         ...(periodEnd ? { currentPeriodEnd: periodEnd } : {}),
+        // BC-2: persist the will-not-renew truth so the UI can stop showing a
+        // fabricated "Renews {date}" to a canceled-but-unexpired subscriber.
+        cancelAtPeriodEnd: subscription.cancel_at_period_end === true,
         ...eventStamp(event),
         updatedAt: now
       })
@@ -1436,7 +1560,9 @@ export function createTrialCheckoutHandler(
       metadata: { terms_version: parsed.data.termsVersion },
       client_reference_id: user.id,
       customer_email: email,
-      success_url: `${appUrl}/trial/started`,
+      // BC-3: see createStripeCheckoutHandler — enables webhook-independent
+      // entitlement sync on return.
+      success_url: `${appUrl}/trial/started?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/subscribe?declined=1`
     });
 

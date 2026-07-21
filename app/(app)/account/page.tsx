@@ -21,6 +21,8 @@ type EntitlementInfo = {
   freeDailyLimit: number;
   // ISO string over the wire (Date on the server type).
   currentPeriodEnd: string | null;
+  // BC-2: true when the subscription will not renew (canceled at period end).
+  cancelAtPeriodEnd?: boolean;
 };
 
 /** 24h → friendly label, e.g. 0 → "12:00 am", 13 → "1:00 pm". */
@@ -47,6 +49,13 @@ export default function AccountPage() {
   const [canceling, setCanceling] = useState(false);
   const [withdrawingHealthConsent, setWithdrawingHealthConsent] = useState(false);
   const [confirmHealthWithdrawal, setConfirmHealthWithdrawal] = useState(false);
+  // PR-6: per-browser analytics opt-out (Umami's localStorage kill switch).
+  const [analyticsDisabled, setAnalyticsDisabled] = useState(false);
+  useEffect(() => {
+    setAnalyticsDisabled(
+      window.localStorage.getItem("umami.disabled") !== null
+    );
+  }, []);
   // Free-tier copy is mode-dependent: legacy has a real 5/day free plan, the
   // trial funnel doesn't. Default to trial (the code default) so the copy
   // never resurrects the retired free offer on a failed lookup.
@@ -78,13 +87,25 @@ export default function AccountPage() {
     // Landing point after both checkout paths (Stripe's success_url and the
     // Play Billing verify redirect both point here with ?subscribed=1) —
     // this is the only client-side moment that knows checkout completed.
-    if (new URLSearchParams(window.location.search).get("subscribed") === "1") {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("subscribed") === "1") {
       track({ name: "subscribe_completed" });
+      // BC-3: server-side retrieve+upsert from the Checkout session id, so
+      // entitlement flips even when the webhook is unregistered or delayed.
+      // Fire-and-forget — the poll below picks up the row it writes.
+      const sessionId = params.get("session_id");
+      if (sessionId) {
+        void fetch("/api/billing/stripe/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId })
+        }).catch(() => {});
+      }
       // Enter the "syncing" surface: the entitlement poll below waits for the
       // webhook/inbox to write the row before we render a plan state.
       setSyncing(true);
       syncStartRef.current = Date.now();
-      // Strip the param so a refresh doesn't re-fire the event.
+      // Strip the params so a refresh doesn't re-fire the event.
       window.history.replaceState(null, "", window.location.pathname);
     }
   }, []);
@@ -413,13 +434,17 @@ export default function AccountPage() {
                     </p>
                     {entitlement.currentPeriodEnd && !canceled ? (
                       <p className="field-hint" data-testid="renewal-date">
-                        {entitlement.status === "trialing"
-                          ? `Trial ends ${new Date(
+                        {entitlement.cancelAtPeriodEnd
+                          ? `Access until ${new Date(
                               entitlement.currentPeriodEnd
-                            ).toLocaleDateString()}`
-                          : `Renews ${new Date(
-                              entitlement.currentPeriodEnd
-                            ).toLocaleDateString()}`}
+                            ).toLocaleDateString()} — will not renew`
+                          : entitlement.status === "trialing"
+                            ? `Trial ends ${new Date(
+                                entitlement.currentPeriodEnd
+                              ).toLocaleDateString()}`
+                            : `Renews ${new Date(
+                                entitlement.currentPeriodEnd
+                              ).toLocaleDateString()}`}
                       </p>
                     ) : null}
                     {entitlement.source === "play" ? (
@@ -433,7 +458,7 @@ export default function AccountPage() {
                       </a>
                     ) : (
                       <>
-                        {canceled ? null : (
+                        {canceled || entitlement.cancelAtPeriodEnd ? null : (
                           <button
                             type="button"
                             className="recheck-button"
@@ -672,6 +697,33 @@ export default function AccountPage() {
                     Withdraw consent &amp; erase saved health data
                   </button>
                 )}
+              </div>
+
+              <div className="account-section" data-testid="analytics-opt-out">
+                <h2 className="section-title">Usage analytics</h2>
+                <p className="page-copy">
+                  We count anonymous product events (never meal text, photos,
+                  or lab values) to see what&apos;s working. You can turn this
+                  off for this browser.
+                </p>
+                <label className="field-label">
+                  <input
+                    type="checkbox"
+                    checked={analyticsDisabled}
+                    onChange={(event) => {
+                      const off = event.target.checked;
+                      setAnalyticsDisabled(off);
+                      // Umami's built-in kill switch: any truthy value stops
+                      // the tracker in this browser (PR-6 opt-out gate).
+                      if (off) {
+                        window.localStorage.setItem("umami.disabled", "1");
+                      } else {
+                        window.localStorage.removeItem("umami.disabled");
+                      }
+                    }}
+                  />{" "}
+                  Don&apos;t count my usage in analytics
+                </label>
               </div>
 
               <div className="account-section">

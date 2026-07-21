@@ -447,6 +447,11 @@ export const subscriptions = pgTable(
     currentPeriodEnd: timestamp("current_period_end", {
       withTimezone: true
     }).notNull(),
+    // BC-2: a canceled-but-unexpired subscriber must see "Access until X —
+    // will not renew", never a fabricated "Renews X". Persisted from Stripe's
+    // cancel_at_period_end (webhook) and set optimistically by the cancel
+    // endpoints so the truth survives a page reload.
+    cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
     // Stripe self-healing (Task 8 / P2.2). `lastEventAt` is the provider event
     // `created` time of the newest webhook the reducer has applied to this row;
     // it makes the entitlement reducer order-tolerant — a replayed or

@@ -20,9 +20,11 @@ export type RateLimitDecision =
  */
 export type LimitBucket =
   | "check_ip"
+  | "check_user"
   | "trial_ip"
   | "auth_signin_ip"
   | "auth_other_ip"
+  | "billing_ip"
   | "trial_email"
   | "auth_email";
 
@@ -35,9 +37,17 @@ const BUCKETS: Record<
   { limit: number; window: `${number} h`; prefix: string }
 > = {
   check_ip: { limit: 20, window: "1 h", prefix: "revora:ip" },
+  // RE-04: per-USER model-spend cap, enforced in the check handler (the Edge
+  // proxy only sees IPs). One account rotating IPs could otherwise exhaust
+  // the global daily cap and 429 everyone else. 200/24h is far above any
+  // human usage and far below the global 2000/day.
+  check_user: { limit: 200, window: "24 h", prefix: "revora:user" },
   trial_ip: { limit: 3, window: "1 h", prefix: "revora:trial:ip" },
   auth_signin_ip: { limit: 3, window: "1 h", prefix: "revora:auth:ip" },
   auth_other_ip: { limit: 30, window: "1 h", prefix: "revora:authx:ip" },
+  // BC-7: pantry-checkout is unauthenticated — scripted Stripe-session
+  // creation must not be free. 10/h per IP never touches a real buyer.
+  billing_ip: { limit: 10, window: "1 h", prefix: "revora:billing:ip" },
   trial_email: { limit: 3, window: "1 h", prefix: "revora:trial:email" },
   auth_email: { limit: 3, window: "1 h", prefix: "revora:auth:email" }
 };
@@ -59,6 +69,14 @@ const CHECK_PATH = "/api/check";
 const TRIAL_START_PATH = "/api/trial/start";
 const AUTH_PREFIX = "/api/auth/";
 const AUTH_SIGNIN_PREFIX = "/api/auth/signin";
+const BILLING_PREFIX = "/api/billing/";
+// Provider-authenticated webhook doors (Stripe signature, Pub/Sub shared
+// token). Their senders retry from shared infrastructure IPs — rate-limiting
+// them would drop legitimate money-path events, and each verifies its caller.
+const BILLING_WEBHOOK_PATHS = new Set([
+  "/api/billing/stripe/webhook",
+  "/api/billing/play/rtdn"
+]);
 
 /**
  * What a matched route costs and how it must behave when Redis is unreachable.
@@ -102,6 +120,15 @@ export function matchRouteLimit(
   }
   if (pathname.startsWith(AUTH_PREFIX)) {
     return { kind: "abuse", bucket: "auth_other_ip", failClosed: false };
+  }
+  // BC-7: every billing door (checkout, pantry-checkout, cancel, sync, portal,
+  // play/verify) gets an abuse budget — pantry-checkout in particular is
+  // unauthenticated and opens Stripe sessions. Webhooks are excluded above.
+  if (
+    pathname.startsWith(BILLING_PREFIX) &&
+    !BILLING_WEBHOOK_PATHS.has(pathname)
+  ) {
+    return { kind: "abuse", bucket: "billing_ip", failClosed: false };
   }
   return null;
 }
@@ -215,6 +242,23 @@ export async function checkEmailCooldown(
     return { ok: true };
   }
   return evaluateAbuseLimit(bucket, email.trim().toLowerCase(), deps, true);
+}
+
+/**
+ * RE-04: per-user model-spend cap for the check path, enforced in the Node
+ * handler where the session is known (the Edge proxy only ever sees an IP —
+ * one account rotating IPs could exhaust the GLOBAL daily cap and 429 every
+ * other user). Fails OPEN like the check path's other limits: the OpenAI
+ * dashboard hard cap is the true cost ceiling, availability wins.
+ */
+export async function checkUserSpendLimit(
+  userId: string,
+  deps: RateLimitDeps | null = nodeDeps()
+): Promise<RateLimitDecision> {
+  if (!deps) {
+    return { ok: true };
+  }
+  return evaluateAbuseLimit("check_user", userId, deps, false);
 }
 
 // ── Config probes + live deps ───────────────────────────────────────────────

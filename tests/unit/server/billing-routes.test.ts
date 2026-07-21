@@ -9,6 +9,7 @@ vi.mock("@vercel/blob", () => ({ del: blobDel }));
 
 import {
   applyStripeEvent,
+  createCheckoutSyncHandler,
   createEntitlementHandler,
   createPlayRtdnHandler,
   createPlayVerifyHandler,
@@ -16,6 +17,7 @@ import {
   createStripePortalHandler
 } from "../../../app/api/billing/handlers";
 import { encryptField } from "../../../lib/server/crypto";
+import { getEntitlement } from "../../../lib/server/entitlement";
 import { schema } from "../../../lib/server/db";
 import { createTestDb } from "../../helpers/test-db";
 import { TERMS_VERSION } from "../../../lib/legal/terms";
@@ -115,7 +117,8 @@ describe("POST /api/billing/play/verify", () => {
       tier: "premium",
       source: "play",
       status: "premium",
-      currentPeriodEnd: "2026-08-03T15:00:00.000Z"
+      currentPeriodEnd: "2026-08-03T15:00:00.000Z",
+      cancelAtPeriodEnd: false
     });
 
     const [row] = await testDb.db.select().from(schema.subscriptions);
@@ -284,6 +287,249 @@ describe("POST /api/billing/play/rtdn", () => {
 
     const response = await POST(rtdnRequest("rtdn-secret", "tok-4"));
     expect(response.status).toBe(500);
+  });
+});
+
+describe("POST /api/billing/play/rtdn — terminal + ordering guards (BC-4)", () => {
+  function rtdnRequest(purchaseToken: string) {
+    return post(`http://t/api/billing/play/rtdn?token=rtdn-secret`, {
+      message: {
+        data: Buffer.from(
+          JSON.stringify({
+            subscriptionNotification: { purchaseToken, notificationType: 3 }
+          })
+        ).toString("base64")
+      }
+    });
+  }
+
+  it("never resurrects a refunded row, whatever the lookup says", async () => {
+    await testDb.db.insert(schema.subscriptions).values({
+      userId,
+      provider: "play",
+      providerRef: "tok-refunded",
+      productId: "premium_monthly",
+      status: "refunded",
+      currentPeriodEnd: FUTURE
+    });
+
+    const POST = createPlayRtdnHandler({
+      ...baseDeps(),
+      playLookup: vi.fn().mockResolvedValue({
+        status: "active",
+        currentPeriodEnd: new Date(FUTURE.getTime() + 86_400_000),
+        productId: "premium_monthly"
+      })
+    });
+
+    const response = await POST(rtdnRequest("tok-refunded"));
+
+    expect(response.status).toBe(200);
+    const [row] = await testDb.db.select().from(schema.subscriptions);
+    expect(row.status).toBe("refunded");
+  });
+
+  it("a stale lookup cannot move paid-through backwards", async () => {
+    await testDb.db.insert(schema.subscriptions).values({
+      userId,
+      provider: "play",
+      providerRef: "tok-renewed",
+      productId: "premium_monthly",
+      status: "active",
+      currentPeriodEnd: FUTURE
+    });
+
+    // A lookup fetched before a renewal committed reports the OLD period end.
+    const POST = createPlayRtdnHandler({
+      ...baseDeps(),
+      playLookup: vi.fn().mockResolvedValue({
+        status: "active",
+        currentPeriodEnd: NOW, // earlier than the stored FUTURE
+        productId: "premium_monthly"
+      })
+    });
+
+    const response = await POST(rtdnRequest("tok-renewed"));
+
+    expect(response.status).toBe(200);
+    const [row] = await testDb.db.select().from(schema.subscriptions);
+    expect(row.currentPeriodEnd.toISOString()).toBe(FUTURE.toISOString());
+  });
+
+  it("a revocation (refund) always lands, even with an earlier period end", async () => {
+    await testDb.db.insert(schema.subscriptions).values({
+      userId,
+      provider: "play",
+      providerRef: "tok-revoke",
+      productId: "premium_monthly",
+      status: "active",
+      currentPeriodEnd: FUTURE
+    });
+
+    const POST = createPlayRtdnHandler({
+      ...baseDeps(),
+      playLookup: vi.fn().mockResolvedValue({
+        status: "refunded",
+        currentPeriodEnd: NOW,
+        productId: "premium_monthly"
+      })
+    });
+
+    const response = await POST(rtdnRequest("tok-revoke"));
+
+    expect(response.status).toBe(200);
+    const [row] = await testDb.db.select().from(schema.subscriptions);
+    expect(row.status).toBe("refunded");
+  });
+});
+
+describe("POST /api/billing/stripe/sync (BC-3)", () => {
+  function syncPost(sessionId: string) {
+    return new Request("http://t/api/billing/stripe/sync", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ sessionId })
+    });
+  }
+
+  it("upserts the subscription row from a completed checkout session", async () => {
+    const stripeClient = {
+      checkout: {
+        sessions: {
+          retrieve: vi.fn().mockResolvedValue({
+            id: "cs_1",
+            mode: "subscription",
+            status: "complete",
+            client_reference_id: userId,
+            subscription: "sub_sync_1"
+          })
+        }
+      },
+      subscriptions: {
+        retrieve: vi.fn().mockResolvedValue({
+          status: "active",
+          cancel_at_period_end: false,
+          metadata: { price_variant: "1299", terms_version: TERMS_VERSION },
+          items: {
+            data: [
+              {
+                price: { id: "price_monthly" },
+                current_period_end: Math.floor(FUTURE.getTime() / 1000)
+              }
+            ]
+          }
+        })
+      }
+    } as unknown as Stripe;
+
+    const POST = createCheckoutSyncHandler({
+      db: () => testDb.db,
+      now: () => NOW,
+      stripeClient: () => stripeClient
+    });
+
+    const response = await POST(syncPost("cs_1"));
+    expect(response.status).toBe(200);
+    expect((await response.json()).ok).toBe(true);
+
+    // The core BC-3 claim: with NO webhook delivery at all, the row exists
+    // and entitlement flips premium.
+    const [row] = await testDb.db.select().from(schema.subscriptions);
+    expect(row.providerRef).toBe("sub_sync_1");
+    expect(row.status).toBe("active");
+    const entitlement = await getEntitlement(testDb.db, userId, {
+      now: () => NOW
+    });
+    expect(entitlement.tier).toBe("premium");
+  });
+
+  it("404s on an unknown session id and writes nothing", async () => {
+    const stripeClient = {
+      checkout: {
+        sessions: {
+          retrieve: vi.fn().mockRejectedValue(new Error("No such session"))
+        }
+      }
+    } as unknown as Stripe;
+
+    const POST = createCheckoutSyncHandler({
+      db: () => testDb.db,
+      now: () => NOW,
+      stripeClient: () => stripeClient
+    });
+
+    const response = await POST(syncPost("cs_missing"));
+    expect(response.status).toBe(404);
+    expect(await testDb.db.select().from(schema.subscriptions)).toHaveLength(0);
+  });
+
+  it("ignores payment-mode (pantry) sessions — no order row, no email", async () => {
+    const stripeClient = {
+      checkout: {
+        sessions: {
+          retrieve: vi.fn().mockResolvedValue({
+            id: "cs_pantry",
+            mode: "payment",
+            status: "complete"
+          })
+        }
+      }
+    } as unknown as Stripe;
+
+    const POST = createCheckoutSyncHandler({
+      db: () => testDb.db,
+      now: () => NOW,
+      stripeClient: () => stripeClient
+    });
+
+    const response = await POST(syncPost("cs_pantry"));
+    expect(response.status).toBe(200);
+    expect((await response.json()).ok).toBe(false);
+    expect(await testDb.db.select().from(schema.pantryOrders)).toHaveLength(0);
+  });
+});
+
+describe("applyStripeEvent — expired is terminal for checkout replays (BC-9)", () => {
+  it("a replayed checkout.session.completed cannot resurrect an expired row", async () => {
+    await testDb.db.insert(schema.subscriptions).values({
+      userId,
+      provider: "stripe",
+      providerRef: "sub_expired",
+      productId: "premium_monthly",
+      status: "expired",
+      currentPeriodEnd: NOW
+    });
+
+    const stripeClient = {
+      subscriptions: {
+        retrieve: vi.fn().mockResolvedValue({
+          status: "active",
+          items: {
+            data: [
+              {
+                price: { id: "price_monthly" },
+                current_period_end: Math.floor(FUTURE.getTime() / 1000)
+              }
+            ]
+          }
+        })
+      }
+    } as unknown as Stripe;
+
+    await applyStripeEvent(
+      testDb.db,
+      {
+        type: "checkout.session.completed",
+        data: {
+          object: { client_reference_id: userId, subscription: "sub_expired" }
+        }
+      } as unknown as Stripe.Event,
+      NOW,
+      () => stripeClient
+    );
+
+    const [row] = await testDb.db.select().from(schema.subscriptions);
+    expect(row.status).toBe("expired");
   });
 });
 

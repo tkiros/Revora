@@ -134,6 +134,29 @@ describe("matchRouteLimit (W-11)", () => {
     expect(matchRouteLimit("/api/history", "POST")).toBeNull();
     expect(matchRouteLimit("/", "POST")).toBeNull();
   });
+
+  // BC-7: billing doors get an abuse budget — pantry-checkout in particular
+  // is unauthenticated and opens Stripe sessions.
+  it("limits POST billing routes with the billing_ip bucket", () => {
+    for (const path of [
+      "/api/billing/stripe/pantry-checkout",
+      "/api/billing/stripe/checkout",
+      "/api/billing/stripe/sync",
+      "/api/billing/cancel",
+      "/api/billing/play/verify"
+    ]) {
+      expect(matchRouteLimit(path, "POST")).toEqual({
+        kind: "abuse",
+        bucket: "billing_ip",
+        failClosed: false
+      });
+    }
+  });
+
+  it("NEVER limits the provider-authenticated webhook doors", () => {
+    expect(matchRouteLimit("/api/billing/stripe/webhook", "POST")).toBeNull();
+    expect(matchRouteLimit("/api/billing/play/rtdn", "POST")).toBeNull();
+  });
 });
 
 describe("evaluateAbuseLimit (W-11)", () => {
