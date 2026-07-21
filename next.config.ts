@@ -26,6 +26,23 @@ if (
         "invisible in production. Provision a Sentry DSN and add it to Vercel."
     );
   }
+  // Flag server twins: a NEXT_PUBLIC flag baked ON with its runtime twin unset
+  // means the feature ships with a kill switch that does nothing. Fail the
+  // build so the mismatch can never ship silently.
+  const twinMismatch = [
+    process.env.NEXT_PUBLIC_PHOTO_INPUT === "1" &&
+      process.env.PHOTO_INPUT_ENABLED !== "1" &&
+      "PHOTO_INPUT_ENABLED",
+    process.env.NEXT_PUBLIC_LONGITUDINAL_INSIGHTS === "1" &&
+      process.env.LONGITUDINAL_INSIGHTS_ENABLED !== "1" &&
+      "LONGITUDINAL_INSIGHTS_ENABLED"
+  ].filter((v): v is string => Boolean(v));
+  if (twinMismatch.length > 0) {
+    throw new Error(
+      `NEXT_PUBLIC flag is "1" but its server twin is unset: set ${twinMismatch.join(", ")}=1 ` +
+        "(the server twin is the runtime kill switch; without it the flag cannot be turned off without a rebuild)."
+    );
+  }
 }
 
 const nextConfig: NextConfig = {

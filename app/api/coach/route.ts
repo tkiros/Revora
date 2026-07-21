@@ -2,6 +2,7 @@ import { and, desc, eq, gte } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { computeCoachView } from "../../../lib/coach/compute";
+import { longitudinalInsightsServerEnabled } from "../../../lib/longitudinal-insights-flag";
 import { capabilitiesFor } from "../../../lib/server/capabilities";
 import { getDb, schema, type Db } from "../../../lib/server/db";
 import { getEntitlement } from "../../../lib/server/entitlement";
@@ -54,6 +55,12 @@ export function createCoachRouteHandler(deps: CoachRouteDeps = {}) {
       .limit(500);
 
     const view = computeCoachView(rows, timezone, now());
+    // Server twin (incident control): derived pattern output can be killed by
+    // an env change + redeploy. deriveInsight already honors the build flag;
+    // this runtime gate is the one that works without a rebuild.
+    if (!longitudinalInsightsServerEnabled()) {
+      view.insight = null;
+    }
 
     // Progress/BAI is a premium surface (plan 4D entitlement split). The gate is
     // the single capability matrix (`progress`), not a re-derived tier check, so
