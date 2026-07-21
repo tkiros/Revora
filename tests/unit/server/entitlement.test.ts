@@ -62,7 +62,8 @@ describe("getEntitlement", () => {
       tier: "free",
       source: null,
       status: "none",
-      currentPeriodEnd: null
+      currentPeriodEnd: null,
+      cancelAtPeriodEnd: false
     });
   });
 
@@ -100,7 +101,8 @@ describe("getEntitlement", () => {
       tier: "premium",
       source: "stripe",
       status: "premium",
-      currentPeriodEnd: FUTURE
+      currentPeriodEnd: FUTURE,
+      cancelAtPeriodEnd: false
     });
   });
 

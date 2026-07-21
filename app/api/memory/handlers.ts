@@ -6,7 +6,11 @@ import { mealMemoryServerEnabled } from "../../../lib/meal-memory-flag";
 import { normalize as normalizeFood } from "../../../lib/revora/input-precheck";
 import { captureServerError } from "../../../lib/revora/sentry-capture";
 import { capabilitiesFor } from "../../../lib/server/capabilities";
-import { decryptField, encryptField } from "../../../lib/server/crypto";
+import {
+  decryptField,
+  encryptField,
+  safeDecrypt as safeDecryptField
+} from "../../../lib/server/crypto";
 import { getDb, schema, type Db } from "../../../lib/server/db";
 import {
   getEntitlement,
@@ -170,17 +174,13 @@ async function readJson(request: Request): Promise<unknown> {
   }
 }
 
+// Null-guarding wrapper over the shared crypto.safeDecrypt (imported as
+// safeDecryptField): nullable memory columns pass through as null; a present
+// value degrades quietly on a rotated key but reports a failing auth tag
+// (corruption/tampering) to Sentry. The old inline copy swallowed tamper
+// silently on this health-data read path (PR-3).
 function safeDecrypt(ciphertext: string | null): string | null {
-  if (!ciphertext) {
-    return null;
-  }
-  try {
-    return decryptField(ciphertext);
-  } catch {
-    // A row that cannot decrypt (rotated key) degrades to a placeholder — never
-    // an error that takes the whole memory list down (fail-soft, like history).
-    return "(unreadable entry)";
-  }
+  return ciphertext == null ? null : safeDecryptField(ciphertext);
 }
 
 /**

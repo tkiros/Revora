@@ -5,6 +5,7 @@ import Stripe from "stripe";
 import type { Daypart } from "../../../lib/coach/insights";
 import { routeA1C } from "../../../lib/revora/a1c";
 import { CLARIFY_QUESTIONS, type ClarifyReason } from "../../../lib/revora/clarify";
+import { classifyClinicalRisk } from "../../../lib/revora/clinical-risk";
 import {
   deriveCoachOutputs,
   type CoachOutputs
@@ -25,6 +26,7 @@ import {
   CheckRequestSchema,
   type RevoraUserResponse
 } from "../../../lib/revora/schemas";
+import { checkUserSpendLimit } from "../../../lib/revora/rate-limit";
 import { captureServerError } from "../../../lib/revora/sentry-capture";
 import { checkFood } from "../../../lib/revora/service";
 import {
@@ -158,13 +160,37 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
       body = null;
     }
 
+    // HS-1: clinical/emergency routing must never be preempted by the paywall.
+    // A signed-in user without an active entitlement who describes acute
+    // symptoms needs the deterministic "see a person" redirect, not a 402
+    // upsell. checkFood runs classifyClinicalRisk before any model call and
+    // returns the clinical card at zero cost, so clinical-matching inputs skip
+    // the entitlement wall below. A clinical match can only yield the clinical
+    // card (never a meal verdict), so this grants no free check and no abuse.
+    const clinicalPreempt =
+      typeof (body as { food?: unknown } | null)?.food === "string" &&
+      classifyClinicalRisk((body as { food: string }).food) !== null;
+
     // 4D free tier, enforced server-side BEFORE any model spend. Signed-in
-    // only (guests are metered by the existing IP rate limit); fail-open on
-    // any error — metering must never take the product down.
+    // only (guests are metered by the existing IP rate limit).
+    //
+    // RE-01: the failure stances are SPLIT, not one fail-open blanket. The
+    // trial wall is a paid boundary — a DB error there fails CLOSED (retry
+    // card, no model spend) so partial degradation can never hand out paid
+    // checks. Session resolution and the legacy courtesy cap keep failing
+    // open: a session hiccup demotes to the IP-metered guest path, and the
+    // courtesy cap is availability-first by design.
+    let session: Awaited<ReturnType<typeof getSession>> = null;
     try {
-      const session = await getSession();
-      if (session) {
-        const entitlement = await getEntitlement(db(), session.userId, {
+      session = await getSession();
+    } catch (error) {
+      await captureServerError(error, "route");
+    }
+
+    if (session && !clinicalPreempt) {
+      const mode = paywallModeDep();
+      const readEntitlement = () =>
+        getEntitlement(db(), session!.userId, {
           refreshPlaySubscription: (token) => playLookup(token),
           // Heal a lost-renewal Stripe row on the hot path too (reviewer #3):
           // the row is only re-checked when premium-status AND past its period
@@ -173,63 +199,116 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
           refreshStripeSubscription: (subscriptionId, fallbackPeriodEnd) =>
             fetchStripeSubscription(stripe(), subscriptionId, fallbackPeriodEnd)
         });
-        const mode = paywallModeDep();
 
-        if (mode === "trial") {
-          // Hard wall: any signed-in user without an active entitlement
-          // (lapsed/none) is stopped before any model spend — no residual free
-          // checks, so countChecksToday never runs. trialing/premium fall
-          // through untouched. reasonCode "daily_cap" is reused deliberately;
-          // the mode is distinguishable from the paywall config in analysis.
-          if (entitlement.tier !== "premium") {
-            emitEvent({
-              name: "check_failed",
-              environment,
-              reasonCode: "daily_cap",
-              latencyBucket: getLatencyBucket(now() - startedAt)
-            });
-            return NextResponse.json(
-              {
-                kind: "upsell",
-                upsellKind: "trial",
-                message: TRIAL_WALL_MESSAGE,
-                disclaimer: loadSafetyContract().copy.disclaimer
-              },
-              { status: 402 }
-            );
-          }
-        } else if (entitlement.tier === "free") {
-          const [profile] = await db()
-            .select({ timezone: schema.profiles.timezone })
-            .from(schema.profiles)
-            .where(eq(schema.profiles.userId, session.userId));
-          const used = await countChecksToday(
-            db(),
-            session.userId,
-            profile?.timezone ?? "America/New_York"
+      if (mode === "trial") {
+        let entitlement;
+        try {
+          entitlement = await readEntitlement();
+        } catch (error) {
+          await captureServerError(error, "route");
+          // Fail CLOSED: the wall is unreadable, so no paid spend — a retry
+          // card, not a free check and not a 402 (the user may well be paid).
+          emitEvent({
+            name: "check_failed",
+            environment,
+            reasonCode: "server_error",
+            latencyBucket: getLatencyBucket(now() - startedAt)
+          });
+          return NextResponse.json(
+            {
+              kind: "retry",
+              message:
+                "Revora had a hiccup checking your plan. Please try again in a moment.",
+              disclaimer: loadSafetyContract().copy.disclaimer
+            },
+            { status: 503 }
           );
+        }
 
-          if (used >= FREE_DAILY_CHECKS) {
-            emitEvent({
-              name: "check_failed",
-              environment,
-              reasonCode: "daily_cap",
-              latencyBucket: getLatencyBucket(now() - startedAt)
-            });
-            return NextResponse.json(
-              {
-                kind: "upsell",
-                upsellKind: "legacy",
-                message: FREE_LIMIT_MESSAGE,
-                disclaimer: loadSafetyContract().copy.disclaimer
-              },
-              { status: 402 }
+        // Hard wall: any signed-in user without an active entitlement
+        // (lapsed/none) is stopped before any model spend — no residual free
+        // checks, so countChecksToday never runs. trialing/premium fall
+        // through untouched. reasonCode "daily_cap" is reused deliberately;
+        // the mode is distinguishable from the paywall config in analysis.
+        if (entitlement.tier !== "premium") {
+          emitEvent({
+            name: "check_failed",
+            environment,
+            reasonCode: "daily_cap",
+            latencyBucket: getLatencyBucket(now() - startedAt)
+          });
+          return NextResponse.json(
+            {
+              kind: "upsell",
+              upsellKind: "trial",
+              message: TRIAL_WALL_MESSAGE,
+              disclaimer: loadSafetyContract().copy.disclaimer
+            },
+            { status: 402 }
+          );
+        }
+      } else {
+        try {
+          const entitlement = await readEntitlement();
+          if (entitlement.tier === "free") {
+            const [profile] = await db()
+              .select({ timezone: schema.profiles.timezone })
+              .from(schema.profiles)
+              .where(eq(schema.profiles.userId, session.userId));
+            const used = await countChecksToday(
+              db(),
+              session.userId,
+              profile?.timezone ?? "America/New_York"
             );
+
+            if (used >= FREE_DAILY_CHECKS) {
+              emitEvent({
+                name: "check_failed",
+                environment,
+                reasonCode: "daily_cap",
+                latencyBucket: getLatencyBucket(now() - startedAt)
+              });
+              return NextResponse.json(
+                {
+                  kind: "upsell",
+                  upsellKind: "legacy",
+                  message: FREE_LIMIT_MESSAGE,
+                  disclaimer: loadSafetyContract().copy.disclaimer
+                },
+                { status: 402 }
+              );
+            }
           }
+        } catch (error) {
+          // Courtesy free cap only — availability wins here, by design.
+          await captureServerError(error, "route");
         }
       }
-    } catch (error) {
-      await captureServerError(error, "route");
+
+      // RE-04: per-USER model-spend cap (the proxy's buckets are IP-keyed, so
+      // one account rotating IPs could exhaust the global daily cap for
+      // everyone). Generous — 200/day — and fails open inside the helper.
+      const spend = await checkUserSpendLimit(session.userId);
+      if (!spend.ok) {
+        emitEvent({
+          name: "check_failed",
+          environment,
+          reasonCode: "rate_limited",
+          latencyBucket: getLatencyBucket(now() - startedAt)
+        });
+        return NextResponse.json(
+          {
+            kind: "retry",
+            message:
+              "You've reached today's check limit. Please come back tomorrow.",
+            disclaimer: loadSafetyContract().copy.disclaimer
+          },
+          {
+            status: 429,
+            headers: { "Retry-After": String(spend.retryAfterSeconds) }
+          }
+        );
+      }
     }
 
     // Task 13 snapshot sink: postprocess writes which conservative floor fired
@@ -295,6 +374,11 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
       // can reference it. Guests and non-persisted checks get no id — the
       // client's feedback surface then stays anonymous.
       let persistedCheckId: string | undefined;
+      // RE-10: fail-soft must not be SILENT. When the row genuinely failed to
+      // store (vs. a guest, who never persists), the client is told so it can
+      // show a quiet "shown, not saved" note instead of a false success — a
+      // journaling product that silently drops entries poisons its own trust.
+      let persistFailed = false;
       if (response.kind === "result") {
         try {
           persistedCheckId = await persistCheck({
@@ -307,6 +391,7 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
             headers: request.headers
           });
         } catch (error) {
+          persistFailed = true;
           await captureServerError(error, "route");
         }
       }
@@ -314,6 +399,7 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
       return NextResponse.json({
         ...response,
         ...(persistedCheckId ? { checkId: persistedCheckId } : {}),
+        ...(persistFailed ? { persisted: false } : {}),
         ...coach
       });
     } catch (error) {

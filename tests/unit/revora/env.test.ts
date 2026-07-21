@@ -73,13 +73,16 @@ describe("getRevoraEnv", () => {
 
 describe("GET /api/health", () => {
   it("returns minimal launch metadata without exposing secrets", async () => {
+    // No EDGE_CONFIG here: RE-02 makes a configured-but-unreadable store fail
+    // CLOSED (paused), and a fake connection string is exactly that. This
+    // test is about metadata shape, so leave the kill switch unconfigured.
     process.env = {
       ...ORIGINAL_ENV,
       NODE_ENV: "production",
       VERCEL_ENV: "preview",
-      OPENAI_API_KEY: "sk-preview",
-      EDGE_CONFIG: "ecfg_connection_string"
+      OPENAI_API_KEY: "sk-preview"
     };
+    delete process.env.EDGE_CONFIG;
     delete process.env.UPSTASH_REDIS_REST_URL;
     delete process.env.UPSTASH_REDIS_REST_TOKEN;
     // Hermetic against a local shell exporting the kill switch.

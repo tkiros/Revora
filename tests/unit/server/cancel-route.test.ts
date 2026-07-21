@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import type Stripe from "stripe";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -62,7 +63,9 @@ async function seedStripeRow(overrides: Partial<{ status: string; priceVariant: 
 }
 
 describe("GET /api/billing/cancel", () => {
-  it("with a valid token sets cancel_at_period_end and redirects to /canceled", async () => {
+  // BC-1/SA-8: mail safe-link scanners issue this GET at delivery time. It
+  // must NEVER mutate — only verify and hand off to the confirm page.
+  it("with a valid token redirects to the confirm page WITHOUT canceling", async () => {
     const row = await seedStripeRow({ status: "trialing" });
     const stripe = stripeStub();
     const { GET } = createCancelHandlers({
@@ -75,12 +78,11 @@ describe("GET /api/billing/cancel", () => {
       new Request(`https://app/api/billing/cancel?token=${token}`)
     );
 
-    expect(stripe.subscriptions.update).toHaveBeenCalledWith("sub_1", {
-      cancel_at_period_end: true
-    });
+    expect(stripe.subscriptions.update).not.toHaveBeenCalled();
     expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toContain("/canceled");
-    expect(res.headers.get("location")).not.toContain("invalid=1");
+    const location = res.headers.get("location") ?? "";
+    expect(location).toContain("/canceled/confirm");
+    expect(location).toContain(`token=${encodeURIComponent(token)}`);
   });
 
   it("with a bad/expired token redirects to /canceled?invalid=1 and touches nothing", async () => {
@@ -103,7 +105,7 @@ describe("GET /api/billing/cancel", () => {
 
 describe("POST /api/billing/cancel", () => {
   it("cancels the signed-in user's own stripe subscription (one tap, no portal)", async () => {
-    await seedStripeRow({ status: "active" });
+    const row = await seedStripeRow({ status: "active" });
     const stripe = stripeStub();
     const { POST } = createCancelHandlers({
       ...baseDeps(),
@@ -119,6 +121,66 @@ describe("POST /api/billing/cancel", () => {
     expect(res.status).toBe(200);
     expect(body.ok).toBe(true);
     expect(new Date(body.accessUntil).toISOString()).toBe(FUTURE.toISOString());
+
+    // BC-2: the will-not-renew truth is persisted, not just sent to Stripe —
+    // a page reload must show "Access until X", never a fabricated "Renews X".
+    const [updated] = await testDb.db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.id, row.id));
+    expect(updated.cancelAtPeriodEnd).toBe(true);
+  });
+
+  it("with a valid body token cancels the row (the confirm-page path)", async () => {
+    const row = await seedStripeRow({ status: "trialing" });
+    const stripe = stripeStub();
+    const { POST } = createCancelHandlers({
+      // No session: the email-link path works signed-out; the token is the
+      // trust anchor.
+      db: () => testDb.db,
+      getSession: async () => null,
+      stripeClient: () => stripe
+    });
+    const token = createCancelToken(row.id, Date.now() + 86_400_000, SECRET);
+
+    const res = await POST(
+      new Request("https://app/api/billing/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token })
+      })
+    );
+
+    expect(res.status).toBe(200);
+    expect(stripe.subscriptions.update).toHaveBeenCalledWith("sub_1", {
+      cancel_at_period_end: true
+    });
+    const [updated] = await testDb.db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.id, row.id));
+    expect(updated.cancelAtPeriodEnd).toBe(true);
+  });
+
+  it("with an invalid body token cancels nothing and returns 400", async () => {
+    await seedStripeRow({ status: "trialing" });
+    const stripe = stripeStub();
+    const { POST } = createCancelHandlers({
+      db: () => testDb.db,
+      getSession: async () => null,
+      stripeClient: () => stripe
+    });
+
+    const res = await POST(
+      new Request("https://app/api/billing/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: "not-a-real-token" })
+      })
+    );
+
+    expect(res.status).toBe(400);
+    expect(stripe.subscriptions.update).not.toHaveBeenCalled();
   });
 
   it("404s when the user has only a Play subscription (deep-link copy handles Play)", async () => {

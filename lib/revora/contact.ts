@@ -19,8 +19,18 @@ export const SUPPORT_EMAIL = "support@revora.plus";
 
 /**
  * Envelope sender for every transactional send (magic links included).
- * Overridable so preview can send from a subdomain with its own DKIM key
- * without touching production's reputation.
+ * Overridable so preview can send from its own subdomain with its own DKIM
+ * key without touching production's reputation.
+ *
+ * The fallback lives on `contact.revora.plus` because THAT is the domain
+ * verified in Resend (P0.2, 2026-07-21) — the apex `revora.plus` keeps its
+ * MX/SPF on registrar forwarding for the support inbox, and Resend's
+ * DKIM/SPF records are scoped to the subdomain. Sending from an address the
+ * provider has not verified silently bounces every magic link.
  */
+// `||` on the trimmed value, not `??`: a set-but-empty AUTH_EMAIL_FROM is not
+// nullish, so `??` would keep it and give every send a blank From. An empty
+// override can only ever be a mistake; fall through to the real sender.
 export const EMAIL_FROM =
-  process.env.AUTH_EMAIL_FROM ?? "Revora <signin@revora.plus>";
+  process.env.AUTH_EMAIL_FROM?.trim() ||
+  "Revora <signin@contact.revora.plus>";

@@ -262,6 +262,14 @@ export function ResultCard({
           </p>
           <DisclaimerLine disclaimer={response.disclaimer} />
         </div>
+        {/* RE-10: quiet honesty when fail-soft persistence dropped the row —
+            never imply a history entry exists that doesn't. */}
+        {response.persisted === false ? (
+          <p className="field-hint" data-testid="not-saved-note" role="status">
+            Heads up: this check couldn&apos;t be saved to your history, so it
+            won&apos;t appear there. The guidance above is unaffected.
+          </p>
+        ) : null}
         {/* W-30. Sits below the disclaimer, outside the guidance itself — the
             question is about Revora, not about the meal. */}
         <ResultFeedback risk={response.risk} checkId={response.checkId} />

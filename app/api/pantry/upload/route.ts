@@ -22,8 +22,10 @@ export function createPantryUploadHandler(deps: Deps = {}) {
       return NextResponse.json({ error: "Sign in first." }, { status: 401 });
     }
 
-    const body = (await request.json()) as HandleUploadBody;
     try {
+      // Inside the try so a malformed body is a 400, not an uncaught 500
+      // (SA-12): every other route parses defensively; this one did not.
+      const body = (await request.json()) as HandleUploadBody;
       const json = await handleUpload({
         body,
         request,

@@ -4,6 +4,7 @@ import Script from "next/script";
 import type { ReactNode } from "react";
 
 import { AttributionCapture } from "../components/attribution-capture";
+import { ClientErrorReporting } from "../components/client-error-reporting";
 import { SwRegister } from "../components/sw-register";
 
 import "./globals.css";
@@ -64,10 +65,17 @@ export default function RootLayout({
         {children}
         <SwRegister />
         <AttributionCapture />
+        <ClientErrorReporting />
         {UMAMI_SRC && UMAMI_WEBSITE_ID ? (
           <Script
             src={UMAMI_SRC}
             data-website-id={UMAMI_WEBSITE_ID}
+            // PR-6: never send query strings with pageviews — URL params can
+            // reveal account state (?health-data-deleted=1, ?subscribed=1).
+            data-exclude-search="true"
+            // PR-6: honor the browser's Do Not Track signal. The in-app
+            // opt-out is the localStorage `umami.disabled` flag (Account page).
+            data-do-not-track="true"
             strategy="afterInteractive"
             defer
           />

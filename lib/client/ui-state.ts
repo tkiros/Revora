@@ -19,6 +19,11 @@ export type RevoraUserResponse =
       // stored check, so result-linked feedback can reference it. Absent for
       // guests and non-persisted checks, which keeps feedback anonymous.
       checkId?: string;
+      // RE-10: explicitly false when the server FAILED to store a signed-in
+      // user's check (fail-soft). The card shows a quiet "shown, not saved"
+      // note instead of implying the entry made it into history. Absent for
+      // guests (who never persist) and successful saves.
+      persisted?: boolean;
     }
   | {
       kind: "clarify";

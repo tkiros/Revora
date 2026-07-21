@@ -12,11 +12,12 @@ import { CLINICAL_ROUTES } from "./clinical-risk";
  * these events for health-adjacent traffic at all, and it is asserted by
  * tests/unit/revora/privacy-minimal.test.ts.
  *
- * Note the trap this schema sets for callers: `emitSafeEvent` PARSES, so an
- * event carrying a `responseKind` missing from the enum below THROWS. In the
- * check route that throw is caught and degrades the user to a retry card — so
- * a new response kind that is added to the engine but not to this enum fails
- * silently and looks like a model problem. Keep the two in lockstep.
+ * RE-05: `emitSafeEvent` must NEVER throw. It used to `.parse()`, so a new
+ * engine response-kind missing from the enum below threw inside the check
+ * route's success path and degraded a successful PAID check to a retry card,
+ * logged as a model fault. It now `safeParse`s: a mismatched event is dropped
+ * and counted (`telemetry_schema_miss`) instead of taking the request down.
+ * Keep the enums in lockstep with the engine anyway — a miss loses telemetry.
  */
 const SafeTelemetryEventSchema = z
   .object({
@@ -55,7 +56,10 @@ const SafeTelemetryEventSchema = z
         // Connection never reached the provider (nothing billed) and one
         // retry also failed — split from provider_error so ops can tell a
         // network blip from a real outage (QA round 2026-07-10, REL-01).
-        "connection_blip"
+        "connection_blip",
+        // RE-01: the trial wall failed CLOSED (entitlement unreadable) —
+        // distinct from daily_cap so a DB incident is visible as itself.
+        "server_error"
       ])
       .optional()
   })
@@ -64,6 +68,12 @@ const SafeTelemetryEventSchema = z
 export type SafeTelemetryEvent = z.infer<typeof SafeTelemetryEventSchema>;
 
 export function emitSafeEvent(event: SafeTelemetryEvent): void {
-  const safeEvent = SafeTelemetryEventSchema.parse(event);
-  console.info(JSON.stringify(safeEvent));
+  const parsed = SafeTelemetryEventSchema.safeParse(event);
+  if (!parsed.success) {
+    // Never throw from telemetry (RE-05). Emit a fixed-shape miss counter —
+    // no fields from the offending event, so the PII guarantee holds.
+    console.warn(JSON.stringify({ name: "telemetry_schema_miss" }));
+    return;
+  }
+  console.info(JSON.stringify(parsed.data));
 }

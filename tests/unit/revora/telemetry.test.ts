@@ -44,7 +44,11 @@ describe("emitSafeEvent", () => {
     ).not.toThrow();
   });
 
-  it("rejects raw food text, raw A1C, prompt text, and full model output fields", () => {
+  // RE-05: emitSafeEvent must never throw (a throw in the check route's
+  // success path degraded a successful paid check to a retry card). Unsafe
+  // events are DROPPED — nothing from them reaches the log — and a
+  // fixed-shape miss counter is emitted instead.
+  it("drops raw food text, raw A1C, prompt text, and full model output fields without throwing", () => {
     const unsafeFields = [
       { food: "sweetened cereal" },
       { a1c: 6.4 },
@@ -56,6 +60,9 @@ describe("emitSafeEvent", () => {
     ];
 
     for (const unsafeField of unsafeFields) {
+      const info = vi.spyOn(console, "info").mockImplementation(() => {});
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
       expect(() =>
         emitSafeEvent({
           name: "check_failed",
@@ -63,7 +70,14 @@ describe("emitSafeEvent", () => {
           reasonCode: "provider_error",
           ...unsafeField
         } as SafeTelemetryEvent)
-      ).toThrow();
+      ).not.toThrow();
+
+      // Nothing from the unsafe event is emitted — only the miss counter.
+      expect(info).not.toHaveBeenCalled();
+      expect(warn).toHaveBeenCalledWith(
+        JSON.stringify({ name: "telemetry_schema_miss" })
+      );
+      vi.restoreAllMocks();
     }
   });
 });

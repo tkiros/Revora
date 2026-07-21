@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte, notInArray } from "drizzle-orm";
+import { and, desc, eq, gte, lte, notInArray } from "drizzle-orm";
 
 import { dayKeyInTimezone } from "../coach/days";
 import { schema, type Db } from "./db";
@@ -38,6 +38,12 @@ export type Entitlement = {
    * read never blocks on the Play API; granting paths keep verify-on-read.
    */
   currentPeriodEnd: Date | null;
+  /**
+   * BC-2: true when the granting row will not renew (canceled at period end).
+   * The UI must render "Access until X — will not renew", never "Renews X".
+   * Optional so hand-built fixtures stay valid; absent means false.
+   */
+  cancelAtPeriodEnd?: boolean;
 };
 
 export type PlayRefreshResult = {
@@ -91,7 +97,11 @@ export async function getEntitlement(
         tier: "premium",
         source: row.provider,
         status: row.status === "trialing" ? "trialing" : "premium",
-        currentPeriodEnd: row.currentPeriodEnd
+        currentPeriodEnd: row.currentPeriodEnd,
+        // 'canceled' rows are entitled to the end of the paid period but will
+        // not renew; the explicit flag covers Stripe's cancel_at_period_end
+        // where status stays 'active'/'trialing' until the period lapses.
+        cancelAtPeriodEnd: row.cancelAtPeriodEnd || row.status === "canceled"
       };
     }
 
@@ -102,20 +112,38 @@ export async function getEntitlement(
     if (
       row.provider === "play" &&
       (PREMIUM_STATUSES as readonly string[]).includes(row.status) &&
-      deps.refreshPlaySubscription
+      deps.refreshPlaySubscription &&
+      // BC-6: mirror the Stripe branch's lastVerifiedAt gate — a hot read
+      // path must never become a per-request Play API call (quota burn).
+      (!row.lastVerifiedAt ||
+        now.getTime() - row.lastVerifiedAt.getTime() >=
+          STRIPE_RECHECK_INTERVAL_MS)
     ) {
       try {
         const fresh = await deps.refreshPlaySubscription(row.providerRef);
-        await db
+        // BC-6 terminal guard + BC-5 monotonic guard, matching the Stripe
+        // branch below: never resurrect a refunded/expired row, and never
+        // move the paid-through date backwards (a heal fetched mid-renewal
+        // must not clobber a newer period end).
+        const healed = await db
           .update(schema.subscriptions)
           .set({
             status: fresh.status,
             currentPeriodEnd: fresh.currentPeriodEnd,
+            lastVerifiedAt: now,
             updatedAt: now
           })
-          .where(eq(schema.subscriptions.id, row.id));
+          .where(
+            and(
+              eq(schema.subscriptions.id, row.id),
+              notInArray(schema.subscriptions.status, ["refunded", "expired"]),
+              lte(schema.subscriptions.currentPeriodEnd, fresh.currentPeriodEnd)
+            )
+          )
+          .returning({ id: schema.subscriptions.id });
 
         if (
+          healed.length > 0 &&
           (PREMIUM_STATUSES as readonly string[]).includes(fresh.status) &&
           fresh.currentPeriodEnd > now
         ) {
@@ -123,7 +151,8 @@ export async function getEntitlement(
             tier: "premium",
             source: "play",
             status: "premium",
-            currentPeriodEnd: fresh.currentPeriodEnd
+            currentPeriodEnd: fresh.currentPeriodEnd,
+            cancelAtPeriodEnd: fresh.status === "canceled"
           };
         }
       } catch {
@@ -166,7 +195,10 @@ export async function getEntitlement(
           .where(
             and(
               eq(schema.subscriptions.id, row.id),
-              notInArray(schema.subscriptions.status, ["refunded", "expired"])
+              notInArray(schema.subscriptions.status, ["refunded", "expired"]),
+              // BC-5: never move paid-through backwards — a renewal committed
+              // during this in-flight fetch must win over the stale snapshot.
+              lte(schema.subscriptions.currentPeriodEnd, fresh.currentPeriodEnd)
             )
           )
           .returning({ id: schema.subscriptions.id });
@@ -187,7 +219,8 @@ export async function getEntitlement(
             tier: "premium",
             source: "stripe",
             status: "premium",
-            currentPeriodEnd: fresh.currentPeriodEnd
+            currentPeriodEnd: fresh.currentPeriodEnd,
+            cancelAtPeriodEnd: fresh.status === "canceled"
           };
         }
       } catch {
@@ -200,7 +233,8 @@ export async function getEntitlement(
     tier: "free",
     source: null,
     status: hadRows ? "lapsed" : "none",
-    currentPeriodEnd: null
+    currentPeriodEnd: null,
+    cancelAtPeriodEnd: false
   };
 }
 

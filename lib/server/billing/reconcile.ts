@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte, inArray, lt, lte, notInArray } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, lt, lte, notInArray, or } from "drizzle-orm";
 import type Stripe from "stripe";
 
 import { schema, type Db } from "../db";
@@ -159,6 +159,12 @@ export async function runStripeReconcileCron(
         // subscription.deleted can land during this in-flight Stripe fetch —
         // writing `fresh` back would resurrect a refunded/expired (terminal)
         // row. Skip the heal when the row went terminal under us.
+        //
+        // BC-5: when the fresh state is still premium, also hold the
+        // monotonic line — a renewal committed after our fetch must not have
+        // its new period end clobbered backwards by this stale snapshot.
+        // Downgrades (nowPremium false) always land: revoking access must
+        // never be blocked by an ordering guard.
         const healedRows = await db
           .update(schema.subscriptions)
           .set({
@@ -170,7 +176,15 @@ export async function runStripeReconcileCron(
           .where(
             and(
               eq(schema.subscriptions.id, row.id),
-              notInArray(schema.subscriptions.status, ["refunded", "expired"])
+              notInArray(schema.subscriptions.status, ["refunded", "expired"]),
+              ...(nowPremium
+                ? [
+                    lte(
+                      schema.subscriptions.currentPeriodEnd,
+                      fresh.currentPeriodEnd
+                    )
+                  ]
+                : [])
             )
           )
           .returning({ id: schema.subscriptions.id });
@@ -244,17 +258,26 @@ export async function runStripeReconcileCron(
     }
   }
 
-  // ── 4. Prune old processed rows ───────────────────────────────────────────
-  // Keeps the inbox bounded and the charge scan's window honest. Only fully
-  // processed rows are eligible; pending/failed/dead-letter rows are retained
-  // for retry/audit.
+  // ── 4. Prune old rows ─────────────────────────────────────────────────────
+  // Keeps the inbox bounded and the charge scan's window honest. BC-8/PR-1:
+  // failed and dead_letter rows are pruned too — they hold UNREDACTED buyer
+  // PII (the redaction runs only on processing) and used to be retained
+  // forever. 30 days is ample for retry (attempts exhaust within a day) and
+  // for the owner to act on a dead-letter page. Pending rows are never
+  // pruned; the sweep itself reprocesses them.
   const pruneCutoff = new Date(now.getTime() - PROCESSED_RETENTION_MS);
   const pruned = await db
     .delete(schema.billingEventInbox)
     .where(
-      and(
-        eq(schema.billingEventInbox.status, "processed"),
-        lt(schema.billingEventInbox.processedAt, pruneCutoff)
+      or(
+        and(
+          eq(schema.billingEventInbox.status, "processed"),
+          lt(schema.billingEventInbox.processedAt, pruneCutoff)
+        ),
+        and(
+          inArray(schema.billingEventInbox.status, ["failed", "dead_letter"]),
+          lt(schema.billingEventInbox.receivedAt, pruneCutoff)
+        )
       )
     )
     .returning({ id: schema.billingEventInbox.id });

@@ -72,7 +72,14 @@ export function PantryBuyButton({
           ? "Opening…"
           : "Get your Pantry Review — one payment, nothing renews"}
       </button>
-      {error ? <p className="field-error">{error}</p> : null}
+      {/* role="alert" so a screen-reader user hears a checkout failure on this
+          paid flow instead of silence — the button re-enables with no other
+          cue (AA-9). */}
+      {error ? (
+        <p className="field-error" role="alert">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

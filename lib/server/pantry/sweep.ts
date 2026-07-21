@@ -24,6 +24,9 @@ const EXTRACT_DEAD_MS = 15 * 60 * 1000;
 const STUCK_MS = 2 * 60 * 60 * 1000;
 const ALERT_WINDOW_MS = 60 * 60 * 1000; // one cron interval
 const RESUME_BUDGET_MS = 240_000;
+// PR-4: unclaimed paid orders (buyer email + Stripe IDs, no user FK) are
+// erased after this window; the claim link stops binding at the same age.
+const UNCLAIMED_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
 
 export type SweepDeps = ProcessDeps & {
   processOrder?: typeof processPantryOrder;
@@ -38,6 +41,7 @@ export async function runPantrySweep(deps: SweepDeps): Promise<{
   blobsReaped: number;
   orphansReaped: number;
   alerted: number;
+  erasedUnclaimed: number;
 }> {
   const now = deps.now();
   const processOrder = deps.processOrder ?? processPantryOrder;
@@ -119,6 +123,25 @@ export async function runPantrySweep(deps: SweepDeps): Promise<{
     if (ok) redelivered += 1;
   }
 
+  // 4b. PR-4: unclaimed-order erasure. A paid order nobody ever claimed holds
+  // the buyer's email + Stripe IDs with no user FK, so account deletion can
+  // never reach it — after 90 days there is no product reason to keep it
+  // (the claim link stops binding at the same age; see app/pantry/claim).
+  // Refunds past 90 days go through Stripe's own records, not this row.
+  const erasedUnclaimed = await deps.db
+    .delete(schema.pantryOrders)
+    .where(
+      and(
+        isNull(schema.pantryOrders.userId),
+        eq(schema.pantryOrders.status, "paid"),
+        lt(
+          schema.pantryOrders.createdAt,
+          new Date(now.getTime() - UNCLAIMED_RETENTION_MS)
+        )
+      )
+    )
+    .returning({ id: schema.pantryOrders.id });
+
   // 5. GC: photos whose order is done with them (delivered/canceled/manual) or
   // that are simply older than the retention ceiling — the abandoned orders no
   // terminal state ever covers. Runs AFTER phases 3 and 4 so orders that just
@@ -186,6 +209,7 @@ export async function runPantrySweep(deps: SweepDeps): Promise<{
     redelivered,
     blobsReaped,
     orphansReaped,
-    alerted
+    alerted,
+    erasedUnclaimed: erasedUnclaimed.length
   };
 }

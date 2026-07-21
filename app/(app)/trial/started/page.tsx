@@ -14,6 +14,23 @@ export default function TrialStartedPage() {
         track({ name: "trial_started", props: { variant: cfg.variant } })
       )
       .catch(() => {});
+
+    // BC-3: server-side retrieve+upsert from the Checkout session id, so the
+    // subscription row exists even when the webhook is unregistered or slow.
+    // The user isn't signed in yet (the magic link is in their inbox); all
+    // state comes from Stripe's API, keyed by the unguessable session id.
+    const sessionId = new URLSearchParams(window.location.search).get(
+      "session_id"
+    );
+    if (sessionId) {
+      void fetch("/api/billing/stripe/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId })
+      }).catch(() => {});
+      // Strip the param so a refresh/share doesn't re-send it.
+      window.history.replaceState(null, "", window.location.pathname);
+    }
   }, []);
 
   return (
