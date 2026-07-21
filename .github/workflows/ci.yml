@@ -42,6 +42,20 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run contract
+      # RE-08: schema drift gate. `check` validates the migration journal is
+      # internally consistent; the no-op `generate` proves schema.ts matches
+      # the committed migrations (any diff creates files → fail). Without
+      # this, a hand-applied prod change or an uncommitted migration hides
+      # until it breaks a deploy.
+      - name: drizzle schema drift
+        run: |
+          npx drizzle-kit check
+          npx drizzle-kit generate --name ci-drift-probe
+          if [ -n "$(git status --porcelain drizzle/)" ]; then
+            echo "::error::schema.ts does not match the committed migrations"
+            git status --porcelain drizzle/
+            exit 1
+          fi
       - run: npm run build
         env:
           # lib/server/crypto fails CLOSED without a key rather than handling

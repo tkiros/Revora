@@ -159,6 +159,55 @@ describe("evaluateLaunchMode() pause path", () => {
 });
 
 // ----- shouldPauseForOps() threshold helper (Test 4) -----
+describe("Edge Config unreachable → fail closed (RE-02)", () => {
+  afterEach(() => {
+    vi.resetModules();
+    vi.doUnmock("@vercel/edge-config");
+    vi.restoreAllMocks();
+    delete process.env.EDGE_CONFIG;
+  });
+
+  it("pauses checks when EDGE_CONFIG is set but the read throws and no last-good exists", async () => {
+    process.env.EDGE_CONFIG = "https://edge-config.vercel.com/ecfg_x?token=t";
+    vi.doMock("@vercel/edge-config", () => ({
+      get: vi.fn().mockRejectedValue(new Error("network down"))
+    }));
+
+    const { evaluateLaunchMode } = await import(
+      "../../../lib/revora/launch-controls"
+    );
+    const result = await evaluateLaunchMode();
+
+    // The operator HAS a kill switch but it is unreadable: no emergency brake
+    // may silently resolve to "checks enabled".
+    expect(result.ok).toBe(false);
+  });
+
+  it("serves the last-good controls when a later read fails", async () => {
+    process.env.EDGE_CONFIG = "https://edge-config.vercel.com/ecfg_x?token=t";
+    const get = vi
+      .fn()
+      // First read succeeds with everything normal (3 keys)...
+      .mockResolvedValueOnce("normal")
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce("")
+      // ...then the store goes down.
+      .mockRejectedValue(new Error("network down"));
+    vi.doMock("@vercel/edge-config", () => ({ get }));
+
+    const { evaluateLaunchMode } = await import(
+      "../../../lib/revora/launch-controls"
+    );
+
+    const first = await evaluateLaunchMode();
+    expect(first.ok).toBe(true);
+
+    const second = await evaluateLaunchMode();
+    // Last-good was "normal", so checks stay up through the blip.
+    expect(second.ok).toBe(true);
+  });
+});
+
 describe("shouldPauseForOps() threshold helper", () => {
   it("returns true for harmful-guidance incidents", async () => {
     const { shouldPauseForOps } = await import(
@@ -249,37 +298,35 @@ describe("missing Edge Config values fail closed to safe defaults", () => {
     expect(controls.publicChecksEnabled).toBe(true);
   });
 
-  it("gracefully handles a missing Edge Config key without throwing raw provider errors", async () => {
-    // Simulate EDGE_CONFIG present but `get()` returning null/undefined.
-    // The launch-controls module catches all SDK errors internally; providing
-    // a fake connection string triggers the SDK path, and the catch block
-    // returns safe defaults instead of throwing.
+  // RE-02: these two cases used to expect "normal" (checks enabled) when
+  // EDGE_CONFIG was configured but unreadable — the factually inverted
+  // "fail-closed". An operator WITH a kill switch whose store is down must
+  // get a paused surface, never a silently-released brake.
+  it("gracefully handles an unreadable Edge Config without throwing — and fails CLOSED", async () => {
     process.env.EDGE_CONFIG = "ecfg_fake_for_test";
 
     const { getLaunchControls } = await import(
       "../../../lib/revora/launch-controls"
     );
-    // SDK will fail on a fake connection string; module must return safe defaults
+    // SDK fails on a fake connection string; module must not throw.
     const controls = await getLaunchControls();
 
-    expect(controls.launchMode).toBe("normal");
-    expect(controls.publicChecksEnabled).toBe(true);
+    expect(controls.launchMode).toBe("paused");
+    expect(controls.publicChecksEnabled).toBe(false);
     expect(typeof controls.incidentMessage).toBe("string");
   });
 
   it("handles a provider error from Edge Config without propagating raw stack traces", async () => {
-    // Identical to the previous test: a fake EDGE_CONFIG triggers the SDK
-    // path; the catch block must return safe defaults, not throw.
     process.env.EDGE_CONFIG = "ecfg_another_fake";
 
     const { getLaunchControls } = await import(
       "../../../lib/revora/launch-controls"
     );
 
-    // Must not throw — should fail closed to safe defaults
+    // Must not throw — and must fail CLOSED (the brake holds).
     await expect(getLaunchControls()).resolves.toMatchObject({
-      launchMode: "normal",
-      publicChecksEnabled: true
+      launchMode: "paused",
+      publicChecksEnabled: false
     });
   });
 });

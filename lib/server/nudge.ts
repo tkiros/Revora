@@ -1,4 +1,4 @@
-import { and, eq, gte } from "drizzle-orm";
+import { and, eq, gte, isNull, lt, or } from "drizzle-orm";
 
 import { dayKeyInTimezone, hourInTimezone } from "../coach/days";
 import { learningJourneyServerEnabled } from "../learning-journey-flag";
@@ -332,6 +332,28 @@ export async function runNudgeCron(
     });
 
     for (const subscription of due) {
+      // RE-06: claim-before-send (same lease pattern as the pre-charge
+      // sweep). Stamp-after-send let two overlapping runs both read the
+      // stale lastNudgeDate and both push. The atomic claim makes exactly
+      // one run own today's send; the stamp staying set on a transient send
+      // error keeps the existing skip-not-double-send stance.
+      const claimed = await db
+        .update(schema.pushSubscriptions)
+        .set({ lastNudgeDate: todayKey })
+        .where(
+          and(
+            eq(schema.pushSubscriptions.id, subscription.id),
+            or(
+              isNull(schema.pushSubscriptions.lastNudgeDate),
+              lt(schema.pushSubscriptions.lastNudgeDate, todayKey)
+            )
+          )
+        )
+        .returning({ id: schema.pushSubscriptions.id });
+      if (claimed.length === 0) {
+        continue; // another run claimed this subscription for today
+      }
+
       const result = await deps.send(
         {
           endpoint: subscription.endpoint,
@@ -347,13 +369,6 @@ export async function runNudgeCron(
         pruned += 1;
         continue;
       }
-
-      // Stamp even on transient errors: skip, never risk a double-send on
-      // the next hourly tick (incident-runbook stance).
-      await db
-        .update(schema.pushSubscriptions)
-        .set({ lastNudgeDate: todayKey })
-        .where(eq(schema.pushSubscriptions.id, subscription.id));
 
       if (result === "ok") {
         sent += 1;

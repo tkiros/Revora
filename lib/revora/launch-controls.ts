@@ -88,10 +88,31 @@ function getOverrideMode(): LaunchMode | null {
 }
 
 // ---------------------------------------------------------------------------
-// Edge Config reader (fail-closed)
+// Edge Config reader
 // ---------------------------------------------------------------------------
 
-async function readEdgeConfigControls(): Promise<LaunchControls | null> {
+// RE-02: last controls successfully read from Edge Config this runtime. When
+// the store is configured but momentarily unreachable, serving the last-good
+// value keeps a flipped kill switch flipped (and an unflipped one unflipped)
+// instead of silently reverting to "checks enabled".
+let lastGoodControls: LaunchControls | null = null;
+
+/**
+ * Three outcomes, and the distinction is the whole point (RE-02):
+ *  - null          — EDGE_CONFIG is not configured. The operator has no kill
+ *                    switch; defaults apply (checks enabled).
+ *  - LaunchControls — a successful read (absent keys = safe defaults; an
+ *                    unset store legitimately means "no incident").
+ *  - "unreachable" — EDGE_CONFIG IS configured but the read failed. The old
+ *                    code returned null here (with a comment claiming
+ *                    "fail closed" — factually inverted): the result was
+ *                    checks-ENABLED during exactly the outage windows when an
+ *                    operator most needs the brake to hold. Callers must fail
+ *                    closed (pause) unless a last-good value exists.
+ */
+async function readEdgeConfigControls(): Promise<
+  LaunchControls | "unreachable" | null
+> {
   // Skip Edge Config entirely when connection string is absent
   if (!process.env.EDGE_CONFIG?.trim()) {
     return null;
@@ -102,14 +123,16 @@ async function readEdgeConfigControls(): Promise<LaunchControls | null> {
     // where EDGE_CONFIG is not configured (e.g. local dev, unit tests).
     const { get } = await import("@vercel/edge-config");
 
+    // No per-key catch: a transport failure on any key means the store is
+    // unreachable and must be treated as such, not as "key unset".
     const [launchModeRaw, publicChecksEnabledRaw, incidentMessageRaw] =
       await Promise.all([
-        get<string>("launch_mode").catch(() => null),
-        get<boolean>("public_checks_enabled").catch(() => null),
-        get<string>("incident_message").catch(() => null)
+        get<string>("launch_mode"),
+        get<boolean>("public_checks_enabled"),
+        get<string>("incident_message")
       ]);
 
-    // Interpret Edge Config values; any null falls back to safe default
+    // Interpret Edge Config values; an absent key falls back to safe default
     const launchMode: LaunchMode =
       launchModeRaw === "paused" ? "paused" : "normal";
 
@@ -122,11 +145,12 @@ async function readEdgeConfigControls(): Promise<LaunchControls | null> {
         ? incidentMessageRaw.trim()
         : DEFAULT_INCIDENT_MESSAGE;
 
-    return { launchMode, publicChecksEnabled, incidentMessage };
+    const controls = { launchMode, publicChecksEnabled, incidentMessage };
+    lastGoodControls = controls;
+    return controls;
   } catch {
-    // Provider errors (network, SDK bugs, auth) → fail closed to safe defaults
     // Do NOT propagate raw error text or stack traces
-    return null;
+    return "unreachable";
   }
 }
 
@@ -156,13 +180,25 @@ export async function getLaunchControls(): Promise<LaunchControls> {
     };
   }
 
-  // 2. Edge Config (optional; fail closed)
+  // 2. Edge Config (when configured)
   const edgeControls = await readEdgeConfigControls();
+  if (edgeControls === "unreachable") {
+    // RE-02: the operator HAS a kill switch but we cannot read it. Serve the
+    // last value we did read this runtime; with none, fail CLOSED (paused) —
+    // for a health app, "no working emergency brake" is the worse failure.
+    return (
+      lastGoodControls ?? {
+        launchMode: "paused",
+        publicChecksEnabled: false,
+        incidentMessage: DEFAULT_INCIDENT_MESSAGE
+      }
+    );
+  }
   if (edgeControls !== null) {
     return edgeControls;
   }
 
-  // 3. Safe defaults
+  // 3. Safe defaults (no Edge Config configured at all)
   return {
     launchMode: "normal",
     publicChecksEnabled: true,

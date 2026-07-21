@@ -197,7 +197,9 @@ function normalizeResponse(payload: unknown): RevoraUserResponse {
           // Present only for a signed-in persisted check; absent for guests.
           ...(typeof response.checkId === "string"
             ? { checkId: response.checkId }
-            : {})
+            : {}),
+          // RE-10: the server says the row genuinely failed to store.
+          ...(response.persisted === false ? { persisted: false } : {})
         } satisfies ServerResponse;
       }
       break;

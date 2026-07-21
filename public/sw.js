@@ -1,4 +1,10 @@
-const CACHE = "revora-v1";
+// RE-07: the cache name is stamped from the registration URL's ?v= (the build
+// id, see components/sw-register.tsx). A hardcoded "revora-v1" meant a
+// corrected offline.html could never propagate: the SW bytes never changed, so
+// no reinstall ever re-cached it. A new build id → new registration URL → new
+// SW install → fresh cache; `activate` below deletes the old ones.
+const VERSION = new URL(self.location.href).searchParams.get("v") || "v1";
+const CACHE = `revora-${VERSION}`;
 const OFFLINE_URL = "/offline.html";
 
 self.addEventListener("install", (event) => {

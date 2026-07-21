@@ -196,6 +196,23 @@ describe("check persistence (4B)", () => {
 
     expect(response.status).toBe(200);
     expect(body.kind).toBe("result");
+    // RE-10: fail-soft must not be silent — the client is told the row did
+    // not store so it can render "shown, not saved" instead of a false save.
+    expect(body.persisted).toBe(false);
+  });
+
+  it("RE-10: a successful save carries no persisted flag; a guest gets none either", async () => {
+    const saved = await (
+      await createHandler({ sessionUserId: userId })(checkRequest())
+    ).json();
+    expect(saved.persisted).toBeUndefined();
+    expect(typeof saved.checkId).toBe("string");
+
+    const guest = await (
+      await createHandler({ sessionUserId: null })(checkRequest())
+    ).json();
+    expect(guest.persisted).toBeUndefined();
+    expect(guest.checkId).toBeUndefined();
   });
 });
 
