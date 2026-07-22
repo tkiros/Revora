@@ -101,7 +101,7 @@ current system and the mismatch is logged (§4).
 |---|---|---|
 | Install | `npm install` | npm + package-lock |
 | Dev server | `npm run dev` | Next dev |
-| Typecheck | `npm run typecheck` | tsc --noEmit (clears stale .next types first) |
+| Typecheck | `npm run typecheck` | clears stale .next types, `next typegen` (regenerates the gitignored next-env.d.ts + route types), then tsc --noEmit |
 | Lint | — | **No lint script/config present** |
 | Unit + integration | `npm run test` | Vitest, ~150 files, PGlite DB tests, maxWorkers≤4 |
 | Engine subset | `npm run test:revora` | `tests/unit/revora` |

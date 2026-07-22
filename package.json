@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "start": "next start",
-    "typecheck": "rm -rf .next/dev/types .next/types && tsc --noEmit",
+    "typecheck": "rm -rf .next/dev/types .next/types && next typegen && test -f .next/types/routes.d.ts && tsc --noEmit",
     "build": "next build",
     "test": "vitest run",
     "e2e": "playwright test",
