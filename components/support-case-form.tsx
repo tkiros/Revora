@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 
-import { SUPPORT_EMAIL } from "../lib/revora/contact";
-
-const MESSAGE_MAX = 2000;
+import {
+  SUPPORT_EMAIL,
+  SUPPORT_MESSAGE_MAX as MESSAGE_MAX
+} from "../lib/revora/contact";
 
 /**
  * P0.4: the in-account "Help & refunds" door (C7 plan §9 + design-review D3/#9).
@@ -62,16 +63,17 @@ export function SupportCaseForm() {
   }
 
   if (done) {
+    const shortId = done.caseId.slice(0, 8);
     return (
       <div data-testid="support-case-done">
         <p className="page-copy">
-          Case <strong>#{done.caseId.slice(0, 8)}</strong> received. We reply
-          by email within 2 business days.
+          Case <strong>#{shortId}</strong> received. We reply by email within
+          2 business days.
         </p>
         {!done.emailed ? (
           <p className="field-hint">
             If you don&apos;t hear back, email {SUPPORT_EMAIL} directly and
-            mention case #{done.caseId.slice(0, 8)}.
+            mention case #{shortId}.
           </p>
         ) : null}
         <button

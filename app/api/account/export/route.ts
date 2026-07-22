@@ -35,30 +35,32 @@ export function createAccountExportHandler(deps: Deps = {}) {
       return NextResponse.json({ error: "Sign in first." }, { status: 401 });
     }
 
-    const [profile] = await db()
-      .select()
-      .from(schema.profiles)
-      .where(eq(schema.profiles.userId, session.userId));
-
-    const reflections = await db()
-      .select()
-      .from(schema.weeklyReflections)
-      .where(eq(schema.weeklyReflections.userId, session.userId))
-      .orderBy(desc(schema.weeklyReflections.weekStart));
-
-    const pantryOrders = await db()
-      .select()
-      .from(schema.pantryOrders)
-      .where(eq(schema.pantryOrders.userId, session.userId))
-      .orderBy(desc(schema.pantryOrders.createdAt));
-
-    // P0.4: support-case messages are user-authored personal data — the
-    // export gains them in the same PR that creates them.
-    const supportCases = await db()
-      .select()
-      .from(schema.supportCases)
-      .where(eq(schema.supportCases.userId, session.userId))
-      .orderBy(desc(schema.supportCases.createdAt));
+    // Independent user-scoped reads — run concurrently so each added data
+    // set doesn't extend export latency serially.
+    const [[profile], reflections, pantryOrders, supportCases] =
+      await Promise.all([
+        db()
+          .select()
+          .from(schema.profiles)
+          .where(eq(schema.profiles.userId, session.userId)),
+        db()
+          .select()
+          .from(schema.weeklyReflections)
+          .where(eq(schema.weeklyReflections.userId, session.userId))
+          .orderBy(desc(schema.weeklyReflections.weekStart)),
+        db()
+          .select()
+          .from(schema.pantryOrders)
+          .where(eq(schema.pantryOrders.userId, session.userId))
+          .orderBy(desc(schema.pantryOrders.createdAt)),
+        // P0.4: support-case messages are user-authored personal data — the
+        // export gains them in the same PR that creates them.
+        db()
+          .select()
+          .from(schema.supportCases)
+          .where(eq(schema.supportCases.userId, session.userId))
+          .orderBy(desc(schema.supportCases.createdAt))
+      ]);
 
     const exported = {
       exportedAt: now().toISOString(),

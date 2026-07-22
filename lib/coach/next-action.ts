@@ -19,7 +19,11 @@ export function nextAction(input: NextActionInput): NextAction {
     return { text: "Check your next uncertain meal.", href: "/check" };
   }
   if (input.undoneActionToday) {
-    return { text: "Mark what you did after today's check.", href: "/meals" };
+    // ponytail: the only "I did it" control lives on the result card at check
+    // time — no post-hoc surface can record the mark yet (TODOS.md: Today-card
+    // affordance). Until it exists, nudge the follow-through without promising
+    // a button the destination doesn't have.
+    return { text: "Today's check suggested a step — did it happen?", href: "/meals" };
   }
   return { text: "See what this week taught you.", href: "/journey" };
 }

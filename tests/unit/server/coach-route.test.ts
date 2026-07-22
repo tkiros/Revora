@@ -138,6 +138,18 @@ describe("GET /api/coach", () => {
     expect(body.insight.text).toContain("breakfast");
     expect(body.latestBai).toMatchObject({ score: 72, adherence: 71 });
 
+    // C7: verdictWeek rides every success — the /journey week strip's data.
+    expect(body.verdictWeek).toHaveLength(7);
+    for (const day of body.verdictWeek) {
+      expect(day).toMatchObject({
+        key: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+        checked: expect.any(Boolean)
+      });
+    }
+    expect(body.verdictWeek.some((day: { checked: boolean }) => day.checked)).toBe(
+      true
+    );
+
     const serialized = JSON.stringify(body);
     expect(serialized).not.toContain("salmon");
     expect(serialized).not.toContain("6.1");
@@ -159,5 +171,7 @@ describe("GET /api/coach", () => {
     expect(body.tier).toBe("free");
     expect(body.latestBai).toBeNull();
     expect(body.streak).toBe(3); // streak/week stay free
+    // C7: week facts are free-computable — the free /journey depends on them.
+    expect(body.verdictWeek).toHaveLength(7);
   });
 });

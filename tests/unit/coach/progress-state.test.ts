@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   resolveProgressState,
-  shouldShowBai,
   type CoachFetchResult
 } from "../../../lib/coach/progress-state";
 
@@ -51,6 +50,17 @@ describe("resolveProgressState", () => {
   it("maps other non-2xx (403/404) to unavailable, never free/locked", () => {
     expect(resolveProgressState(response(403, null)).state).toBe("unavailable");
     expect(resolveProgressState(response(404, null)).state).toBe("unavailable");
+  });
+
+  it("maps a 200 with an unknown tier to unavailable, never the upsell", () => {
+    // A rolling deploy or proxy error page serialized as JSON must not read
+    // as "free" — that would render an outage as a sales pitch.
+    expect(resolveProgressState(response(200, { latestBai: null })).state).toBe(
+      "unavailable"
+    );
+    expect(
+      resolveProgressState(response(200, { tier: "trial", latestBai: null })).state
+    ).toBe("unavailable");
   });
 
   it("maps malformed JSON on a 200 to unavailable, not ready/free", () => {
@@ -148,20 +158,5 @@ describe("resolveProgressState", () => {
     expect(resolved.verdictWeek).toEqual([
       { key: "2026-07-13", checked: true, risk: null }
     ]);
-  });
-});
-
-describe("shouldShowBai — BAI fallback vs learning summary (U10)", () => {
-  it("shows BAI whenever the learning flag is off, regardless of summary state", () => {
-    expect(shouldShowBai(false, true)).toBe(true);
-    expect(shouldShowBai(false, false)).toBe(true);
-  });
-
-  it("suppresses BAI when the flag is on AND the summary actually rendered", () => {
-    expect(shouldShowBai(true, true)).toBe(false);
-  });
-
-  it("falls back to BAI when the flag is on but the summary rendered nothing (guest/not-premium/flag-off self-null)", () => {
-    expect(shouldShowBai(true, false)).toBe(true);
   });
 });

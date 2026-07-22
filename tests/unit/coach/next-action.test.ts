@@ -18,11 +18,13 @@ describe("nextAction", () => {
     ).toBe("/check");
   });
 
-  it("points at /meals when today's check has an unmarked follow-through", () => {
-    expect(nextAction({ checkedToday: true, undoneActionToday: true })).toEqual({
-      text: "Mark what you did after today's check.",
-      href: "/meals"
-    });
+  it("nudges follow-through when today's check has an unmarked step", () => {
+    const action = nextAction({ checkedToday: true, undoneActionToday: true });
+    expect(action.href).toBe("/meals");
+    // Red-team regression (2026-07-21): the line must not promise a marking
+    // UI — no post-check surface renders action-done-button yet (TODOS.md).
+    expect(action.text).toBe("Today's check suggested a step — did it happen?");
+    expect(action.text).not.toMatch(/mark/i);
   });
 
   it("points at /journey when today is done", () => {

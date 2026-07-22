@@ -3,7 +3,12 @@
 import { useEffect, useState } from "react";
 
 import { historyStore, type StoredCheck } from "../lib/client/history-store";
-import { computeStreak, dayKeyLocal, showFirstWin } from "../lib/coach/days";
+import {
+  computeStreak,
+  dayKeyLocal,
+  showFirstWin,
+  weekView
+} from "../lib/coach/days";
 import { nextAction } from "../lib/coach/next-action";
 import type { PlanBoxData } from "../lib/server/plan-box";
 import { DashboardView, type DashboardData } from "./dashboard-view";
@@ -36,9 +41,11 @@ function buildData(checks: StoredCheck[]): DashboardData {
     dayKeyLocal,
     now
   );
-  const weekAgo = now.getTime() - 7 * 24 * 60 * 60 * 1000;
-  const weekCount = checks.filter(
-    (check) => new Date(check.createdAt).getTime() >= weekAgo
+  // Same "this week" as the signed-in Home (last seven calendar-day keys),
+  // so a guest and a signed-in user with identical checks read the same count.
+  const weekKeys = new Set(weekView([], dayKeyLocal, now).map((day) => day.key));
+  const weekCount = checks.filter((check) =>
+    weekKeys.has(dayKeyLocal(new Date(check.createdAt)))
   ).length;
 
   return {

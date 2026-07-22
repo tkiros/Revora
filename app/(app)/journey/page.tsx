@@ -108,7 +108,11 @@ export default function JourneyPage() {
     };
   }, [reloadNonce]);
 
-  const showRecap = state === "ready" && latestBai && !learningEnabled;
+  // The recap is the honest fallback whenever the learning summary isn't
+  // actually rendering — flag off, OR flag on but the summary self-nulled
+  // (guest / not-premium / server flag off). Never leave section 2 blank.
+  const showRecap =
+    state === "ready" && latestBai && (!learningEnabled || !learningShown);
   const weekDays = verdictWeek ?? [];
   const checkedThisWeek = weekDays.filter((day) => day.checked).length;
 
@@ -251,12 +255,14 @@ export default function JourneyPage() {
           {/* 4 — Your week: free-computable facts for every signed-in tier. */}
           <section aria-label="Your week">
             <h2 className="section-title">Your week</h2>
+            {/* verdictWeek is per-day (most careful verdict per day), so this
+                counts DAYS — say so; "N meals" would misreport a 3-check day. */}
             <p className="page-copy" data-testid="journey-week-count">
               {checkedThisWeek === 0
-                ? "No meals checked yet this week."
+                ? "No check-ins yet this week."
                 : checkedThisWeek === 1
-                  ? "1 meal checked this week."
-                  : `${checkedThisWeek} meals checked this week.`}
+                  ? "You checked in on 1 day this week."
+                  : `You checked in on ${checkedThisWeek} days this week.`}
             </p>
             {weekDays.length > 0 ? (
               <WeekStrip

@@ -148,6 +148,13 @@ export function resolveProgressState(
     return unavailable;
   }
 
+  // A 2xx body whose tier is not a known value is malformed (rolling deploy,
+  // proxy error page serialized as JSON) — that is an outage, and the
+  // cardinal rule says an outage never renders as the upsell.
+  if (result.body.tier !== "premium" && result.body.tier !== "free") {
+    return unavailable;
+  }
+
   // Week facts + insight are free-computable and ride every well-formed
   // success (C7: a free /journey shows real content, never a full-page lock).
   const verdictWeek = asVerdictWeek(result.body.verdictWeek);
@@ -165,22 +172,4 @@ export function resolveProgressState(
   }
 
   return { state: "ready", latestBai, verdictWeek, insight };
-}
-
-/**
- * Whether the progress page should render the BAI band blocks (U10).
- *
- * When the Learning Journey flag is on, "Your learning summary" is meant to
- * REPLACE the BAI surface — but only when it actually renders. The old gate
- * suppressed BAI on `learningEnabled` alone, so a summary that self-nulled on
- * guest / not-premium / flag-off (401/403/404) left the progress page with
- * NEITHER surface — a blank page. This restores the honest fallback: show BAI
- * whenever the flag is off, OR whenever the summary did not actually render
- * data. Pure so the decision is unit-testable without a component render.
- */
-export function shouldShowBai(
-  learningEnabled: boolean,
-  learningShown: boolean
-): boolean {
-  return !learningEnabled || !learningShown;
 }

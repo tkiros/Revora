@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { SUPPORT_EMAIL } from "../../../lib/revora/contact";
+import {
+  SUPPORT_EMAIL,
+  SUPPORT_MESSAGE_MAX
+} from "../../../lib/revora/contact";
 import { captureServerError } from "../../../lib/revora/sentry-capture";
 import { encryptField } from "../../../lib/server/crypto";
 import { getDb, schema, type Db } from "../../../lib/server/db";
@@ -26,7 +29,7 @@ import {
  * kind whitelist, trimmed non-empty message, hard length cap.
  */
 
-export const SUPPORT_MESSAGE_MAX = 2000;
+export { SUPPORT_MESSAGE_MAX };
 
 const BodySchema = z.object({
   kind: z.enum(["help", "refund"]),

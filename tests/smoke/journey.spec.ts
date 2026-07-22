@@ -93,7 +93,7 @@ test("premium user with a computed week sees the non-scored recap and week facts
 
   // Your week: free-computable facts + the strip.
   await expect(page.getByTestId("journey-week-count")).toContainText(
-    "3 meals checked this week."
+    "You checked in on 3 days this week."
   );
   await expect(page.getByTestId("dash-week")).toBeVisible();
 
@@ -172,7 +172,7 @@ test("free tier gets real week facts plus ONE locked section, never a page lock"
 
   // But the free document still shows REAL content: week facts + an action.
   await expect(page.getByTestId("journey-week-count")).toContainText(
-    "3 meals checked this week."
+    "You checked in on 3 days this week."
   );
   await expect(page.getByTestId("dash-week")).toBeVisible();
   await expect(page.getByTestId("next-action")).toHaveCount(1);
