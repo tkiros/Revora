@@ -149,7 +149,10 @@ test("an A1C entered mid-tour survives 'Skip setup' — never re-asked on /check
   // Regression (design-review 2026-07-21): the A1C used to persist only on the
   // step-6 classic tap, so entering 6.1 and then leaving via "Skip setup and
   // check a meal" dropped it and /check asked again — breaking step 4's
-  // "It stays on this device" promise.
+  // "It stays on this device" promise. Persistence fires on INTENTIONAL exits
+  // only (skip + classic tap), never mid-tour — a mid-tour persist would mark
+  // tab-close abandoners as onboarded forever (FirstRunGate keys on a
+  // non-null profile).
   await page.goto("/onboarding");
   await page.getByRole("button", { name: "Get started" }).click();
   await page.getByRole("button", { name: "New A1C result" }).click();

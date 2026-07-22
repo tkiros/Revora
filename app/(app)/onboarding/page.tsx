@@ -116,6 +116,7 @@ export default function OnboardingPage() {
   const [step, setStep] = useState<Step>("welcome");
   const [a1cText, setA1cText] = useState("");
   const [a1cError, setA1cError] = useState<string | null>(null);
+  const [a1cValue, setA1cValue] = useState<number | null>(null);
   const [boundaryMessage, setBoundaryMessage] = useState("");
   const [segment, setSegment] = useState<Segment | null>(null);
   // Read after mount (not at render) so server HTML and first client paint
@@ -156,6 +157,7 @@ export default function OnboardingPage() {
     : FIRST_CHECK_CLASSICS;
 
   function skipTour() {
+    persistA1c();
     // 5.1's escape hatch: ?stay=1 tells FirstRunGate not to bounce the user
     // straight back into the tour, so "skip" never loops.
     router.push("/check?stay=1");
@@ -182,11 +184,21 @@ export default function OnboardingPage() {
       return;
     }
 
-    // Persist the moment the value is validated and in range — step 4 promises
-    // "It stays on this device", so leaving via "Skip setup" (or the nav) must
-    // not drop it and re-ask on /check.
-    profileStore.set({ a1c: value, onboardedAt: new Date().toISOString() });
+    setA1cValue(value);
     setStep("expectations");
+  }
+
+  // Persist on every INTENTIONAL exit from the tour — the classic tap AND
+  // "Skip setup and check a meal". Step 4 promises "It stays on this device",
+  // so a deliberate exit must never drop the typed A1C and re-ask on /check.
+  // Deliberately NOT persisted at step-4 Continue: a non-null profile is
+  // FirstRunGate's only "onboarded" signal, so persisting mid-tour would mark
+  // tab-close abandoners as onboarded forever (ship adversarial review,
+  // Claude + Codex convergent finding).
+  function persistA1c() {
+    if (a1cValue !== null) {
+      profileStore.set({ a1c: a1cValue, onboardedAt: new Date().toISOString() });
+    }
   }
 
   function startGuidedCheck(food: string) {
@@ -197,6 +209,7 @@ export default function OnboardingPage() {
     } catch {
       // storage unavailable — land on the form without a prefill
     }
+    persistA1c();
     track({ name: "onboarding_completed" });
     router.push("/check");
   }
