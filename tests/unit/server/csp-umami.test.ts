@@ -3,12 +3,18 @@ import { afterEach, describe, expect, it } from "vitest";
 import nextConfig from "../../../next.config";
 
 const ORIGINAL = process.env.NEXT_PUBLIC_UMAMI_SRC;
+const ORIGINAL_SENTRY = process.env.NEXT_PUBLIC_SENTRY_DSN;
 
 afterEach(() => {
   if (ORIGINAL === undefined) {
     delete process.env.NEXT_PUBLIC_UMAMI_SRC;
   } else {
     process.env.NEXT_PUBLIC_UMAMI_SRC = ORIGINAL;
+  }
+  if (ORIGINAL_SENTRY === undefined) {
+    delete process.env.NEXT_PUBLIC_SENTRY_DSN;
+  } else {
+    process.env.NEXT_PUBLIC_SENTRY_DSN = ORIGINAL_SENTRY;
   }
 });
 
@@ -36,6 +42,18 @@ describe("CSP ↔ Umami agreement", () => {
       .find((d) => d.startsWith("connect-src"));
     expect(scriptSrc).toContain("https://stats.example.com");
     expect(connectSrc).toContain("https://stats.example.com");
+  });
+
+  it("allows the Sentry ingest origin when the client DSN is set", async () => {
+    // Regression (design-review 2026-07-21): the client DSN shipped while
+    // connect-src blocked its envelope POSTs — Sentry armed but mute.
+    process.env.NEXT_PUBLIC_SENTRY_DSN =
+      "https://abc123@o000.ingest.us.sentry.io/999";
+    const value = await csp();
+    const connectSrc = value
+      .split("; ")
+      .find((d) => d.startsWith("connect-src"));
+    expect(connectSrc).toContain("https://o000.ingest.us.sentry.io");
   });
 
   it("stays strict when Umami is unconfigured or malformed", async () => {

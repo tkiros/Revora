@@ -88,6 +88,18 @@ const nextConfig: NextConfig = {
       umamiOrigin = null;
     }
     const umami = umamiOrigin ? ` ${umamiOrigin}` : "";
+    // Same derive-from-env pattern for the Sentry browser transport: without
+    // its ingest origin in connect-src, the client DSN ships but every
+    // envelope POST is CSP-blocked and errors silently never arrive.
+    let sentryOrigin: string | null = null;
+    try {
+      sentryOrigin = process.env.NEXT_PUBLIC_SENTRY_DSN
+        ? new URL(process.env.NEXT_PUBLIC_SENTRY_DSN).origin
+        : null;
+    } catch {
+      sentryOrigin = null;
+    }
+    const sentry = sentryOrigin ? ` ${sentryOrigin}` : "";
     return [
     {
       source: "/(.*)",
@@ -100,7 +112,7 @@ const nextConfig: NextConfig = {
             "style-src 'self' 'unsafe-inline'",
             "img-src 'self' blob: data: https://*.blob.vercel-storage.com https://*.public.blob.vercel-storage.com",
             "font-src 'self' data:",
-            `connect-src 'self' https://*.blob.vercel-storage.com https://blob.vercel-storage.com${umami}`,
+            `connect-src 'self' https://*.blob.vercel-storage.com https://blob.vercel-storage.com${umami}${sentry}`,
             "frame-ancestors 'none'",
             "base-uri 'self'",
             "form-action 'self'",
