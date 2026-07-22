@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import {
-  SUPPORT_EMAIL,
-  SUPPORT_MESSAGE_MAX
-} from "../../../lib/revora/contact";
+import { SUPPORT_MESSAGE_MAX } from "../../../lib/revora/contact";
 import { captureServerError } from "../../../lib/revora/sentry-capture";
 import { encryptField } from "../../../lib/server/crypto";
 import { getDb, schema, type Db } from "../../../lib/server/db";
-import { sendEmail } from "../../../lib/server/email";
+import { sendEmail, supportInbox } from "../../../lib/server/email";
 import {
   getSessionInfo,
   type SessionInfo
@@ -85,7 +82,7 @@ export function createSupportCaseHandler(deps: SupportRouteDeps = {}) {
     let emailed = false;
     try {
       const result = await send({
-        to: SUPPORT_EMAIL,
+        to: supportInbox(),
         subject: `[${kind}] Support case ${row.id}`,
         text:
           `Case: ${row.id}\n` +

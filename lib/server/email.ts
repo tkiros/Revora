@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { EMAIL_FROM } from "../revora/contact";
+import { EMAIL_FROM, SUPPORT_EMAIL } from "../revora/contact";
 
 /**
  * One transactional-email door for everything that is not a NextAuth magic
@@ -11,6 +11,19 @@ import { EMAIL_FROM } from "../revora/contact";
  * attachments or templates.
  */
 
+
+/**
+ * Where the app's own notifications (support cases, pantry-sweep alerts) land.
+ * SUPPORT_EMAIL stays the public address users write to, but revora.plus's MX
+ * is Namecheap email forwarding, whose relays greylist Resend's sending IPs —
+ * observed 2026-07-22: 3/3 Resend→support@ sends bounced ("Generic Temporary
+ * Delivery Failure") while 4/4 Resend→Gmail sends delivered, and Gmail→support@
+ * forwarded fine (real MTAs retry 4xx; Resend gives up). So internal mail goes
+ * to a directly-deliverable inbox when SUPPORT_INBOX_EMAIL is set.
+ */
+export function supportInbox(): string {
+  return process.env.SUPPORT_INBOX_EMAIL || SUPPORT_EMAIL;
+}
 
 export type SendEmailInput = { to: string; subject: string; text: string };
 export type SendEmailResult = { ok: true } | { ok: false; status: number };
