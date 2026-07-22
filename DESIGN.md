@@ -67,7 +67,7 @@ colors decoratively.
 ## Class vocabulary (reuse before writing CSS)
 
 - Structure (legacy pages): `page-shell` → `page-frame` → `surface-card`
-- Structure (app shell, 2026-07-10; C7 2026-07-21): `app-root` → `app-sidebar`/`app-topbar`/`app-tabbar` + `app-content` → `dash-card`; nav = `app-nav`/`app-navlink` (sidebar), `app-tab`/`app-tab-action` (tab bar); billing = `plan-box`; dashboard = `dash-cta`; journey = `journey-doc`/`dash-week` (see §App shell)
+- Structure (app shell, 2026-07-10; C7 2026-07-21): `app-root` → `app-sidebar`/`app-topbar`/`app-tabbar` + `app-content` → `dash-card`; nav = `app-nav`/`app-navlink` (sidebar), `app-tab`/`app-tab-action` (tab bar); billing = `plan-box`; dashboard = `dash-cta-button`; journey = `journey-doc`/`dash-week` (see §App shell)
 - Headers: `hero-eyebrow`/`status-eyebrow`/`result-eyebrow` + `page-title` + `page-copy`
 - Forms: `form-card` · `form-grid` · `field-stack` · `field-label` · `text-input` · `field-hint` · `field-error` · `primary-button` · `voice-input-button`
 - Feedback: `request-status` · `status-card` · `result-card` (+ risk border tokens) · `result-disclaimer` · `placeholder-card`
