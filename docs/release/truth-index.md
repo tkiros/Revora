@@ -34,7 +34,16 @@
   flow). `www.revora.plus` now 308-redirects to the apex (P0.1 pass criterion met, verified live).
   Server twins `PHOTO_INPUT_ENABLED=1` + `LONGITUDINAL_INSIGHTS_ENABLED=1` are set in Vercel
   production, mirroring the enabled `NEXT_PUBLIC_*` values (the C7 build fails on twin mismatch).
-  Still open on owner: Stripe webhook endpoint registration (OAuth) and the Sentry client DSN.
+  Sentry client DSN: CLOSED (2026-07-22, PR #25 deployed). `NEXT_PUBLIC_SENTRY_DSN` is set in
+  Vercel Production + Preview and ships in the client bundle; on revora.plus the SDK initialises
+  (`window.__SENTRY__` present, client live) and CSP `connect-src` now carries the DSN's ingest
+  origin — verified in the live header. Before that origin landed, every envelope POST was
+  CSP-blocked and errors silently never arrived, so the DSN alone was not enough. NOT yet
+  observed: an actual envelope delivered end to end (needs a real error; none was forced against
+  production). Stripe webhook: endpoint `we_1TqNZLKweWSWjefk1MkEUChd` →
+  `/api/billing/stripe/webhook` is Active on acct_14W8GFKweWSWjefk with all 6 events bound (the
+  owner added `invoice.payment_failed`; secret unrotated). Still open on owner: a `charge.refunded`
+  test-event round-trip, and the support-case round-trip on revora.plus/account.
   Route renames shipped on the C7 branch: `/progress`→`/journey`, `/history`+`/memory`→`/meals`
   (permanent redirects); the C14 progress-truth row's behavior now lives at `/journey`, and the BAI
   band/bars are replaced by the non-scored recap (RV-3) — the score is computed for internal S2
