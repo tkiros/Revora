@@ -75,7 +75,7 @@ result is observed on-device, not from the browser dev-server.
 
 - [ ] **Guest checks migrate on sign-up.** Steps: perform 1–2 checks as a
   guest (signed out); then create an account. **Expected:** the pre-signup
-  checks appear in `/history` after account creation — local guest state
+  checks appear in `/meals` after account creation — local guest state
   migrates to the server, it is not discarded.
 - [ ] **Cross-device sync.** Steps: sign in with the same account on a second
   device/browser. **Expected:** the same history appears — confirms
@@ -108,7 +108,7 @@ so purchases don't charge a real card.
   the app calls `/api/billing/play/verify` and shows a premium confirmation.
 - [ ] **Entitlement flips.** Steps: reload `/account`. **Expected:**
   `entitlement.tier` reads `"premium"`, `source: "play"` (`lib/server/entitlement.ts`).
-- [ ] **Progress unlocks.** Steps: open `/progress`. **Expected:** the BAI
+- [ ] **Progress unlocks.** Steps: open `/journey`. **Expected:** the BAI
   band view renders (previously gated for free tier).
 - [ ] **Cancel.** Steps: cancel the subscription from Google Play (Menu →
   Payments & subscriptions). **Expected:** access remains active through the
