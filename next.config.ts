@@ -26,9 +26,14 @@ if (
         "invisible in production. Provision a Sentry DSN and add it to Vercel."
     );
   }
-  // Flag server twins: a NEXT_PUBLIC flag baked ON with its runtime twin unset
-  // means the feature ships with a kill switch that does nothing. Fail the
-  // build so the mismatch can never ship silently.
+}
+
+// Flag server twins: a NEXT_PUBLIC flag baked ON with its runtime twin unset
+// means the feature ships with a kill switch that does nothing. Fail the
+// build so the mismatch can never ship silently. Deliberately OUTSIDE the
+// REVORA_ALLOW_NO_MEASUREMENT waiver above — waiving analytics must never
+// also waive flag safety.
+if (process.env.VERCEL_ENV === "production") {
   const twinMismatch = [
     process.env.NEXT_PUBLIC_PHOTO_INPUT === "1" &&
       process.env.PHOTO_INPUT_ENABLED !== "1" &&

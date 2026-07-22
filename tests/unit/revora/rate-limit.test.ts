@@ -278,3 +278,39 @@ describe("rateLimitConfigState (BUG-01/07 hardening)", () => {
     ).toBeNull();
   });
 });
+
+describe("proxy matcher covers every limited route (integration edge)", () => {
+  // The middleware only runs for paths in proxy.ts's static config.matcher.
+  // matchRouteLimit() can claim a path all it wants — if the matcher doesn't
+  // list it, the limit is dead code. That is exactly how /api/support/case
+  // shipped unlimited for one commit (C7 adversarial review, 2026-07-21):
+  // the pure-function test passed while production never called it.
+  const PROXY_SOURCE = require("node:fs").readFileSync(
+    require("node:path").join(process.cwd(), "proxy.ts"),
+    "utf8"
+  ) as string;
+  const matcherBlock = PROXY_SOURCE.match(/matcher:\s*\[([\s\S]*?)\]/)?.[1] ?? "";
+  const matcherEntries = [...matcherBlock.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+
+  function matcherCovers(path: string): boolean {
+    return matcherEntries.some((entry) =>
+      entry.endsWith("/:path*")
+        ? path.startsWith(entry.slice(0, -"/:path*".length) + "/")
+        : entry === path
+    );
+  }
+
+  it.each([
+    "/api/check",
+    "/api/check/photo-draft",
+    "/api/trial/start",
+    "/api/auth/signin/resend",
+    "/api/billing/checkout",
+    "/api/support/case"
+  ])("%s is reachable by the middleware", (path) => {
+    expect(matchRouteLimit(path, "POST")).not.toBeNull();
+    expect(matcherCovers(path), `${path} missing from proxy.ts config.matcher`).toBe(
+      true
+    );
+  });
+});

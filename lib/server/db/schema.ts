@@ -568,6 +568,9 @@ export const supportCases = pgTable(
     resolvedAt: timestamp("resolved_at", { withTimezone: true })
   },
   (table) => [
+    // Serves the export's ordered per-user read AND the users cascade delete
+    // (Postgres does not auto-index FK columns).
+    index("support_cases_user").on(table.userId, table.createdAt.desc()),
     check("support_cases_kind_check", sql`${table.kind} IN ('help','refund')`),
     check(
       "support_cases_status_check",
