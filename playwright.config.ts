@@ -81,7 +81,14 @@ export default defineConfig({
   // engine occasionally fails to paint within 5s on a loaded box); a real failure still
   // fails twice. Keeps full parallelism.
   retries: 1,
+  // ci.yml uploads playwright-report/ on failure, but nothing ever wrote that
+  // folder — the default reporter has no file output, so every red CI run threw
+  // its evidence away and had to be re-diagnosed locally against a dev box with
+  // very different timing (2026-07-22). The html reporter fills the folder the
+  // workflow already asks for, and the trace makes a failure replayable.
+  reporter: [["list"], ["html", { open: "never" }]],
   use: {
+    trace: "retain-on-failure",
     baseURL: "http://127.0.0.1:3100",
     // Block service workers in E2E: WebKit's automation driver hangs on SW-controlled
     // navigations (a Playwright-WebKit limitation), and tests should never run against a
