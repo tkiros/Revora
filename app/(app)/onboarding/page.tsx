@@ -117,7 +117,6 @@ export default function OnboardingPage() {
   const [a1cText, setA1cText] = useState("");
   const [a1cError, setA1cError] = useState<string | null>(null);
   const [boundaryMessage, setBoundaryMessage] = useState("");
-  const [a1cValue, setA1cValue] = useState<number | null>(null);
   const [segment, setSegment] = useState<Segment | null>(null);
   // Read after mount (not at render) so server HTML and first client paint
   // agree; a returning guest's counter settles to "of 4" before any tap.
@@ -183,7 +182,10 @@ export default function OnboardingPage() {
       return;
     }
 
-    setA1cValue(value);
+    // Persist the moment the value is validated and in range — step 4 promises
+    // "It stays on this device", so leaving via "Skip setup" (or the nav) must
+    // not drop it and re-ask on /check.
+    profileStore.set({ a1c: value, onboardedAt: new Date().toISOString() });
     setStep("expectations");
   }
 
@@ -194,9 +196,6 @@ export default function OnboardingPage() {
       window.sessionStorage.setItem("revora.recheck", food);
     } catch {
       // storage unavailable — land on the form without a prefill
-    }
-    if (a1cValue !== null) {
-      profileStore.set({ a1c: a1cValue, onboardedAt: new Date().toISOString() });
     }
     track({ name: "onboarding_completed" });
     router.push("/check");

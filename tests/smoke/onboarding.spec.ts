@@ -143,6 +143,30 @@ test("skip the tour leaves for the escape hatch, never looping back", async ({
   await expect(page.getByTestId("onboarding-step")).toHaveCount(0);
 });
 
+test("an A1C entered mid-tour survives 'Skip setup' — never re-asked on /check", async ({
+  page
+}) => {
+  // Regression (design-review 2026-07-21): the A1C used to persist only on the
+  // step-6 classic tap, so entering 6.1 and then leaving via "Skip setup and
+  // check a meal" dropped it and /check asked again — breaking step 4's
+  // "It stays on this device" promise.
+  await page.goto("/onboarding");
+  await page.getByRole("button", { name: "Get started" }).click();
+  await page.getByRole("button", { name: "New A1C result" }).click();
+  await answerAttribution(page);
+  await page.getByLabel("Latest A1C").fill("6.1");
+  await page.getByRole("button", { name: "Continue" }).click();
+
+  await expect(page.getByTestId("onboarding-step")).toHaveAttribute(
+    "data-step",
+    "expectations"
+  );
+  await page.getByRole("button", { name: "Skip setup and check a meal" }).click();
+
+  await expect(page).toHaveURL(/\/check\?stay=1$/);
+  await expect(page.getByLabel(/latest a1c/i)).toHaveValue("6.1");
+});
+
 test("invalid A1C shows a field error, not progress", async ({ page }) => {
   await page.goto("/onboarding");
   await page.getByRole("button", { name: "Get started" }).click();
