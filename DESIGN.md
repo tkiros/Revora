@@ -49,6 +49,10 @@ colors decoratively.
 - Stack: `var(--font-sans), Arial, Helvetica, sans-serif` — Plus Jakarta Sans
   (variable 400–800) via `next/font` in `app/layout.tsx`, `display: swap`, Arial
   fallback so offline test runs never flash unstyled. One family, nothing else.
+  Applied via `sans.className` on `<body>`, not the `var(--font-sans)` indirection
+  alone — that variable failed to cascade in production Chromium and dropped the
+  whole app to Times New Roman (fixed 2026-07-21 design-review, FINDING-030). Keep
+  the className on `<body>`; the CSS var stack stays as the declared fallback.
 - Base 16px / 1.5. Body copy 1.65 line-height.
 - Scale: 13px uppercase eyebrow (700, 0.08em tracking) · 14–15px hints/meta · 16px body + inputs · 18px subheads (700) · titles `clamp(2rem, 7vw, 2.6rem)` (tight -0.03em).
 - Weights: 400 body, 600 secondary emphasis, 700 headings/CTAs. Nothing lighter or heavier.
