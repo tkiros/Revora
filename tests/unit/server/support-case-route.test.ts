@@ -107,6 +107,30 @@ describe("POST /api/support/case (P0.4)", () => {
     expect(mail!.text).toContain("case@test.dev");
   });
 
+  // Namecheap's forwarders greylist Resend's relays, so production points the
+  // internal copy at a directly-deliverable inbox via SUPPORT_INBOX_EMAIL.
+  it("SUPPORT_INBOX_EMAIL overrides the internal recipient; public address is the fallback", async () => {
+    process.env.SUPPORT_INBOX_EMAIL = "owner-inbox@test.dev";
+    try {
+      let mail: { to: string } | undefined;
+      const handler = createSupportCaseHandler({
+        db: () => testDb.db,
+        getSession: session,
+        sendEmailImpl: async (input) => {
+          mail = input;
+          return { ok: true as const };
+        }
+      });
+      const response = await handler(
+        post({ kind: "help", message: "Where does this land?" })
+      );
+      expect(response.status).toBe(201);
+      expect(mail!.to).toBe("owner-inbox@test.dev");
+    } finally {
+      delete process.env.SUPPORT_INBOX_EMAIL;
+    }
+  });
+
   it("an email failure never loses the case — row written, caseId returned, emailed:false", async () => {
     const handler = createSupportCaseHandler({
       db: () => testDb.db,
