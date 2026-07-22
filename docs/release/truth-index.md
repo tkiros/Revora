@@ -38,9 +38,13 @@
   Vercel Production + Preview and ships in the client bundle; on revora.plus the SDK initialises
   (`window.__SENTRY__` present, client live) and CSP `connect-src` now carries the DSN's ingest
   origin — verified in the live header. Before that origin landed, every envelope POST was
-  CSP-blocked and errors silently never arrived, so the DSN alone was not enough. NOT yet
-  observed: an actual envelope delivered end to end (needs a real error; none was forced against
-  production). Stripe webhook: endpoint `we_1TqNZLKweWSWjefk1MkEUChd` →
+  CSP-blocked and errors silently never arrived, so the DSN alone was not enough. Envelope
+  delivery OBSERVED (2026-07-22, owner-authorized): a deliberate uncaught error
+  (`revora-sentry-verification-manual-1784733827563`) thrown on production `/home` produced a
+  POST to `o4511672801820672.ingest.us.sentry.io/api/4511691306696704/envelope/` that returned
+  **200** with zero CSP violations — ingest accepts the client's envelopes end to end. Residual:
+  issue-stream visibility not yet eyeballed in the Sentry dashboard (no API token on this
+  machine); search Sentry for the error message above to close that last inch. Stripe webhook: endpoint `we_1TqNZLKweWSWjefk1MkEUChd` →
   `/api/billing/stripe/webhook` is Active on acct_14W8GFKweWSWjefk with all 6 events bound (the
   owner added `invoice.payment_failed`; secret unrotated). Still open on owner: a `charge.refunded`
   test-event round-trip, and the support-case round-trip on revora.plus/account.
@@ -155,7 +159,7 @@ Deferred by explicit user instruction. Each row lists its §P0 pass criteria; no
 |---|---|---|---|
 | P0.1 | DNS/TLS + domain (now `revora.plus`, `www`) | **DONE (2026-07-21)** | Apex live with valid TLS; `www.revora.plus` 308 canonical redirect to apex added via Vercel API and verified. (The register originally named `revora.bio`; the shipped domain is `revora.plus`.) |
 | P0.2 | Authentication email (Resend domain, From address) | DEFERRED (user) | ≥99% test sends accepted; seeded Gmail + Outlook receive links; every failure state (resend/expired/reused/wrong-device/changed-email) recoverable. |
-| P0.3 | Minimized first-party analytics deployment (Umami) | DEFERRED (user) | Production events arrive with zero prohibited fields (no meal text, photo, A1C, email, notes, rationale); privacy review approves data map; env validation fails deploy when measurement expected but unconfigured. (Current: Umami env absent, analytics dark — §3.2.) |
+| P0.3 | Minimized first-party analytics deployment (Umami) | DEFERRED (user) | Production events arrive with zero prohibited fields (no meal text, photo, A1C, email, notes, rationale); privacy review approves data map; env validation fails deploy when measurement expected but unconfigured. (Current: production points at Umami **cloud** and recording began **2026-07-22** when PR #27 unblocked the CSP `connect-src` for `gateway.umami.is`. **Re-baseline rule:** every `track()` call before 2026-07-22 was CSP-refused, so there is NO client analytics history before that date — figures are *missing, not zero*. Do not compare funnel numbers across 2026-07-22; treat it as day one. `docs/adr/analytics-umami.md` still describes an unused self-hosted install — TODOS.) |
 | P0.4 | Support + refund operations | **SHIPPED (C7 branch, 2026-07-21) — mailbox monitoring on owner** | Built: in-account authenticated "Help & refunds" form with case id (`support_cases` ledger, encrypted row first, full-copy email to support@, `{caseId, emailed}` confirmation, 5/24h fail-closed rate limit, cases in `/api/account/export`); SLA published in-product ("We reply by email within 2 business days"); operator procedure in `docs/runbooks/refunds.md`; seeded traversal = env-gated `tests/smoke/account-support.spec.ts`. Still human: a monitored support@ mailbox and the admin case viewer (TODOS.md). |
 | P0.5 | Source-of-truth quarantine | DEFERRED (user) | Stale passages in `docs/product-marketing.md`, `docs/ICP.md`, `docs/Revora_90-Day_Distribution_Strategy.md` marked superseded where they promise unreviewed features / glucose-spike / DPP / regulatory status; this release truth index links claims/flags/pricing/support/privacy/safety/authorization; owner + review date on each launch-critical source. No active launch document conflicts with deployed behavior. (This index is the linking artifact; claims rows C9–C13 are pre-staged as **BLOCKED-ON-PHASE-0**.) |
 
