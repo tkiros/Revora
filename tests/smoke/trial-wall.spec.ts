@@ -68,6 +68,30 @@ async function settlePaywallMode(page: Page): Promise<void> {
 // timeout absorbs that one cold compile.
 test.describe.configure({ mode: "serial", timeout: 90_000 });
 
+// Serial mode makes each route pay its cold compile once, but it pays it INSIDE
+// the first test — and that test's opening assertion is the tightest in the
+// file: it waits for FirstRunGate to bounce /check → /onboarding, which needs
+// BOTH routes compiled (server module + the dev client chunks hydration blocks
+// on) plus an RSC round-trip. Its window was already widened once for this
+// (30s → 60s, 0fc5d70) and went red again on CI 2026-07-22 across all three
+// projects, retries included, while the same code passed against a warm server.
+// Paying both compiles here, outside any timed assertion, leaves that assertion
+// measuring the redirect instead of Turbopack.
+test.beforeAll(async ({ browser }, testInfo) => {
+  testInfo.setTimeout(240_000);
+  const page = await browser.newPage();
+  try {
+    // A real navigation (not fetch) so the dev client chunks compile too.
+    // /check redirects a fresh visitor onward; both routes get warmed either
+    // way, and this throwaway context never touches the tests' storage.
+    for (const path of ["/check", "/onboarding"]) {
+      await page.goto(`${TRIAL}${path}`, { timeout: 120_000 });
+    }
+  } finally {
+    await page.close();
+  }
+});
+
 const RESULT_STUB = {
   kind: "result",
   risk: "SAFE",
