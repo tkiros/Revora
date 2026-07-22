@@ -198,8 +198,11 @@ A small sanctioned layer — CSS only, no animation libraries:
 - Tokens: `--dur-fast: 150ms`, `--dur: 200ms`, `--ease: cubic-bezier(0.22,0.61,0.36,1)`.
 - Buttons/chips/CTAs transition background/border/transform on hover/active
   (`translateY(1px)` press, nothing bouncier).
-- `revora-rise` (6px fade-up) is the only keyframe; it plays once on result-card
-  entrance. No looping animation anywhere.
+- Two sanctioned keyframes: `revora-rise` (6px fade-up, plays once on
+  result-card entrance) and `revora-skeleton` (background shimmer, loading
+  placeholders ONLY — e.g. the paywall price pending state). No other looping
+  animation anywhere. (Amended 2026-07-21 design-review: the skeleton shimmer
+  shipped with P2.1 and is deliberate; this list now matches the code.)
 - A global `prefers-reduced-motion: reduce` block zeroes ALL animation and
   transition durations — mandatory, never remove it.
 
