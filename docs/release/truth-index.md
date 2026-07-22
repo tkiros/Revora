@@ -49,10 +49,18 @@
   owner added `invoice.payment_failed`; secret unrotated). Signature path PROVEN both directions
   (2026-07-22): a CLI-signed forgery got 400 and a payload hand-signed with the live endpoint
   secret got 200 `{"received":true,"outcome":"processed"}` (test audit row deleted afterward).
-  Support-case round-trip DONE (2026-07-22): signed in via magic link on production, submitted a
-  test case from /account — API 201 `{"caseId":"3a623ed1-…","emailed":true}` and
-  "Case #3a623ed1 received" rendered in the UI. Residual on owner: confirm the case email landed
-  in the support@ mailbox (case is a test — safe to close on sight).
+  Support-case round-trip (2026-07-22): app half PROVEN, delivery half FAILED. Signed in via
+  magic link on production, submitted a test case from /account — API 201
+  `{"caseId":"3a623ed1-…","emailed":true}` and "Case #3a623ed1 received" rendered in the UI. But
+  the Resend dashboard shows that email **BOUNCED** at support@revora.plus ("Generic Temporary
+  Delivery Failure", Sent→Bounced same minute). `revora.plus` MX points at Namecheap email
+  forwarding (`eforward*.registrar-servers.com`); delivery works only if a Namecheap forwarding
+  rule for `support@` exists. Until it does, EVERY help/refund case email bounces silently
+  (`emailed:true` only means Resend accepted the send) — case rows are safe in `support_cases`
+  (row-first design held) but nobody is notified, and the pantry-sweep cron's mails to
+  `SUPPORT_EMAIL` (lib/server/pantry/sweep.ts:188) bounce the same way. Owner fix (~2 min):
+  Namecheap → revora.plus → Redirect Email → add `support` → forward to a monitored inbox, then
+  re-test. See TODOS.
   Route renames shipped on the C7 branch: `/progress`→`/journey`, `/history`+`/memory`→`/meals`
   (permanent redirects); the C14 progress-truth row's behavior now lives at `/journey`, and the BAI
   band/bars are replaced by the non-scored recap (RV-3) — the score is computed for internal S2
