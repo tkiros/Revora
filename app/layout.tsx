@@ -61,7 +61,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={sans.variable}>
-      <body>
+      <body className={sans.className}>
         {children}
         <SwRegister />
         <AttributionCapture />
