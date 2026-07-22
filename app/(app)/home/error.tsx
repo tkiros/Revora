@@ -10,7 +10,7 @@ import Link from "next/link";
 export default function HomeError({ reset }: { reset: () => void }) {
   return (
     <div className="dash-card" data-testid="dash-error" aria-live="polite">
-      <h3 className="dash-sect-title">Connection</h3>
+      <p className="dash-sect-title">Connection</p>
       <h2 className="section-title" style={{ marginTop: 0 }}>
         Your day is safe — we just can&apos;t show it right now
       </h2>
