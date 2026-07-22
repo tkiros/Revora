@@ -243,7 +243,7 @@ Rules:
   truth — a running trial or a scheduled non-renewal (`planBoxAttention`);
   the sidebar and /account always render the full box. The
   hiding-the-renewal-date ban binds every rendered plan box.
-- The check CTA (`dash-cta`) is the one Committed color moment on the
+- The check CTA (`dash-cta-button`) is the one Committed color moment on the
   dashboard (accent-filled card). At <768px it is the first interactive
   element above the fold — the dashboard never adds friction before the
   core action.
