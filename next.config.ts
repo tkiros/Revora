@@ -97,6 +97,24 @@ const nextConfig: NextConfig = {
       }
     };
     const umami = originFromEnv(process.env.NEXT_PUBLIC_UMAMI_SRC);
+    // Umami's tracker POSTs events to its INGEST host, which on umami cloud is
+    // a different host than the script: cloud.umami.is serves script.js, but
+    // that build hardcodes `https://gateway.umami.is/api/send` as its default
+    // target (grep the served script for /api/send). Allowing only the script
+    // origin left every track() call CSP-refused in production — the whole
+    // activation funnel, onboarding_started included, silently recorded
+    // nothing while the page looked fine. Self-hosted installs serve script
+    // and ingest from one origin, so they need no second token and must not be
+    // widened to a third party; NEXT_PUBLIC_UMAMI_HOST_URL overrides for any
+    // install whose ingest host is neither of those.
+    // Exact origin, not a substring: `cloud.umami.is.example.com` must not be
+    // read as umami cloud. (`umami` carries a leading space for CSP joining.)
+    const umamiIngest = originFromEnv(
+      process.env.NEXT_PUBLIC_UMAMI_HOST_URL ??
+        (umami.trim() === "https://cloud.umami.is"
+          ? "https://gateway.umami.is"
+          : "")
+    );
     // Sentry browser transport: without its ingest origin in connect-src, the
     // client DSN ships but every envelope POST is CSP-blocked and errors
     // silently never arrive.
@@ -113,7 +131,7 @@ const nextConfig: NextConfig = {
             "style-src 'self' 'unsafe-inline'",
             "img-src 'self' blob: data: https://*.blob.vercel-storage.com https://*.public.blob.vercel-storage.com",
             "font-src 'self' data:",
-            `connect-src 'self' https://*.blob.vercel-storage.com https://blob.vercel-storage.com${umami}${sentry}`,
+            `connect-src 'self' https://*.blob.vercel-storage.com https://blob.vercel-storage.com${umami}${umamiIngest}${sentry}`,
             "frame-ancestors 'none'",
             "base-uri 'self'",
             "form-action 'self'",
