@@ -50,7 +50,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
       ) : null}
 
       <div className="dash-greet">
-        <p className="dash-greet-date">{data.todayLabel}</p>
+        <h1 className="dash-greet-date">{data.todayLabel}</h1>
         <p className="dash-greet-sum" data-testid="dash-summary">
           {data.weekSummary}
         </p>
