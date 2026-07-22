@@ -79,15 +79,28 @@ const nextConfig: NextConfig = {
   //   from the browser (@vercel/blob/client, components/pantry-intake-flow.tsx).
   // - camera/microphone stay self-allowed: photo check input + voice input.
   headers: async () => {
-    let umamiOrigin: string | null = null;
-    try {
-      umamiOrigin = process.env.NEXT_PUBLIC_UMAMI_SRC
-        ? new URL(process.env.NEXT_PUBLIC_UMAMI_SRC).origin
-        : null;
-    } catch {
-      umamiOrigin = null;
-    }
-    const umami = umamiOrigin ? ` ${umamiOrigin}` : "";
+    // " https://origin" (leading space, ready to append to a CSP directive)
+    // or "" when the env var is unset or malformed — a bad value must never
+    // widen or break the policy.
+    const originFromEnv = (value?: string): string => {
+      try {
+        if (!value) {
+          return "";
+        }
+        const url = new URL(value);
+        // Non-special schemes make .origin the literal string "null", and an
+        // http: origin would be mixed-content-blocked on the https site
+        // anyway — either way a silently useless CSP token. https only.
+        return url.protocol === "https:" ? ` ${url.origin}` : "";
+      } catch {
+        return "";
+      }
+    };
+    const umami = originFromEnv(process.env.NEXT_PUBLIC_UMAMI_SRC);
+    // Sentry browser transport: without its ingest origin in connect-src, the
+    // client DSN ships but every envelope POST is CSP-blocked and errors
+    // silently never arrive.
+    const sentry = originFromEnv(process.env.NEXT_PUBLIC_SENTRY_DSN);
     return [
     {
       source: "/(.*)",
@@ -100,7 +113,7 @@ const nextConfig: NextConfig = {
             "style-src 'self' 'unsafe-inline'",
             "img-src 'self' blob: data: https://*.blob.vercel-storage.com https://*.public.blob.vercel-storage.com",
             "font-src 'self' data:",
-            `connect-src 'self' https://*.blob.vercel-storage.com https://blob.vercel-storage.com${umami}`,
+            `connect-src 'self' https://*.blob.vercel-storage.com https://blob.vercel-storage.com${umami}${sentry}`,
             "frame-ancestors 'none'",
             "base-uri 'self'",
             "form-action 'self'",

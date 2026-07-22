@@ -99,6 +99,13 @@ test("empty meals page is calm and passes axe", async ({ page }) => {
 
   await expect(page.getByTestId("history-empty")).toBeVisible();
 
+  // Design-review pins: real tab title, and the footer Home link stays in the
+  // app shell (was "/" — the marketing landing).
+  await expect(page).toHaveTitle("My meals — Revora");
+  await expect(
+    page.locator(".page-footer").getByRole("link", { name: "Home" })
+  ).toHaveAttribute("href", "/home");
+
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa"])
     .analyze();

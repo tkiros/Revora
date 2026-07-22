@@ -60,6 +60,12 @@ test("guest day-0 dashboard: preview note, CTA above the fold, top bar only", as
   const cta = page.getByTestId("dash-check-cta");
   await expect(cta).toBeVisible();
 
+  // Design-review pin: the visible date title is Home's h1 (was a styled <p>,
+  // leaving Home with no h1 at all).
+  await expect(page.getByRole("heading", { level: 1 })).toHaveClass(
+    /dash-greet-date/
+  );
+
   // Decision #8: at <768px the check CTA is the first interactive element
   // above the fold.
   const box = await cta.boundingBox();

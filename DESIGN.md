@@ -49,6 +49,10 @@ colors decoratively.
 - Stack: `var(--font-sans), Arial, Helvetica, sans-serif` — Plus Jakarta Sans
   (variable 400–800) via `next/font` in `app/layout.tsx`, `display: swap`, Arial
   fallback so offline test runs never flash unstyled. One family, nothing else.
+  Applied via `sans.className` on `<body>`, not the `var(--font-sans)` indirection
+  alone — that variable failed to cascade in production Chromium and dropped the
+  whole app to Times New Roman (fixed 2026-07-21 design-review, FINDING-030). Keep
+  the className on `<body>`; the CSS var stack stays as the declared fallback.
 - Base 16px / 1.5. Body copy 1.65 line-height.
 - Scale: 13px uppercase eyebrow (700, 0.08em tracking) · 14–15px hints/meta · 16px body + inputs · 18px subheads (700) · titles `clamp(2rem, 7vw, 2.6rem)` (tight -0.03em).
 - Weights: 400 body, 600 secondary emphasis, 700 headings/CTAs. Nothing lighter or heavier.
@@ -63,7 +67,7 @@ colors decoratively.
 ## Class vocabulary (reuse before writing CSS)
 
 - Structure (legacy pages): `page-shell` → `page-frame` → `surface-card`
-- Structure (app shell, 2026-07-10; C7 2026-07-21): `app-root` → `app-sidebar`/`app-topbar`/`app-tabbar` + `app-content` → `dash-card`; nav = `app-nav`/`app-navlink` (sidebar), `app-tab`/`app-tab-action` (tab bar); billing = `plan-box`; dashboard = `dash-cta`; journey = `journey-doc`/`dash-week` (see §App shell)
+- Structure (app shell, 2026-07-10; C7 2026-07-21): `app-root` → `app-sidebar`/`app-topbar`/`app-tabbar` + `app-content` → `dash-card`; nav = `app-nav`/`app-navlink` (sidebar), `app-tab`/`app-tab-action` (tab bar); billing = `plan-box`; dashboard = `dash-cta-button`; journey = `journey-doc`/`dash-week` (see §App shell)
 - Headers: `hero-eyebrow`/`status-eyebrow`/`result-eyebrow` + `page-title` + `page-copy`
 - Forms: `form-card` · `form-grid` · `field-stack` · `field-label` · `text-input` · `field-hint` · `field-error` · `primary-button` · `voice-input-button`
 - Feedback: `request-status` · `status-card` · `result-card` (+ risk border tokens) · `result-disclaimer` · `placeholder-card`
@@ -198,8 +202,11 @@ A small sanctioned layer — CSS only, no animation libraries:
 - Tokens: `--dur-fast: 150ms`, `--dur: 200ms`, `--ease: cubic-bezier(0.22,0.61,0.36,1)`.
 - Buttons/chips/CTAs transition background/border/transform on hover/active
   (`translateY(1px)` press, nothing bouncier).
-- `revora-rise` (6px fade-up) is the only keyframe; it plays once on result-card
-  entrance. No looping animation anywhere.
+- Two sanctioned keyframes: `revora-rise` (6px fade-up, plays once on
+  result-card entrance) and `revora-skeleton` (background shimmer, loading
+  placeholders ONLY — e.g. the paywall price pending state). No other looping
+  animation anywhere. (Amended 2026-07-21 design-review: the skeleton shimmer
+  shipped with P2.1 and is deliberate; this list now matches the code.)
 - A global `prefers-reduced-motion: reduce` block zeroes ALL animation and
   transition durations — mandatory, never remove it.
 
@@ -240,7 +247,7 @@ Rules:
   truth — a running trial or a scheduled non-renewal (`planBoxAttention`);
   the sidebar and /account always render the full box. The
   hiding-the-renewal-date ban binds every rendered plan box.
-- The check CTA (`dash-cta`) is the one Committed color moment on the
+- The check CTA (`dash-cta-button`) is the one Committed color moment on the
   dashboard (accent-filled card). At <768px it is the first interactive
   element above the fold — the dashboard never adds friction before the
   core action.

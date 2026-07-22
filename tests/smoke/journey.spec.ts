@@ -82,6 +82,9 @@ test("premium user with a computed week sees the non-scored recap and week facts
 
   await page.goto("/journey");
 
+  // Design-review pin: real tab title (was bare "Revora").
+  await expect(page).toHaveTitle("My journey — Revora");
+
   const recap = page.getByTestId("journey-recap");
   await expect(recap).toBeVisible();
   // adherence 71 → 5 of 7 days; action 100 of prompted 5 → 5 of 5.
