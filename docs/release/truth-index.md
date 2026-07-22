@@ -42,25 +42,28 @@
   delivery OBSERVED (2026-07-22, owner-authorized): a deliberate uncaught error
   (`revora-sentry-verification-manual-1784733827563`) thrown on production `/home` produced a
   POST to `o4511672801820672.ingest.us.sentry.io/api/4511691306696704/envelope/` that returned
-  **200** with zero CSP violations — ingest accepts the client's envelopes end to end. Residual:
-  issue-stream visibility not yet eyeballed in the Sentry dashboard (no API token on this
-  machine); search Sentry for the error message above to close that last inch. Stripe webhook: endpoint `we_1TqNZLKweWSWjefk1MkEUChd` →
+  **200** with zero CSP violations — ingest accepts the client's envelopes end to end.
+  Issue-stream visibility CONFIRMED (2026-07-22): issue `REVORA_1-3` (unhandled TypeError from
+  `auto.browser.global_handlers.onerror` on `/signin`, collateral from the verification session's
+  flaky network) appeared in the Sentry Issues feed and fired an email alert — capture → ingest →
+  issue → alert all observed. NOTE for future verifiers: Sentry's data scrubbing redacts error
+  MESSAGES (`[redacted]` in the issue stream), so free-text search for a planted error string will
+  never match — verify by mechanism/url/first-seen instead. Stripe webhook: endpoint `we_1TqNZLKweWSWjefk1MkEUChd` →
   `/api/billing/stripe/webhook` is Active on acct_14W8GFKweWSWjefk with all 6 events bound (the
   owner added `invoice.payment_failed`; secret unrotated). Signature path PROVEN both directions
   (2026-07-22): a CLI-signed forgery got 400 and a payload hand-signed with the live endpoint
   secret got 200 `{"received":true,"outcome":"processed"}` (test audit row deleted afterward).
-  Support-case round-trip (2026-07-22): app half PROVEN, delivery half FAILED. Signed in via
-  magic link on production, submitted a test case from /account — API 201
-  `{"caseId":"3a623ed1-…","emailed":true}` and "Case #3a623ed1 received" rendered in the UI. But
-  the Resend dashboard shows that email **BOUNCED** at support@revora.plus ("Generic Temporary
-  Delivery Failure", Sent→Bounced same minute). `revora.plus` MX points at Namecheap email
-  forwarding (`eforward*.registrar-servers.com`); delivery works only if a Namecheap forwarding
-  rule for `support@` exists. Until it does, EVERY help/refund case email bounces silently
-  (`emailed:true` only means Resend accepted the send) — case rows are safe in `support_cases`
-  (row-first design held) but nobody is notified, and the pantry-sweep cron's mails to
-  `SUPPORT_EMAIL` (lib/server/pantry/sweep.ts:188) bounce the same way. Owner fix (~2 min):
-  Namecheap → revora.plus → Redirect Email → add `support` → forward to a monitored inbox, then
-  re-test. See TODOS.
+  Support-case round-trip FULLY PROVEN end to end (2026-07-22, four test cases). App half: magic
+  link sign-in on production, case submitted from /account, API 201 `{caseId, emailed:true}`,
+  case id rendered. Delivery half took a real fix: cases `3a623ed1`, `100f8c4b`, `0154b3a6` all
+  BOUNCED at support@revora.plus — `revora.plus` MX is Namecheap email forwarding, whose relays
+  greylist Resend's sending IPs (3/3 Resend→support@ bounced while 4/4 Resend→Gmail delivered and
+  an owner Gmail→support@ test forwarded fine; real MTAs retry 4xx, Resend gives up). Fix shipped
+  as PR #32: `supportInbox()` (`SUPPORT_INBOX_EMAIL` env, falling back to the public
+  `SUPPORT_EMAIL`) now addresses all four internal sends (support case, pantry-sweep alert, both
+  pantry needs-manual alerts); the public support@ address is unchanged on every user surface.
+  Final case `08f0c637` through the deployed fix: Resend **Delivered**, email observed in the
+  owner inbox. Test cases in `support_cases` are safe to close on sight.
   Route renames shipped on the C7 branch: `/progress`→`/journey`, `/history`+`/memory`→`/meals`
   (permanent redirects); the C14 progress-truth row's behavior now lives at `/journey`, and the BAI
   band/bars are replaced by the non-scored recap (RV-3) — the score is computed for internal S2
