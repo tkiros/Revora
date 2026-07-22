@@ -56,6 +56,16 @@ describe("CSP ↔ Umami agreement", () => {
     expect(connectSrc).toContain("https://o000.ingest.us.sentry.io");
   });
 
+  it("stays strict when the Sentry DSN is unconfigured or malformed", async () => {
+    delete process.env.NEXT_PUBLIC_SENTRY_DSN;
+    expect(await csp()).not.toContain("ingest.us.sentry.io");
+
+    process.env.NEXT_PUBLIC_SENTRY_DSN = "not a url";
+    const value = await csp();
+    expect(value).not.toContain("not a url");
+    expect(value).not.toContain("ingest.us.sentry.io");
+  });
+
   it("stays strict when Umami is unconfigured or malformed", async () => {
     delete process.env.NEXT_PUBLIC_UMAMI_SRC;
     expect(await csp()).not.toContain("stats.example.com");

@@ -79,27 +79,28 @@ const nextConfig: NextConfig = {
   //   from the browser (@vercel/blob/client, components/pantry-intake-flow.tsx).
   // - camera/microphone stay self-allowed: photo check input + voice input.
   headers: async () => {
-    let umamiOrigin: string | null = null;
-    try {
-      umamiOrigin = process.env.NEXT_PUBLIC_UMAMI_SRC
-        ? new URL(process.env.NEXT_PUBLIC_UMAMI_SRC).origin
-        : null;
-    } catch {
-      umamiOrigin = null;
-    }
-    const umami = umamiOrigin ? ` ${umamiOrigin}` : "";
-    // Same derive-from-env pattern for the Sentry browser transport: without
-    // its ingest origin in connect-src, the client DSN ships but every
-    // envelope POST is CSP-blocked and errors silently never arrive.
-    let sentryOrigin: string | null = null;
-    try {
-      sentryOrigin = process.env.NEXT_PUBLIC_SENTRY_DSN
-        ? new URL(process.env.NEXT_PUBLIC_SENTRY_DSN).origin
-        : null;
-    } catch {
-      sentryOrigin = null;
-    }
-    const sentry = sentryOrigin ? ` ${sentryOrigin}` : "";
+    // " https://origin" (leading space, ready to append to a CSP directive)
+    // or "" when the env var is unset or malformed — a bad value must never
+    // widen or break the policy.
+    const originFromEnv = (value?: string): string => {
+      try {
+        if (!value) {
+          return "";
+        }
+        const url = new URL(value);
+        // Non-special schemes make .origin the literal string "null", and an
+        // http: origin would be mixed-content-blocked on the https site
+        // anyway — either way a silently useless CSP token. https only.
+        return url.protocol === "https:" ? ` ${url.origin}` : "";
+      } catch {
+        return "";
+      }
+    };
+    const umami = originFromEnv(process.env.NEXT_PUBLIC_UMAMI_SRC);
+    // Sentry browser transport: without its ingest origin in connect-src, the
+    // client DSN ships but every envelope POST is CSP-blocked and errors
+    // silently never arrive.
+    const sentry = originFromEnv(process.env.NEXT_PUBLIC_SENTRY_DSN);
     return [
     {
       source: "/(.*)",

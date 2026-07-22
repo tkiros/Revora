@@ -16,8 +16,11 @@ import "./globals.css";
 const UMAMI_SRC = process.env.NEXT_PUBLIC_UMAMI_SRC;
 const UMAMI_WEBSITE_ID = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID;
 
-// Brand typeface (DESIGN.md §Type). display:swap + Arial fallback in
-// globals.css keep offline test runs (Playwright, no network) flicker-safe.
+// Brand typeface (DESIGN.md §Type). Applied via sans.className on <body> —
+// the var(--font-sans) indirection in globals.css failed to cascade in
+// production Chromium (whole app fell back to Times New Roman; see
+// fix(fonts) commit). next/font's metric-adjusted local fallback keeps
+// offline test runs (Playwright, no network) flicker-safe.
 const sans = Plus_Jakarta_Sans({
   subsets: ["latin"],
   variable: "--font-sans",
