@@ -1,8 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
 // The PAYWALL_MODE=trial server on :3101 is only needed when the trial-wall spec
-// is actually in the run. Booting it also rewrites the tracked tsconfig.json /
-// next-env.d.ts to the e2e-trial distDir (healed by tests/smoke/global-teardown.ts),
+// is actually in the run. Booting it also rewrites the tracked tsconfig.json
+// to the e2e-trial distDir (healed by tests/smoke/global-teardown.ts),
 // so we keep its blast radius to runs that provably don't need it.
 //
 // SUPPRESSION RULE: only a set of CONCRETE spec-file filters (each arg
@@ -60,8 +60,8 @@ const trialWebServer = {
     // Isolate this server's build dir + dev lock from the :3100 server so
     // both `next dev` instances coexist (see next.config.ts distDir gate).
     // Under .next/, so it inherits the .next/ gitignore — nothing new to track.
-    // Its price is the tsconfig.json / next-env.d.ts rewrite that
-    // global-teardown.ts reverts (keeping the run self-contained).
+    // Its price is the tsconfig.json rewrite that global-teardown.ts
+    // reverts (keeping the run self-contained).
     NEXT_DIST_DIR: ".next/e2e-trial"
   }
 };
@@ -73,7 +73,7 @@ export default defineConfig({
   // still use Playwright's short expect timeout; this only prevents the whole
   // test budget from expiring while several accessibility scans complete.
   timeout: 90_000,
-  // Revert the trial server's tsconfig.json / next-env.d.ts distDir rewrite so a
+  // Revert the trial server's tsconfig.json distDir rewrite so a
   // smoke run never leaves the working tree dirty (self-contained).
   globalTeardown: "./tests/smoke/global-teardown.ts",
   fullyParallel: true,
