@@ -1,7 +1,7 @@
 # Revora Release Truth Index + Evidence Closure Checklist
 
-**Document owner:** Engineering (branch `feat/value-retention-plan-2026-07-18`)
-**Review date:** 2026-07-19
+**Document owner:** Engineering (branch `feat/value-retention-plan-2026-07-18`; re-verified on `feat/c7-four-jobs-and-audit-residuals`)
+**Review date:** 2026-07-21 (previous: 2026-07-19)
 **Next review due:** before any broad-distribution decision, and on every change to a claim surface below
 **Source plan:** `docs/handoff/2026-07-18-revora-100-value-95-retention-validation-and-implementation-plan.md`
 **Shipped-evidence ledger:** `.superpowers/sdd/progress.md` (Tasks T1–T22, this branch)
@@ -27,6 +27,18 @@
   migrations apply normally. `stripe-reconcile` is registered in the Railway `hourly-crons` scheduler
   and running hourly. Two empty orphan Postgres services (`Postgres-D2oG`, `Postgres-FOMu`, zero app
   tables each) still exist in the Railway project pending owner deletion — only `Postgres` is canonical.
+- **Production ops update (2026-07-21, C7 session):** migration `0013_cancel-at-period-end` applied to
+  the live Railway `Postgres` (journal at 14 rows) and the RE-08 structural comparison **passed** —
+  `drizzle-kit pull` of prod diffed clean against `drizzle/meta/0013_snapshot.json`. Migration
+  `0014_support-cases` is authored on the C7 branch and **must be applied at C7 deploy time** (same
+  flow). `www.revora.plus` now 308-redirects to the apex (P0.1 pass criterion met, verified live).
+  Server twins `PHOTO_INPUT_ENABLED=1` + `LONGITUDINAL_INSIGHTS_ENABLED=1` are set in Vercel
+  production, mirroring the enabled `NEXT_PUBLIC_*` values (the C7 build fails on twin mismatch).
+  Still open on owner: Stripe webhook endpoint registration (OAuth) and the Sentry client DSN.
+  Route renames shipped on the C7 branch: `/progress`→`/journey`, `/history`+`/memory`→`/meals`
+  (permanent redirects); the C14 progress-truth row's behavior now lives at `/journey`, and the BAI
+  band/bars are replaced by the non-scored recap (RV-3) — the score is computed for internal S2
+  measurement only and never rendered.
 
 ---
 
@@ -132,10 +144,10 @@ Deferred by explicit user instruction. Each row lists its §P0 pass criteria; no
 
 | # | Phase 0 item | Deferred | §P0 pass criteria |
 |---|---|---|---|
-| P0.1 | DNS/TLS + domain (`revora.bio`, `www`) | DEFERRED (user) | Public HTTPS usable from two networks; canonical redirects; valid TLS; synthetic green 24h. (Current: DNS returned no usable chain, TLS failed, Vercel URL redirects to SSO — §3.2.) |
+| P0.1 | DNS/TLS + domain (now `revora.plus`, `www`) | **DONE (2026-07-21)** | Apex live with valid TLS; `www.revora.plus` 308 canonical redirect to apex added via Vercel API and verified. (The register originally named `revora.bio`; the shipped domain is `revora.plus`.) |
 | P0.2 | Authentication email (Resend domain, From address) | DEFERRED (user) | ≥99% test sends accepted; seeded Gmail + Outlook receive links; every failure state (resend/expired/reused/wrong-device/changed-email) recoverable. |
 | P0.3 | Minimized first-party analytics deployment (Umami) | DEFERRED (user) | Production events arrive with zero prohibited fields (no meal text, photo, A1C, email, notes, rationale); privacy review approves data map; env validation fails deploy when measurement expected but unconfigured. (Current: Umami env absent, analytics dark — §3.2.) |
-| P0.4 | Support + refund operations | DEFERRED (user) | Deliverable, monitored support address; in-account authenticated "Request help or refund" with case ID; case ledger (time/provider/charge/eligibility/status/owner/resolution); published + monitored SLA; seeded request traverses user→ledger→provider→confirmation. |
+| P0.4 | Support + refund operations | **SHIPPED (C7 branch, 2026-07-21) — mailbox monitoring on owner** | Built: in-account authenticated "Help & refunds" form with case id (`support_cases` ledger, encrypted row first, full-copy email to support@, `{caseId, emailed}` confirmation, 5/24h fail-closed rate limit, cases in `/api/account/export`); SLA published in-product ("We reply by email within 2 business days"); operator procedure in `docs/runbooks/refunds.md`; seeded traversal = env-gated `tests/smoke/account-support.spec.ts`. Still human: a monitored support@ mailbox and the admin case viewer (TODOS.md). |
 | P0.5 | Source-of-truth quarantine | DEFERRED (user) | Stale passages in `docs/product-marketing.md`, `docs/ICP.md`, `docs/Revora_90-Day_Distribution_Strategy.md` marked superseded where they promise unreviewed features / glucose-spike / DPP / regulatory status; this release truth index links claims/flags/pricing/support/privacy/safety/authorization; owner + review date on each launch-critical source. No active launch document conflicts with deployed behavior. (This index is the linking artifact; claims rows C9–C13 are pre-staged as **BLOCKED-ON-PHASE-0**.) |
 
 ---

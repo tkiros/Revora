@@ -150,21 +150,20 @@ describe("RISK_LABELS is the only source of the three verdict words", () => {
   /**
    * Surfaces that render a verdict word must interpolate it from labels.ts.
    *
-   * ALLOWLIST — two files still hard-code the words. Both are owned by another
-   * lane in the 2026-07-11 remediation and are NOT safe for this lane to edit
-   * concurrently; both are recorded in the Lane C handoff for follow-up. They
-   * are listed here, loudly, rather than quietly excluded from the walk — an
+   * ALLOWLIST — one file still hard-codes a word. It is owned by another
+   * lane in the 2026-07-11 remediation and is NOT safe for this lane to edit
+   * concurrently; it is recorded in the Lane C handoff for follow-up. It is
+   * listed here, loudly, rather than quietly excluded from the walk — an
    * allowlist you can see is a to-do; a coverage gap you cannot see is a bug.
    *
    *   components/demo-check-card.tsx  — hard-codes "Be careful"
-   *   components/dashboard-view.tsx   — hard-codes all three in the week legend
+   *
+   * (dashboard-view.tsx left the list in C7: its week legend moved to
+   * components/week-strip.tsx, which imports RISK_LABELS.)
    *
    * Do not add to this list to make a failure go away. Import RISK_LABELS.
    */
-  const ALLOWLIST = new Set([
-    "components/demo-check-card.tsx",
-    "components/dashboard-view.tsx"
-  ]);
+  const ALLOWLIST = new Set(["components/demo-check-card.tsx"]);
 
   const LABEL_LITERAL = new RegExp(
     `(?:^|[>"'\\s])(?:${Object.values(RISK_LABELS)
@@ -213,7 +212,7 @@ describe("RISK_LABELS is the only source of the three verdict words", () => {
     for (const rel of [
       "components/result-card.tsx",
       "components/today-list.tsx",
-      "app/(app)/history/page.tsx",
+      "app/(app)/meals/page.tsx",
       "app/page.tsx",
       "app/(app)/onboarding/page.tsx"
     ]) {
@@ -226,7 +225,7 @@ describe("RISK_LABELS is the only source of the three verdict words", () => {
   it("the allowlist only shrinks", () => {
     // A ratchet. If someone fixes demo-check-card, this fails until they remove
     // it from the allowlist — so the list can never quietly grow stale.
-    expect(ALLOWLIST.size).toBeLessThanOrEqual(2);
+    expect(ALLOWLIST.size).toBeLessThanOrEqual(1);
     for (const rel of ALLOWLIST) {
       expect(
         read(rel),

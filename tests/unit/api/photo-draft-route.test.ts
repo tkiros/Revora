@@ -36,13 +36,20 @@ describe("POST /api/check/photo-draft", () => {
     expect((await handler(post(GOOD_BODY))).status).toBe(404);
     expect(called).toBe(0);
 
+    // Build flag on but runtime server twin off → still 404 (kill-switch
+    // regression, outside-voice #8).
     vi.stubEnv("NEXT_PUBLIC_PHOTO_INPUT", "1");
+    expect((await handler(post(GOOD_BODY))).status).toBe(404);
+    expect(called).toBe(0);
+
+    vi.stubEnv("PHOTO_INPUT_ENABLED", "1");
     expect((await handler(post(GOOD_BODY))).status).toBe(200);
     expect(called).toBe(1);
   });
 
   it("returns the draft for a valid image (guest)", async () => {
     vi.stubEnv("NEXT_PUBLIC_PHOTO_INPUT", "1");
+    vi.stubEnv("PHOTO_INPUT_ENABLED", "1");
     const handler = createPhotoDraftHandler({
       vision: () => visionOk,
       getSession: async () => null,
@@ -55,6 +62,7 @@ describe("POST /api/check/photo-draft", () => {
 
   it("rejects a non-image payload with 400 and no model call", async () => {
     vi.stubEnv("NEXT_PUBLIC_PHOTO_INPUT", "1");
+    vi.stubEnv("PHOTO_INPUT_ENABLED", "1");
     let called = 0;
     const handler = createPhotoDraftHandler({
       vision: () => ({ draftFromPhoto: async () => ((called += 1), STUB_DRAFT) }),
@@ -68,6 +76,7 @@ describe("POST /api/check/photo-draft", () => {
 
   it("rejects an oversized image with 400 and no model call", async () => {
     vi.stubEnv("NEXT_PUBLIC_PHOTO_INPUT", "1");
+    vi.stubEnv("PHOTO_INPUT_ENABLED", "1");
     let called = 0;
     const handler = createPhotoDraftHandler({
       vision: () => ({ draftFromPhoto: async () => ((called += 1), STUB_DRAFT) }),
@@ -82,6 +91,7 @@ describe("POST /api/check/photo-draft", () => {
 
   it("walls a signed-in non-premium user in trial mode BEFORE model spend", async () => {
     vi.stubEnv("NEXT_PUBLIC_PHOTO_INPUT", "1");
+    vi.stubEnv("PHOTO_INPUT_ENABLED", "1");
     let called = 0;
     const handler = createPhotoDraftHandler({
       vision: () => ({ draftFromPhoto: async () => ((called += 1), STUB_DRAFT) }),
@@ -98,6 +108,7 @@ describe("POST /api/check/photo-draft", () => {
 
   it("returns a calm 200 retry body when the model call throws (mirrors /api/check)", async () => {
     vi.stubEnv("NEXT_PUBLIC_PHOTO_INPUT", "1");
+    vi.stubEnv("PHOTO_INPUT_ENABLED", "1");
     const handler = createPhotoDraftHandler({
       vision: () => ({
         draftFromPhoto: async () => {

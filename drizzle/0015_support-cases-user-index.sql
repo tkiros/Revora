@@ -1,0 +1,1 @@
+CREATE INDEX "support_cases_user" ON "support_cases" USING btree ("user_id","created_at" DESC NULLS LAST);

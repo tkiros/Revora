@@ -108,7 +108,7 @@ export default function HowItWorksPage() {
         </section>
 
         <footer className="page-footer">
-          <Link href="/progress">Progress</Link>
+          <Link href="/journey">My journey</Link>
           <Link href="/">Home</Link>
           <Link href="/privacy">Privacy</Link>
           <Link href="/terms">Terms</Link>

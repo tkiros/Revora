@@ -2262,6 +2262,91 @@ button.inline-link {
   color: var(--accent-strong);
 }
 
+/* /journey one-document layout (D3): sections separated by rule + space,
+   typography over chrome — cards stay reserved for interactive elements. */
+.journey-doc > section + section,
+.journey-doc > * + section {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border-soft);
+}
+
+/* Home's one next-action line (C7 §3) — typography, not a card. */
+.dash-next-action {
+  margin: 14px 2px 18px;
+  font-size: 15.5px;
+  font-weight: 600;
+}
+
+.dash-next-action a {
+  color: var(--accent-strong);
+}
+
+/* C7 four-jobs bottom tab bar (<1024px only; design review 2026-07-21).
+   Five equal slots — four jobs + the accent-filled center Check action. No
+   icon-in-circle decoration, no fills beyond the one action, stroke glyphs
+   beside 11px labels. Safe-area padding keeps it above the iOS home
+   indicator; .app-content gets matching bottom clearance below 1024px. */
+.app-tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  background: var(--surface);
+  border-top: 1px solid var(--border-soft);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.app-tabbar-nav {
+  display: flex;
+  align-items: stretch;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.app-tab {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 56px;
+  padding: 7px 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  transition: color var(--dur-fast) var(--ease);
+}
+
+.app-tab[aria-current="page"] {
+  color: var(--accent-strong);
+}
+
+.app-tab-action {
+  color: var(--accent-strong);
+}
+
+.app-tab-action svg {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-radius: 999px;
+  padding: 5px;
+  width: 30px;
+  height: 30px;
+}
+
+.app-tab-action[aria-current="page"] svg {
+  background: var(--accent-strong);
+}
+
+@media (min-width: 1024px) {
+  .app-tabbar {
+    display: none;
+  }
+}
+
 /* Back-to-dashboard bar on focused pages (design file .backbar/.backlink). */
 .backbar {
   margin-bottom: 16px;
@@ -2299,6 +2384,8 @@ button.inline-link {
 
   .app-content {
     padding-top: 12px;
+    /* Clear the fixed bottom tab bar (56px + device inset). */
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
   }
 
   .backbar {

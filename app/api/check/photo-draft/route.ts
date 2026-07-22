@@ -4,7 +4,10 @@ import {
   createMealVisionClient,
   type MealVisionClient
 } from "../../../../lib/meal/photo-extract";
-import { photoInputEnabled } from "../../../../lib/photo-input-flag";
+import {
+  photoInputEnabled,
+  photoInputServerEnabled
+} from "../../../../lib/photo-input-flag";
 import { loadSafetyContract } from "../../../../lib/revora/safety-contract";
 import { captureServerError } from "../../../../lib/revora/sentry-capture";
 import { getDb, type Db } from "../../../../lib/server/db";
@@ -56,10 +59,12 @@ export function createPhotoDraftHandler(deps: PhotoDraftDeps = {}) {
   const paywallModeDep = deps.paywallMode ?? (() => paywallMode());
 
   return async function POST(request: Request) {
-    // Counsel launch gate: dormant until the reviewed build explicitly sets
-    // NEXT_PUBLIC_PHOTO_INPUT=1. The client control uses the same helper, but
-    // this route-level check is the authoritative model-spend/data boundary.
-    if (!photoInputEnabled()) {
+    // Counsel launch gate: needs BOTH the reviewed build flag
+    // (NEXT_PUBLIC_PHOTO_INPUT=1) and the runtime server twin
+    // (PHOTO_INPUT_ENABLED=1). The server twin is the incident control — an
+    // env change + redeploy kills this authoritative model-spend/data
+    // boundary without waiting on a reviewed rebuild.
+    if (!photoInputEnabled() || !photoInputServerEnabled()) {
       return NextResponse.json({ kind: "not_found" }, { status: 404 });
     }
 

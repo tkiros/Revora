@@ -28,6 +28,28 @@ if (
   }
 }
 
+// Flag server twins: a NEXT_PUBLIC flag baked ON with its runtime twin unset
+// means the feature ships with a kill switch that does nothing. Fail the
+// build so the mismatch can never ship silently. Deliberately OUTSIDE the
+// REVORA_ALLOW_NO_MEASUREMENT waiver above — waiving analytics must never
+// also waive flag safety.
+if (process.env.VERCEL_ENV === "production") {
+  const twinMismatch = [
+    process.env.NEXT_PUBLIC_PHOTO_INPUT === "1" &&
+      process.env.PHOTO_INPUT_ENABLED !== "1" &&
+      "PHOTO_INPUT_ENABLED",
+    process.env.NEXT_PUBLIC_LONGITUDINAL_INSIGHTS === "1" &&
+      process.env.LONGITUDINAL_INSIGHTS_ENABLED !== "1" &&
+      "LONGITUDINAL_INSIGHTS_ENABLED"
+  ].filter((v): v is string => Boolean(v));
+  if (twinMismatch.length > 0) {
+    throw new Error(
+      `NEXT_PUBLIC flag is "1" but its server twin is unset: set ${twinMismatch.join(", ")}=1 ` +
+        "(the server twin is the runtime kill switch; without it the flag cannot be turned off without a rebuild)."
+    );
+  }
+}
+
 const nextConfig: NextConfig = {
   // E2E-only lever: lets tests/smoke/trial-wall.spec.ts run a second `next dev`
   // (PAYWALL_MODE=trial, port 3101) alongside the default legacy server by
@@ -35,6 +57,13 @@ const nextConfig: NextConfig = {
   // one distDir). Inert in every normal run — NEXT_DIST_DIR is unset, so this is
   // exactly ".next".
   distDir: process.env.NEXT_DIST_DIR || ".next",
+  // C7 four-jobs restructure (2026-07-21): old bookmarks and deep links keep
+  // working. /memory folded into /meals as its "Saved meals" section.
+  redirects: async () => [
+    { source: "/history", destination: "/meals", permanent: true },
+    { source: "/memory", destination: "/meals", permanent: true },
+    { source: "/progress", destination: "/journey", permanent: true }
+  ],
   // A stray ~/package-lock.json (unrelated home-dir tooling) makes Next infer
   // the wrong workspace root and warn about multiple lockfiles (E2E-08).
   // Pin the root to this repo.

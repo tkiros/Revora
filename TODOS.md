@@ -1,5 +1,49 @@
 # TODOS
 
+## Post-hoc "I did it" affordance on the Today card
+- **What:** Let a user mark a non-SAFE check's suggested step done AFTER leaving the result card — an `action-done-button` on Home's Today card rows (and/or /meals today rows). Guest: `historyStore.markActionDone(clientId)`; signed-in: existing fire-and-forget `POST /api/history/action` (both write paths already exist — result-card/food-check-form use them today).
+- **Why:** C7 ship red-team (2026-07-21): Home's middle next-action branch originally said "Mark what you did" → /meals, but no post-check surface renders the mark control — a dead-end CTA. Shipped reworded ("Today's check suggested a step — did it happen?"); the real fix is the affordance, which also un-skews the recap's follow-through count for users who close the result card early.
+- **Pros:** Both write paths exist and are tested; restores the plan's stronger "Mark what you did" line.
+- **Cons:** TodayList is deliberately presentational and DashboardView is server-rendered — needs a small client wrapper; new surface = design-review pass (DESIGN.md §Progress surfaces posture).
+- **Depends on / blocked by:** none — pair with a /design-review of the Today card.
+
+## Support rate-limit keying: per-user instead of (or alongside) per-IP
+- **What:** Key the `/api/support/case` limit on `session.userId` in the handler (the proxy runs pre-auth and can only see IP), and reconsider fail-closed vs fail-open for this specific door.
+- **Why:** C7 ship adversarial review (2026-07-21): the current `support_ip` bucket is too loose against an authenticated attacker rotating egress IPs and too tight for users behind CGNAT sharing one 5/24h budget — and this is the refund door, the worst surface to silently lock out (a user who can't request a refund in-app files a chargeback instead). Fail-closed also 503s during a rate-store outage before the row is written, cutting against the handler's row-first never-lose-a-case design.
+- **Pros:** Correct identity for an authenticated door; NAT users stop sharing a budget.
+- **Cons:** Handler-level limiting is a second limiter path to maintain; the IP bucket still has value pre-auth. `getClientIp` first-XFF-entry trust is a shared pre-existing concern across all buckets.
+- **Context:** IP bucket shipped as the C7 plan's CHANGED item (proxy-level, fail-closed); the form shows a direct-email fallback on failure, so lockout is recoverable today.
+- **Depends on / blocked by:** none — small, do with the admin viewer or next support touch.
+
+## Rate-limit or bound /api/account/export
+- **What:** Add a modest per-user or per-IP budget to GET `/api/account/export` (and consider it for the other export GETs).
+- **Why:** C7 ship adversarial review: authenticated user can loop the endpoint — four queries + full decrypt + serialize per hit; the proxy currently ignores GETs entirely. Pre-existing (this branch only added the supportCases query + an index for it).
+- **Pros:** Cheap DoS-hardening on the most expensive read path.
+- **Cons:** Export is a legal-right door (GDPR-ish posture) — limits must stay generous and the error must say "try again in a minute", never dead-end.
+- **Depends on / blocked by:** none.
+
+## Pre-existing HIGH coverage gaps (outside C7 scope)
+- **What:** (1) `components/client-error-reporting.tsx` — untested `beforeSend` scrubber and it omits `defaultIntegrations: false` (Breadcrumbs/HttpContext stay ON — the exact health-data leak `instrumentation-client.ts` forbids; possible double-init); (2) `app/api/profile/route.ts` PATCH — sole writer of nudge-cadence/quiet-hours columns, zero tests; (3) `components/paywall-card.tsx` `restorePurchases()` — paid-recovery flow untested beyond its input gate.
+- **Why:** C7 ship coverage audit (2026-07-21, 76% aggregate) flagged these as the only HIGH gaps; none of the three files is touched by the C7 branch, so fixing them there would have been scope creep. #1 is also a possible privacy bug, not just a test gap — inspect before writing tests.
+- **Context:** `~/.gstack` ship coverage diagram, PR for `feat/c7-four-jobs-and-audit-residuals`.
+- **Depends on / blocked by:** none — #1 first, it is the only one that might be leaking today.
+
+## Admin support-case viewer
+- **What:** `/admin/support` page listing `support_cases` (decrypt message, mark resolved), patterned on `components/admin-feedback-table.tsx` + its `reviewStatus` workflow.
+- **Why:** P0.4 ships inbox-only triage (encrypted row + full-content email to support@); that stops scaling once ticket volume grows. The `status` column already exists for this.
+- **Pros:** Existing admin pattern to copy; closes the loop on case status.
+- **Cons:** Admin surface + decrypt path = security-review burden; pointless below ~5 tickets/week.
+- **Context:** Decided during /plan-eng-review 2026-07-21 (C7 four-jobs plan, D5). Trigger condition: sustained ticket volume, not speculation.
+- **Depends on / blocked by:** P0.4 shipped (C7 branch).
+
+## Retire or re-purpose the BAI composite score
+- **What:** Decide to drop the composite score/band from `lib/coach/bai.ts` + `bai_weekly` (KEEP the raw adherence/action/prompted fields — the /journey recap uses them), or formally re-purpose the score as internal-only S2 measurement.
+- **Why:** After RV-3 (2026-07-21) the score is computed weekly but shown to no one. Computed-but-invisible scores invite accidental re-surfacing; the in-tree retirement note (`lib/server/bai-cron.ts:10-17`, T18) predates RV-3 and is stale.
+- **Pros:** Prevents the usage-frequency score from quietly coming back; removes dead compute.
+- **Cons:** Touches the S2 concierge-study measurement plan — needs the owner and the study protocol in the room.
+- **Context:** Decided during /plan-eng-review 2026-07-21 (C7 plan, D6). RV-3's fix was presentation-level (non-scored recap); the pipeline was deliberately left running for S2 measurement.
+- **Depends on / blocked by:** RV-3 shipped (C7 branch); S2 study decisions.
+
 ## In-app photo-assist for subscribers
 - **What:** Reuse the Pantry Review pipeline's vision-extraction module + confirm-before-verdict screen inside the daily check flow (`checks.inputMethod = 'photo'` finally gets written).
 - **Why:** Turns the one-off report build into the app's flagship retention feature; the confirm-screen pattern is already buyer-tested by then.

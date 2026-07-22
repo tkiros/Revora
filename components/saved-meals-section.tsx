@@ -1,35 +1,35 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { RISK_LABELS } from "../../../lib/revora/labels";
-import { mealMemoryUiEnabled } from "../../../lib/meal-memory-flag";
+import { RISK_LABELS } from "../lib/revora/labels";
+import { mealMemoryUiEnabled } from "../lib/meal-memory-flag";
 import {
   deleteAllMealMemories,
   deleteMealMemory,
   editMealMemory,
-  searchMealMemories,
   MEMORY_EASE_OPTIONS,
   MEMORY_LABEL_OPTIONS,
   type MemoryEase,
   type MemoryEditInput,
   type MemoryLabel,
   type SavedMemory
-} from "../../../lib/client/memory";
+} from "../lib/client/memory";
 
 /**
- * Meal memory controls (plan §P3.4). Search, edit user-authored fields, export,
- * delete one, and delete all — all over the caller's OWN memories. The explainer
- * stays visible: memory is theirs and never changes how Revora checks a meal
- * (global constraint §1). Ships behind the meal-memory build flag; a build with
- * the flag off renders an inert not-available state (never routes anyone here).
+ * The "Saved meals" section of /meals (C7 four-jobs merge, 2026-07-21).
+ * Formerly the standalone /memory page; now the user-curated section above the
+ * automatic Recent checks record so the two feel like one area. Renders
+ * NOTHING when the meal-memory build flag is off, when the caller is a guest,
+ * or when the server says the feature is unavailable — the flag-off /meals
+ * page must carry zero "not on your plan" noise (plan §4). Errors are
+ * section-scoped and never blank the sibling history list (design voice #7).
  *
- * Error-truth (global constraint §7): a failed search / edit / delete surfaces an
- * explicit retry state, never an empty list or a paywall.
+ * Search deliberately lives on the page's Recent-checks filter, not here — the
+ * saved list is short and scannable (DV7 decision).
  */
 
-type ViewStatus = "loading" | "guest" | "ready" | "unavailable" | "error";
+type SectionStatus = "loading" | "hidden" | "ready" | "error";
 
 const EASE_LABEL = new Map(MEMORY_EASE_OPTIONS.map((o) => [o.value, o.label]));
 const LABEL_LABEL = new Map(MEMORY_LABEL_OPTIONS.map((o) => [o.value, o.label]));
@@ -70,9 +70,9 @@ function draftOf(memory: SavedMemory): EditDraft {
   };
 }
 
-// Turn an edit draft into a merge patch: every field is sent, so cleared text
-// becomes null and an "unset" reflection clears to null. The server whitelist
-// accepts only these user-authored fields.
+// Merge patch: every field is sent, so cleared text becomes null and an
+// "unset" reflection clears to null. The server whitelist accepts only these
+// user-authored fields.
 function patchOf(draft: EditDraft): MemoryEditInput {
   return {
     choice: draft.choice.trim() ? draft.choice.trim() : null,
@@ -89,22 +89,16 @@ function patchOf(draft: EditDraft): MemoryEditInput {
   };
 }
 
-export default function MemoryPage() {
-  // The build flag is inlined at build time (same on server + client render), so
-  // it is safe to seed the initial state from it — no setState-in-effect.
-  const [status, setStatus] = useState<ViewStatus>(() =>
-    mealMemoryUiEnabled() ? "loading" : "unavailable"
+export function SavedMealsSection() {
+  // Build flag inlined at build time (same on server + client render), so
+  // seeding initial state from it is hydration-safe.
+  const [status, setStatus] = useState<SectionStatus>(() =>
+    mealMemoryUiEnabled() ? "loading" : "hidden"
   );
   const [memories, setMemories] = useState<SavedMemory[]>([]);
-  // Server caps a page at 50 (MAX_LIMIT) and returns `nextOffset` for the rest;
-  // consuming it lets a user with >50 memories reach all of them (U6).
   const [nextOffset, setNextOffset] = useState<number | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState(false);
-  const [query, setQuery] = useState("");
-  const [searchError, setSearchError] = useState(false);
-  const [searchNote, setSearchNote] = useState<string | null>(null);
-  const [searching, setSearching] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<EditDraft | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -128,12 +122,10 @@ export default function MemoryPage() {
   async function loadList(): Promise<void> {
     try {
       const response = await fetch("/api/memory");
-      if (response.status === 401) {
-        setStatus("guest");
-        return;
-      }
-      if (response.status === 403 || response.status === 404) {
-        setStatus("unavailable");
+      // Guest, flag-off, or not-entitled: the section simply does not exist —
+      // the page around it carries the sign-in / retention states.
+      if ([401, 403, 404].includes(response.status)) {
+        setStatus("hidden");
         return;
       }
       if (!response.ok) {
@@ -144,15 +136,12 @@ export default function MemoryPage() {
       setMemories(page.memories);
       setNextOffset(page.nextOffset);
       setLoadMoreError(false);
-      setSearchNote(null); // full list, not a bounded search
       setStatus("ready");
     } catch {
       setStatus("error");
     }
   }
 
-  // Append the next page. A failure here is a non-destructive inline error —
-  // never blows the loaded list away to the full-page error surface.
   async function onLoadMore(): Promise<void> {
     if (nextOffset === null || loadingMore) {
       return;
@@ -182,37 +171,6 @@ export default function MemoryPage() {
     void loadList();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  async function onSearch(event: React.FormEvent): Promise<void> {
-    event.preventDefault();
-    const term = query.trim();
-    setSearchError(false);
-    setSearchNote(null);
-    if (!term) {
-      // Empty search returns to the full list.
-      await loadList();
-      return;
-    }
-    setSearching(true);
-    const result = await searchMealMemories(term);
-    setSearching(false);
-    if (!result.ok) {
-      // Error-truth: a failed search is an explicit retry state, never "no results".
-      setSearchError(true);
-      return;
-    }
-    setMemories(result.memories);
-    // Honest bounds: a capped scan is a partial answer — say so.
-    setSearchNote(
-      result.searchCapped
-        ? `Searched your ${result.searchScanned} most recent saved meals.`
-        : null
-    );
-    // Search returns a single bounded result set — no pagination cursor.
-    setNextOffset(null);
-    setLoadMoreError(false);
-    setStatus("ready");
-  }
 
   function beginEdit(memory: SavedMemory): void {
     setActionError(null);
@@ -254,108 +212,44 @@ export default function MemoryPage() {
     const ok = await deleteAllMealMemories();
     setConfirmDeleteAll(false);
     if (!ok) {
-      setActionError("Couldn't clear your memory. Please try again.");
+      setActionError("Couldn't clear your saved meals. Please try again.");
       return;
     }
-    setQuery("");
     await loadList();
   }
 
+  if (status === "hidden" || status === "loading") {
+    return null;
+  }
+
   return (
-    <main className="page-narrow" data-testid="memory-page">
-      <h1 className="page-title">Your meal memory</h1>
+    <section
+      className="account-section"
+      aria-label="Saved meals"
+      data-testid="saved-meals-section"
+    >
+      <h2 className="section-title">Saved meals</h2>
       <p className="result-disclaimer" data-testid="memory-page-explainer">
-        Your memory is yours. It never changes how Revora checks a meal — only
-        your current meal description affects a check, never your notes.
+        Your saved meals are yours. They never change how Revora checks a meal
+        — only your current meal description affects a check, never your notes.
       </p>
-
-      {status === "loading" ? (
-        <p className="placeholder-copy">Loading your memory…</p>
-      ) : null}
-
-      {status === "guest" ? (
-        <p className="placeholder-copy" data-testid="memory-guest">
-          <Link className="inline-link" href="/signin">
-            Sign in
-          </Link>{" "}
-          to keep a meal memory.
-        </p>
-      ) : null}
-
-      {status === "unavailable" ? (
-        <p className="placeholder-copy" data-testid="memory-unavailable">
-          Meal memory isn&apos;t available on your plan yet.
-        </p>
-      ) : null}
 
       {status === "error" ? (
         <p className="placeholder-copy" data-testid="memory-error">
-          Something went wrong loading your memory. Please try again.
+          Something went wrong loading your saved meals. Please try again.
         </p>
-      ) : null}
-
-      {status === "ready" ? (
+      ) : (
         <>
           <div className="memory-controls">
-            <form
-              className="memory-search"
-              onSubmit={(event) => void onSearch(event)}
-              data-testid="memory-search"
-            >
-              <label className="sr-only" htmlFor="memory-search-input">
-                Search your meals
-              </label>
-              <input
-                id="memory-search-input"
-                className="text-input"
-                type="text"
-                inputMode="search"
-                placeholder="Search your meals or notes"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-              />
-              <button
-                type="submit"
-                className="primary-button"
-                disabled={searching}
-              >
-                {searching ? "Searching…" : "Search"}
-              </button>
-              {query ? (
-                <button
-                  type="button"
-                  className="recheck-button"
-                  onClick={() => {
-                    setQuery("");
-                    setSearchError(false);
-                    void loadList();
-                  }}
-                >
-                  Clear
-                </button>
-              ) : null}
-            </form>
             <a
               className="recheck-button"
               href="/api/memory/export"
               download
               data-testid="memory-export"
             >
-              Export
+              Export saved meals
             </a>
           </div>
-
-          {searchError ? (
-            <p className="placeholder-copy" data-testid="memory-search-error">
-              Search didn&apos;t work just now. Please try again.
-            </p>
-          ) : null}
-
-          {searchNote ? (
-            <p className="placeholder-copy" data-testid="memory-search-note">
-              {searchNote}
-            </p>
-          ) : null}
 
           {actionError ? (
             <p className="placeholder-copy" data-testid="memory-action-error">
@@ -365,9 +259,7 @@ export default function MemoryPage() {
 
           {memories.length === 0 ? (
             <p className="placeholder-copy" data-testid="memory-empty">
-              {query
-                ? "No saved meals match that search."
-                : "Nothing saved yet. Save a check to your meal memory and it shows up here."}
+              Nothing saved yet. Save a check and it shows up here.
             </p>
           ) : (
             <ul className="memory-list" data-testid="memory-list">
@@ -570,7 +462,7 @@ export default function MemoryPage() {
             </ul>
           )}
 
-          {nextOffset !== null && !query ? (
+          {nextOffset !== null ? (
             <div className="memory-load-more">
               <button
                 type="button"
@@ -590,8 +482,8 @@ export default function MemoryPage() {
                   className="placeholder-copy"
                   data-testid="memory-load-more-error"
                 >
-                  Something went wrong loading more. Your memory is safe — try
-                  again.
+                  Something went wrong loading more. Your saved meals are safe
+                  — try again.
                 </p>
               ) : null}
             </div>
@@ -601,7 +493,7 @@ export default function MemoryPage() {
             {confirmDeleteAll ? (
               <>
                 <p className="placeholder-copy">
-                  Delete everything in your meal memory? This can&apos;t be
+                  Delete everything you&apos;ve saved? This can&apos;t be
                   undone.
                 </p>
                 <div className="memory-item-buttons">
@@ -611,7 +503,7 @@ export default function MemoryPage() {
                     data-testid="memory-delete-all-confirm"
                     onClick={() => void onDeleteAll()}
                   >
-                    Yes, delete all my memory
+                    Yes, delete all my saved meals
                   </button>
                   <button
                     type="button"
@@ -628,14 +520,14 @@ export default function MemoryPage() {
                 className="recheck-button"
                 data-testid="memory-delete-all-start"
                 onClick={() => setConfirmDeleteAll(true)}
-                disabled={memories.length === 0 && !query}
+                disabled={memories.length === 0}
               >
-                Delete all my memory
+                Delete all my saved meals
               </button>
             )}
           </div>
         </>
-      ) : null}
-    </main>
+      )}
+    </section>
   );
 }

@@ -26,7 +26,8 @@ export type LimitBucket =
   | "auth_other_ip"
   | "billing_ip"
   | "trial_email"
-  | "auth_email";
+  | "auth_email"
+  | "support_ip";
 
 // >3/h per IP or per email on the abuse-prone doors (docs/qa plan W-11). The
 // looser auth_other budget covers POST /api/auth/signout + /callback, which
@@ -49,7 +50,11 @@ const BUCKETS: Record<
   // creation must not be free. 10/h per IP never touches a real buyer.
   billing_ip: { limit: 10, window: "1 h", prefix: "revora:billing:ip" },
   trial_email: { limit: 3, window: "1 h", prefix: "revora:trial:email" },
-  auth_email: { limit: 3, window: "1 h", prefix: "revora:auth:email" }
+  auth_email: { limit: 3, window: "1 h", prefix: "revora:auth:email" },
+  // P0.4: authenticated help/refund cases — each POST sends a full-copy email
+  // to the support inbox, so this is an email amplifier and fails CLOSED like
+  // the other email doors. 5/24h never touches a real user in distress.
+  support_ip: { limit: 5, window: "24 h", prefix: "revora:support:ip" }
 };
 
 export type RateLimitDeps = {
@@ -70,6 +75,7 @@ const TRIAL_START_PATH = "/api/trial/start";
 const AUTH_PREFIX = "/api/auth/";
 const AUTH_SIGNIN_PREFIX = "/api/auth/signin";
 const BILLING_PREFIX = "/api/billing/";
+const SUPPORT_CASE_PATH = "/api/support/case";
 // Provider-authenticated webhook doors (Stripe signature, Pub/Sub shared
 // token). Their senders retry from shared infrastructure IPs — rate-limiting
 // them would drop legitimate money-path events, and each verifies its caller.
@@ -129,6 +135,11 @@ export function matchRouteLimit(
     !BILLING_WEBHOOK_PATHS.has(pathname)
   ) {
     return { kind: "abuse", bucket: "billing_ip", failClosed: false };
+  }
+  // P0.4: the support-case door emails the inbox on every accepted POST —
+  // fail closed like the other email senders (sender-reputation stance above).
+  if (pathname === SUPPORT_CASE_PATH) {
+    return { kind: "abuse", bucket: "support_ip", failClosed: true };
   }
   return null;
 }

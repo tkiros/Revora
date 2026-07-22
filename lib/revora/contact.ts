@@ -18,6 +18,13 @@
 export const SUPPORT_EMAIL = "support@revora.plus";
 
 /**
+ * Support-case message cap (P0.4). One constant for the form's counter AND
+ * the API's zod `.max()` — hand-synced copies drift, and a drifted cap means
+ * the UI approves a message the server then 400s.
+ */
+export const SUPPORT_MESSAGE_MAX = 2000;
+
+/**
  * Envelope sender for every transactional send (magic links included).
  * Overridable so preview can send from its own subdomain with its own DKIM
  * key without touching production's reputation.

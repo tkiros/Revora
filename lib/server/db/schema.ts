@@ -547,6 +547,38 @@ export const baiWeekly = pgTable(
   (table) => [primaryKey({ columns: [table.userId, table.weekStart] })]
 );
 
+// P0.4 (C7 plan §9): authenticated help/refund cases. The message is
+// user-authored free text near health context — encrypted at rest like every
+// other user-authored field. Triage happens in the support inbox (a full-copy
+// email is sent on create); `status` exists for a later admin surface
+// (TODOS.md), written by nobody today.
+export const supportCases = pgTable(
+  "support_cases",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    messageCiphertext: text("message_ciphertext").notNull(),
+    status: text("status").notNull().default("open"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true })
+  },
+  (table) => [
+    // Serves the export's ordered per-user read AND the users cascade delete
+    // (Postgres does not auto-index FK columns).
+    index("support_cases_user").on(table.userId, table.createdAt.desc()),
+    check("support_cases_kind_check", sql`${table.kind} IN ('help','refund')`),
+    check(
+      "support_cases_status_check",
+      sql`${table.status} IN ('open','resolved')`
+    )
+  ]
+);
+
 // Audit trail that retains no identity: user id is hashed before insert.
 export const deletionLog = pgTable("deletion_log", {
   id: uuid("id").primaryKey().defaultRandom(),

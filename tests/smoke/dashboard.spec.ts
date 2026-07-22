@@ -67,7 +67,12 @@ test("guest day-0 dashboard: preview note, CTA above the fold, top bar only", as
   expect(box!.y + box!.height).toBeLessThanOrEqual(667);
 
   await expect(page.locator(".app-topbar")).toBeVisible();
+  await expect(page.locator(".app-tabbar")).toBeVisible();
   await expect(page.locator(".app-sidebar")).toBeHidden();
+
+  // C7 four-jobs: five tab slots, the accent Check action among them.
+  await expect(page.locator(".app-tabbar .app-tab")).toHaveCount(5);
+  await expect(page.locator(".app-tabbar .app-tab-action")).toHaveText(/Check/);
 });
 
 test("guest dashboard fills in from on-device history", async ({ page }) => {
@@ -84,12 +89,21 @@ test("guest dashboard fills in from on-device history", async ({ page }) => {
   await expect(page.getByTestId("dash-summary")).toContainText(
     "1 meal checked this week."
   );
-  await expect(
-    page.getByTestId("dash-week").locator('[data-risk="MODERATE"]')
-  ).toBeVisible();
   await expect(page.getByTestId("today-list")).toContainText(
     "white rice with beans"
   );
+
+  // C7: Home is "help me decide now" — exactly one next-action line, and the
+  // week strip / insight / progress surfaces live on /journey, not here.
+  await expect(page.getByTestId("next-action")).toHaveCount(1);
+  await expect(page.getByTestId("dash-week")).toHaveCount(0);
+  await expect(page.getByTestId("dash-insight")).toHaveCount(0);
+  await expect(page.getByTestId("dash-progress")).toHaveCount(0);
+
+  // RV-3: no score/band/percent language on Home.
+  const text = await page.locator("main").innerText();
+  expect(text).not.toMatch(/%/);
+  expect(text).not.toMatch(/excellent|on track|building|getting started/i);
 });
 
 test("desktop shell: sidebar nav with aria-current, skip link focuses content", async ({

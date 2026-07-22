@@ -1,0 +1,109 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+
+import {
+  SUPPORT_EMAIL,
+  SUPPORT_MESSAGE_MAX
+} from "../../../lib/revora/contact";
+import { captureServerError } from "../../../lib/revora/sentry-capture";
+import { encryptField } from "../../../lib/server/crypto";
+import { getDb, schema, type Db } from "../../../lib/server/db";
+import { sendEmail } from "../../../lib/server/email";
+import {
+  getSessionInfo,
+  type SessionInfo
+} from "../../../lib/server/session";
+
+/**
+ * P0.4 (C7 plan §9): the in-account "Request help or refund" door.
+ *
+ * POST stores an authenticated case (message encrypted at rest) and then
+ * emails a full copy to the support inbox — the same exposure class as a user
+ * emailing support@ directly, which /terms already instructs (eng-review D3).
+ * The ROW is the source of truth: it is written first, and an email failure
+ * never loses the case — the user still gets their case id, the failure is
+ * captured, and the confirmation copy names the direct-email fallback.
+ *
+ * Rate limiting happens in the Edge proxy (`support_ip`, fail-closed — this
+ * door is an email amplifier). Validation here is the trust boundary:
+ * kind whitelist, trimmed non-empty message, hard length cap.
+ */
+
+export { SUPPORT_MESSAGE_MAX };
+
+const BodySchema = z.object({
+  kind: z.enum(["help", "refund"]),
+  message: z
+    .string()
+    .trim()
+    .min(1)
+    .max(SUPPORT_MESSAGE_MAX)
+});
+
+export type SupportRouteDeps = {
+  db?: () => Db;
+  getSession?: () => Promise<SessionInfo>;
+  sendEmailImpl?: typeof sendEmail;
+};
+
+export function createSupportCaseHandler(deps: SupportRouteDeps = {}) {
+  const db = deps.db ?? getDb;
+  const getSession = deps.getSession ?? getSessionInfo;
+  const send = deps.sendEmailImpl ?? sendEmail;
+
+  return async function POST(request: Request) {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Sign in first." }, { status: 401 });
+    }
+
+    let raw: unknown = null;
+    try {
+      raw = await request.json();
+    } catch {
+      raw = null;
+    }
+    const parsed = BodySchema.safeParse(raw);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Choose help or refund and write a short message (up to 2000 characters)." },
+        { status: 400 }
+      );
+    }
+
+    const { kind, message } = parsed.data;
+
+    const [row] = await db()
+      .insert(schema.supportCases)
+      .values({
+        userId: session.userId,
+        kind,
+        messageCiphertext: encryptField(message)
+      })
+      .returning({ id: schema.supportCases.id });
+
+    let emailed = false;
+    try {
+      const result = await send({
+        to: SUPPORT_EMAIL,
+        subject: `[${kind}] Support case ${row.id}`,
+        text:
+          `Case: ${row.id}\n` +
+          `Kind: ${kind}\n` +
+          `Account: ${session.email}\n\n` +
+          `${message}\n`
+      });
+      emailed = result.ok;
+      if (!result.ok) {
+        await captureServerError(
+          new Error(`support case email failed (status ${result.status})`),
+          "support"
+        );
+      }
+    } catch (error) {
+      await captureServerError(error, "support");
+    }
+
+    return NextResponse.json({ caseId: row.id, emailed }, { status: 201 });
+  };
+}

@@ -12,6 +12,7 @@ import {
   type NudgeSettings
 } from "../../../lib/client/nudge-settings";
 import { profileStore } from "../../../lib/client/profile-store";
+import { SupportCaseForm } from "../../../components/support-case-form";
 
 type EntitlementInfo = {
   tier: "free" | "premium";
@@ -654,8 +655,24 @@ export default function AccountPage() {
                 </div>
               ) : null}
 
+              <div className="account-section" data-testid="support-section">
+                <h2 className="section-title">Help &amp; refunds</h2>
+                <p className="page-copy">
+                  Stuck, confused, or need money back? Send a message from
+                  here — it opens a case tied to your account.
+                </p>
+                <SupportCaseForm />
+              </div>
+
               <div className="account-section">
                 <h2 className="section-title">Stored health data</h2>
+                <p className="page-copy">
+                  <a href="/api/account/export" data-testid="account-export-link">
+                    Download your data
+                  </a>{" "}
+                  — everything we hold, as one file (checks and saved meals
+                  have their own downloads on those pages).
+                </p>
                 <p className="page-copy">
                   Withdraw your storage consent and erase your saved A1C,
                   meal history, progress, reminders, and claimed Pantry Review

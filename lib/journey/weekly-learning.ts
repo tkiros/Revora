@@ -32,7 +32,11 @@ import type { Stage } from "./state";
  * artifact is ENCRYPTED at rest (the route stores ciphertext), never plaintext.
  */
 
-export const WEEKLY_LEARNING_VERSION = "1";
+// v2 (RV-6): the artifact leads with something usable — one concrete
+// experiment and one uncertainty to close, both derived from the user's own
+// week — instead of only re-counting their inputs. Bumping the version makes
+// the route lazily recompute stored v1 rows on next read.
+export const WEEKLY_LEARNING_VERSION = "2";
 
 /** The bounded meal-context vocabulary — mirror of the `meal_memories.label`
  * schema enum. Retyped here (not imported from app/api) to keep this lib pure;
@@ -95,6 +99,15 @@ export type WeeklyLearningArtifact = {
   /** One optional next exploration, chosen deterministically from the fixed
    * bank by stage + gaps. Null only when there is no stage AND no default. */
   nextExploration: string;
+  /** RV-6: ONE concrete, claims-safe experiment for the week, derived from the
+   * user's own data. Priority: repeated-uncertain food → uncovered context →
+   * the stage-intent exploration (nextExploration). Rendered exactly once as
+   * the journey page's primary action (design review D3/#6). */
+  experiment: string;
+  /** RV-6: the single highest-signal open question — a repeated-uncertain food
+   * or a missing context — stated as the user's own data. Null when the week
+   * left nothing open. */
+  uncertaintyToClose: string | null;
 };
 
 /**
@@ -172,11 +185,49 @@ export const DEFAULT_EXPLORATION =
 export const STAGE_KEPT_UP_EXPLORATION =
   "You are keeping up with this stage — keep checking meals when it is useful to you.";
 
-/** Every fixed string this projection can emit, for the banned-claims test. */
+/** Human display names for context labels used inside sentences. */
+const LABEL_DISPLAY: Record<ContextLabel, string> = {
+  breakfast: "breakfast",
+  lunch: "lunch",
+  dinner: "dinner",
+  snack: "snack",
+  restaurant: "restaurant",
+  travel: "travel",
+  family_meal: "family meal",
+  other: "everyday"
+};
+
+/**
+ * RV-6 sentence builders. The FIXED parts are what the claims test can vet;
+ * `food` is the user's own meal text echoed back (same precedent as
+ * `repeatedUncertainty` — their data, shown to them, encrypted at rest).
+ */
+export function experimentFromRepeat(food: string): string {
+  return `Check ${food} once more this week with the portion written out — one clear answer beats two uncertain ones.`;
+}
+export function experimentFromContext(label: ContextLabel): string {
+  return `You have not saved a ${LABEL_DISPLAY[label]} choice yet — save one this week so it is ready when you need it.`;
+}
+export function uncertaintyFromRepeat(food: string): string {
+  return `${food} has come back uncertain more than once — it is the meal most worth pinning down.`;
+}
+export function uncertaintyFromContext(label: ContextLabel): string {
+  return `A go-to ${LABEL_DISPLAY[label]} choice is still open — nothing saved for it yet.`;
+}
+
+/** Every fixed string this projection can emit, for the banned-claims test.
+ * The RV-6 builders are exercised with a neutral placeholder so their fixed
+ * sentence frames are scanned too. */
 export const WEEKLY_LEARNING_COPY: readonly string[] = [
   ...STAGE_INTENTS.flatMap((intent) => [intent.incomplete, intent.exploration]),
   DEFAULT_EXPLORATION,
-  STAGE_KEPT_UP_EXPLORATION
+  STAGE_KEPT_UP_EXPLORATION,
+  experimentFromRepeat("your meal"),
+  uncertaintyFromRepeat("your meal"),
+  ...CONTEXT_LABELS.flatMap((label) => [
+    experimentFromContext(label),
+    uncertaintyFromContext(label)
+  ])
 ];
 
 /**
@@ -281,15 +332,38 @@ export function deriveWeeklyLearning(
     nextExploration = DEFAULT_EXPLORATION;
   }
 
+  const repeats = repeatedUncertainty(inputs.checks);
+
+  // RV-6: one experiment, one open question — from the user's own week, in a
+  // fixed priority so regeneration stays deterministic. The "uncovered
+  // context" candidate is the first canonical mealtime label (breakfast/
+  // lunch/dinner) the user has not saved yet — the labels where a default
+  // pays off daily.
+  const missingMealtime = (["breakfast", "lunch", "dinner"] as const).find(
+    (label) => !signals.labels.has(label)
+  );
+  const experiment = repeats[0]
+    ? experimentFromRepeat(repeats[0])
+    : missingMealtime && savedChoices > 0
+      ? experimentFromContext(missingMealtime)
+      : nextExploration;
+  const uncertaintyToClose = repeats[0]
+    ? uncertaintyFromRepeat(repeats[0])
+    : missingMealtime && savedChoices > 0
+      ? uncertaintyFromContext(missingMealtime)
+      : null;
+
   return {
     version,
     weekStart,
     mealsExplored,
     savedChoices,
     contextsCovered: labels,
-    repeatedUncertainty: repeatedUncertainty(inputs.checks),
+    repeatedUncertainty: repeats,
     incompleteSteps,
-    nextExploration
+    nextExploration,
+    experiment,
+    uncertaintyToClose
   };
 }
 

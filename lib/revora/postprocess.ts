@@ -228,6 +228,12 @@ export function postprocessModelOutput(
     ...modelOutput.policy_flags
   ]);
 
+  // Local floor sink: the caller's snapshot sink is OPTIONAL, but the
+  // component-mention exemption below must know deterministically whether a
+  // floor replaced the draft — for every caller, sink or not (HS-3). Always
+  // pass our own sink and mirror it into the caller's afterwards.
+  const floorSink: SnapshotMetadata = { floorApplied: null, usedFallback: false };
+
   const result = applyConservativeFloors(
     {
       risk: modelOutput.risk,
@@ -237,9 +243,15 @@ export function postprocessModelOutput(
     },
     {
       ...context,
-      precheckFlags: [...mergedFlags]
+      precheckFlags: [...mergedFlags],
+      snapshot: floorSink
     }
   );
+
+  if (context.snapshot && floorSink.usedFallback) {
+    context.snapshot.floorApplied = floorSink.floorApplied;
+    context.snapshot.usedFallback = true;
+  }
 
   // Grounded-reason check — model-authored reasons only. A floored draft
   // already replaced the reason with template copy (a floor always rewrites
@@ -277,8 +289,13 @@ export function postprocessModelOutput(
   } else {
     assertModerateHighFields(result, mergedFlags);
 
+    // HS-3 exemption: floored drafts are pre-audited template copy and may
+    // legitimately not name a user token — enforcement targets MODEL-authored
+    // adjustments only. Keyed off the local floor sink (deterministic for
+    // every caller), never the optional context.snapshot.
     if (
       componentMentionEnforced() &&
+      !floorSink.usedFallback &&
       context.food &&
       result.adjustment &&
       !mentionsMealComponent(context.food, result.adjustment)

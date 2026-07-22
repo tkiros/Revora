@@ -23,7 +23,7 @@ import * as Sentry from "@sentry/node";
  */
 export async function captureServerError(
   error: unknown,
-  stage: "model" | "route"
+  stage: "model" | "route" | "support"
 ): Promise<void> {
   try {
     // Production builds minify class names, so `constructor.name` degrades to

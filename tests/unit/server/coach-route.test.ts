@@ -104,8 +104,24 @@ describe("GET /api/coach", () => {
     expect(body.weekView).toHaveLength(7);
   });
 
+  it("nulls the insight when the runtime server twin is off, even with the build flag on (kill-switch regression)", async () => {
+    vi.stubEnv("NEXT_PUBLIC_LONGITUDINAL_INSIGHTS", "1");
+    vi.stubEnv("LONGITUDINAL_INSIGHTS_ENABLED", "");
+    const GET = createCoachRouteHandler({
+      db: () => testDb.db,
+      getSession: async () => ({ userId, email: "coach@test.dev" }),
+      now: () => NOW
+    });
+
+    const body = await (await GET()).json();
+
+    expect(body.insight).toBeNull();
+    expect(body.streak).toBe(3);
+  });
+
   it("returns streak, week view, daypart insight, and the latest BAI when explicitly enabled — no food, no exact a1c", async () => {
     vi.stubEnv("NEXT_PUBLIC_LONGITUDINAL_INSIGHTS", "1");
+    vi.stubEnv("LONGITUDINAL_INSIGHTS_ENABLED", "1");
     const GET = createCoachRouteHandler({
       db: () => testDb.db,
       getSession: async () => ({ userId, email: "coach@test.dev" }),
@@ -121,6 +137,18 @@ describe("GET /api/coach", () => {
     expect(body.insight.id).toBe("daypart");
     expect(body.insight.text).toContain("breakfast");
     expect(body.latestBai).toMatchObject({ score: 72, adherence: 71 });
+
+    // C7: verdictWeek rides every success — the /journey week strip's data.
+    expect(body.verdictWeek).toHaveLength(7);
+    for (const day of body.verdictWeek) {
+      expect(day).toMatchObject({
+        key: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+        checked: expect.any(Boolean)
+      });
+    }
+    expect(body.verdictWeek.some((day: { checked: boolean }) => day.checked)).toBe(
+      true
+    );
 
     const serialized = JSON.stringify(body);
     expect(serialized).not.toContain("salmon");
@@ -143,5 +171,7 @@ describe("GET /api/coach", () => {
     expect(body.tier).toBe("free");
     expect(body.latestBai).toBeNull();
     expect(body.streak).toBe(3); // streak/week stay free
+    // C7: week facts are free-computable — the free /journey depends on them.
+    expect(body.verdictWeek).toHaveLength(7);
   });
 });

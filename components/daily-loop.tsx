@@ -149,7 +149,7 @@ export function DailyLoop() {
       {insight ? <InsightCard insight={insight} /> : null}
       <NudgeOptIn />
       <p className="page-copy">
-        <Link href="/history" className="inline-link">
+        <Link href="/meals" className="inline-link">
           See your week
         </Link>
       </p>

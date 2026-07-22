@@ -357,6 +357,32 @@ describe("postprocessModelOutput — component-mention enforcement (W-17 Tier 2.
     }
   });
 
+  it("exempts floored drafts — template copy never becomes a retry card (HS-3)", () => {
+    process.env.REVORA_ENFORCE_COMPONENT_MENTION = "1";
+    try {
+      // carbs_only floor replaces the draft with the deterministic template,
+      // whose generic add-protein copy names no user token. Sink-less call on
+      // purpose: the exemption must hold for every caller, not only the check
+      // route that passes a snapshot (outside-voice #10).
+      const response = postprocessModelOutput(
+        makeModelOutput({
+          kind: "carbs_only",
+          adjustment: "Start with vegetables before the carbs.",
+          policy_flags: ["carbs_only"]
+        }),
+        {
+          contract,
+          route: routeA1C(6.1),
+          precheckFlags: ["carbs_only"],
+          food: "white rice with soy sauce"
+        }
+      );
+      expect(response.kind).toBe("result");
+    } finally {
+      delete process.env.REVORA_ENFORCE_COMPONENT_MENTION;
+    }
+  });
+
   it("never fires on SAFE results, which carry no adjustment to check", () => {
     process.env.REVORA_ENFORCE_COMPONENT_MENTION = "1";
     try {
