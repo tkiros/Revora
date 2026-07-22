@@ -1,5 +1,15 @@
 # TODOS
 
+## Design-system drift residuals (post-C7 /design-review, 2026-07-21)
+- **What:** Four structural findings from the post-deploy audit's Codex source pass, each needing a design decision (amend DESIGN.md or change code), not a mechanical fix: (1) /meals still owns a week strip and /check's "See your week" routes to /meals — DESIGN.md says the weekly view lives on /journey; (2) /journey's "one document" nests shadowed cards inside cards (journey-card.tsx, learning-summary.tsx) against the cards-earn-existence rule; (3) shell CSS uses magic spacing/radius values (9/13/17/22px) and an uncontracted 640px recap width on Check/Meals/Journey; (4) sub-1024px type overrides the binding scale (15px body, 11px tab labels, weight 800).
+- **Why:** Flagged CONFIRMED against source during the 2026-07-21 audit; deferred because each either re-litigates a shipped C7 decision or needs DESIGN.md amended first — a wholesale restyle was out of scope for a post-deploy polish pass. The mechanical siblings (44px targets, dead --text token, skip-link motion, heading order) were fixed on `fix/design-review-post-c7`.
+- **Depends on / blocked by:** a DESIGN.md decision per item; pair with the next /design-review round.
+
+## PlanBox can render without a billing date
+- **What:** `lib/server/plan-box.ts` meta fallbacks ("Active", "Trial active", "Will not renew") can render a plan box with no date; DESIGN.md §App shell bans hiding the renewal/trial date from any rendered plan box. Guarantee a date in every meta branch or amend the rule for the no-date data states.
+- **Why:** Codex source pass, post-C7 /design-review 2026-07-21. Needs billing-data plumbing (period-end read in every branch), not CSS.
+- **Depends on / blocked by:** none — small, next billing touch.
+
 ## Post-hoc "I did it" affordance on the Today card
 - **What:** Let a user mark a non-SAFE check's suggested step done AFTER leaving the result card — an `action-done-button` on Home's Today card rows (and/or /meals today rows). Guest: `historyStore.markActionDone(clientId)`; signed-in: existing fire-and-forget `POST /api/history/action` (both write paths already exist — result-card/food-check-form use them today).
 - **Why:** C7 ship red-team (2026-07-21): Home's middle next-action branch originally said "Mark what you did" → /meals, but no post-check surface renders the mark control — a dead-end CTA. Shipped reworded ("Today's check suggested a step — did it happen?"); the real fix is the affordance, which also un-skews the recap's follow-through count for users who close the result card early.
