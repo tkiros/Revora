@@ -46,8 +46,13 @@
   issue-stream visibility not yet eyeballed in the Sentry dashboard (no API token on this
   machine); search Sentry for the error message above to close that last inch. Stripe webhook: endpoint `we_1TqNZLKweWSWjefk1MkEUChd` →
   `/api/billing/stripe/webhook` is Active on acct_14W8GFKweWSWjefk with all 6 events bound (the
-  owner added `invoice.payment_failed`; secret unrotated). Still open on owner: a `charge.refunded`
-  test-event round-trip, and the support-case round-trip on revora.plus/account.
+  owner added `invoice.payment_failed`; secret unrotated). Signature path PROVEN both directions
+  (2026-07-22): a CLI-signed forgery got 400 and a payload hand-signed with the live endpoint
+  secret got 200 `{"received":true,"outcome":"processed"}` (test audit row deleted afterward).
+  Support-case round-trip DONE (2026-07-22): signed in via magic link on production, submitted a
+  test case from /account — API 201 `{"caseId":"3a623ed1-…","emailed":true}` and
+  "Case #3a623ed1 received" rendered in the UI. Residual on owner: confirm the case email landed
+  in the support@ mailbox (case is a test — safe to close on sight).
   Route renames shipped on the C7 branch: `/progress`→`/journey`, `/history`+`/memory`→`/meals`
   (permanent redirects); the C14 progress-truth row's behavior now lives at `/journey`, and the BAI
   band/bars are replaced by the non-scored recap (RV-3) — the score is computed for internal S2
