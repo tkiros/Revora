@@ -2195,25 +2195,6 @@ button.inline-link {
   flex: none;
 }
 
-.app-topbar-account {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-weight: 700;
-  color: var(--text-strong);
-  padding: 10px 15px;
-  border-radius: 999px;
-  min-height: 44px;
-  border: 1px solid var(--border-strong);
-  background: var(--surface);
-}
-
-.app-topbar-account:hover {
-  border-color: var(--accent);
-  background: var(--accent-tint);
-  color: var(--text-strong);
-}
-
 .app-sidebar {
   display: none;
 }
@@ -2460,7 +2441,7 @@ button.inline-link {
 .plan-box-link {
   display: inline-flex;
   align-items: center;
-  min-height: 40px;
+  min-height: 44px;
   margin-top: 8px;
   font-size: 14px;
 }
