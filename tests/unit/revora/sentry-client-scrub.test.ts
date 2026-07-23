@@ -14,6 +14,9 @@
  * leak. That is the gap this file closes.
  */
 
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+
 import type { ErrorEvent } from "@sentry/browser";
 import { describe, expect, it } from "vitest";
 
@@ -43,6 +46,29 @@ const FORBIDDEN_INTEGRATIONS = [
 ];
 
 describe("browser Sentry init contract", () => {
+  it("has exactly one browser SDK initializer and does not mount a second one from the root layout", () => {
+    function sourceFiles(directory: string): string[] {
+      return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+        const path = join(directory, entry.name);
+        if (entry.isDirectory()) return sourceFiles(path);
+        return /\.[cm]?tsx?$/.test(entry.name) ? [readFileSync(path, "utf8")] : [];
+      });
+    }
+
+    const rootLayout = readFileSync(join(process.cwd(), "app/layout.tsx"), "utf8");
+    const browserSources = [
+      readFileSync(join(process.cwd(), "instrumentation-client.ts"), "utf8"),
+      ...sourceFiles(join(process.cwd(), "app")),
+      ...sourceFiles(join(process.cwd(), "components"))
+    ];
+    const initCalls = browserSources
+      .join("\n")
+      .match(/\bSentry\.init\s*\(/g);
+
+    expect(initCalls).toHaveLength(1);
+    expect(rootLayout).not.toContain("client-error-reporting");
+  });
+
   it("is fully inert without a DSN", () => {
     // No DSN in dev/test/CI, so the module-level init never runs. If this ever
     // becomes truthy in a test run, the SDK is booting where it shouldn't.
