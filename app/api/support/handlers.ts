@@ -15,9 +15,9 @@ import {
  * P0.4 (C7 plan §9): the in-account "Request help or refund" door.
  *
  * POST stores an authenticated case (message encrypted at rest) and then
- * emails a full copy to the support inbox — the same exposure class as a user
- * emailing support@ directly, which /terms already instructs (eng-review D3).
- * The ROW is the source of truth: it is written first, and an email failure
+ * sends a PII-minimized queue notification to the support inbox. The encrypted
+ * row is the source of truth and is readable only through the authenticated
+ * admin support endpoint. It is written first, and an email failure
  * never loses the case — the user still gets their case id, the failure is
  * captured, and the confirmation copy names the direct-email fallback.
  *
@@ -81,14 +81,17 @@ export function createSupportCaseHandler(deps: SupportRouteDeps = {}) {
 
     let emailed = false;
     try {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
       const result = await send({
         to: supportInbox(),
         subject: `[${kind}] Support case ${row.id}`,
         text:
           `Case: ${row.id}\n` +
           `Kind: ${kind}\n` +
-          `Account: ${session.email}\n\n` +
-          `${message}\n`
+          `Review in the authenticated support queue:\n` +
+          `${appUrl}/api/admin/support\n`,
+        category: "support_case",
+        idempotencyKey: `support-case/${row.id}`
       });
       emailed = result.ok;
       if (!result.ok) {

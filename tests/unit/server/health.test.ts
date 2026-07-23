@@ -31,6 +31,9 @@ beforeEach(async () => {
     NODE_ENV: "production",
     VERCEL_ENV: "preview",
     OPENAI_API_KEY: "sk-preview-test",
+    RESEND_API_KEY: "re_test",
+    RESEND_WEBHOOK_SECRET: "whsec_test",
+    AUTH_SECRET: "auth-test",
   };
   delete process.env.EDGE_CONFIG;
   delete process.env.REVORA_LAUNCH_MODE_OVERRIDE;

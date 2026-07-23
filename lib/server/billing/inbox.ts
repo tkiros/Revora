@@ -300,7 +300,13 @@ async function dispatchPendingEmails(
   for (const msg of emails) {
     let result;
     try {
-      result = await send({ to: msg.to, subject: msg.subject, text: msg.text });
+      result = await send({
+        to: msg.to,
+        subject: msg.subject,
+        text: msg.text,
+        category: msg.category,
+        idempotencyKey: msg.idempotencyKey
+      });
     } catch {
       continue; // Never let a post-commit send failure surface as a retry.
     }

@@ -17,6 +17,7 @@ Every variable, per phase. Provision in Vercel for **preview + production**
 | `HEALTH_DATA_KEY_VERSION` | PR-2 | Integer stamped into new ciphertext payloads (`v<n>:` prefix). Default `1`. Bump only as part of the rotation runbook |
 | `HEALTH_DATA_KEYS_OLD` | PR-2 | Retired **decrypt-only** keys, `version:base64key` comma-separated (e.g. `1:AAAA…`). **INVARIANT: never drop a key while any row encrypted under it exists** — decryption fails quietly and the data is silently lost. See `docs/runbooks/health-key-rotation.md` |
 | `RESEND_API_KEY` | 4A | magic-link email |
+| `RESEND_WEBHOOK_SECRET` | email delivery | Signing secret for `POST /api/webhooks/resend`. Required in production; the route verifies the raw body plus `svix-id`, `svix-timestamp`, and `svix-signature` before updating PII-minimized delivery/suppression state. Subscribe the provider endpoint to `email.sent`, `email.delivered`, `email.delivery_delayed`, `email.bounced`, `email.complained`, `email.suppressed`, and `email.failed`. |
 | `AUTH_EMAIL_FROM` | 4A | e.g. `Revora <signin@yourdomain>`; domain must be Resend-verified |
 | `AUTH_EMAIL_STUB_DIR` | dev/test only | writes magic links to disk instead of sending — never set in production |
 | `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | 4D | full JSON of the Play API service account |

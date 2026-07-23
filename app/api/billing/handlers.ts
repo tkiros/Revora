@@ -21,7 +21,11 @@ import {
   resolveAnnualPrice,
   resolvePriceVariant
 } from "../../../lib/server/pricing";
-import { sendEmail, type SendEmailResult } from "../../../lib/server/email";
+import {
+  sendEmail,
+  type SendEmailInput,
+  type SendEmailResult
+} from "../../../lib/server/email";
 import {
   emitBillingEvent,
   type BillingTelemetryEvent,
@@ -54,11 +58,7 @@ export type BillingDeps = {
 };
 
 export type PantryEmailSender = {
-  send: (input: {
-    to: string;
-    subject: string;
-    text: string;
-  }) => Promise<SendEmailResult>;
+  send: (input: SendEmailInput) => Promise<SendEmailResult>;
 };
 
 /**
@@ -75,10 +75,7 @@ export type PantryEmailSender = {
  * sender, defers. Production reaches this reducer solely through the inbox, so
  * production always defers.
  */
-export type PendingEmail = {
-  to: string;
-  subject: string;
-  text: string;
+export type PendingEmail = SendEmailInput & {
   onSent?: (db: Db, sentAt: Date) => Promise<void>;
 };
 
@@ -100,7 +97,9 @@ async function emitEmail(
   const result = await email.send({
     to: msg.to,
     subject: msg.subject,
-    text: msg.text
+    text: msg.text,
+    category: msg.category,
+    idempotencyKey: msg.idempotencyKey
   });
   if (result.ok && msg.onSent) {
     await msg.onSent(db, now);
@@ -1119,7 +1118,9 @@ export async function applyStripeEvent(
           month: "long",
           day: "numeric"
         })
-      )
+      ),
+      category: "payment_failed",
+      idempotencyKey: `payment-failed/${event.id}`
     });
     return pending;
   }
@@ -1395,6 +1396,8 @@ async function applyPantryCheckout(
   await emitEmail(db, pending, email, now, {
     to: buyerEmail,
     ...intakeEmailText(appUrl, token),
+    category: "pantry_intake",
+    idempotencyKey: `pantry-intake/${orderId}/${tokenHash}`,
     onSent: async (d, sentAt) => {
       await d
         .update(schema.pantryOrders)

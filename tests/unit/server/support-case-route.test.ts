@@ -1,12 +1,22 @@
 import { eq } from "drizzle-orm";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it
+} from "vitest";
 
 import {
   createSupportCaseHandler,
   SUPPORT_MESSAGE_MAX
 } from "../../../app/api/support/handlers";
-import { decryptField } from "../../../lib/server/crypto";
+import { createAdminSupportHandlers } from "../../../app/api/admin/support/route";
+import { decryptField, encryptField } from "../../../lib/server/crypto";
 import { schema } from "../../../lib/server/db";
+import type { SendEmailInput } from "../../../lib/server/email";
 import { createTestDb } from "../../helpers/test-db";
 
 const TEST_KEY = Buffer.alloc(32, 9).toString("base64");
@@ -75,8 +85,8 @@ describe("POST /api/support/case (P0.4)", () => {
     expect(await testDb.db.select().from(schema.supportCases)).toHaveLength(0);
   });
 
-  it("writes an encrypted row, emails a full copy to the inbox, returns the case id", async () => {
-    let mail: { to: string; subject: string; text: string } | null = null;
+  it("writes an encrypted row and sends only a PII-minimized queue notice", async () => {
+    let mail: SendEmailInput | null = null;
     const handler = createSupportCaseHandler({
       db: () => testDb.db,
       getSession: session,
@@ -103,8 +113,10 @@ describe("POST /api/support/case (P0.4)", () => {
 
     expect(mail!.to).toBe("support@revora.plus");
     expect(mail!.subject).toContain(body.caseId);
-    expect(mail!.text).toContain("Charged twice for July.");
-    expect(mail!.text).toContain("case@test.dev");
+    expect(mail!.text).toContain("/api/admin/support");
+    expect(mail!.text).not.toContain("Charged twice for July.");
+    expect(mail!.text).not.toContain("case@test.dev");
+    expect(mail!.category).toBe("support_case");
   });
 
   // Namecheap's forwarders greylist Resend's relays, so production points the
@@ -160,5 +172,77 @@ describe("POST /api/support/case (P0.4)", () => {
     const response = await handler(post({ kind: "help", message: "stuck" }));
     expect(response.status).toBe(201);
     expect(await testDb.db.select().from(schema.supportCases)).toHaveLength(1);
+  });
+});
+
+describe("admin support queue", () => {
+  beforeEach(() => {
+    process.env.ADMIN_EMAIL = "admin@test.dev";
+  });
+
+  afterEach(() => {
+    delete process.env.ADMIN_EMAIL;
+  });
+
+  it("reveals the decrypted case only to the configured admin and can resolve it", async () => {
+    const [caseRow] = await testDb.db
+      .insert(schema.supportCases)
+      .values({
+        userId,
+        kind: "refund",
+        messageCiphertext: encryptField("Private refund details")
+      })
+      .returning();
+    const adminSession = async () => ({
+      userId: "00000000-0000-4000-8000-000000000001",
+      email: "admin@test.dev"
+    });
+    const { GET, PATCH } = createAdminSupportHandlers({
+      db: () => testDb.db,
+      getSession: adminSession,
+      now: () => new Date("2026-07-22T18:00:00.000Z")
+    });
+
+    const response = await GET(
+      new Request("https://revora.plus/api/admin/support")
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toMatchObject({
+      cases: [
+        {
+          id: caseRow.id,
+          accountEmail: "case@test.dev",
+          message: "Private refund details",
+          status: "open"
+        }
+      ]
+    });
+
+    const resolved = await PATCH(
+      new Request("https://revora.plus/api/admin/support", {
+        method: "PATCH",
+        body: JSON.stringify({ caseId: caseRow.id, status: "resolved" })
+      })
+    );
+    expect(resolved.status).toBe(200);
+    const [stored] = await testDb.db
+      .select()
+      .from(schema.supportCases)
+      .where(eq(schema.supportCases.id, caseRow.id));
+    expect(stored.status).toBe("resolved");
+    expect(stored.resolvedAt?.toISOString()).toBe(
+      "2026-07-22T18:00:00.000Z"
+    );
+  });
+
+  it("returns 404 before reading queue data for a non-admin", async () => {
+    const { GET } = createAdminSupportHandlers({
+      db: () => testDb.db,
+      getSession: session
+    });
+    expect(
+      (await GET(new Request("https://revora.plus/api/admin/support"))).status
+    ).toBe(404);
   });
 });

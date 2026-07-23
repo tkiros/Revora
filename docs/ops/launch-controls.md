@@ -328,6 +328,11 @@ that stateful product journeys are working.
 deploy: the rate-limit/cap store is unset, so the middleware is failing closed
 (503) on every `/api/check`. Set `UPSTASH_REDIS_REST_URL` / `_TOKEN` (§7).
 
+`emailDelivery:"unconfigured"` also fails readiness on a public deploy. At
+least one of the Resend API key, signed-webhook secret, or stable `AUTH_SECRET`
+correlation key is absent. Follow `docs/runbooks/email-delivery.md`; provider
+API acceptance is not proof of delivery.
+
 ### 10.3 Who to notify
 
 - On-call eng (provider/schema error spikes in Sentry, §9.1).

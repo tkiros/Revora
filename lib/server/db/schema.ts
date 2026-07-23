@@ -525,6 +525,99 @@ export const billingEventInbox = pgTable(
   ]
 );
 
+// Provider-accepted email is not the same as recipient delivery. This table
+// stores a PII-minimized state machine keyed by the Resend message id. It never
+// stores the address, subject, body, magic-link token, or provider event body.
+// Rows expire after 30 days; durable suppressions below retain only an HMAC.
+export const emailDeliveryAttempts = pgTable(
+  "email_delivery_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    providerMessageId: text("provider_message_id").unique(),
+    idempotencyKey: text("idempotency_key").notNull().unique(),
+    recipientHash: text("recipient_hash").notNull(),
+    category: text("category", {
+      enum: [
+        "unknown",
+        "transactional",
+        "auth_magic_link",
+        "pantry_intake",
+        "pantry_report",
+        "pantry_alert",
+        "trial_precharge",
+        "payment_failed",
+        "support_case"
+      ]
+    })
+      .notNull()
+      .default("transactional"),
+    status: text("status", {
+      enum: [
+        "pending",
+        "accepted",
+        "sent",
+        "delivered",
+        "delayed",
+        "bounced",
+        "complained",
+        "suppressed",
+        "failed",
+        "rejected",
+        "rate_limited",
+        "transport_failed"
+      ]
+    })
+      .notNull()
+      .default("pending"),
+    lastErrorCode: text("last_error_code"),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+    lastEventAt: timestamp("last_event_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull()
+  },
+  (table) => [
+    index("email_delivery_status").on(table.status, table.updatedAt),
+    index("email_delivery_expiry").on(table.expiresAt),
+    check(
+      "email_delivery_category_check",
+      sql`${table.category} IN ('unknown','transactional','auth_magic_link','pantry_intake','pantry_report','pantry_alert','trial_precharge','payment_failed','support_case')`
+    ),
+    check(
+      "email_delivery_status_check",
+      sql`${table.status} IN ('pending','accepted','sent','delivered','delayed','bounced','complained','suppressed','failed','rejected','rate_limited','transport_failed')`
+    )
+  ]
+);
+
+export const emailSuppressions = pgTable(
+  "email_suppressions",
+  {
+    recipientHash: text("recipient_hash").primaryKey(),
+    reason: text("reason", {
+      enum: ["bounced", "complained", "suppressed"]
+    }).notNull(),
+    providerMessageId: text("provider_message_id"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (table) => [
+    check(
+      "email_suppression_reason_check",
+      sql`${table.reason} IN ('bounced','complained','suppressed')`
+    )
+  ]
+);
+
 export const baiWeekly = pgTable(
   "bai_weekly",
   {
@@ -550,9 +643,9 @@ export const baiWeekly = pgTable(
 
 // P0.4 (C7 plan §9): authenticated help/refund cases. The message is
 // user-authored free text near health context — encrypted at rest like every
-// other user-authored field. Triage happens in the support inbox (a full-copy
-// email is sent on create); `status` exists for a later admin surface
-// (TODOS.md), written by nobody today.
+// other user-authored field. Email carries only the case id/type; authenticated
+// admins read/decrypt the queue through /api/admin/support. `status` is updated
+// by that same surface.
 export const supportCases = pgTable(
   "support_cases",
   {

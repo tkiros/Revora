@@ -4,7 +4,11 @@ import { z } from "zod";
 
 import { isAdmin } from "../../../../lib/server/admin";
 import { getDb, schema, type Db } from "../../../../lib/server/db";
-import { sendEmail, type SendEmailResult } from "../../../../lib/server/email";
+import {
+  sendEmail,
+  type SendEmailInput,
+  type SendEmailResult
+} from "../../../../lib/server/email";
 import { generateClaimToken } from "../../../../lib/server/pantry/claims";
 import { intakeEmailText } from "../../../../lib/server/pantry/emails";
 import {
@@ -31,7 +35,7 @@ const ActionSchema = z
 type Deps = {
   db?: () => Db;
   getSession?: () => Promise<SessionInfo>;
-  email?: { send: (input: { to: string; subject: string; text: string }) => Promise<SendEmailResult> };
+  email?: { send: (input: SendEmailInput) => Promise<SendEmailResult> };
   processOrder?: typeof processPantryOrder;
   // Injectable so tests never eagerly construct the OpenAI client
   // (defaultProcessDeps builds the live model, which requires OPENAI_API_KEY).
@@ -81,7 +85,12 @@ export function createAdminPantryHandler(deps: Deps = {}) {
         .set({ claimToken: tokenHash, updatedAt: now() })
         .where(eq(schema.pantryOrders.id, orderId));
       const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-      const result = await email.send({ to: order.email, ...intakeEmailText(appUrl, token) });
+      const result = await email.send({
+        to: order.email,
+        ...intakeEmailText(appUrl, token),
+        category: "pantry_intake",
+        idempotencyKey: `admin-pantry-intake/${order.id}/${tokenHash}`
+      });
       if (result.ok) {
         await db()
           .update(schema.pantryOrders)
@@ -92,10 +101,11 @@ export function createAdminPantryHandler(deps: Deps = {}) {
     }
 
     if (action === "resend_report") {
-      const ok = await deliverReport(processDeps, {
-        id: order.id,
-        email: order.email
-      });
+      const ok = await deliverReport(
+        processDeps,
+        { id: order.id, email: order.email },
+        `admin-pantry-report/${order.id}/${now().toISOString()}`
+      );
       return NextResponse.json({ ok });
     }
 

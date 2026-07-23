@@ -31,6 +31,7 @@ type CronsProbe = {
 type ReadinessIssue =
   | "database_unavailable"
   | "database_unconfigured"
+  | "email_delivery_unavailable"
   | "rate_limit_unavailable"
   | `cron_${keyof CronsProbe}_${Exclude<CronProbeStatus, "ok" | "unknown">}`;
 
@@ -57,6 +58,7 @@ export function createHealthHandler(deps: HealthDeps = {}) {
 
   return async function GET() {
     const { db, crons } = await probeDbAndCrons(dbAccessor, now());
+    const emailDelivery = emailDeliveryConfigState();
 
     let environment: "preview" | "production" | "development" | "test";
 
@@ -76,6 +78,7 @@ export function createHealthHandler(deps: HealthDeps = {}) {
           launch: "missing_config",
           launchMode: "normal",
           upstash: rateLimitConfigState(),
+          emailDelivery,
           db,
           crons,
         },
@@ -89,7 +92,13 @@ export function createHealthHandler(deps: HealthDeps = {}) {
     const isPaused = !controls.publicChecksEnabled || launchMode === "paused";
 
     const upstash = rateLimitConfigState();
-    const issues = readinessIssues({ environment, upstash, db, crons });
+    const issues = readinessIssues({
+      environment,
+      upstash,
+      emailDelivery,
+      db,
+      crons,
+    });
     const ready = issues.length === 0;
 
     return NextResponse.json(
@@ -107,6 +116,7 @@ export function createHealthHandler(deps: HealthDeps = {}) {
         // validation only, no live ping — the limiter fails open on reachability,
         // so a ping failure isn't app-fatal and doesn't belong in a hot probe.
         upstash,
+        emailDelivery,
         // W-04 gate state, boolean-only (G8): checkout now 401s unauthenticated
         // before the legal gate runs, so an external probe can no longer tell
         // whether LEGAL_TERMS_FINAL is set. Same predicate as checkoutGate() in
@@ -130,6 +140,7 @@ const NO_STORE_HEADERS = { "Cache-Control": "no-store" } as const;
 function readinessIssues(input: {
   environment: "preview" | "production" | "development" | "test";
   upstash: ReturnType<typeof rateLimitConfigState>;
+  emailDelivery: "configured" | "unconfigured";
   db: DbProbeStatus;
   crons: CronsProbe;
 }): ReadinessIssue[] {
@@ -155,8 +166,22 @@ function readinessIssues(input: {
   ) {
     issues.push("rate_limit_unavailable");
   }
+  if (
+    (input.environment === "production" || input.environment === "preview") &&
+    input.emailDelivery !== "configured"
+  ) {
+    issues.push("email_delivery_unavailable");
+  }
 
   return issues;
+}
+
+function emailDeliveryConfigState(): "configured" | "unconfigured" {
+  return process.env.RESEND_API_KEY?.trim() &&
+    process.env.RESEND_WEBHOOK_SECRET?.trim() &&
+    process.env.AUTH_SECRET?.trim()
+    ? "configured"
+    : "unconfigured";
 }
 
 /**

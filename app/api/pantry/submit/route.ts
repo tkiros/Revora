@@ -13,7 +13,11 @@ import {
 import { captureServerError } from "../../../../lib/revora/sentry-capture";
 import { encryptField } from "../../../../lib/server/crypto";
 import { getDb, schema, type Db } from "../../../../lib/server/db";
-import { sendEmail, type SendEmailResult } from "../../../../lib/server/email";
+import {
+  sendEmail,
+  type SendEmailInput,
+  type SendEmailResult
+} from "../../../../lib/server/email";
 import { bandRepresentativeA1c } from "../../../../lib/server/pantry/band";
 import { isPrivatePantryBlobUrlForOrder } from "../../../../lib/server/pantry/blob-access";
 import { supportInbox } from "../../../../lib/server/email";
@@ -54,7 +58,7 @@ type Deps = {
   db?: () => Db;
   getSession?: () => Promise<SessionInfo>;
   vision?: () => PantryVisionClient;
-  email?: { send: (input: { to: string; subject: string; text: string }) => Promise<SendEmailResult> };
+  email?: { send: (input: SendEmailInput) => Promise<SendEmailResult> };
   rateLimit?: PantryRateLimit;
   now?: () => Date;
 };
@@ -215,7 +219,9 @@ export function createPantrySubmitHandler(deps: Deps = {}) {
       await email.send({
         to: supportInbox(),
         subject: `Pantry order needs manual review: ${order.id}`,
-        text: `Extraction produced zero items for order ${order.id} (${failedPhotos} photo(s) failed). Handle via /admin/pantry.`
+        text: `Extraction produced zero items for order ${order.id} (${failedPhotos} photo(s) failed). Handle via /admin/pantry.`,
+        category: "pantry_alert",
+        idempotencyKey: `pantry-extraction-alert/${order.id}`
       });
       return NextResponse.json({ status: "needs_manual" });
     }

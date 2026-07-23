@@ -9,6 +9,7 @@ import {
 } from "./lib/server/email-stub";
 import { checkEmailCooldown } from "./lib/revora/rate-limit";
 import { EMAIL_FROM } from "./lib/revora/contact";
+import { sendEmail } from "./lib/server/email";
 
 /**
  * Auth.js v5 — email magic-link via Resend, database sessions in Railway
@@ -68,22 +69,16 @@ const emailProvider = Resend({
       return;
     }
 
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        from: EMAIL_FROM,
-        to: params.identifier,
-        subject: "Your Revora sign-in link",
-        text: `Sign in to Revora:\n\n${params.url}\n\nThis link expires in 24 hours. If you didn't request it, you can ignore this email.`
-      })
+    const result = await sendEmail({
+      to: params.identifier,
+      subject: "Your Revora sign-in link",
+      text: `Sign in to Revora:\n\n${params.url}\n\nThis link expires in 24 hours. If you didn't request it, you can ignore this email.`,
+      category: "auth_magic_link",
+      idempotencyKey: `auth/${params.url}`
     });
 
-    if (!response.ok) {
-      throw new Error(`Resend error: ${response.status}`);
+    if (!result.ok) {
+      throw new Error(`Resend error: ${result.status}`);
     }
   }
 });

@@ -107,11 +107,16 @@ describe("GET /api/health", () => {
     expect(payload).toEqual({
       ok: false,
       status: "degraded",
-      issues: ["database_unconfigured", "rate_limit_unavailable"],
+      issues: [
+        "database_unconfigured",
+        "rate_limit_unavailable",
+        "email_delivery_unavailable",
+      ],
       environment: "preview",
       launch: "ready",
       launchMode: "normal",
       upstash: "unconfigured",
+      emailDelivery: "unconfigured",
       // G8: boolean-only W-04 gate state; open unless LEGAL_TERMS_FINAL="0"
       // (owner WTP decision 2026-07-17, commit 8c30265 — kill switch inverted)
       checkoutGate: "open",
@@ -151,6 +156,7 @@ describe("GET /api/health", () => {
       launch: "missing_config",
       launchMode: "normal",
       upstash: "unconfigured",
+      emailDelivery: "unconfigured",
       db: "unconfigured",
       crons: {
         nudge: "unknown",

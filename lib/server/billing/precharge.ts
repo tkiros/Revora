@@ -1,7 +1,7 @@
 import { and, eq, gt, isNull, lte } from "drizzle-orm";
 
 import { schema, type Db } from "../db";
-import type { SendEmailResult } from "../email";
+import type { SendEmailInput, SendEmailResult } from "../email";
 import { priceVariantDisplay } from "../pricing";
 import { createCancelToken } from "./cancel-token";
 import { prechargeEmailText } from "./emails";
@@ -21,11 +21,7 @@ const TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 export type PrechargeDeps = {
   db: () => Db;
   email: {
-    send: (input: {
-      to: string;
-      subject: string;
-      text: string;
-    }) => Promise<SendEmailResult>;
+    send: (input: SendEmailInput) => Promise<SendEmailResult>;
   };
   now: () => Date;
   secret?: string;
@@ -94,7 +90,12 @@ export async function runPrechargeSweep(
       cancelToken
     );
 
-    const result = await deps.email.send({ to: email, ...message });
+    const result = await deps.email.send({
+      to: email,
+      ...message,
+      category: "trial_precharge",
+      idempotencyKey: `trial-precharge/${sub.id}/${sub.currentPeriodEnd.toISOString()}`
+    });
     if (result.ok) {
       emitBillingEvent({
         name: "precharge_email_sent",
