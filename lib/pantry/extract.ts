@@ -1,6 +1,8 @@
 import OpenAI from "openai";
 import { z } from "zod";
 
+import { readPrivatePantryPhotoDataUrl } from "../server/pantry/blob-access";
+
 /**
  * Vision EXTRACTOR for the Pantry Review pipeline. It transcribes food items
  * from a photo into text and does nothing else — it never judges, never
@@ -82,6 +84,7 @@ export function createPantryVisionClient(options?: {
   apiKey?: string;
   model?: string;
   client?: PantryVisionTransport;
+  loadPhoto?: (photoUrl: string) => Promise<string>;
 }): PantryVisionClient {
   return {
     async extractFromPhoto(photoUrl) {
@@ -98,6 +101,9 @@ export function createPantryVisionClient(options?: {
         options?.model ?? process.env.REVORA_VISION_MODEL ?? DEFAULT_VISION_MODEL;
       const transport =
         options?.client ?? createTransport(options?.apiKey ?? process.env.OPENAI_API_KEY);
+      const imageDataUrl = await (
+        options?.loadPhoto ?? readPrivatePantryPhotoDataUrl
+      )(photoUrl);
 
       const response = await transport.responses.create({
         model,
@@ -106,7 +112,7 @@ export function createPantryVisionClient(options?: {
             role: "user",
             content: [
               { type: "input_text", text: EXTRACT_PROMPT },
-              { type: "input_image", image_url: photoUrl, detail: "auto" }
+              { type: "input_image", image_url: imageDataUrl, detail: "auto" }
             ]
           }
         ],

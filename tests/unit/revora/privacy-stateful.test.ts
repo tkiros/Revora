@@ -144,9 +144,8 @@ describe("stateful privacy allowlist", () => {
     expect(source).toMatch(/when you delete your account/i);
     expect(source).toMatch(/seven days/i);
 
-    // The photos are public-read at an unguessable address, NOT private storage
-    // (@vercel/blob supports private, but OpenAI's vision fetch cannot present
-    // our token). The page must never claim otherwise again.
-    expect(source).not.toMatch(/stored privately/i);
+    expect(source).toMatch(/private object storage/i);
+    expect(source).toMatch(/authenticated server request/i);
+    expect(source).not.toMatch(/public but unlisted/i);
   });
 });

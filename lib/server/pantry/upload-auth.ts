@@ -17,6 +17,7 @@ export type UploadTokenOptions = {
 export async function authorizePantryUpload(
   db: Db,
   session: { userId: string; email: string },
+  pathname: string,
   clientPayload: string | null | undefined
 ): Promise<UploadTokenOptions> {
   const parsedId = z.string().uuid().safeParse(clientPayload);
@@ -36,6 +37,9 @@ export async function authorizePantryUpload(
     );
   if (!order) {
     throw new Error("No open pantry order for this upload.");
+  }
+  if (pathname !== `pantry/${order.id}/photo.jpg`) {
+    throw new Error("Invalid pantry photo pathname.");
   }
 
   return {

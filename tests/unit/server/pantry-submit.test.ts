@@ -73,7 +73,10 @@ function submitRequest(body: unknown) {
 function validBody(orderId: string, overrides: Record<string, unknown> = {}) {
   return {
     orderId,
-    photoUrls: ["https://revora.public.blob.vercel-storage.com/a.jpg", "https://revora.public.blob.vercel-storage.com/b.jpg"],
+    photoUrls: [
+      `https://revora.private.blob.vercel-storage.com/pantry/${orderId}/photo-AbCdEf123456.jpg`,
+      `https://revora.private.blob.vercel-storage.com/pantry/${orderId}/photo-ZyXwVu987654.jpg`
+    ],
     a1cBand: "prediabetes_60_62",
     notes: "mostly breakfast stuff",
     consent: true,
@@ -132,7 +135,11 @@ describe("POST /api/pantry/submit", () => {
     const response = await POST(
       submitRequest(
         validBody(order.id, {
-          photoUrls: Array.from({ length: 11 }, (_, i) => `https://revora.public.blob.vercel-storage.com/${i}.jpg`)
+          photoUrls: Array.from(
+            { length: 11 },
+            (_, i) =>
+              `https://revora.private.blob.vercel-storage.com/pantry/${order.id}/photo-AbCdEf12${String(i).padStart(2, "0")}.jpg`
+          )
         })
       )
     );
@@ -145,13 +152,27 @@ describe("POST /api/pantry/submit", () => {
     for (const hostile of [
       "https://evil.example/a.jpg",
       "https://blob.vercel-storage.com.evil.example/a.jpg",
-      "http://revora.public.blob.vercel-storage.com/a.jpg" // https only
+      `https://revora.public.blob.vercel-storage.com/pantry/${order.id}/photo-AbCdEf123456.jpg`,
+      `https://revora.private.blob.vercel-storage.com/pantry/${crypto.randomUUID()}/photo-AbCdEf123456.jpg`,
+      `http://revora.private.blob.vercel-storage.com/pantry/${order.id}/photo-AbCdEf123456.jpg`
     ]) {
       const response = await POST(
         submitRequest(validBody(order.id, { photoUrls: [hostile] }))
       );
       expect(response.status, hostile).toBe(400);
     }
+  });
+
+  it("rejects duplicate photo URLs", async () => {
+    const order = await makeClaimedOrder();
+    const duplicate = `https://revora.private.blob.vercel-storage.com/pantry/${order.id}/photo-AbCdEf123456.jpg`;
+    const POST = createPantrySubmitHandler(makeDeps());
+
+    const response = await POST(
+      submitRequest(validBody(order.id, { photoUrls: [duplicate, duplicate] }))
+    );
+
+    expect(response.status).toBe(400);
   });
 
   it("rejects a submit without consent", async () => {

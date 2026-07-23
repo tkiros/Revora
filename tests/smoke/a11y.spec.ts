@@ -149,7 +149,7 @@ const STUB_DIR = process.env.AUTH_EMAIL_STUB_DIR;
 const PANTRY_ENABLED = Boolean(
   process.env.DATABASE_URL &&
     STUB_DIR &&
-    process.env.BLOB_READ_WRITE_TOKEN &&
+    process.env.PANTRY_BLOB_READ_WRITE_TOKEN &&
     process.env.PANTRY_EXTRACT_STUB === "1"
 );
 
@@ -179,7 +179,7 @@ async function signInVia(page: Page, email: string, url: string) {
 test.describe("signed-in pantry surfaces", () => {
   test.skip(
     !PANTRY_ENABLED,
-    "pantry a11y needs DATABASE_URL, AUTH_EMAIL_STUB_DIR, BLOB_READ_WRITE_TOKEN, PANTRY_EXTRACT_STUB=1"
+    "pantry a11y needs DATABASE_URL, AUTH_EMAIL_STUB_DIR, PANTRY_BLOB_READ_WRITE_TOKEN, PANTRY_EXTRACT_STUB=1"
   );
 
   test("pantry intake page has no critical or serious a11y violations", async ({
