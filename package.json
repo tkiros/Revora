@@ -8,7 +8,7 @@
     "typecheck": "rm -rf .next/dev/types .next/types && next typegen && test -f .next/types/routes.d.ts && tsc --noEmit",
     "build": "next build",
     "test": "vitest run",
-    "e2e": "playwright test",
+    "e2e": "tsx scripts/run-playwright.ts",
     "lint": "eslint .",
     "contract": "node scripts/validate-safety-contract.mjs",
     "db:migrate:production": "REVORA_DB_ENV=production drizzle-kit migrate",

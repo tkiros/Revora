@@ -21,10 +21,15 @@ describe("Playwright release-gate configuration", () => {
       "legacy",
       "trial"
     ]);
+    expect(servers.map((server) => server.env?.NEXT_DIST_DIR)).toEqual([
+      ".next-e2e-legacy",
+      ".next-e2e-trial"
+    ]);
   });
 
   it("does not mask a release-gate failure with an automatic retry", () => {
     expect(config.retries).toBe(0);
+    expect(config.workers).toBe(1);
   });
 
   it("does not use a teardown to rewrite tracked source after the run", () => {

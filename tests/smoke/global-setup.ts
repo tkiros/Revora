@@ -53,15 +53,13 @@ export async function warmRoutes(
 }
 
 /**
- * A document request compiles the server route, but it does not request or
- * execute that route's browser chunks. With `next dev`, the first real browser
- * could therefore trigger a client-bundle rebuild while the parallel workers
- * were already navigating. Chromium then observed `net::ERR_NETWORK_CHANGED`
- * for a core chunk and the page remained permanently on its SSR loading shell.
+ * An API request proves the route responds but does not execute browser chunks.
+ * Visit the same routes in a real browser before the release gate starts. The
+ * final check-page assertion proves the optimized build actually hydrates
+ * instead of merely returning a healthy-looking server-rendered shell.
  *
- * Visit the same routes in one real browser before workers start. The final
- * check-page assertion proves React actually hydrated instead of merely
- * returning HTML; a failed client chunk makes setup fail immediately.
+ * This is a fail-fast probe, not a cache-warming substitute for assertions:
+ * every test still gets its own isolated browser context.
  */
 export async function warmBrowserRoutes(
   page: Page,

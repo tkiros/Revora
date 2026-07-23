@@ -124,16 +124,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx drizzle-kit migrate
-      # E2E runs the immutable production server, not a recompiling dev server.
-      # The public VAPID value is a syntactically valid smoke-only key baked into
-      # the client bundle; no notification leaves the mocked browser tests.
-      - run: npm run build
-        env:
-          NEXT_PUBLIC_VAPID_PUBLIC_KEY: BDd3_hVL9fZi9Ybo2UUmA0mNzLFmwEsuJdyxdCLVQV-XFotN0jkNqp7GQ96_2enX0mUeXBIvBqXAiCveKuMhGJ0
       # playwright.config.ts runs two projects: Mobile Chrome (Pixel 5, chromium)
       # and Mobile Safari (iPhone 12, webkit). Installing chromium alone failed
       # all 110 Mobile Safari tests at browser launch.
       - run: npx playwright install --with-deps chromium webkit
+      # The runner builds isolated legacy + trial production outputs before
+      # Playwright starts, including its syntactically valid smoke-only VAPID
+      # key. No notification leaves the mocked browser tests.
       - run: npm run e2e
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: failure()

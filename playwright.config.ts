@@ -1,9 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
 
+import { includesTrialWall } from "./scripts/e2e-spec-selection";
+
 // The PAYWALL_MODE=trial server on :3101 is only needed when the trial-wall spec
 // is actually in the run. Both E2E servers read the same immutable production
-// build: PAYWALL_MODE is resolved per request, so the two runtime processes can
-// exercise legacy and trial behavior without recompiling browser chunks.
+// source revision, built separately because static pages bake PAYWALL_MODE.
 //
 // SUPPRESSION RULE: only a set of CONCRETE spec-file filters (each arg
 // endsWith(".spec.ts")) that omit trial-wall suppresses :3101. Everything else
@@ -11,25 +12,7 @@ import { defineConfig, devices } from "@playwright/test";
 // directory-style/ambiguous filter (e.g. `tests/smoke/`, `tests/`), because a
 // directory can contain trial-wall.spec.ts and we cannot prove otherwise.
 //
-// specFilters picks out path-like positional args only — the leading `test`
-// subcommand and flags/values like --project="Mobile Chrome" don't look like a
-// spec path, so a filter-less run still boots :3101.
-const specFilters = process.argv
-  .slice(2)
-  .filter(
-    (a) =>
-      !a.startsWith("-") &&
-      (a.endsWith(".ts") || a.includes(".spec") || a.includes("tests/"))
-  );
-const concreteSpecFilters = specFilters.filter((a) => a.endsWith(".spec.ts"));
-const runsTrialSpec =
-  // No path filter → whole-suite run → boot.
-  specFilters.length === 0 ||
-  // Any non-concrete path filter (a directory or anything ambiguous) is present
-  // → boot, since it may resolve to trial-wall.
-  concreteSpecFilters.length !== specFilters.length ||
-  // Every filter is a concrete .spec.ts: boot only if one of them is trial-wall.
-  concreteSpecFilters.some((a) => a.includes("trial-wall"));
+const runsTrialSpec = includesTrialWall(process.argv.slice(2));
 
 const trialWebServer = {
   // Second production server on :3101 running PAYWALL_MODE=trial for
@@ -50,17 +33,18 @@ const trialWebServer = {
     // (2026-07-09 E2E-05). Never a production value.
     AUTH_SECRET: "revora-e2e-smoke-only-secret-0000000000000000",
     PAYWALL_MODE: "trial",
-    AUTH_EMAIL_STUB_DIR: "/tmp/revora-trial-smoke-stub"
+    AUTH_EMAIL_STUB_DIR: "/tmp/revora-trial-smoke-stub",
+    NEXT_DIST_DIR: ".next-e2e-trial"
   }
 };
 
 export default defineConfig({
   testDir: "./tests/smoke",
-  // Exercise the same optimized server/runtime shape that is deployed. The
-  // caller must build first (`npm run build && npx playwright test`); CI does
-  // this explicitly. Running against `next dev` caused Fast Refresh rebuilds
-  // while parallel browsers were hydrating, leaving real assertions stranded
-  // on server-rendered loading shells.
+  // Exercise the same optimized server/runtime shape that is deployed.
+  // `npm run e2e` prepares exact legacy + trial builds before invoking this
+  // config. Running against `next dev` caused Fast Refresh rebuilds while
+  // parallel browsers were hydrating, leaving real assertions stranded on
+  // server-rendered loading shells.
   //
   // The setup still probes every owned route and proves one browser hydration
   // before workers start. It fails on bad responses; it does not widen product
@@ -72,6 +56,12 @@ export default defineConfig({
   // test budget from expiring while several accessibility scans complete.
   timeout: 90_000,
   fullyParallel: true,
+  // This workstation intermittently returns Chromium net::ERR_NETWORK_CHANGED
+  // for localhost script chunks when several fresh browser processes start
+  // together. One worker produced 10/10 clean cold-context repetitions and
+  // still exercises every browser/project; browser-flow parallelism itself is
+  // not a product contract.
+  workers: 1,
   // A retry turns a timing defect into a superficially green release gate.
   // Production-server E2E must pass the first time; failures retain traces.
   retries: 0,
@@ -118,7 +108,8 @@ export default defineConfig({
         STRIPE_PRICE_ANNUAL: "price_e2e_annual_smoke_only",
         // Test-only secret so Auth.js stops logging MissingSecret in smoke
         // runs (2026-07-09 E2E-05). Never a production value.
-        AUTH_SECRET: "revora-e2e-smoke-only-secret-0000000000000000"
+        AUTH_SECRET: "revora-e2e-smoke-only-secret-0000000000000000",
+        NEXT_DIST_DIR: ".next-e2e-legacy"
       }
     },
     ...(runsTrialSpec ? [trialWebServer] : [])

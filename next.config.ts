@@ -51,6 +51,10 @@ if (process.env.VERCEL_ENV === "production") {
 }
 
 const nextConfig: NextConfig = {
+  // E2E builds the legacy and trial deployments into isolated ignored
+  // directories, then starts both optimized servers together. Normal builds
+  // leave NEXT_DIST_DIR unset and continue to use Next's default `.next`.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   // C7 four-jobs restructure (2026-07-21): old bookmarks and deep links keep
   // working. /memory folded into /meals as its "Saved meals" section.
   redirects: async () => [
