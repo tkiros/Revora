@@ -33,7 +33,7 @@ function isolatedDatabaseUrl(value?: string): string {
 }
 
 export function isolatedE2ERuntimeEnv(
-  base: NodeJS.ProcessEnv = process.env
+  base: Partial<NodeJS.ProcessEnv> = process.env
 ): NodeJS.ProcessEnv {
   return {
     ...base,
@@ -105,5 +105,5 @@ export function isolatedE2ERuntimeEnv(
     UPSTASH_REDIS_REST_URL: "",
     VAPID_PRIVATE_KEY: "",
     VERCEL_OIDC_TOKEN: ""
-  };
+  } as NodeJS.ProcessEnv;
 }
