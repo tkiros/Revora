@@ -43,6 +43,19 @@ describe("sendEmail", () => {
     expect(result).toEqual({ ok: false, status: 429 });
   });
 
+  it("turns a transport rejection into a retryable failed attempt", async () => {
+    process.env.RESEND_API_KEY = "re_test_key";
+    const fetchImpl = vi.fn().mockRejectedValue(new Error("network down"));
+
+    const result = await sendEmail(
+      { to: "b@e.com", subject: "s", text: "t" },
+      { fetchImpl: fetchImpl as unknown as typeof fetch }
+    );
+
+    expect(result).toEqual({ ok: false, status: 503 });
+    expect(fetchImpl.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
+  });
+
   it("writes to the stub dir instead of fetching when AUTH_EMAIL_STUB_DIR is set", async () => {
     const stubDir = fs.mkdtempSync(path.join(os.tmpdir(), "revora-mail-"));
     process.env.AUTH_EMAIL_STUB_DIR = stubDir;

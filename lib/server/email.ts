@@ -32,27 +32,35 @@ export async function sendEmail(
   input: SendEmailInput,
   deps: SendEmailDeps = {}
 ): Promise<SendEmailResult> {
-  const stubDir = emailStubDirectory(process.env);
-  if (stubDir) {
-    const name = `${input.to.replace(/[^a-z0-9@.]/gi, "_")}-${Date.now()}.json`;
-    await writeEmailStub(stubDir, name, input);
-    return { ok: true };
-  }
+  try {
+    const stubDir = emailStubDirectory(process.env);
+    if (stubDir) {
+      const name = `${input.to.replace(/[^a-z0-9@.]/gi, "_")}-${Date.now()}.json`;
+      await writeEmailStub(stubDir, name, input);
+      return { ok: true };
+    }
 
-  const apiKey = process.env.RESEND_API_KEY?.trim();
-  if (!apiKey) {
+    const apiKey = process.env.RESEND_API_KEY?.trim();
+    if (!apiKey) {
+      return { ok: false, status: 503 };
+    }
+
+    const fetchImpl = deps.fetchImpl ?? fetch;
+    const response = await fetchImpl("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ from: EMAIL_FROM, ...input }),
+      signal: AbortSignal.timeout(10_000)
+    });
+
+    return response.ok ? { ok: true } : { ok: false, status: response.status };
+  } catch {
+    // Every caller owns a durable retry state (Pantry order, billing inbox, or
+    // cron timestamp). A transport rejection/timeout must be a normal failed
+    // attempt, not an exception that aborts the rest of a recovery sweep.
     return { ok: false, status: 503 };
   }
-
-  const fetchImpl = deps.fetchImpl ?? fetch;
-  const response = await fetchImpl("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ from: EMAIL_FROM, ...input })
-  });
-
-  return response.ok ? { ok: true } : { ok: false, status: response.status };
 }

@@ -22,6 +22,7 @@ import {
 import { runStripeReconcileCron } from "../../../lib/server/billing/reconcile";
 import { getEntitlement } from "../../../lib/server/entitlement";
 import { hashClaimToken } from "../../../lib/server/pantry/claims";
+import { runPantrySweep } from "../../../lib/server/pantry/sweep";
 import { schema } from "../../../lib/server/db";
 import { createTestDb } from "../../helpers/test-db";
 
@@ -1103,5 +1104,51 @@ describe("inbox email dispatch (B4) — post-commit, once, stable token", () => 
 
     expect(outcome).toBe("failed");
     expect(send).not.toHaveBeenCalled();
+  });
+
+  it("recovers a failed paid-order email exactly once through the durable Pantry sweep", async () => {
+    const send = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 503 })
+      .mockResolvedValue({ ok: true });
+    const event = pantryEvent("b4_recover");
+
+    expect(
+      await ingestStripeEvent(
+        testDb.db,
+        event,
+        deps({ stripe: pantryStripe, email: { send } })
+      )
+    ).toBe("processed");
+
+    let [order] = await testDb.db.select().from(schema.pantryOrders);
+    expect(order.intakeEmailSentAt).toBeNull();
+    const firstToken =
+      /token=([A-Za-z0-9_-]+)/.exec(send.mock.calls[0][0].text)?.[1] ?? "";
+    expect(hashClaimToken(firstToken)).toBe(order.claimToken);
+
+    const recoveryAt = new Date(NOW.getTime() + 60 * 60 * 1000);
+    const sweepDeps = {
+      db: testDb.db,
+      model: { generate: vi.fn() } as never,
+      email: { send },
+      deleteBlobs: vi.fn().mockResolvedValue(undefined),
+      listBlobs: vi.fn().mockResolvedValue([]),
+      now: () => recoveryAt,
+      processOrder: vi.fn().mockResolvedValue({ done: true })
+    };
+
+    expect((await runPantrySweep(sweepDeps)).intakeResent).toBe(1);
+    [order] = await testDb.db.select().from(schema.pantryOrders);
+    expect(order.intakeEmailSentAt?.toISOString()).toBe(
+      recoveryAt.toISOString()
+    );
+    const recoveryToken =
+      /token=([A-Za-z0-9_-]+)/.exec(send.mock.calls[1][0].text)?.[1] ?? "";
+    expect(recoveryToken).not.toBe(firstToken);
+    expect(hashClaimToken(recoveryToken)).toBe(order.claimToken);
+
+    expect((await runPantrySweep(sweepDeps)).intakeResent).toBe(0);
+    expect(send).toHaveBeenCalledTimes(2);
   });
 });

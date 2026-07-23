@@ -244,18 +244,20 @@ export async function processInboxRow(
     return finalStatus === "dead_letter" ? "dead_letter" : "failed";
   }
 
-  // Committed. Dispatch the collected emails now (B4). A send failure is
-  // best-effort — the reducer writes are already durable — and never re-runs
-  // the reducer; the pantry stamp records a real successful send only.
+  // Committed. Dispatch the collected emails now (B4). A send failure never
+  // re-runs the reducer. Pantry delivery remains durable on the committed
+  // order row (`intake_email_sent_at IS NULL`) and the Pantry sweep retries it;
+  // the stamp records a real successful send only.
   await dispatchPendingEmails(db, pendingEmails, deps.email, now);
   return "processed";
 }
 
 /**
- * Send the emails a committed reducer collected. Best-effort and post-commit:
- * a send failure or an `onSent` failure never throws (the money-path writes are
- * already durable), and a duplicate delivery re-dispatches nothing because the
- * inbox already dedupes it to "duplicate".
+ * Send the emails a committed reducer collected. Post-commit delivery failure
+ * never throws into the money path. Reducers that need delivery recovery must
+ * persist their own pending state in the same transaction (Pantry does this on
+ * `pantry_orders`); duplicate provider delivery re-dispatches nothing because
+ * the inbox already dedupes it to "duplicate".
  */
 async function dispatchPendingEmails(
   db: Db,
