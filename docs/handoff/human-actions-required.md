@@ -3,7 +3,9 @@
 **Started:** 2026-07-01 · **Maintained by:** the build session — appended as phases surface human-only steps.
 Source inventory: `docs/production-implementation-plan-2026-07-01.md` §10. Status legend: ☐ open · ⏳ long-lead, start NOW · ✅ done.
 
-Reconciled 2026-07-04 against docs/handoff/2026-07-04-unified-completion-plan.md Appendix A — that appendix is the deduplicated master list.
+Reconciled 2026-07-22 against the live service audit. Provider claims below
+remain open until their stated provider-side evidence exists; local code or
+environment-variable presence does not close them.
 
 ## ⚠ Longest-lead items — start these today
 
@@ -30,22 +32,21 @@ Reconciled 2026-07-04 against docs/handoff/2026-07-04-unified-completion-plan.md
 
 ## §1 Accounts to create
 
-- ☐ open — Railway (Postgres database; backups on — supersedes the earlier Neon
-  plan, `docs/adr/hosting-hybrid.md`): CLI installed and logged in; **DB not yet
-  provisioned — no `DATABASE_URL` exists**
-- ☐ open — Resend (+ verified sending domain): signed up, API key in the
-  environment file, CLI installed and authenticated; **domain verification
-  unconfirmed**
+- ✅ runtime exists — canonical Railway Postgres is provisioned and production
+  can query it. ☐ Still open: backup/PITR evidence, isolated restore proof,
+  least-privilege role review, and a separate preview database.
+- ☐ open — Resend account, API key, and sending-domain records exist, but the
+  required Return-Path MX and provider/inbox/bounce proof remain incomplete.
 - ✅ done — Upstash prod: signed up, API key set in environment file, CLI
   installed and authenticated
-- ☐ open — Sentry prod: signed up, CLI installed and authenticated;
-  **`SENTRY_DSN` in Vercel unconfirmed**
-- ☐ open — Vercel Edge Config
-- ☐ open — Umami: cloud account created; self-host on Railway **failing**
-  (`git clone` + `pnpm install` erroring) — decide cloud-vs-self-host, see
-  Appendix A H8 (`docs/handoff/2026-07-04-unified-completion-plan.md`)
-  (self-hosted on Railway — supersedes the earlier Plausible plan,
-  `docs/adr/analytics-umami.md`)
+- ☐ open — Sentry is configured in production; provider receipt, scrubbing,
+  source-map, and alert-delivery canaries remain unproven.
+- ✅ runtime exists — Vercel Edge Config read path is proven. ☐ Still open:
+  ownership, safe pause/resume drill, and owner-routed alert proof.
+- ☐ open — Umami Cloud is the chosen/current production deployment and the
+  script/gateway transport is configured. Provider dashboard receipt and an
+  exactly-once allowlisted browser event remain unproven. Do not provision a
+  Railway Umami service for launch.
 - ⏳ Google Play Developer ($25)
 - ☐ Google Cloud project (Play Developer API enabled, service-account JSON, RTDN Pub/Sub topic)
 - ☐ Vercel Pro (hourly crons + function limits)
@@ -80,7 +81,7 @@ Reconciled 2026-07-04 against docs/handoff/2026-07-04-unified-completion-plan.md
 · Vercel Pro ~$20/mo 
 · domain ~$12/yr 
 · OpenAI usage 
-· Railway/Resend/Umami-hosting/Upstash tiers 
+· Railway/Resend/Umami Cloud/Upstash tiers 
 · Stripe fees 
 · optional future counsel fees
 
@@ -144,18 +145,17 @@ Reconciled 2026-07-04 against docs/handoff/2026-07-04-unified-completion-plan.md
 
 ### P7 — Production hardening + observability (2026-07-02)
 
-Two owner infra decisions are implemented in code and waiting on
-provisioning (`docs/adr/hosting-hybrid.md`, `docs/adr/analytics-umami.md`):
+Current provider closeout actions (`docs/adr/hosting-hybrid.md`,
+`docs/adr/analytics-umami.md`):
 
-- ☐ **Provision Railway Postgres** and set `DATABASE_URL` in Vercel
-  (preview + production). The app already speaks plain Postgres over TCP
-  (`pg` / `drizzle-orm/node-postgres`, `lib/server/db/index.ts`) — no code
-  change needed once the URL is set. Run `npx drizzle-kit migrate` against
-  it once provisioned (`docs/ops/env-reference.md`).
-- ☐ **Deploy/self-host Umami** (on Railway, per the ADR) and set
-  `NEXT_PUBLIC_UMAMI_SRC` + `NEXT_PUBLIC_UMAMI_WEBSITE_ID` in Vercel
-  (preview + production). Analytics stays fully inert (no script tag, no
-  tracking calls) until both are set.
+- ☐ **Finish Railway Postgres governance**: provision a separate preview DB,
+  apply every checked-in migration in order, verify `drizzle.__drizzle_migrations`,
+  restrict the app role, document the connection budget, and perform a timed
+  restore into an isolated service (`docs/ops/env-reference.md`).
+- ☐ **Finish Umami Cloud proof**: set `NEXT_PUBLIC_UMAMI_SRC` +
+  `NEXT_PUBLIC_UMAMI_WEBSITE_ID` in preview and production, confirm CSP permits
+  the configured script and ingest origins, and observe one allowlisted browser
+  event exactly once in the intended provider website.
 - ☐ **Sentry canary verification** — trigger one real error on a deployed
   preview and confirm it lands in Sentry (`SENTRY_DSN` is already wired
   through `captureServerError`; this task only verifies live delivery,

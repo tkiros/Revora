@@ -31,8 +31,10 @@ until the live PWA is stable (`docs/ops/play-twa-runbook.md`'s blocking note).
 - [ ] **Railway Postgres** provisioned; `DATABASE_URL` set in Vercel
       (preview + production); `npx drizzle-kit migrate` run against it
       (`docs/ops/env-reference.md`).
-- [ ] **Umami** deployed/self-hosted on Railway; `NEXT_PUBLIC_UMAMI_SRC` +
-      `NEXT_PUBLIC_UMAMI_WEBSITE_ID` set in Vercel (preview + production).
+- [ ] **Umami Cloud** configured with `NEXT_PUBLIC_UMAMI_SRC` +
+      `NEXT_PUBLIC_UMAMI_WEBSITE_ID` in Vercel (preview + production); one
+      allowlisted browser event is visible exactly once in the intended
+      provider website. Self-hosting is not a launch requirement.
 - [ ] All other ⚙-marked and plain secrets from `docs/ops/env-reference.md`
       confirmed present in Vercel for both preview and production scopes
       (cross-check against `docs/handoff/human-actions-required.md` §2 —

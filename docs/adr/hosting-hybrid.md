@@ -8,25 +8,25 @@ the superseded note left in that file.
 
 - **Vercel** hosts the Next.js app: pages, API routes, and the one remaining
   Vercel cron (`vercel.json` — `/api/cron/bai-weekly`, weekly). The hourly
-  crons (`nudge`, `pantry-sweep`, `trial-precharge`) moved to a Railway
+  crons (`nudge`, `pantry-sweep`, `trial-precharge`, `stripe-reconcile`) moved to a Railway
   scheduler service (commit `eb3005e`; provisioning steps in
   `docs/runbooks/price-test.md`) because hourly cadence needs Vercel Pro.
 - **Railway** hosts **Postgres** — plain Postgres over TCP, not Neon's HTTP
   driver — plus the `hourly-crons` scheduler above, and is the landing spot
-  for any future heavy background work (long-running jobs that don't fit a
-  Vercel function) and for self-hosted **Umami**
-  (`docs/adr/analytics-umami.md`).
+  for any future heavy background work that does not fit a Vercel function.
+- **Umami Cloud**, not Railway, is the current analytics deployment. See
+  `docs/adr/analytics-umami.md`.
 
-This is a hybrid, not a full migration off Vercel: request/response and cron
-compute stay on Vercel, where they already work; only the stateful layer and
-future heavy lifting move to Railway.
+This is a hybrid, not a full migration off Vercel: request/response and the
+weekly BAI cron stay on Vercel; the database and hourly scheduler run on
+Railway. The scheduler's checked-in configuration is not proof that its live
+deployment is healthy—fresh `/api/health` heartbeats are the release gate.
 
 ## Why
 
 The owner chose Railway for the database over staying on Neon (§ project
-decision log). Vercel remains the right host for the app itself — the
-existing crons, edge-adjacent request handling, and preview-deploy workflow
-all depend on it, and none of that changes with this ADR.
+decision log). Vercel remains the host for the app itself because the
+edge-adjacent request handling and preview-deploy workflow depend on it.
 
 ## Connection approach
 
@@ -63,6 +63,7 @@ all depend on it, and none of that changes with this ADR.
 
 ## Human action required
 
-Provision the Railway Postgres instance and set `DATABASE_URL` in Vercel
-(preview + production) — see `docs/handoff/human-actions-required.md` (P7
-section). The build cannot create third-party accounts.
+The canonical production Railway Postgres instance is provisioned. Before
+launch, provision an isolated preview database, verify the migration journal,
+backup/PITR and a timed restore, and prove the live hourly scheduler produces
+fresh heartbeats. See `docs/handoff/human-actions-required.md` (P7 section).
