@@ -33,6 +33,7 @@ beforeAll(async () => {
   process.env.HEALTH_DATA_KEY = TEST_KEY;
   process.env.RTDN_SHARED_TOKEN = "rtdn-secret";
   process.env.NEXT_PUBLIC_PLAY_BILLING = "1";
+  process.env.PANTRY_BLOB_READ_WRITE_TOKEN = "private-blob-test-token";
   // W-04: every paid-checkout entry point 503s unless the deploy declares the
   // terms final. These suites exercise the real paths, so they declare it; the
   // gate itself is proven by its own describe block below.
@@ -56,6 +57,7 @@ afterAll(async () => {
   delete process.env.HEALTH_DATA_KEY;
   delete process.env.RTDN_SHARED_TOKEN;
   delete process.env.NEXT_PUBLIC_PLAY_BILLING;
+  delete process.env.PANTRY_BLOB_READ_WRITE_TOKEN;
   delete process.env.LEGAL_TERMS_FINAL;
   await testDb.close();
 });
@@ -1209,10 +1211,10 @@ describe("applyStripeEvent — charge.refunded deletes the order's photos (W-33)
     expect(row.status).toBe("canceled");
 
     expect(blobDel).toHaveBeenCalledTimes(1);
-    expect(blobDel).toHaveBeenCalledWith([
-      "https://blob/live-1.jpg",
-      "https://blob/live-2.jpg"
-    ]);
+    expect(blobDel).toHaveBeenCalledWith(
+      ["https://blob/live-1.jpg", "https://blob/live-2.jpg"],
+      { token: "private-blob-test-token" }
+    );
 
     const photos = await testDb.db
       .select()
