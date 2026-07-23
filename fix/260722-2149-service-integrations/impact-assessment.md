@@ -232,3 +232,53 @@ Each retained change is assessed before modification and verified according to i
 - Browser: 225 passed, 12 skipped, 0 failed, 0 flaky, 0 retries across Mobile Chrome, Mobile Safari, and Desktop Chrome. The 12 skips are the four explicitly unprovisioned private-Blob/live-judge Pantry surfaces in each browser and remain external provider gates.
 - Cleanup: the owner-only automatic mailboxes were removed after each run; the named disposable Postgres container shut down cleanly and was removed.
 - Truth boundary: local source/test evidence is green. No GitHub protected run, merge, exact-SHA deployment, provider activation, DNS, backup/restore, monitoring receipt, legal approval, or clinical/content approval is inferred from it.
+
+## Iteration 26 - full-range pull-request secret scanning
+
+- Paths: `.github/workflows/ci.yml` and its CI policy contract.
+- Dependents: every remediation commit in PR #35 and any future multi-commit pull request.
+- Critical path: yes - the action's default scan covered only part of the branch, and the first explicit range implementation resolved GitHub's synthetic merge checkout to zero commits.
+- Intended boundary: resolve the merge base from `github.base_ref`, scan through `github.event.pull_request.head.sha`, fail if the range is empty, and never trust the synthetic merge SHA as the feature head.
+- Verification: run `30003920371` scanned all 47 non-merge commits from `origin/main` to exact head and reported no leaks. GitHub-hosted action and explicit range scans both passed.
+
+## Iteration 27 - dependency security closure
+
+- Paths: `package.json` and `package-lock.json`.
+- Dependents: the Next.js production server, image processing, validation tooling, and build-only transitive code.
+- Critical path: yes - GitHub reported six high and six moderate default-branch alerts, including Next.js and Sharp runtime advisories.
+- Intended boundary: update to patched upstream versions without replacing application behavior; use narrow overrides only where an upstream dependency still selected a vulnerable compatible range.
+- Verification: Next.js/eslint-config-next 16.2.11, Sharp 0.35.0 throughout the tree, fast-uri 3.1.4, and the affected esbuild edge 0.25.12; clean `npm ci`, zero-result `npm audit`, full local gate, and green GitHub CI. Default-branch alerts remain visible until the branch is reviewed and merged.
+
+## Iteration 28 - exact deploy-SHA Sentry releases
+
+- Paths: `lib/revora/sentry-release.ts`, browser/server Sentry initializers, Next build injection, and focused tests.
+- Dependents: every browser/server issue, release regression comparison, rollback diagnosis, and alert triage.
+- Critical path: yes - provider events without an exact release cannot be correlated to a deployed revision.
+- Intended boundary: Vercel Git SHA is authoritative; a manual release is fallback only; local/test events stay release-less when no authority exists.
+- Verification: focused unit tests and a synthetic SHA build passed. Exact-preview browser issue `REVORA_1-9` stored release `6215b14b0ddc1ddb34733011756dd06b4e93e322` and environment `preview`.
+
+## Iteration 29 - Sentry IP and geolocation suppression
+
+- Paths: `lib/revora/sentry-scrub.ts` and server/browser privacy tests.
+- Dependents: every Sentry browser/server event from health-adjacent product surfaces.
+- Critical path: yes - the initial safe canary contained no user fields but Sentry still derived and retained city/region/country from the ingest IP.
+- Root cause: deleting `event.user` allows Sentry to infer location from the transport IP. Project-level IP scrubbing removes the raw address but not the already-derived geo object; an advanced `user.geo` scrub rule also executes too early to remove that enrichment.
+- Intended boundary: overwrite every user field with the non-routable `0.0.0.0` sentinel before transport. Sentry's project IP scrubber removes the sentinel, and the explicit address prevents transport-IP geo inference.
+- Verification: 22 focused tests passed. A provider CLI canary with the sentinel stored both IP and geo as null. The real exact-preview browser canary produced one envelope `200`; event `b7377e3bdf7d4ab4904dd4b1effd8b6a` retained only the safe exception type and trace context, with redacted value, no request/breadcrumbs, and null identity/IP/geo. The high-priority email rule triggered, the temporary Vercel bypass was revoked, and all synthetic issues were resolved.
+
+## Iteration 30 - exact-code GitHub release gate
+
+- Runtime SHA: `6215b14b0ddc1ddb34733011756dd06b4e93e322`.
+- Build/static: Next.js 16.2.11 built 89 routes; typecheck, zero-warning lint, safety contract, Drizzle check, and dependency install passed.
+- Unit/eval: 177 files passed, 1 skipped; 1,974 tests passed, 2 skipped.
+- Browser: 225 passed, 12 explicit private-Blob/live-judge Pantry skips, 0 failed, 0 flaky, 0 retries across three projects with disposable Postgres and an owner-only mailbox.
+- Security: both secret scans passed, including all 47 non-merge PR commits; `npm ci` found zero vulnerabilities.
+- Truth boundary: run `30003920371` is a real green GitHub-hosted run, but the repository plan does not expose enforceable branch/ruleset/code-scanning controls for this private repository, and PR #35 has no review. This is verified branch truth, not reviewed/merged/deployed production truth.
+
+## Iteration 31 - private Pantry Blob operator contract
+
+- Paths: `.env.example`, `docs/handoff/human-actions-required.md`, and the authoritative-provider documentation test.
+- Dependents: any operator provisioning preview/production Pantry storage and every browser case gated on `PANTRY_BLOB_READ_WRITE_TOKEN`.
+- Critical path: yes - runtime correctly rejected the legacy public-store token, but two operator surfaces still instructed humans to bind it.
+- Intended boundary: provision a dedicated private Vercel Blob store, bind only `PANTRY_BLOB_READ_WRITE_TOKEN`, and require authorized process/delete plus unauthorized/cross-user denial and delete-failure recovery.
+- Verification: 14 focused documentation/storage tests and scoped lint passed. Live Vercel metadata confirms the production project still lacks the new credential and retains the legacy binding, so Pantry stays an external activation gate.
