@@ -85,9 +85,9 @@ describe("hourly cron runner", () => {
   it("calls all four canonical routes without following redirects", async () => {
     const { CANONICAL_APP_URL, CRON_PATHS, runHourlyCrons } =
       await loadRunner();
-    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
-      jsonResponse({ ok: true })
-    );
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockImplementation(async () => jsonResponse({ ok: true }));
 
     const result = await runHourlyCrons(
       { appUrl: CANONICAL_APP_URL, secret: "test-secret" },
@@ -126,7 +126,7 @@ describe("hourly cron runner", () => {
           headers: { location: CANONICAL_APP_URL }
         })
       )
-      .mockResolvedValue(jsonResponse({ ok: true }));
+      .mockImplementation(async () => jsonResponse({ ok: true }));
 
     await expect(
       runHourlyCronCli(
@@ -162,7 +162,7 @@ describe("hourly cron runner", () => {
     const fetchMock = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(firstResponse)
-      .mockResolvedValue(jsonResponse({ ok: true }));
+      .mockImplementation(async () => jsonResponse({ ok: true }));
 
     const result = await runHourlyCrons(
       { appUrl: CANONICAL_APP_URL, secret: "test-secret" },
@@ -188,7 +188,7 @@ describe("hourly cron runner", () => {
     const fetchMock = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(oversized)
-      .mockResolvedValue(jsonResponse({ ok: true }));
+      .mockImplementation(async () => jsonResponse({ ok: true }));
 
     const result = await runHourlyCrons(
       { appUrl: CANONICAL_APP_URL, secret: "test-secret" },
@@ -209,7 +209,7 @@ describe("hourly cron runner", () => {
     const fetchMock = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(new Response(responseBody, { status: 500 }))
-      .mockResolvedValue(jsonResponse({ ok: true }));
+      .mockImplementation(async () => jsonResponse({ ok: true }));
 
     await runHourlyCrons(
       { appUrl: CANONICAL_APP_URL, secret },
