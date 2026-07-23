@@ -201,6 +201,8 @@ describe("createHealthHandler — db + cron probes (P7)", () => {
 
   it("reports db:unconfigured and crons:unknown/unknown when no DATABASE_URL is set (default deps)", async () => {
     delete process.env.DATABASE_URL;
+    delete process.env.UPSTASH_REDIS_REST_URL;
+    delete process.env.UPSTASH_REDIS_REST_TOKEN;
     const createHealthHandler = await importHandler();
     const GET = createHealthHandler(); // real getDb(), no override
 
