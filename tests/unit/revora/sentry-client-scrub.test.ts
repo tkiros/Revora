@@ -24,7 +24,10 @@ import {
   CLIENT_SENTRY_DSN,
   clientSentryOptions
 } from "../../../instrumentation-client";
-import { scrubSentryEvent } from "../../../lib/revora/sentry-scrub";
+import {
+  SENTRY_IP_GEO_SENTINEL,
+  scrubSentryEvent
+} from "../../../lib/revora/sentry-scrub";
 
 const FOOD = "SENTINEL_FOOD_two_slices_of_pizza";
 const A1C = "SENTINEL_A1C_6point1";
@@ -192,6 +195,14 @@ describe("browser events are scrubbed of every PII vector", () => {
   it("drops ui.input and fetch breadcrumbs even if an integration ever adds them", () => {
     const scrubbed = scrubSentryEvent(browserEventWithAllPiiVectors());
     expect(scrubbed.breadcrumbs).toBeUndefined();
+  });
+
+  it("replaces browser identity with the provider geo-suppression sentinel", () => {
+    const scrubbed = scrubSentryEvent(browserEventWithAllPiiVectors());
+
+    expect(scrubbed.user).toEqual({
+      ip_address: SENTRY_IP_GEO_SENTINEL
+    });
   });
 
   it("keeps the exception type and frame function for triage", () => {
