@@ -208,7 +208,8 @@ export function JourneyCard() {
     if (!enabled) {
       return;
     }
-    void load();
+    const initialLoad = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(initialLoad);
   }, [enabled, load]);
 
   const act = useCallback(

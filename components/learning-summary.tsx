@@ -148,7 +148,8 @@ export function LearningSummary({
   }, []);
 
   useEffect(() => {
-    void load();
+    const initialLoad = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(initialLoad);
   }, [load]);
 
   // Fire the view event once per successful render that has an active stage.

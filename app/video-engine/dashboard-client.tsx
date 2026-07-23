@@ -102,13 +102,17 @@ function RunView({ date, onBack }: { date: string; onBack: () => void }) {
     setSnap(r.body as Snapshot);
   }, [date]);
 
-  useEffect(() => { load(); }, [load]);
-  // poll while a child is actively running
   useEffect(() => {
-    if (!snap?.run || !ACTIVE.has(snap.run.status)) return;
+    const initialLoad = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(initialLoad);
+  }, [load]);
+  // poll while a child is actively running
+  const runStatus = snap?.run?.status;
+  useEffect(() => {
+    if (!runStatus || !ACTIVE.has(runStatus)) return;
     const t = setInterval(load, 1000);
     return () => clearInterval(t);
-  }, [snap?.run?.status, load]);
+  }, [runStatus, load]);
 
   const post = async (path: string, body: unknown) => {
     const r = await jsonFetch(`/api/video-engine/${path}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
