@@ -58,6 +58,16 @@ describe("CSP ↔ Umami agreement", () => {
     expect(connectSrc).toContain("https://stats.example.com");
   });
 
+  it("allows vercel.com so private-store pantry uploads are not CSP-refused", async () => {
+    // @vercel/blob/client with access "private" exchanges tokens and uploads
+    // through vercel.com/api/blob, not *.blob.vercel-storage.com. Caught live
+    // 2026-07-23: every paid Pantry photo upload failed under the old policy.
+    const connectSrc = (await csp())
+      .split("; ")
+      .find((d) => d.startsWith("connect-src"));
+    expect(connectSrc).toContain("https://vercel.com");
+  });
+
   it("allows umami cloud's separate ingest host, not just the script host", async () => {
     process.env.NEXT_PUBLIC_UMAMI_SRC = "https://cloud.umami.is/script.js";
     delete process.env.NEXT_PUBLIC_UMAMI_HOST_URL;
