@@ -9,6 +9,7 @@ describe("sendEmail", () => {
   afterEach(() => {
     delete process.env.AUTH_EMAIL_STUB_DIR;
     delete process.env.RESEND_API_KEY;
+    delete process.env.VERCEL_ENV;
   });
 
   it("POSTs to Resend with bearer auth and the message body", async () => {
@@ -58,5 +59,34 @@ describe("sendEmail", () => {
     expect(files.length).toBe(1);
     const saved = JSON.parse(fs.readFileSync(path.join(stubDir, files[0]), "utf8"));
     expect(saved.subject).toBe("Report ready");
+  });
+
+  it("never writes to the stub in production", async () => {
+    const stubDir = fs.mkdtempSync(path.join(os.tmpdir(), "revora-mail-prod-"));
+    process.env.AUTH_EMAIL_STUB_DIR = stubDir;
+    process.env.VERCEL_ENV = "production";
+    process.env.RESEND_API_KEY = "re_production_key";
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+
+    const result = await sendEmail(
+      { to: "buyer@example.com", subject: "Report ready", text: "link" },
+      { fetchImpl: fetchImpl as unknown as typeof fetch }
+    );
+
+    expect(result).toEqual({ ok: true });
+    expect(fetchImpl).toHaveBeenCalledOnce();
+    expect(fs.readdirSync(stubDir)).toEqual([]);
+  });
+
+  it("fails explicitly when neither a safe stub nor Resend is configured", async () => {
+    const fetchImpl = vi.fn();
+
+    const result = await sendEmail(
+      { to: "buyer@example.com", subject: "Report ready", text: "link" },
+      { fetchImpl: fetchImpl as unknown as typeof fetch }
+    );
+
+    expect(result).toEqual({ ok: false, status: 503 });
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 });

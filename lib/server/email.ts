@@ -1,6 +1,5 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { EMAIL_FROM, SUPPORT_EMAIL } from "../revora/contact";
+import { emailStubDirectory, writeEmailStub } from "./email-stub";
 
 /**
  * One transactional-email door for everything that is not a NextAuth magic
@@ -33,19 +32,23 @@ export async function sendEmail(
   input: SendEmailInput,
   deps: SendEmailDeps = {}
 ): Promise<SendEmailResult> {
-  const stubDir = process.env.AUTH_EMAIL_STUB_DIR;
-  if (stubDir && process.env.VERCEL_ENV !== "production") {
-    await mkdir(stubDir, { recursive: true });
+  const stubDir = emailStubDirectory(process.env);
+  if (stubDir) {
     const name = `${input.to.replace(/[^a-z0-9@.]/gi, "_")}-${Date.now()}.json`;
-    await writeFile(path.join(stubDir, name), JSON.stringify(input));
+    await writeEmailStub(stubDir, name, input);
     return { ok: true };
+  }
+
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  if (!apiKey) {
+    return { ok: false, status: 503 };
   }
 
   const fetchImpl = deps.fetchImpl ?? fetch;
   const response = await fetchImpl("https://api.resend.com/emails", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json"
     },
     body: JSON.stringify({ from: EMAIL_FROM, ...input })

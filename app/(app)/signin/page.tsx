@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { signIn } from "../../../auth";
+import { AUTH_EMAIL_AVAILABLE, signIn } from "../../../auth";
 import { ReviewerSigninForm } from "../../../components/reviewer-signin-form";
 
 export const metadata = { title: "Sign in — Revora" };
@@ -32,44 +32,53 @@ export default async function SignInPage({
             it and you&apos;re in. An account keeps your history and coach in
             sync across your devices.
           </p>
-          <form
-            className="form-grid"
-            action={async (formData: FormData) => {
-              "use server";
-              // Re-validate: the hidden input is client-tamperable, so an
-              // absolute or protocol-relative value must never reach signIn.
-              const raw = String(formData.get("callbackUrl") ?? "");
-              const target =
-                raw.startsWith("/") && !raw.startsWith("//") ? raw : "/welcome";
-              await signIn("resend", {
-                email: String(formData.get("email") ?? ""),
-                redirectTo: target
-              });
-            }}
-          >
-            <input type="hidden" name="callbackUrl" value={redirectTo} />
-            <div className="field-stack">
-              <label htmlFor="email" className="field-label">
-                Email address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                required
-                autoComplete="email"
-                placeholder="you@example.com"
-                className="text-input"
-              />
-              <p className="field-hint">
-                Next you&apos;ll be asked to consent to storing your health
-                data before anything is saved.
-              </p>
-            </div>
-            <button type="submit" className="primary-button">
-              Email me a sign-in link
-            </button>
-          </form>
+          {AUTH_EMAIL_AVAILABLE ? (
+            <form
+              className="form-grid"
+              action={async (formData: FormData) => {
+                "use server";
+                // Re-validate: the hidden input is client-tamperable, so an
+                // absolute or protocol-relative value must never reach signIn.
+                const raw = String(formData.get("callbackUrl") ?? "");
+                const target =
+                  raw.startsWith("/") && !raw.startsWith("//")
+                    ? raw
+                    : "/welcome";
+                await signIn("resend", {
+                  email: String(formData.get("email") ?? ""),
+                  redirectTo: target
+                });
+              }}
+            >
+              <input type="hidden" name="callbackUrl" value={redirectTo} />
+              <div className="field-stack">
+                <label htmlFor="email" className="field-label">
+                  Email address
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  placeholder="you@example.com"
+                  className="text-input"
+                />
+                <p className="field-hint">
+                  Next you&apos;ll be asked to consent to storing your health
+                  data before anything is saved.
+                </p>
+              </div>
+              <button type="submit" className="primary-button">
+                Email me a sign-in link
+              </button>
+            </form>
+          ) : (
+            <p className="request-status" role="status">
+              Sign-in is temporarily unavailable. Your on-device meal checks
+              still work, and nothing you entered has been lost.
+            </p>
+          )}
         </section>
 
         {REVIEWER_MODE ? <ReviewerSigninForm /> : null}
