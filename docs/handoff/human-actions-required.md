@@ -81,7 +81,7 @@ environment-variable presence does not close them.
 · Vercel Pro ~$20/mo 
 · domain ~$12/yr 
 · OpenAI usage 
-· Railway/Resend/Umami Cloud/Upstash tiers 
+· Railway/Resend/Umami Cloud/Upstash tiers
 · Stripe fees 
 · optional future counsel fees
 
