@@ -40,10 +40,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           cache: npm
@@ -77,10 +77,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           cache: npm
@@ -115,10 +115,10 @@ jobs:
       HEALTH_DATA_KEY: ${{ secrets.CI_HEALTH_DATA_KEY || 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=' }}
 
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           cache: npm
@@ -135,7 +135,7 @@ jobs:
       # provisions and removes an owner-only disk mailbox, so auth/account E2E
       # cannot skip or contact Resend. No provider mutation leaves this job.
       - run: npm run e2e
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
           name: playwright-report
@@ -156,11 +156,33 @@ jobs:
       pull-requests: read
 
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # gitleaks needs history: SEC-02 is a set of live keys in commit 213ab8a.
           fetch-depth: 0
           persist-credentials: false
-      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # gitleaks-action asks the PR commits API for one unpaginated page. On a
+      # PR with more than 30 commits its default range silently stops early.
+      # The action installs the pinned binary; this second scan derives the
+      # complete first-parent range from Git itself and therefore covers every
+      # non-merge commit in the PR.
+      - name: scan complete pull-request commit range
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          scan_base="$(git merge-base "origin/${GITHUB_BASE_REF}" HEAD)"
+          scan_count="$(git rev-list --count --no-merges --first-parent "${scan_base}..HEAD")"
+          if [ "${scan_count}" -lt 1 ]; then
+            echo "::error::complete PR scan resolved to zero commits"
+            exit 1
+          fi
+          echo "Scanning ${scan_count} non-merge commits from merge base to HEAD"
+          gitleaks detect \
+            --redact \
+            --exit-code=2 \
+            --report-format=sarif \
+            --report-path=results-full-range.sarif \
+            --log-opts="--no-merges --first-parent ${scan_base}..HEAD"
