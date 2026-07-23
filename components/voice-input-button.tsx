@@ -7,6 +7,7 @@ import {
   isSpeechRecognitionSupported,
   startDictation
 } from "../lib/client/speech";
+import { useHydrated } from "../lib/client/use-hydrated";
 import { IconMic } from "./icons";
 
 type VoiceInputButtonProps = {
@@ -24,15 +25,13 @@ export function VoiceInputButton({
   onTranscript,
   disabled
 }: VoiceInputButtonProps) {
-  const [supported, setSupported] = useState<boolean | null>(null);
+  const hydrated = useHydrated();
+  const supported = hydrated ? isSpeechRecognitionSupported() : null;
   const [listening, setListening] = useState(false);
   const [failed, setFailed] = useState(false);
   const handleRef = useRef<DictationHandle | null>(null);
 
   useEffect(() => {
-    // Feature-detect after hydration so server and first client render match.
-    setSupported(isSpeechRecognitionSupported());
-
     return () => {
       handleRef.current?.stop();
     };

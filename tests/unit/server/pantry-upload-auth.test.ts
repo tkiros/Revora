@@ -47,6 +47,7 @@ describe("authorizePantryUpload", () => {
     const options = await authorizePantryUpload(
       testDb.db,
       { userId, email: "up@test.dev" },
+      `pantry/${order.id}/photo.jpg`,
       order.id
     );
     expect(options.maximumSizeInBytes).toBe(5 * 1024 * 1024);
@@ -61,20 +62,47 @@ describe("authorizePantryUpload", () => {
   it("rejects another user's order", async () => {
     const order = await makeOrder({ userId: otherUserId });
     await expect(
-      authorizePantryUpload(testDb.db, { userId, email: "up@test.dev" }, order.id)
+      authorizePantryUpload(
+        testDb.db,
+        { userId, email: "up@test.dev" },
+        `pantry/${order.id}/photo.jpg`,
+        order.id
+      )
     ).rejects.toThrow(/no open pantry order/i);
   });
 
   it("rejects orders not in an uploadable state", async () => {
     const order = await makeOrder({ status: "ready" });
     await expect(
-      authorizePantryUpload(testDb.db, { userId, email: "up@test.dev" }, order.id)
+      authorizePantryUpload(
+        testDb.db,
+        { userId, email: "up@test.dev" },
+        `pantry/${order.id}/photo.jpg`,
+        order.id
+      )
     ).rejects.toThrow(/no open pantry order/i);
   });
 
   it("rejects a garbage order id without throwing a database error", async () => {
     await expect(
-      authorizePantryUpload(testDb.db, { userId, email: "up@test.dev" }, "not-a-uuid")
+      authorizePantryUpload(
+        testDb.db,
+        { userId, email: "up@test.dev" },
+        "pantry/not-a-uuid/photo.jpg",
+        "not-a-uuid"
+      )
     ).rejects.toThrow(/no open pantry order/i);
+  });
+
+  it("rejects a pathname outside the authenticated order prefix", async () => {
+    const order = await makeOrder();
+    await expect(
+      authorizePantryUpload(
+        testDb.db,
+        { userId, email: "up@test.dev" },
+        `pantry/${crypto.randomUUID()}/photo.jpg`,
+        order.id
+      )
+    ).rejects.toThrow(/invalid pantry photo pathname/i);
   });
 });

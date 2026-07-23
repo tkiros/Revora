@@ -17,7 +17,8 @@ describe("emitSafeEvent", () => {
       environment: "preview",
       responseKind: "result",
       risk: "SAFE",
-      latencyBucket: "<2s"
+      latencyBucket: "<2s",
+      modelProvider: "openai"
     };
 
     emitSafeEvent(event);
@@ -28,7 +29,8 @@ describe("emitSafeEvent", () => {
         environment: "preview",
         responseKind: "result",
         risk: "SAFE",
-        latencyBucket: "<2s"
+        latencyBucket: "<2s",
+        modelProvider: "openai"
       })
     );
   });

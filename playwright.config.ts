@@ -1,86 +1,70 @@
 import { defineConfig, devices } from "@playwright/test";
 
+import { includesTrialWall } from "./scripts/e2e-spec-selection";
+import { isolatedE2ERuntimeEnv } from "./scripts/e2e-runtime-env";
+
 // The PAYWALL_MODE=trial server on :3101 is only needed when the trial-wall spec
-// is actually in the run. Booting it also rewrites the tracked tsconfig.json
-// to the e2e-trial distDir (healed by tests/smoke/global-teardown.ts),
-// so we keep its blast radius to runs that provably don't need it.
+// is actually in the run. Both E2E servers read the same immutable production
+// source revision, built separately because static pages bake PAYWALL_MODE.
 //
 // SUPPRESSION RULE: only a set of CONCRETE spec-file filters (each arg
 // endsWith(".spec.ts")) that omit trial-wall suppresses :3101. Everything else
 // boots it — a whole-suite run, an explicit trial-wall filter, AND any
 // directory-style/ambiguous filter (e.g. `tests/smoke/`, `tests/`), because a
-// directory can contain trial-wall.spec.ts and we cannot prove otherwise from
-// the arg alone. Booting when unsure is safe: global-teardown.ts reverts the
-// dev-artifact rewrite so the tree stays clean.
+// directory can contain trial-wall.spec.ts and we cannot prove otherwise.
 //
-// specFilters picks out path-like positional args only — the leading `test`
-// subcommand and flags/values like --project="Mobile Chrome" don't look like a
-// spec path, so a filter-less run still boots :3101.
-const specFilters = process.argv
-  .slice(2)
-  .filter(
-    (a) =>
-      !a.startsWith("-") &&
-      (a.endsWith(".ts") || a.includes(".spec") || a.includes("tests/"))
-  );
-const concreteSpecFilters = specFilters.filter((a) => a.endsWith(".spec.ts"));
-const runsTrialSpec =
-  // No path filter → whole-suite run → boot.
-  specFilters.length === 0 ||
-  // Any non-concrete path filter (a directory or anything ambiguous) is present
-  // → boot, since it may resolve to trial-wall.
-  concreteSpecFilters.length !== specFilters.length ||
-  // Every filter is a concrete .spec.ts: boot only if one of them is trial-wall.
-  concreteSpecFilters.some((a) => a.includes("trial-wall"));
+const runsTrialSpec = includesTrialWall(process.argv.slice(2));
+const isolatedRuntimeEnv = isolatedE2ERuntimeEnv(process.env);
 
 const trialWebServer = {
-  // Second server on :3101 running PAYWALL_MODE=trial for
+  // Second production server on :3101 running PAYWALL_MODE=trial for
   // tests/smoke/trial-wall.spec.ts. Paywall mode is resolved server-side
   // (app/subscribe/page.tsx → lib/server/pricing.paywallMode()), so the
   // trial wall can only be exercised by a genuinely trial-mode server; the
   // :3100 server is pinned to PAYWALL_MODE=legacy (trial is the code
   // default now) for billing-pages.spec. One server cannot serve both
   // modes at once.
-  command: "npx next dev --hostname 127.0.0.1 --port 3101",
+  command: "npx next start --hostname 127.0.0.1 --port 3101",
   url: "http://127.0.0.1:3101",
   reuseExistingServer: false,
   stdout: "pipe" as const,
   stderr: "pipe" as const,
-  // 240s: a cold .next cache on a slow disk exceeded the 120s default and
-  // zero tests ran (2026-07-06 launch audit BUG-15). Warm boots are unaffected.
-  timeout: 240_000,
+  timeout: 60_000,
   env: {
-    NEXT_PUBLIC_VAPID_PUBLIC_KEY:
-      "BDd3_hVL9fZi9Ybo2UUmA0mNzLFmwEsuJdyxdCLVQV-XFotN0jkNqp7GQ96_2enX0mUeXBIvBqXAiCveKuMhGJ0",
-    // Test-only secret so Auth.js stops logging MissingSecret in smoke runs
-    // (2026-07-09 E2E-05). Never a production value.
-    AUTH_SECRET: "revora-e2e-smoke-only-secret-0000000000000000",
+    ...isolatedRuntimeEnv,
     PAYWALL_MODE: "trial",
-    AUTH_EMAIL_STUB_DIR: "/tmp/revora-trial-smoke-stub",
-    // Isolate this server's build dir + dev lock from the :3100 server so
-    // both `next dev` instances coexist (see next.config.ts distDir gate).
-    // Under .next/, so it inherits the .next/ gitignore — nothing new to track.
-    // Its price is the tsconfig.json rewrite that global-teardown.ts
-    // reverts (keeping the run self-contained).
-    NEXT_DIST_DIR: ".next/e2e-trial"
+    NEXT_DIST_DIR: ".next-e2e-trial",
+    NEXT_PUBLIC_APP_URL: "http://127.0.0.1:3101"
   }
 };
 
 export default defineConfig({
   testDir: "./tests/smoke",
+  // Exercise the same optimized server/runtime shape that is deployed.
+  // `npm run e2e` prepares exact legacy + trial builds before invoking this
+  // config. Running against `next dev` caused Fast Refresh rebuilds while
+  // parallel browsers were hydrating, leaving real assertions stranded on
+  // server-rendered loading shells.
+  //
+  // The setup still probes every owned route and proves one browser hydration
+  // before workers start. It fails on bad responses; it does not widen product
+  // assertions or hide a broken route.
+  globalSetup: "./tests/smoke/global-setup.ts",
   // Axe scans and cold route compilation can exceed Playwright's 30s default
   // on the documented slow-filesystem CI/worktree path. Product assertions
   // still use Playwright's short expect timeout; this only prevents the whole
   // test budget from expiring while several accessibility scans complete.
   timeout: 90_000,
-  // Revert the trial server's tsconfig.json distDir rewrite so a
-  // smoke run never leaves the working tree dirty (self-contained).
-  globalTeardown: "./tests/smoke/global-teardown.ts",
   fullyParallel: true,
-  // One retry absorbs transient WebKit-under-parallel-load timeouts (the heavy WebKit
-  // engine occasionally fails to paint within 5s on a loaded box); a real failure still
-  // fails twice. Keeps full parallelism.
-  retries: 1,
+  // This workstation intermittently returns Chromium net::ERR_NETWORK_CHANGED
+  // for localhost script chunks when several fresh browser processes start
+  // together. One worker produced 10/10 clean cold-context repetitions and
+  // still exercises every browser/project; browser-flow parallelism itself is
+  // not a product contract.
+  workers: 1,
+  // A retry turns a timing defect into a superficially green release gate.
+  // Production-server E2E must pass the first time; failures retain traces.
+  retries: 0,
   // ci.yml uploads playwright-report/ on failure, but nothing ever wrote that
   // folder — the default reporter has no file output, so every red CI run threw
   // its evidence away and had to be re-diagnosed locally against a dev box with
@@ -104,14 +88,14 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: "npx next dev --hostname 127.0.0.1 --port 3100",
+      command: "npx next start --hostname 127.0.0.1 --port 3100",
       url: "http://127.0.0.1:3100",
       reuseExistingServer: false,
       stdout: "pipe",
       stderr: "pipe",
-      // 240s: see the trialWebServer note (BUG-15 cold-boot timeout).
-      timeout: 240_000,
+      timeout: 60_000,
       env: {
+        ...isolatedRuntimeEnv,
         // Trial is now the code default (lib/server/pricing.ts), so the
         // legacy-mode assertions (billing-pages.spec, trial-wall's legacy
         // guard) need this server pinned to legacy explicitly.
@@ -123,13 +107,8 @@ export default defineConfig({
         // billing-pages.spec's annual assertion has nothing to match. A dummy
         // id is fine — annual checkout is never exercised here (no Stripe).
         STRIPE_PRICE_ANNUAL: "price_e2e_annual_smoke_only",
-        // Test-only secret so Auth.js stops logging MissingSecret in smoke
-        // runs (2026-07-09 E2E-05). Never a production value.
-        AUTH_SECRET: "revora-e2e-smoke-only-secret-0000000000000000",
-        // A syntactically-valid VAPID public key so the nudge opt-in flow can
-        // run end-to-end against mocked push APIs (never used to send).
-        NEXT_PUBLIC_VAPID_PUBLIC_KEY:
-          "BDd3_hVL9fZi9Ybo2UUmA0mNzLFmwEsuJdyxdCLVQV-XFotN0jkNqp7GQ96_2enX0mUeXBIvBqXAiCveKuMhGJ0"
+        NEXT_DIST_DIR: ".next-e2e-legacy",
+        NEXT_PUBLIC_APP_URL: "http://127.0.0.1:3100"
       }
     },
     ...(runsTrialSpec ? [trialWebServer] : [])

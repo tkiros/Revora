@@ -2,6 +2,7 @@ import { Pool } from "pg";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 
 import * as schema from "./schema";
+import { createDatabasePoolConfig } from "./config";
 
 export type Db = Pick<
   NodePgDatabase<typeof schema>,
@@ -28,29 +29,12 @@ export function getDb(): Db {
       throw new Error("DATABASE_URL is not set.");
     }
 
-    const pool = new Pool({
-      connectionString: url,
-      max: 3,
-      ssl: isLocalhost(url)
-        ? undefined
-        : // Railway Postgres serves a self-signed cert; opt out of chain
-          // verification only when the URL says so explicitly.
-          { rejectUnauthorized: !url.includes("sslmode=no-verify") }
-    });
+    const pool = new Pool(createDatabasePoolConfig(url));
 
     db = drizzle(pool, { schema });
   }
 
   return db;
-}
-
-function isLocalhost(url: string): boolean {
-  try {
-    const { hostname } = new URL(url);
-    return hostname === "localhost" || hostname === "127.0.0.1";
-  } catch {
-    return false;
-  }
 }
 
 export { schema };

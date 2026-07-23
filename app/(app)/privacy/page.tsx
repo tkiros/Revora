@@ -74,21 +74,20 @@ export default function PrivacyPage() {
 
         <h2>Pantry Review</h2>
         <p>
-          Pantry Review uploads photos to a public but unlisted, long random
-          URL while the report is prepared. OpenAI helps turn the photos into
-          an item list that you review and correct. Photos are deleted after
-          extraction or delivery according to the report workflow. Item names,
-          notes, A1C range, and the finished report are encrypted at rest until
-          deletion.
+          Pantry Review stores photos in private object storage while the report
+          is prepared. Revora reads each photo through an authenticated server
+          request and sends it to OpenAI to create an item list that you review
+          and correct. Photos are deleted after extraction or delivery according
+          to the report workflow. Item names, notes, A1C range, and the finished
+          report are encrypted at rest until deletion.
         </p>
 
         <h2>Pantry Review photos</h2>
         <p>
           If you buy a Pantry Review, the photos you upload are held by
-          Revora&apos;s storage provider at a long, random, unlisted address.
-          They are never linked to, listed, or indexed anywhere — but the
-          address itself is the only thing protecting them, so Revora handles
-          it as a secret. The photo is deleted when the report is delivered;
+          Revora&apos;s storage provider in a private store that requires an
+          authenticated server request to read. They are never made public,
+          linked to, or indexed. The photo is deleted when the report is delivered;
           within the hour if the order is canceled, refunded, or sent for
           manual review; when you delete your account; and otherwise no later
           than seven days after upload.

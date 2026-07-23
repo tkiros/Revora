@@ -7,13 +7,12 @@ import { expect, test } from "@playwright/test";
 /**
  * Magic-link auth E2E (plan 4A). Needs a real database and the email stub:
  *
- *   DATABASE_URL=<railway dev database> \
+ *   DATABASE_URL=<disposable loopback database> \
  *   AUTH_SECRET=<any> HEALTH_DATA_KEY=<32B base64> \
  *   AUTH_EMAIL_STUB_DIR=/tmp/revora-mailbox \
  *   npx playwright test tests/smoke/auth.spec.ts
  *
- * Skipped automatically when the environment isn't provisioned (see
- * docs/handoff/human-actions-required.md §1 — Railway Postgres).
+ * Skipped automatically when the isolated database isn't provisioned.
  */
 
 const STUB_DIR = process.env.AUTH_EMAIL_STUB_DIR;
@@ -79,10 +78,12 @@ test("magic-link round trip: email → link → session → consent → profile"
   ).toEqual([]);
 
   await page.getByLabel("Latest A1C").fill("6.1");
-  await page.getByLabel(/I consent to Revora storing/).check();
+  await page
+    .getByLabel(/I explicitly consent to Revora collecting and using my A1C/)
+    .check();
   await page.getByTestId("welcome-save").click();
 
-  await expect(page).toHaveURL(/\/check$/);
+  await expect(page).toHaveURL(/\/home$/);
 
   // Session survives a reload; profile exists.
   const profile = await page.evaluate(async () => {

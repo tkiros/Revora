@@ -9,6 +9,36 @@ import type { RevoraPromptPayload } from "./prompt";
 export const DEFAULT_REVORA_MODEL = "gpt-5.4-mini";
 export const REVORA_JSON_SCHEMA_NAME = "revora_model_output";
 
+export type RevoraModelProvider = "openai" | "openrouter" | "compatible";
+
+export class RevoraModelConfigurationError extends Error {
+  readonly code = "MODEL_CONFIG";
+
+  constructor(message: string) {
+    super(message);
+    this.name = "RevoraModelConfigurationError";
+  }
+}
+
+export class RevoraProviderResponseError extends Error {
+  readonly code: string;
+
+  constructor(response: ResponsesCreateResult) {
+    super("Model provider response did not contain usable output.");
+    this.name = "RevoraProviderResponseError";
+    const candidates = [
+      response.error_type,
+      response.error?.code,
+      response.status
+    ];
+    this.code =
+      candidates.find(
+        (value): value is string =>
+          typeof value === "string" && /^[A-Za-z0-9_.-]{2,40}$/.test(value)
+      ) ?? "EMPTY_OUTPUT";
+  }
+}
+
 /**
  * The model this process will actually call — for telemetry (W-13/N-18).
  *
@@ -17,12 +47,100 @@ export const REVORA_JSON_SCHEMA_NAME = "revora_model_output";
  * resolution the client itself does, kept in one place so the stamp cannot
  * drift from the call.
  */
-export function activeModelId(): string {
+export function activeModelId(input: NodeJS.ProcessEnv = process.env): string {
   // `??` alone is wrong here: a declared-but-empty REVORA_MODEL= (a real .env
   // and a real Vercel state) is a string, so it wins the coalesce and every
   // call asks the provider for model "" — a 400 on every request, product and
   // eval alike. Blank means unset.
-  return process.env.REVORA_MODEL?.trim() || DEFAULT_REVORA_MODEL;
+  return input.REVORA_MODEL?.trim() || DEFAULT_REVORA_MODEL;
+}
+
+function isProductionModelEnvironment(input: NodeJS.ProcessEnv): boolean {
+  if (input.VERCEL_ENV === "production") {
+    return true;
+  }
+  if (
+    input.VERCEL_ENV === "preview" ||
+    input.VERCEL_ENV === "development"
+  ) {
+    return false;
+  }
+  return input.NODE_ENV === "production";
+}
+
+function providerForBaseUrl(baseURL: string | undefined): RevoraModelProvider {
+  if (!baseURL) {
+    return "openai";
+  }
+  try {
+    return new URL(baseURL).hostname.toLowerCase() === "openrouter.ai"
+      ? "openrouter"
+      : "compatible";
+  } catch {
+    return "compatible";
+  }
+}
+
+export function activeModelProvider(
+  input: NodeJS.ProcessEnv = process.env
+): RevoraModelProvider {
+  return providerForBaseUrl(input.OPENAI_BASE_URL?.trim() || undefined);
+}
+
+export function resolveModelTransportConfig(
+  input: NodeJS.ProcessEnv = process.env,
+  model = activeModelId(input)
+): { model: string; provider: RevoraModelProvider; baseURL?: string } {
+  const baseURL = input.OPENAI_BASE_URL?.trim() || undefined;
+  const provider = providerForBaseUrl(baseURL);
+
+  // The production safety/quality evidence in this repository is for direct
+  // OpenAI Responses API calls. OpenRouter documents its compatible Responses
+  // endpoint as beta, and an audited production drift to that path returned
+  // only fallback cards. Fail loudly instead of sending health-adjacent prompts
+  // and credentials to an unvalidated compatible endpoint.
+  if (isProductionModelEnvironment(input) && baseURL) {
+    throw new RevoraModelConfigurationError(
+      "OPENAI_BASE_URL is evaluation-only and must be unset in production."
+    );
+  }
+
+  if (!baseURL && model.includes("/")) {
+    throw new RevoraModelConfigurationError(
+      "Direct OpenAI model ids must not include a provider prefix."
+    );
+  }
+
+  if (baseURL) {
+    let parsed: URL;
+    try {
+      parsed = new URL(baseURL);
+    } catch {
+      throw new RevoraModelConfigurationError(
+        "OPENAI_BASE_URL must be an absolute URL."
+      );
+    }
+    const localHttp =
+      parsed.protocol === "http:" &&
+      (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1");
+    if (parsed.protocol !== "https:" && !localHttp) {
+      throw new RevoraModelConfigurationError(
+        "OPENAI_BASE_URL must use HTTPS unless it targets localhost."
+      );
+    }
+    if (parsed.username || parsed.password) {
+      throw new RevoraModelConfigurationError(
+        "OPENAI_BASE_URL must not contain credentials."
+      );
+    }
+    if (provider === "openrouter" && !model.includes("/")) {
+      throw new RevoraModelConfigurationError(
+        "OpenRouter model ids must include their provider prefix."
+      );
+    }
+  }
+
+  return baseURL ? { model, provider, baseURL } : { model, provider };
 }
 
 // Reasoning-effort lever (cost/latency control for GPT-5.x reasoning models).
@@ -68,6 +186,9 @@ export function resolveReasoningEffort(
 
 type ResponsesCreateResult = {
   output_text?: string;
+  status?: string;
+  error_type?: string;
+  error?: { code?: string } | null;
 };
 
 type OpenAIResponsesTransport = {
@@ -88,16 +209,20 @@ export function createOpenAIRevoraModelClient(options?: {
   reasoningEffort?: ReasoningEffort | "off";
   client?: OpenAIResponsesTransport;
   openAiCtor?: typeof OpenAI;
+  env?: NodeJS.ProcessEnv;
 }): RevoraModelClient {
-  const model = options?.model?.trim() || activeModelId();
+  const env = options?.env ?? process.env;
+  const model = options?.model?.trim() || activeModelId(env);
   const reasoningEffort = resolveReasoningEffort(
-    options?.reasoningEffort ?? process.env.REVORA_REASONING_EFFORT
+    options?.reasoningEffort ?? env.REVORA_REASONING_EFFORT
   );
   const client =
     options?.client ??
     createTransport(
-      options?.apiKey ?? process.env.OPENAI_API_KEY,
-      options?.openAiCtor
+      options?.apiKey ?? env.OPENAI_API_KEY,
+      model,
+      options?.openAiCtor,
+      env
     );
 
   return {
@@ -128,7 +253,7 @@ export function createOpenAIRevoraModelClient(options?: {
 
       const outputText = response.output_text?.trim();
       if (!outputText) {
-        throw new Error("OpenAI response did not include output_text.");
+        throw new RevoraProviderResponseError(response);
       }
 
       let parsedOutput: unknown;
@@ -205,7 +330,9 @@ async function createWithConnectionRetry(
 
 function createTransport(
   apiKey: string | undefined,
-  ctor: typeof OpenAI = OpenAI
+  model: string,
+  ctor: typeof OpenAI = OpenAI,
+  env: NodeJS.ProcessEnv = process.env
 ): OpenAIResponsesTransport {
   if (typeof window !== "undefined") {
     throw new Error(
@@ -213,7 +340,8 @@ function createTransport(
     );
   }
 
-  if (!apiKey) {
+  const key = apiKey?.trim();
+  if (!key) {
     throw new Error(
       "OPENAI_API_KEY is required for live Revora model calls."
     );
@@ -223,19 +351,12 @@ function createTransport(
   // spend after the browser has given up; maxRetries 0 means the SDK never
   // silently stacks a second paid attempt (the service does one live attempt).
   //
-  // baseURL is UNSET by default — production calls OpenAI directly, which is
-  // the whole point of N-19: the model-selection bakeoff was gathered through
-  // OpenRouter, a different provider path with different failure modes, so its
-  // evidence never applied to the path that actually serves users. The env var
-  // exists so the eval harness can be pointed at an alternate provider
-  // deliberately (and so a provider outage has a documented failover), never so
-  // that production quietly drifts off the path its evidence was gathered on.
-  const baseURL = process.env.OPENAI_BASE_URL;
+  const config = resolveModelTransportConfig(env, model);
 
   return new ctor({
-    apiKey,
+    apiKey: key,
     timeout: 10_000,
     maxRetries: 0,
-    ...(baseURL ? { baseURL } : {})
+    ...(config.baseURL ? { baseURL: config.baseURL } : {})
   });
 }

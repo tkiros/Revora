@@ -11,8 +11,8 @@
 | Email | **Resend** | One API for magic links + transactional; dev key works locally |
 | Field encryption | **AES-256-GCM via `node:crypto`**, key = `HEALTH_DATA_KEY` (32-byte base64 env), format `base64(iv‖tag‖ciphertext)` | A1C + food text are GDPR Art. 9 / health-adjacent; env-key AES-GCM is the smallest correct at-rest control. `ponytail:` upgrade path = KMS/managed keys if compliance posture demands |
 | Push | **web-push** (VAPID) + hourly cron (Railway scheduler) | Standard Web Push works in TWA/Android Chrome; no vendor SDK |
-| Cron | **Railway scheduler** for the hourly jobs (nudge, pantry-sweep, trial-precharge — `docs/runbooks/price-test.md`); **Vercel cron** (`vercel.json`) only for weekly `bai-weekly` | Hourly cadence needs Vercel Pro; Railway already hosts Postgres/Umami (`docs/adr/hosting-hybrid.md`) |
-| Analytics | ~~Plausible~~ script + a typed no-PII event allowlist (`lib/client/analytics.ts`) | Cookieless, no consent banner needed for US launch; the allowlist is enforced by a unit test. **Superseded by `docs/adr/analytics-umami.md`** — the vendor is now Umami, self-hosted on Railway |
+| Cron | **Railway scheduler** for the hourly jobs (nudge, pantry-sweep, trial-precharge, stripe-reconcile — `docs/runbooks/price-test.md`); **Vercel cron** (`vercel.json`) only for weekly `bai-weekly` | Railway runs the hourly process; a fresh readiness heartbeat, not checked-in config, proves it is operating (`docs/adr/hosting-hybrid.md`) |
+| Analytics | ~~Plausible~~ script + a typed no-PII event allowlist (`lib/client/analytics.ts`) | The allowlist is enforced by a unit test. **Superseded by `docs/adr/analytics-umami.md`** — the current vendor deployment is Umami Cloud; self-hosting is only a future option |
 | Billing | see `docs/adr/billing.md` | |
 
 ## Non-choices (rejected)

@@ -6,7 +6,11 @@ import { captureServerError } from "../../revora/sentry-capture";
 import { deleteBlobUrls, deleteOrderBlobs } from "../blob";
 import { decryptField, encryptField } from "../crypto";
 import { schema, type Db } from "../db";
-import { sendEmail, type SendEmailResult } from "../email";
+import {
+  sendEmail,
+  type SendEmailInput,
+  type SendEmailResult
+} from "../email";
 import { bandRepresentativeA1c } from "./band";
 import { reportEmailText } from "./emails";
 import { supportInbox } from "../email";
@@ -49,7 +53,7 @@ export type ProcessDeps = {
   db: Db;
   model: RevoraModelClient;
   email: {
-    send: (input: { to: string; subject: string; text: string }) => Promise<SendEmailResult>;
+    send: (input: SendEmailInput) => Promise<SendEmailResult>;
   };
   deleteBlobs: (urls: string[]) => Promise<void>;
   now: () => Date;
@@ -208,11 +212,17 @@ export async function processPantryOrder(
  *  and admin resend. */
 export async function deliverReport(
   deps: ProcessDeps,
-  order: { id: string; email: string }
+  order: { id: string; email: string },
+  idempotencySeed = `pantry-report/${order.id}`
 ): Promise<boolean> {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const message = reportEmailText(appUrl, order.id);
-  const result = await deps.email.send({ to: order.email, ...message });
+  const result = await deps.email.send({
+    to: order.email,
+    ...message,
+    category: "pantry_report",
+    idempotencyKey: idempotencySeed
+  });
   if (!result.ok) {
     return false; // deliveredAt stays null — the sweep retries.
   }
@@ -249,7 +259,9 @@ async function finishNeedsManual(
   await deps.email.send({
     to: supportInbox(),
     subject: `Pantry order needs manual review: ${orderId}`,
-    text: `Order ${orderId}: ${why}. Handle via /admin/pantry.`
+    text: `Order ${orderId}: ${why}. Handle via /admin/pantry.`,
+    category: "pantry_alert",
+    idempotencyKey: `pantry-alert/${orderId}/${why}`
   });
 }
 

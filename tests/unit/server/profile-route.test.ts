@@ -1,7 +1,10 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { createProfileRouteHandlers } from "../../../app/api/profile/route";
+import {
+  createProfilePatchHandler,
+  createProfileRouteHandlers
+} from "../../../app/api/profile/route";
 import { decryptField } from "../../../lib/server/crypto";
 import { schema } from "../../../lib/server/db";
 import { createTestDb } from "../../helpers/test-db";
@@ -28,6 +31,9 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testDb.db
+    .delete(schema.pushSubscriptions)
+    .where(eq(schema.pushSubscriptions.userId, userId));
+  await testDb.db
     .delete(schema.profiles)
     .where(eq(schema.profiles.userId, userId));
 });
@@ -43,6 +49,14 @@ function handlersAs(sessionUserId: string | null) {
 function postRequest(body: unknown) {
   return new Request("http://test/api/profile", {
     method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body)
+  });
+}
+
+function patchRequest(body: unknown) {
+  return new Request("http://test/api/profile", {
+    method: "PATCH",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body)
   });
@@ -151,5 +165,86 @@ describe("GET /api/profile", () => {
     const response = await GET();
 
     expect(response.status).toBe(401);
+  });
+});
+
+describe("PATCH /api/profile", () => {
+  it("cancels pending nudge state when preferences change", async () => {
+    const { POST } = handlersAs(userId);
+    await POST(postRequest({ a1c: 6.1, consent: true, timezone: "UTC" }));
+    await testDb.db.insert(schema.pushSubscriptions).values({
+      userId,
+      endpoint: "https://push.example/profile-prefs",
+      p256dh: "key",
+      auth: "auth",
+      lastNudgeDate: "2026-07-02",
+      nudgeAttemptDate: "2026-07-03",
+      nudgeAttemptCount: 1,
+      nudgeRetryAfter: new Date("2026-07-03T16:00:00.000Z")
+    });
+    const PATCH = createProfilePatchHandler({
+      db: () => testDb.db,
+      getSession: async () => ({
+        userId,
+        email: "profile@test.dev"
+      })
+    });
+
+    const response = await PATCH(
+      patchRequest({ nudgeOptIn: false, nudgeCadence: "weekly" })
+    );
+
+    expect(response.status).toBe(200);
+    const [profile] = await testDb.db
+      .select()
+      .from(schema.profiles)
+      .where(eq(schema.profiles.userId, userId));
+    expect(profile.nudgeOptIn).toBe(false);
+    expect(profile.nudgeCadence).toBe("weekly");
+    const [subscription] = await testDb.db
+      .select()
+      .from(schema.pushSubscriptions)
+      .where(eq(schema.pushSubscriptions.userId, userId));
+    expect(subscription.lastNudgeDate).toBe("2026-07-02");
+    expect(subscription.nudgeAttemptDate).toBeNull();
+    expect(subscription.nudgeAttemptCount).toBe(0);
+    expect(subscription.nudgeRetryAfter).toBeNull();
+  });
+
+  it("leaves an in-flight (live-lease) attempt untouched so its `ok` can finalize", async () => {
+    const { POST } = handlersAs(userId);
+    await POST(postRequest({ a1c: 6.1, consent: true, timezone: "UTC" }));
+    const liveLeaseUntil = new Date(Date.now() + 5 * 60 * 1000);
+    await testDb.db.insert(schema.pushSubscriptions).values({
+      userId,
+      endpoint: "https://push.example/profile-live-lease",
+      p256dh: "key",
+      auth: "auth",
+      nudgeAttemptDate: "2026-07-03",
+      nudgeAttemptCount: 1,
+      nudgeLeaseToken: "00000000-0000-4000-8000-000000000004",
+      nudgeLeaseUntil: liveLeaseUntil
+    });
+    const PATCH = createProfilePatchHandler({
+      db: () => testDb.db,
+      getSession: async () => ({
+        userId,
+        email: "profile@test.dev"
+      })
+    });
+
+    const response = await PATCH(patchRequest({ nudgeCadence: "weekly" }));
+
+    expect(response.status).toBe(200);
+    const [subscription] = await testDb.db
+      .select()
+      .from(schema.pushSubscriptions)
+      .where(eq(schema.pushSubscriptions.userId, userId));
+    // The old clear was lease-blind: it wiped the token mid-send, so a
+    // delivered `ok` finalized against zero rows and was recorded failed.
+    expect(subscription.nudgeLeaseToken).toBe("00000000-0000-4000-8000-000000000004");
+    expect(subscription.nudgeLeaseUntil).toEqual(liveLeaseUntil);
+    expect(subscription.nudgeAttemptDate).toBe("2026-07-03");
+    expect(subscription.nudgeAttemptCount).toBe(1);
   });
 });

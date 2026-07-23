@@ -3,12 +3,15 @@
 **Date:** 2026-07-02 · **Status:** Accepted (owner decision) · **Phases:** P7+
 **Supersedes:** the Analytics row of `docs/adr/stack.md` (Plausible) — see
 the superseded note left in that file.
+**Amended 2026-07-22:** production uses Umami Cloud. Self-hosting remains a
+possible later migration, not current infrastructure or a launch requirement.
 
 ## Decision
 
-Use **Umami** as the analytics vendor, self-hostable on **Railway**
-(`docs/adr/hosting-hybrid.md`), instead of Plausible. Everywhere the earlier
-plan text says "Plausible," read "Umami."
+Use **Umami Cloud** as the current analytics vendor instead of Plausible.
+Everywhere the earlier plan text says "Plausible," read "Umami." The typed
+event contract is deployment-independent, so a later move to a self-hosted
+Umami instance would only change the configured script/ingest origins.
 
 The event model is unchanged from the original plan: a **typed, closed,
 no-PII event allowlist** (`lib/client/analytics.ts`) is the only thing that
@@ -20,10 +23,10 @@ never reference.
 
 ## Why Umami over Plausible
 
-- **Self-hostable on Railway** — the owner already chose Railway for the
-  database (`docs/adr/hosting-hybrid.md`); Umami can live on the same
-  infrastructure instead of adding a third-party SaaS vendor and its own
-  billing relationship.
+- **Cloud production today, self-hostable later** — production currently loads
+  `https://cloud.umami.is/script.js` and posts to Umami's cloud gateway. A
+  self-hosted deployment remains portable, but it is not part of the current
+  Railway inventory.
 - **No cookie banner needed** — like Plausible, Umami's default tracking is
   cookieless, which matters for a health-adjacent app where a consent
   banner is friction the product doesn't need for the US launch.
@@ -60,7 +63,8 @@ never reference.
 
 ## Human action required
 
-Deploy/self-host Umami on Railway and set `NEXT_PUBLIC_UMAMI_SRC` +
-`NEXT_PUBLIC_UMAMI_WEBSITE_ID` in Vercel (preview + production) — see
-`docs/handoff/human-actions-required.md` (P7 section). The build cannot
-create third-party accounts or deploy infrastructure.
+Keep `NEXT_PUBLIC_UMAMI_SRC`, `NEXT_PUBLIC_UMAMI_WEBSITE_ID`, and (only when
+needed) `NEXT_PUBLIC_UMAMI_HOST_URL` correct in Vercel. Before launch, prove one
+allowlisted browser event appears exactly once in the intended Umami Cloud
+website and that CSP permits both the script and ingest origins. See
+`docs/handoff/human-actions-required.md` (P7 section).

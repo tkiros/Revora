@@ -21,6 +21,13 @@
 #               no `e2e` script. They could only ever be run by hand.
 name: CI
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches: [main]
@@ -30,11 +37,13 @@ jobs:
   # Fast gates first — fail in ~2 minutes rather than after a 10-minute E2E run.
   static:
     name: typecheck · lint · contract · build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           cache: npm
@@ -65,11 +74,13 @@ jobs:
 
   test:
     name: unit · evals (mock — no keys, no spend)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           cache: npm
@@ -79,16 +90,15 @@ jobs:
 
   e2e:
     name: playwright (incl. axe a11y)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
 
-    # Both `next dev` servers in playwright.config.ts inherit DATABASE_URL from
-    # the environment, and auth.ts:21 only constructs the Auth.js adapter when
-    # it is set. Without a database every auth path dies on MissingAdapter and
-    # all 15 specs fail — which is exactly what the first CI run did.
+    # Both `next start` servers in playwright.config.ts inherit DATABASE_URL
+    # from the environment, and auth.ts:21 only constructs the Auth.js adapter
+    # when it is set. Without a database every auth path dies on MissingAdapter.
     services:
       postgres:
-        image: postgres:16
+        image: postgres:16@sha256:33f923b05f64ca54ac4401c01126a6b92afe839a0aa0a52bc5aeb5cc958e5f20
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: revora_e2e
@@ -105,8 +115,10 @@ jobs:
       HEALTH_DATA_KEY: ${{ secrets.CI_HEALTH_DATA_KEY || 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=' }}
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           cache: npm
@@ -116,8 +128,14 @@ jobs:
       # and Mobile Safari (iPhone 12, webkit). Installing chromium alone failed
       # all 110 Mobile Safari tests at browser launch.
       - run: npx playwright install --with-deps chromium webkit
+      # The runner builds isolated legacy + trial optimized local outputs
+      # before Playwright starts, including its syntactically valid smoke-only
+      # VAPID key. It explicitly blanks every provider credential before Next
+      # can load env files. With the isolated CI database present it also
+      # provisions and removes an owner-only disk mailbox, so auth/account E2E
+      # cannot skip or contact Resend. No provider mutation leaves this job.
       - run: npm run e2e
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
           name: playwright-report
@@ -126,7 +144,7 @@ jobs:
 
   secrets:
     name: secret scan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
 
     # On a pull_request, gitleaks-action scans the PR's own commits, which it
@@ -138,10 +156,43 @@ jobs:
       pull-requests: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # gitleaks needs history: SEC-02 is a set of live keys in commit 213ab8a.
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
+          persist-credentials: false
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # gitleaks-action asks the PR commits API for one unpaginated page. On a
+      # PR with more than 30 commits its default range silently stops early.
+      # The action installs the pinned binary; this second scan derives the
+      # complete first-parent range from Git itself and therefore covers every
+      # non-merge commit in the PR. Pull-request workflows check out GitHub's
+      # synthetic merge commit by default, so the range must end at the real PR
+      # head SHA rather than HEAD.
+      - name: scan complete pull-request commit range
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          PR_BASE_REF: ${{ github.base_ref }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # Without pipefail/errexit a failed merge-base leaves scan_base empty
+          # and the range degrades to "..HEAD" — gitleaks then scans nothing
+          # and exits 0. Strict mode turns that edge into a red job instead.
+          set -euo pipefail
+          git cat-file -e "${PR_HEAD_SHA}^{commit}"
+          scan_base="$(git merge-base "origin/${PR_BASE_REF}" "${PR_HEAD_SHA}")"
+          scan_count="$(git rev-list --count --no-merges --first-parent "${scan_base}..${PR_HEAD_SHA}")"
+          if [ "${scan_count}" -lt 1 ]; then
+            echo "::error::complete PR scan resolved to zero commits"
+            exit 1
+          fi
+          echo "Scanning ${scan_count} non-merge commits from merge base to PR head"
+          gitleaks detect \
+            --redact \
+            --exit-code=2 \
+            --report-format=sarif \
+            --report-path=results-full-range.sarif \
+            --log-opts="--no-merges --first-parent ${scan_base}..${PR_HEAD_SHA}"

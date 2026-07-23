@@ -80,7 +80,13 @@ export async function ingestStripeEvent(
       provider: "stripe",
       providerEventId: event.id,
       eventType: event.type,
-      payload: event as unknown as Record<string, unknown>,
+      // Store only the exact fields our reducer can consume. Stripe events can
+      // contain buyer names, addresses, emails, phone numbers, descriptions,
+      // and provider expansion objects that are unnecessary for recovery.
+      payload: minimizeBillingPayload(event) as unknown as Record<
+        string,
+        unknown
+      >,
       status: "pending",
       receivedAt: now
     })
@@ -144,6 +150,28 @@ export async function processInboxRow(
 ): Promise<InboxOutcome> {
   const now = deps.now();
   const apply = deps.apply ?? applyStripeEvent;
+
+  // One-way backfill for rows written before payload minimization shipped.
+  // This is intentionally outside the reducer transaction: even when apply
+  // fails again, raw provider PII must not survive in a failed/dead-letter row.
+  const storedPayload = row.payload as Record<string, unknown>;
+  if (storedPayload._revora_minimized !== 1) {
+    const minimized = minimizeBillingPayload(
+      storedPayload as unknown as Stripe.Event
+    ) as unknown as Record<string, unknown>;
+    await db
+      .update(schema.billingEventInbox)
+      .set({ payload: minimized })
+      .where(
+        and(
+          eq(schema.billingEventInbox.id, row.id),
+          notInArray(schema.billingEventInbox.status, [
+            "processed",
+            "dead_letter"
+          ])
+        )
+      );
+  }
 
   // B4: emails the reducer wants sent. Collected INSIDE the transaction, but
   // dispatched only AFTER it commits — an email must never escape a rolled-back
@@ -244,18 +272,20 @@ export async function processInboxRow(
     return finalStatus === "dead_letter" ? "dead_letter" : "failed";
   }
 
-  // Committed. Dispatch the collected emails now (B4). A send failure is
-  // best-effort — the reducer writes are already durable — and never re-runs
-  // the reducer; the pantry stamp records a real successful send only.
+  // Committed. Dispatch the collected emails now (B4). A send failure never
+  // re-runs the reducer. Pantry delivery remains durable on the committed
+  // order row (`intake_email_sent_at IS NULL`) and the Pantry sweep retries it;
+  // the stamp records a real successful send only.
   await dispatchPendingEmails(db, pendingEmails, deps.email, now);
   return "processed";
 }
 
 /**
- * Send the emails a committed reducer collected. Best-effort and post-commit:
- * a send failure or an `onSent` failure never throws (the money-path writes are
- * already durable), and a duplicate delivery re-dispatches nothing because the
- * inbox already dedupes it to "duplicate".
+ * Send the emails a committed reducer collected. Post-commit delivery failure
+ * never throws into the money path. Reducers that need delivery recovery must
+ * persist their own pending state in the same transaction (Pantry does this on
+ * `pantry_orders`); duplicate provider delivery re-dispatches nothing because
+ * the inbox already dedupes it to "duplicate".
  */
 async function dispatchPendingEmails(
   db: Db,
@@ -270,7 +300,13 @@ async function dispatchPendingEmails(
   for (const msg of emails) {
     let result;
     try {
-      result = await send({ to: msg.to, subject: msg.subject, text: msg.text });
+      result = await send({
+        to: msg.to,
+        subject: msg.subject,
+        text: msg.text,
+        category: msg.category,
+        idempotencyKey: msg.idempotencyKey
+      });
     } catch {
       continue; // Never let a post-commit send failure surface as a retry.
     }
@@ -285,10 +321,149 @@ async function dispatchPendingEmails(
 }
 
 function errorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message.slice(0, 500);
+  const details = error as {
+    name?: unknown;
+    code?: unknown;
+    type?: unknown;
+    statusCode?: unknown;
+  };
+  const name = safeDiagnosticToken(details?.name) ?? "Error";
+  const code =
+    safeDiagnosticToken(details?.code) ?? safeDiagnosticToken(details?.type);
+  const status =
+    typeof details?.statusCode === "number" &&
+    Number.isInteger(details.statusCode) &&
+    details.statusCode >= 100 &&
+    details.statusCode <= 599
+      ? String(details.statusCode)
+      : null;
+  return [name, code, status].filter(Boolean).join(":").slice(0, 100);
+}
+
+function safeDiagnosticToken(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
   }
-  return String(error).slice(0, 500);
+  const token = value.trim();
+  return /^[A-Za-z0-9_.-]{1,40}$/.test(token) ? token : null;
+}
+
+type JsonRecord = Record<string, unknown>;
+
+function asRecord(value: unknown): JsonRecord {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as JsonRecord)
+    : {};
+}
+
+function providerId(value: unknown): string | null {
+  if (typeof value === "string") {
+    return value;
+  }
+  const id = asRecord(value).id;
+  return typeof id === "string" ? id : null;
+}
+
+function compact(value: JsonRecord): JsonRecord {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, inner]) => inner !== undefined)
+  );
+}
+
+/**
+ * Allowlist a verified Stripe event down to the reducer's replay contract.
+ * No customer profile, email, address, phone, free text, or expanded object is
+ * retained. Provider ids remain because they are the idempotency/recovery keys.
+ */
+export function minimizeBillingPayload(event: Stripe.Event): Stripe.Event {
+  const source = asRecord(event);
+  const data = asRecord(source.data);
+  const object = asRecord(data.object);
+  const type = typeof source.type === "string" ? source.type : "unknown";
+  let minimizedObject: JsonRecord = compact({ id: providerId(object) ?? undefined });
+  let previousAttributes: JsonRecord | undefined;
+
+  if (type === "checkout.session.completed") {
+    const metadata = asRecord(object.metadata);
+    minimizedObject = compact({
+      id: providerId(object) ?? undefined,
+      mode: typeof object.mode === "string" ? object.mode : undefined,
+      client_reference_id:
+        typeof object.client_reference_id === "string"
+          ? object.client_reference_id
+          : undefined,
+      subscription: providerId(object.subscription) ?? undefined,
+      payment_intent: providerId(object.payment_intent) ?? undefined,
+      metadata:
+        typeof metadata.terms_version === "string"
+          ? { terms_version: metadata.terms_version }
+          : undefined
+    });
+  } else if (type === "invoice.paid" || type === "invoice.payment_failed") {
+    const parent = asRecord(object.parent);
+    const subscriptionDetails = asRecord(parent.subscription_details);
+    const subscription =
+      providerId(subscriptionDetails.subscription) ??
+      providerId(object.subscription);
+    minimizedObject = compact({
+      id: providerId(object) ?? undefined,
+      billing_reason:
+        typeof object.billing_reason === "string"
+          ? object.billing_reason
+          : undefined,
+      parent: subscription
+        ? { subscription_details: { subscription } }
+        : undefined,
+      subscription: subscription ?? undefined
+    });
+  } else if (
+    type === "customer.subscription.updated" ||
+    type === "customer.subscription.deleted"
+  ) {
+    const items = asRecord(object.items);
+    const firstItem = Array.isArray(items.data)
+      ? asRecord(items.data[0])
+      : {};
+    const previous = asRecord(data.previous_attributes);
+    minimizedObject = compact({
+      id: providerId(object) ?? undefined,
+      status: typeof object.status === "string" ? object.status : undefined,
+      cancel_at_period_end:
+        typeof object.cancel_at_period_end === "boolean"
+          ? object.cancel_at_period_end
+          : undefined,
+      items:
+        typeof firstItem.current_period_end === "number"
+          ? { data: [{ current_period_end: firstItem.current_period_end }] }
+          : undefined
+    });
+    previousAttributes =
+      typeof previous.status === "string"
+        ? { status: previous.status }
+        : undefined;
+  } else if (type === "charge.refunded") {
+    minimizedObject = compact({
+      id: providerId(object) ?? undefined,
+      refunded:
+        typeof object.refunded === "boolean" ? object.refunded : undefined,
+      payment_intent: providerId(object.payment_intent) ?? undefined,
+      invoice: providerId(object.invoice) ?? undefined
+    });
+  }
+
+  return compact({
+    _revora_minimized: 1,
+    id: typeof source.id === "string" ? source.id : undefined,
+    type,
+    created:
+      typeof source.created === "number" && Number.isFinite(source.created)
+        ? source.created
+        : undefined,
+    data: compact({
+      object: minimizedObject,
+      previous_attributes: previousAttributes
+    })
+  }) as unknown as Stripe.Event;
 }
 
 // BC-8/PR-1: buyer-identifying keys removed (recursively) from a processed

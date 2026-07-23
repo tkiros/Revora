@@ -69,7 +69,12 @@ export async function runPantrySweep(deps: SweepDeps): Promise<{
       .set({ claimToken: tokenHash, updatedAt: now })
       .where(eq(schema.pantryOrders.id, order.id));
     const message = intakeEmailText(appUrl, token);
-    const result = await deps.email.send({ to: order.email, ...message });
+    const result = await deps.email.send({
+      to: order.email,
+      ...message,
+      category: "pantry_intake",
+      idempotencyKey: `pantry-intake/${order.id}/${tokenHash}`
+    });
     if (result.ok) {
       await deps.db
         .update(schema.pantryOrders)
@@ -189,7 +194,9 @@ export async function runPantrySweep(deps: SweepDeps): Promise<{
       subject: `Pantry orders stuck >2h: ${stuck.length}`,
       text: stuck
         .map((order) => `${order.id} — ${order.status} since ${order.updatedAt.toISOString()}`)
-        .join("\n") + "\n\nHandle via /admin/pantry."
+        .join("\n") + "\n\nHandle via /admin/pantry.",
+      category: "pantry_alert",
+      idempotencyKey: `pantry-stuck/${stuck.map((order) => order.id).sort().join(",")}`
     });
     alerted = stuck.length;
   }

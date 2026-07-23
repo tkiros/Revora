@@ -6,7 +6,7 @@ import { expect, test } from "@playwright/test";
 
 /**
  * Pantry Review E2E. Needs (same posture as auth.spec.ts):
- *   DATABASE_URL + AUTH_EMAIL_STUB_DIR + BLOB_READ_WRITE_TOKEN +
+ *   DATABASE_URL + AUTH_EMAIL_STUB_DIR + PANTRY_BLOB_READ_WRITE_TOKEN +
  *   PANTRY_EXTRACT_STUB=1  (extraction stub — no OpenAI traffic)
  * The report-delivery test additionally needs OPENAI_API_KEY (the judge has
  * no stub, deliberately) and judges 2 items live.
@@ -16,13 +16,13 @@ const STUB_DIR = process.env.AUTH_EMAIL_STUB_DIR;
 const ENABLED = Boolean(
   process.env.DATABASE_URL &&
     STUB_DIR &&
-    process.env.BLOB_READ_WRITE_TOKEN &&
+    process.env.PANTRY_BLOB_READ_WRITE_TOKEN &&
     process.env.PANTRY_EXTRACT_STUB === "1"
 );
 
 test.skip(
   !ENABLED,
-  "pantry E2E needs DATABASE_URL, AUTH_EMAIL_STUB_DIR, BLOB_READ_WRITE_TOKEN, PANTRY_EXTRACT_STUB=1"
+  "pantry E2E needs DATABASE_URL, AUTH_EMAIL_STUB_DIR, PANTRY_BLOB_READ_WRITE_TOKEN, PANTRY_EXTRACT_STUB=1"
 );
 
 function seedOrder(email: string): { claimUrl: string } {

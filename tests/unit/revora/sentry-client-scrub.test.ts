@@ -14,6 +14,9 @@
  * leak. That is the gap this file closes.
  */
 
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+
 import type { ErrorEvent } from "@sentry/browser";
 import { describe, expect, it } from "vitest";
 
@@ -21,7 +24,10 @@ import {
   CLIENT_SENTRY_DSN,
   clientSentryOptions
 } from "../../../instrumentation-client";
-import { scrubSentryEvent } from "../../../lib/revora/sentry-scrub";
+import {
+  SENTRY_IP_GEO_SENTINEL,
+  scrubSentryEvent
+} from "../../../lib/revora/sentry-scrub";
 
 const FOOD = "SENTINEL_FOOD_two_slices_of_pizza";
 const A1C = "SENTINEL_A1C_6point1";
@@ -43,6 +49,29 @@ const FORBIDDEN_INTEGRATIONS = [
 ];
 
 describe("browser Sentry init contract", () => {
+  it("has exactly one browser SDK initializer and does not mount a second one from the root layout", () => {
+    function sourceFiles(directory: string): string[] {
+      return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+        const path = join(directory, entry.name);
+        if (entry.isDirectory()) return sourceFiles(path);
+        return /\.[cm]?tsx?$/.test(entry.name) ? [readFileSync(path, "utf8")] : [];
+      });
+    }
+
+    const rootLayout = readFileSync(join(process.cwd(), "app/layout.tsx"), "utf8");
+    const browserSources = [
+      readFileSync(join(process.cwd(), "instrumentation-client.ts"), "utf8"),
+      ...sourceFiles(join(process.cwd(), "app")),
+      ...sourceFiles(join(process.cwd(), "components"))
+    ];
+    const initCalls = browserSources
+      .join("\n")
+      .match(/\bSentry\.init\s*\(/g);
+
+    expect(initCalls).toHaveLength(1);
+    expect(rootLayout).not.toContain("client-error-reporting");
+  });
+
   it("is fully inert without a DSN", () => {
     // No DSN in dev/test/CI, so the module-level init never runs. If this ever
     // becomes truthy in a test run, the SDK is booting where it shouldn't.
@@ -83,6 +112,24 @@ describe("browser Sentry init contract", () => {
     const opts = clientSentryOptions("https://x@example.test/1");
     expect(opts.sendDefaultPii).toBe(false);
     expect(opts.tracesSampleRate).toBe(0);
+  });
+
+  it("uses the build-injected exact release when present", () => {
+    const previousRelease = process.env.NEXT_PUBLIC_SENTRY_RELEASE;
+    process.env.NEXT_PUBLIC_SENTRY_RELEASE =
+      "80ea9fb93bb015084963aa707298c58c6355eeb7";
+
+    try {
+      expect(clientSentryOptions("https://x@example.test/1").release).toBe(
+        "80ea9fb93bb015084963aa707298c58c6355eeb7"
+      );
+    } finally {
+      if (previousRelease === undefined) {
+        delete process.env.NEXT_PUBLIC_SENTRY_RELEASE;
+      } else {
+        process.env.NEXT_PUBLIC_SENTRY_RELEASE = previousRelease;
+      }
+    }
   });
 
   it("routes every event through the same scrubber the server uses", () => {
@@ -148,6 +195,14 @@ describe("browser events are scrubbed of every PII vector", () => {
   it("drops ui.input and fetch breadcrumbs even if an integration ever adds them", () => {
     const scrubbed = scrubSentryEvent(browserEventWithAllPiiVectors());
     expect(scrubbed.breadcrumbs).toBeUndefined();
+  });
+
+  it("replaces browser identity with the provider geo-suppression sentinel", () => {
+    const scrubbed = scrubSentryEvent(browserEventWithAllPiiVectors());
+
+    expect(scrubbed.user).toEqual({
+      ip_address: SENTRY_IP_GEO_SENTINEL
+    });
   });
 
   it("keeps the exception type and frame function for triage", () => {

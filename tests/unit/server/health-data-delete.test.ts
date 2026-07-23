@@ -193,4 +193,50 @@ describe("DELETE /api/account/health-data", () => {
         .where(eq(schema.pantryOrders.id, order.id))
     ).toHaveLength(0);
   });
+
+  it("returns 503 and preserves health rows and the photo pointer on Blob failure", async () => {
+    const [user] = await testDb.db
+      .insert(schema.users)
+      .values({ email: "withdraw-blob-down@test.dev" })
+      .returning();
+    await testDb.db.insert(schema.profiles).values({
+      userId: user.id,
+      a1cCiphertext: encryptField("6.1"),
+      a1cBand: "prediabetes_60_62",
+      consentedAt: new Date()
+    });
+    const [order] = await testDb.db
+      .insert(schema.pantryOrders)
+      .values({
+        userId: user.id,
+        email: user.email,
+        stripeSessionId: "cs_withdraw_blob_down",
+        claimToken: "withdraw-blob-down-token"
+      })
+      .returning();
+    await testDb.db.insert(schema.pantryPhotos).values({
+      orderId: order.id,
+      blobUrl: "https://blob.test/withdraw-blob-down.jpg"
+    });
+
+    const DELETE = createHealthDataDeleteHandler({
+      db: () => testDb.db,
+      getSession: async () => ({ userId: user.id, email: user.email }),
+      deleteBlobs: vi.fn().mockRejectedValue(new Error("blob unavailable"))
+    });
+
+    expect((await DELETE()).status).toBe(503);
+    expect(
+      await testDb.db
+        .select()
+        .from(schema.profiles)
+        .where(eq(schema.profiles.userId, user.id))
+    ).toHaveLength(1);
+    expect(
+      await testDb.db
+        .select()
+        .from(schema.pantryPhotos)
+        .where(eq(schema.pantryPhotos.orderId, order.id))
+    ).toHaveLength(1);
+  });
 });

@@ -1,3 +1,5 @@
+import { resolveModelTransportConfig } from "./openai-client";
+
 export function getRevoraEnv(input: NodeJS.ProcessEnv = process.env): {
   environment: "preview" | "production" | "development" | "test";
   openAiApiKey: string;
@@ -11,6 +13,11 @@ export function getRevoraEnv(input: NodeJS.ProcessEnv = process.env): {
       `OPENAI_API_KEY is required for Revora ${environment} server use.`
     );
   }
+
+  // Validate provider/model coherence at the same boundary health uses. A
+  // present key is not "ready" when production would route to an unvalidated
+  // compatible endpoint or use a provider-prefixed direct model id.
+  resolveModelTransportConfig(input);
 
   const edgeConfigConnectionString = input.EDGE_CONFIG?.trim() || undefined;
 

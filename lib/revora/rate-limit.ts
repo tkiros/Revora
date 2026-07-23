@@ -51,8 +51,8 @@ const BUCKETS: Record<
   billing_ip: { limit: 10, window: "1 h", prefix: "revora:billing:ip" },
   trial_email: { limit: 3, window: "1 h", prefix: "revora:trial:email" },
   auth_email: { limit: 3, window: "1 h", prefix: "revora:auth:email" },
-  // P0.4: authenticated help/refund cases — each POST sends a full-copy email
-  // to the support inbox, so this is an email amplifier and fails CLOSED like
+  // P0.4: authenticated help/refund cases — each POST sends a PII-minimized
+  // queue notice, so this is still an email amplifier and fails CLOSED like
   // the other email doors. 5/24h never touches a real user in distress.
   support_ip: { limit: 5, window: "24 h", prefix: "revora:support:ip" }
 };
@@ -61,7 +61,7 @@ export type RateLimitDeps = {
   limitBucket(
     bucket: LimitBucket,
     key: string
-  ): Promise<{ success: boolean; resetMs: number }>;
+  ): Promise<{ success: boolean; resetMs: number; reason?: "timeout" }>;
   incrDailyCount(): Promise<number>;
   dailyCap: number;
 };
@@ -160,6 +160,9 @@ export async function evaluateRateLimit(
 ): Promise<RateLimitDecision> {
   try {
     const ipResult = await deps.limitBucket("check_ip", ip);
+    if (ipResult.reason === "timeout") {
+      return { ok: true };
+    }
     if (!ipResult.success) {
       return { ok: false, reason: "per_ip", retryAfterSeconds: retryAfter(ipResult.resetMs) };
     }
@@ -188,6 +191,11 @@ export async function evaluateAbuseLimit(
 ): Promise<RateLimitDecision> {
   try {
     const result = await deps.limitBucket(bucket, key);
+    if (result.reason === "timeout") {
+      return failClosed
+        ? { ok: false, reason: "store_error", retryAfterSeconds: 60 }
+        : { ok: true };
+    }
     if (result.success) {
       return { ok: true };
     }
@@ -346,7 +354,11 @@ export function createRateLimitDeps(
     return {
       async limitBucket(bucket, key) {
         const result = await limiters.get(bucket)!.limit(key);
-        return { success: result.success, resetMs: result.reset };
+        return {
+          success: result.success,
+          resetMs: result.reset,
+          reason: result.reason === "timeout" ? "timeout" : undefined
+        };
       },
       async incrDailyCount() {
         const day = new Date().toISOString().slice(0, 10);

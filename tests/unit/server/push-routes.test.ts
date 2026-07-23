@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createPushSubscribeHandlers } from "../../../app/api/push/subscribe/route";
@@ -86,6 +87,58 @@ describe("push subscribe/unsubscribe", () => {
     expect(await testDb.db.select().from(schema.pushSubscriptions)).toHaveLength(1);
   });
 
+  it("refreshing an endpoint clears attempt ownership but preserves success dedupe", async () => {
+    await testDb.db.insert(schema.pushSubscriptions).values({
+      userId,
+      endpoint: SUBSCRIPTION.endpoint,
+      p256dh: "old-key",
+      auth: "old-auth",
+      lastNudgeDate: "2026-07-03",
+      nudgeAttemptDate: "2026-07-04",
+      nudgeAttemptCount: 1,
+      nudgeLeaseToken: "00000000-0000-4000-8000-000000000002",
+      nudgeLeaseUntil: new Date("2026-07-04T15:05:00.000Z")
+    });
+
+    const { POST } = handlers();
+    await POST(request("POST", SUBSCRIPTION));
+
+    const [row] = await testDb.db.select().from(schema.pushSubscriptions);
+    expect(row.p256dh).toBe(SUBSCRIPTION.keys.p256dh);
+    expect(row.lastNudgeDate).toBe("2026-07-03");
+    expect(row.nudgeAttemptDate).toBeNull();
+    expect(row.nudgeAttemptCount).toBe(0);
+    expect(row.nudgeLeaseToken).toBeNull();
+    expect(row.nudgeLeaseUntil).toBeNull();
+  });
+
+  it("refreshing an endpoint mid-send keeps the live lease but still updates keys", async () => {
+    const liveLeaseUntil = new Date(Date.now() + 5 * 60 * 1000);
+    await testDb.db.insert(schema.pushSubscriptions).values({
+      userId,
+      endpoint: SUBSCRIPTION.endpoint,
+      p256dh: "old-key",
+      auth: "old-auth",
+      nudgeAttemptDate: "2026-07-04",
+      nudgeAttemptCount: 1,
+      nudgeLeaseToken: "00000000-0000-4000-8000-000000000003",
+      nudgeLeaseUntil: liveLeaseUntil
+    });
+
+    const { POST } = handlers();
+    await POST(request("POST", SUBSCRIPTION));
+
+    const [row] = await testDb.db.select().from(schema.pushSubscriptions);
+    // Key material always follows the refresh…
+    expect(row.p256dh).toBe(SUBSCRIPTION.keys.p256dh);
+    // …but an in-flight send keeps its lease: the lease-blind clear recorded
+    // a delivered `ok` as failed and could re-send a duplicate.
+    expect(row.nudgeLeaseToken).toBe("00000000-0000-4000-8000-000000000003");
+    expect(row.nudgeLeaseUntil).toEqual(liveLeaseUntil);
+    expect(row.nudgeAttemptDate).toBe("2026-07-04");
+    expect(row.nudgeAttemptCount).toBe(1);
+  });
+
   it("DELETE removes the subscription and flips opt-in off", async () => {
     const { POST, DELETE } = handlers();
     await POST(request("POST", SUBSCRIPTION));
@@ -135,5 +188,93 @@ describe("GET /api/cron/nudge auth", () => {
     expect(response.status).toBe(200);
     expect(body.ok).toBe(true);
     expect(typeof body.sent).toBe("number");
+  });
+
+  it("returns 503 and a bounded failure count when push delivery fails", async () => {
+    await testDb.db
+      .update(schema.profiles)
+      .set({ nudgeOptIn: true, nudgeHour: new Date().getUTCHours() })
+      .where(eq(schema.profiles.userId, userId));
+    await testDb.db.insert(schema.pushSubscriptions).values({
+      userId,
+      endpoint: SUBSCRIPTION.endpoint,
+      p256dh: SUBSCRIPTION.keys.p256dh,
+      auth: SUBSCRIPTION.keys.auth
+    });
+    await testDb.db.insert(schema.subscriptions).values({
+      userId,
+      provider: "stripe",
+      providerRef: "sub_push_route_failure",
+      productId: "premium_monthly",
+      status: "active",
+      currentPeriodEnd: new Date(Date.now() + 24 * 60 * 60 * 1000)
+    }).onConflictDoNothing();
+    const GET = createNudgeCronHandler({
+      db: () => testDb.db,
+      send: vi.fn().mockResolvedValue("error")
+    });
+
+    const response = await GET(
+      new Request("http://t/api/cron/nudge", {
+        headers: { authorization: "Bearer cron-secret" }
+      })
+    );
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({
+      ok: false,
+      sent: 0,
+      failed: 1
+    });
+  });
+
+  it("stays green while a same-day retry is pending (expected outcome, not failure)", async () => {
+    const now = new Date();
+    await testDb.db
+      .update(schema.profiles)
+      .set({ nudgeOptIn: true, timezone: "UTC" })
+      .where(eq(schema.profiles.userId, userId));
+    await testDb.db.insert(schema.pushSubscriptions).values({
+      userId,
+      endpoint: SUBSCRIPTION.endpoint,
+      p256dh: SUBSCRIPTION.keys.p256dh,
+      auth: SUBSCRIPTION.keys.auth,
+      nudgeAttemptDate: now.toISOString().slice(0, 10),
+      nudgeAttemptCount: 1,
+      nudgeRetryAfter: new Date(now.getTime() + 60 * 60 * 1000)
+    });
+    await testDb.db
+      .insert(schema.subscriptions)
+      .values({
+        userId,
+        provider: "stripe",
+        providerRef: "sub_push_route_pending",
+        productId: "premium_monthly",
+        status: "active",
+        currentPeriodEnd: new Date(now.getTime() + 24 * 60 * 60 * 1000)
+      })
+      .onConflictDoNothing();
+    const send = vi.fn().mockResolvedValue("ok");
+    const GET = createNudgeCronHandler({
+      db: () => testDb.db,
+      send
+    });
+
+    const response = await GET(
+      new Request("http://t/api/cron/nudge", {
+        headers: { authorization: "Bearer cron-secret" }
+      })
+    );
+
+    // A deferred retry is the bounded-retry design working, not an outage —
+    // the hourly run must stay green so the scheduler doesn't page on it.
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      ok: true,
+      failed: 0,
+      pending: 1,
+      exhausted: 0
+    });
+    expect(send).not.toHaveBeenCalled();
   });
 });

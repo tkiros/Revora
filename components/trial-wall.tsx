@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import { track } from "../lib/client/analytics";
 import { historyStore } from "../lib/client/history-store";
+import { useHydrated } from "../lib/client/use-hydrated";
 import { TERMS_VERSION } from "../lib/legal/terms";
 import { usePaywallConfig } from "../lib/client/paywall-config";
 
@@ -24,19 +25,17 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
   const config = state.status === "ready" ? state.config : null;
   const [step, setStep] = useState<Step>("value");
   // Annual preselected when offered — it's the plan we flag as best value.
-  const [plan, setPlan] = useState<Plan>("monthly");
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Endowment nudge for the declined state: name what's already theirs. Local
   // history only — the declined visitor is a guest; read in an effect so the
   // server render (0) never mismatches hydration.
-  const [savedChecks, setSavedChecks] = useState(0);
+  const savedChecks = useHydrated() ? historyStore.all().length : 0;
   const [termsAccepted, setTermsAccepted] = useState(false);
-
-  useEffect(() => {
-    setSavedChecks(historyStore.all().length);
-  }, []);
+  const plan =
+    selectedPlan ?? (config?.annualDisplay ? "annual" : "monthly");
 
   // Fire the view event and preselect the annual plan only once the server
   // config is known — never off a guessed variant.
@@ -45,9 +44,6 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
       return;
     }
     track({ name: "wall_viewed", props: { variant: config.variant } });
-    if (config.annualDisplay) {
-      setPlan("annual");
-    }
   }, [config]);
 
   async function startTrial(event: React.FormEvent) {
@@ -208,7 +204,7 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
                   className="plan-option"
                   data-selected={plan === "annual" || undefined}
                   data-testid="plan-annual"
-                  onClick={() => setPlan("annual")}
+                  onClick={() => setSelectedPlan("annual")}
                 >
                   <span className="plan-option-flag">
                     Best value{annualSavingsPct >= 10 ? ` — save ${annualSavingsPct}%` : ""}
@@ -231,7 +227,7 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
                   className="plan-option"
                   data-selected={plan === "monthly" || undefined}
                   data-testid="plan-monthly"
-                  onClick={() => setPlan("monthly")}
+                  onClick={() => setSelectedPlan("monthly")}
                 >
                   <span className="plan-option-name">Monthly</span>
                   <span className="plan-option-price">

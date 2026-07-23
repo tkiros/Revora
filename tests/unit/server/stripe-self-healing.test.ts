@@ -22,6 +22,7 @@ import {
 import { runStripeReconcileCron } from "../../../lib/server/billing/reconcile";
 import { getEntitlement } from "../../../lib/server/entitlement";
 import { hashClaimToken } from "../../../lib/server/pantry/claims";
+import { runPantrySweep } from "../../../lib/server/pantry/sweep";
 import { schema } from "../../../lib/server/db";
 import { createTestDb } from "../../helpers/test-db";
 
@@ -148,7 +149,7 @@ describe("durable inbox — dedupe by provider event id", () => {
     let [row] = await testDb.db.select().from(schema.billingEventInbox);
     expect(row.status).toBe("failed");
     expect(row.attempts).toBe(1);
-    expect(row.lastError).toContain("transient");
+    expect(row.lastError).toBe("Error");
 
     // Stripe redelivers the same event id → we reprocess the failed row.
     const second = await ingestStripeEvent(testDb.db, event, deps({ apply }));
@@ -194,6 +195,29 @@ describe("webhook handler — retry-honest HTTP status", () => {
       body: "{}"
     });
   }
+
+  beforeEach(() => {
+    process.env.STRIPE_WEBHOOK_SECRET = "whsec_unit_test_secret";
+  });
+
+  it("503s (fail closed) when the signing secret is missing — never verifies under an empty key", async () => {
+    delete process.env.STRIPE_WEBHOOK_SECRET;
+    const constructEventAsync = vi.fn();
+    const GET = createStripeWebhookHandler({
+      db: () => testDb.db,
+      stripeClient: () =>
+        ({ webhooks: { constructEventAsync } }) as unknown as Stripe,
+      now: () => NOW
+    });
+
+    const response = await GET(webhookRequest());
+
+    // Old behavior passed secret="" to stripe-node, which happily HMACs under
+    // the empty (public) key — a forgeable signature that could mint premium.
+    expect(response.status).toBe(503);
+    expect(constructEventAsync).not.toHaveBeenCalled();
+    expect(await testDb.db.select().from(schema.billingEventInbox)).toHaveLength(0);
+  });
 
   it("200 on first process, 200 duplicate on redelivery, 500 on reducer failure", async () => {
     const event = evt("customer.subscription.updated", { id: "sub_wh" }, 100, "evt_wh_ok");
@@ -716,16 +740,35 @@ describe("reconcile — charge scan window + pruning", () => {
         status: "processed",
         receivedAt: new Date(NOW.getTime() - 5 * 24 * 60 * 60 * 1000),
         processedAt: new Date(NOW.getTime() - 5 * 24 * 60 * 60 * 1000)
+      },
+      {
+        provider: "stripe",
+        providerEventId: "evt_stale_failed",
+        eventType: "customer.subscription.updated",
+        payload: { customer_email: "old-failed@example.com" } as never,
+        status: "failed",
+        attempts: MAX_INBOX_ATTEMPTS,
+        receivedAt: new Date(NOW.getTime() - 40 * 24 * 60 * 60 * 1000)
+      },
+      {
+        provider: "stripe",
+        providerEventId: "evt_stale_dead",
+        eventType: "customer.subscription.updated",
+        payload: { customer_email: "old-dead@example.com" } as never,
+        status: "dead_letter",
+        receivedAt: new Date(NOW.getTime() - 40 * 24 * 60 * 60 * 1000)
       }
     ]);
 
     const result = await runStripeReconcileCron(testDb.db, { now: () => NOW });
 
-    expect(result.pruned).toBe(1);
+    expect(result.pruned).toBe(3);
     const remaining = await testDb.db.select().from(schema.billingEventInbox);
     const ids = remaining.map((r) => r.providerEventId);
     expect(ids).toContain("evt_fresh_processed");
     expect(ids).not.toContain("evt_stale_processed");
+    expect(ids).not.toContain("evt_stale_failed");
+    expect(ids).not.toContain("evt_stale_dead");
   });
 });
 
@@ -1051,6 +1094,10 @@ describe("inbox email dispatch (B4) — post-commit, once, stable token", () => 
     ({
       checkout: {
         sessions: {
+          retrieve: vi.fn().mockResolvedValue({
+            customer_details: { email: "buyer@example.com" },
+            customer_email: null
+          }),
           listLineItems: vi.fn().mockResolvedValue({
             data: [{ price: { id: "price_pantry_25" } }]
           })
@@ -1103,5 +1150,51 @@ describe("inbox email dispatch (B4) — post-commit, once, stable token", () => 
 
     expect(outcome).toBe("failed");
     expect(send).not.toHaveBeenCalled();
+  });
+
+  it("recovers a failed paid-order email exactly once through the durable Pantry sweep", async () => {
+    const send = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 503 })
+      .mockResolvedValue({ ok: true });
+    const event = pantryEvent("b4_recover");
+
+    expect(
+      await ingestStripeEvent(
+        testDb.db,
+        event,
+        deps({ stripe: pantryStripe, email: { send } })
+      )
+    ).toBe("processed");
+
+    let [order] = await testDb.db.select().from(schema.pantryOrders);
+    expect(order.intakeEmailSentAt).toBeNull();
+    const firstToken =
+      /token=([A-Za-z0-9_-]+)/.exec(send.mock.calls[0][0].text)?.[1] ?? "";
+    expect(hashClaimToken(firstToken)).toBe(order.claimToken);
+
+    const recoveryAt = new Date(NOW.getTime() + 60 * 60 * 1000);
+    const sweepDeps = {
+      db: testDb.db,
+      model: { generate: vi.fn() } as never,
+      email: { send },
+      deleteBlobs: vi.fn().mockResolvedValue(undefined),
+      listBlobs: vi.fn().mockResolvedValue([]),
+      now: () => recoveryAt,
+      processOrder: vi.fn().mockResolvedValue({ done: true })
+    };
+
+    expect((await runPantrySweep(sweepDeps)).intakeResent).toBe(1);
+    [order] = await testDb.db.select().from(schema.pantryOrders);
+    expect(order.intakeEmailSentAt?.toISOString()).toBe(
+      recoveryAt.toISOString()
+    );
+    const recoveryToken =
+      /token=([A-Za-z0-9_-]+)/.exec(send.mock.calls[1][0].text)?.[1] ?? "";
+    expect(recoveryToken).not.toBe(firstToken);
+    expect(hashClaimToken(recoveryToken)).toBe(order.claimToken);
+
+    expect((await runPantrySweep(sweepDeps)).intakeResent).toBe(0);
+    expect(send).toHaveBeenCalledTimes(2);
   });
 });

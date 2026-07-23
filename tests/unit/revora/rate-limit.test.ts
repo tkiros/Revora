@@ -63,6 +63,27 @@ describe("evaluateRateLimit", () => {
     expect(decision).toEqual({ ok: true });
   });
 
+  it("fails OPEN without incrementing the daily counter when Upstash reports a timeout", async () => {
+    let dailyCalls = 0;
+    const decision = await evaluateRateLimit(
+      "1.1.1.1",
+      deps({
+        limitBucket: async () => ({
+          success: true,
+          resetMs: Date.now() + 60_000,
+          reason: "timeout" as const
+        }),
+        incrDailyCount: async () => {
+          dailyCalls += 1;
+          return 1;
+        }
+      })
+    );
+
+    expect(decision).toEqual({ ok: true });
+    expect(dailyCalls).toBe(0);
+  });
+
   it("spends the check_ip bucket, never another surface's", async () => {
     const seen: string[] = [];
     await evaluateRateLimit(
@@ -193,9 +214,37 @@ describe("evaluateAbuseLimit (W-11)", () => {
     if (!decision.ok) expect(decision.reason).toBe("store_error");
   });
 
+  it("fails CLOSED when Upstash reports its built-in timeout on an email-sending door", async () => {
+    const timedOut = deps({
+      limitBucket: async () => ({
+        success: true,
+        resetMs: Date.now() + 60_000,
+        reason: "timeout" as const
+      })
+    });
+
+    expect(
+      await evaluateAbuseLimit("auth_signin_ip", "1.1.1.1", timedOut, true)
+    ).toEqual({ ok: false, reason: "store_error", retryAfterSeconds: 60 });
+  });
+
   it("fails OPEN on a store error where nothing irreversible is at stake", async () => {
     expect(
       await evaluateAbuseLimit("auth_other_ip", "1.1.1.1", broken, false)
+    ).toEqual({ ok: true });
+  });
+
+  it("fails OPEN when Upstash reports its built-in timeout on a non-email abuse path", async () => {
+    const timedOut = deps({
+      limitBucket: async () => ({
+        success: true,
+        resetMs: Date.now() + 60_000,
+        reason: "timeout" as const
+      })
+    });
+
+    expect(
+      await evaluateAbuseLimit("billing_ip", "1.1.1.1", timedOut, false)
     ).toEqual({ ok: true });
   });
 });

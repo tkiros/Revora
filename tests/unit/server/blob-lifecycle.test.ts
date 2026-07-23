@@ -154,6 +154,23 @@ describe("deleteUserBlobs", () => {
     expect(deleted).toBe(1);
     expect(deleteBlobs).toHaveBeenCalledWith([myPhoto.blobUrl]);
   });
+
+  it("propagates provider failure and preserves every database pointer", async () => {
+    const order = await makeOrder({ status: "ready" });
+    const photo = await addPhoto(order.id);
+    const deleteBlobs = vi.fn().mockRejectedValue(new Error("blob unavailable"));
+
+    await expect(
+      deleteUserBlobs(testDb.db, userId, deleteBlobs)
+    ).rejects.toThrow("blob unavailable");
+
+    const [preserved] = await testDb.db
+      .select()
+      .from(schema.pantryPhotos)
+      .where(eq(schema.pantryPhotos.id, photo.id));
+    expect(preserved.blobUrl).toBe(photo.blobUrl);
+    expect(preserved.status).not.toBe("deleted");
+  });
 });
 
 describe("reapPantryBlobs", () => {

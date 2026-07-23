@@ -28,12 +28,20 @@ type CronsProbe = {
   stripeReconcile: CronProbeStatus;
 };
 
+type ReadinessIssue =
+  | "database_unavailable"
+  | "database_unconfigured"
+  | "email_delivery_unavailable"
+  | "billing_webhook_unconfigured"
+  | "rate_limit_unavailable"
+  | `cron_${keyof CronsProbe}_${Exclude<CronProbeStatus, "ok" | "unknown">}`;
+
 const UNKNOWN_CRONS: CronsProbe = {
   nudge: "unknown",
   baiWeekly: "unknown",
   trialPrecharge: "unknown",
   pantrySweep: "unknown",
-  stripeReconcile: "unknown"
+  stripeReconcile: "unknown",
 };
 
 export type HealthDeps = {
@@ -51,6 +59,8 @@ export function createHealthHandler(deps: HealthDeps = {}) {
 
   return async function GET() {
     const { db, crons } = await probeDbAndCrons(dbAccessor, now());
+    const emailDelivery = emailDeliveryConfigState();
+    const billingWebhook = billingWebhookConfigState();
 
     let environment: "preview" | "production" | "development" | "test";
 
@@ -64,14 +74,18 @@ export function createHealthHandler(deps: HealthDeps = {}) {
       return NextResponse.json(
         {
           ok: false,
+          status: "degraded",
+          issues: ["model_configuration"],
           environment,
           launch: "missing_config",
           launchMode: "normal",
           upstash: rateLimitConfigState(),
+          emailDelivery,
+          billingWebhook,
           db,
-          crons
+          crons,
         },
-        { status: 503 }
+        { status: 503, headers: NO_STORE_HEADERS },
       );
     }
 
@@ -80,33 +94,116 @@ export function createHealthHandler(deps: HealthDeps = {}) {
     const launchMode = controls.launchMode;
     const isPaused = !controls.publicChecksEnabled || launchMode === "paused";
 
-    return NextResponse.json({
-      ok: true,
+    const upstash = rateLimitConfigState();
+    const issues = readinessIssues({
       environment,
-      launch: isPaused ? "paused" : "ready",
-      launchMode,
-      // Surfaces the merge-gate dependency: middleware fails CLOSED (503) on a
-      // public deploy when Upstash env is absent OR invalid. "invalid" means the
-      // URL is not the https:// REST endpoint (e.g. a rediss:// TCP URL) — wire
-      // monitoring to alert on anything but "configured". ponytail: static
-      // validation only, no live ping — the limiter fails open on reachability,
-      // so a ping failure isn't app-fatal and doesn't belong in a hot probe.
-      upstash: rateLimitConfigState(),
-      // W-04 gate state, boolean-only (G8): checkout now 401s unauthenticated
-      // before the legal gate runs, so an external probe can no longer tell
-      // whether LEGAL_TERMS_FINAL is set. Same predicate as checkoutGate() in
-      // app/api/billing/handlers.ts. Exposes no config values.
-      checkoutGate: process.env.LEGAL_TERMS_FINAL === "0" ? "closed" : "open",
-      // db/crons are visibility-only (P7): a db error or stale/never cron
-      // never flips `ok` false — guests are still served without a DB, and a
-      // missed cron tick isn't an outage. Never secrets, URLs, or counts.
+      upstash,
+      emailDelivery,
+      billingWebhook,
       db,
-      crons
+      crons,
     });
+    const ready = issues.length === 0;
+
+    return NextResponse.json(
+      {
+        ok: ready,
+        status: ready ? "healthy" : "degraded",
+        issues,
+        environment,
+        launch: isPaused ? "paused" : "ready",
+        launchMode,
+        // Surfaces the merge-gate dependency: middleware fails CLOSED (503) on a
+        // public deploy when Upstash env is absent OR invalid. "invalid" means the
+        // URL is not the https:// REST endpoint (e.g. a rediss:// TCP URL) — wire
+        // monitoring to alert on anything but "configured". ponytail: static
+        // validation only, no live ping — the limiter fails open on reachability,
+        // so a ping failure isn't app-fatal and doesn't belong in a hot probe.
+        upstash,
+        emailDelivery,
+        billingWebhook,
+        // W-04 gate state, boolean-only (G8): checkout now 401s unauthenticated
+        // before the legal gate runs, so an external probe can no longer tell
+        // whether LEGAL_TERMS_FINAL is set. Same predicate as checkoutGate() in
+        // app/api/billing/handlers.ts. Exposes no config values.
+        checkoutGate: process.env.LEGAL_TERMS_FINAL === "0" ? "closed" : "open",
+        // These bounded states contain no secrets, URLs, timestamps, or counts.
+        // Unlike the process-liveness route, this endpoint is product readiness:
+        // stateful features and scheduled recovery paths must actually work.
+        db,
+        crons,
+      },
+      { status: ready ? 200 : 503, headers: NO_STORE_HEADERS },
+    );
   };
 }
 
 export const GET = createHealthHandler();
+
+const NO_STORE_HEADERS = { "Cache-Control": "no-store" } as const;
+
+function readinessIssues(input: {
+  environment: "preview" | "production" | "development" | "test";
+  upstash: ReturnType<typeof rateLimitConfigState>;
+  emailDelivery: "configured" | "unconfigured";
+  billingWebhook: "configured" | "unconfigured";
+  db: DbProbeStatus;
+  crons: CronsProbe;
+}): ReadinessIssue[] {
+  const issues: ReadinessIssue[] = [];
+
+  if (input.db === "unconfigured") {
+    issues.push("database_unconfigured");
+  } else if (input.db === "error") {
+    issues.push("database_unavailable");
+  } else {
+    for (const [name, status] of Object.entries(input.crons) as Array<
+      [keyof CronsProbe, CronProbeStatus]
+    >) {
+      if (status === "stale" || status === "never") {
+        issues.push(`cron_${name}_${status}`);
+      }
+    }
+  }
+
+  if (
+    (input.environment === "production" || input.environment === "preview") &&
+    input.upstash !== "configured"
+  ) {
+    issues.push("rate_limit_unavailable");
+  }
+  if (
+    (input.environment === "production" || input.environment === "preview") &&
+    input.emailDelivery !== "configured"
+  ) {
+    issues.push("email_delivery_unavailable");
+  }
+  if (
+    (input.environment === "production" || input.environment === "preview") &&
+    input.billingWebhook !== "configured"
+  ) {
+    issues.push("billing_webhook_unconfigured");
+  }
+
+  return issues;
+}
+
+function emailDeliveryConfigState(): "configured" | "unconfigured" {
+  return process.env.RESEND_API_KEY?.trim() &&
+    process.env.RESEND_WEBHOOK_SECRET?.trim() &&
+    process.env.AUTH_SECRET?.trim()
+    ? "configured"
+    : "unconfigured";
+}
+
+// The Stripe webhook handler fails CLOSED (503) without its signing secret,
+// which silently stops entitlement minting — readiness must surface that the
+// money path is down, exactly like email delivery above.
+function billingWebhookConfigState(): "configured" | "unconfigured" {
+  return process.env.STRIPE_WEBHOOK_SECRET?.trim()
+    ? "configured"
+    : "unconfigured";
+}
 
 /**
  * db: "unconfigured" is detected from getDb()'s own "DATABASE_URL is not
@@ -121,7 +218,7 @@ export const GET = createHealthHandler();
  */
 async function probeDbAndCrons(
   dbAccessor: () => Db,
-  now: Date
+  now: Date,
 ): Promise<{ db: DbProbeStatus; crons: CronsProbe }> {
   let db: Db;
 
@@ -142,16 +239,16 @@ async function probeDbAndCrons(
     const heartbeats = await db.select().from(schema.cronHeartbeat);
     const nudgeAt = heartbeats.find((row) => row.name === "nudge")?.lastRunAt;
     const baiAt = heartbeats.find(
-      (row) => row.name === "bai-weekly"
+      (row) => row.name === "bai-weekly",
     )?.lastRunAt;
     const prechargeAt = heartbeats.find(
-      (row) => row.name === "trial-precharge"
+      (row) => row.name === "trial-precharge",
     )?.lastRunAt;
     const pantryAt = heartbeats.find(
-      (row) => row.name === "pantry-sweep"
+      (row) => row.name === "pantry-sweep",
     )?.lastRunAt;
     const reconcileAt = heartbeats.find(
-      (row) => row.name === "stripe-reconcile"
+      (row) => row.name === "stripe-reconcile",
     )?.lastRunAt;
 
     return {
@@ -164,9 +261,9 @@ async function probeDbAndCrons(
         stripeReconcile: cronStatus(
           reconcileAt,
           now,
-          STRIPE_RECONCILE_STALE_MS
-        )
-      }
+          STRIPE_RECONCILE_STALE_MS,
+        ),
+      },
     };
   } catch (error) {
     await captureServerError(error, "route");
@@ -177,7 +274,7 @@ async function probeDbAndCrons(
 function cronStatus(
   lastRunAt: Date | undefined,
   now: Date,
-  staleMs: number
+  staleMs: number,
 ): CronProbeStatus {
   if (!lastRunAt) {
     return "never";
@@ -188,7 +285,7 @@ function cronStatus(
 }
 
 function detectEnvironment(
-  input: NodeJS.ProcessEnv
+  input: NodeJS.ProcessEnv,
 ): "preview" | "production" | "development" | "test" {
   if (input.NODE_ENV === "test") {
     return "test";

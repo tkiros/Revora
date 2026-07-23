@@ -40,6 +40,8 @@ export async function checkFood(
   deps: {
     model: RevoraModelClient;
     clarified?: boolean;
+    /** PII-free route bookkeeping only; errors still go through Sentry here. */
+    onModelError?: (error: unknown) => void;
     /**
      * Optional Task 13 snapshot sink. When supplied, the conservative-floor
      * metadata that postprocess computes is written here for the caller to
@@ -120,6 +122,11 @@ export async function checkFood(
         deps.snapshot
       );
     } catch (error) {
+      try {
+        deps.onModelError?.(error);
+      } catch {
+        // A diagnostic callback must never replace the calm retry response.
+      }
       // Single attempt: fail closed to controlled retry copy. The provider error
       // is otherwise invisible (we return retry, not check_failed) — surface it to
       // Sentry. captureServerError never throws and awaits flush; PII is stripped

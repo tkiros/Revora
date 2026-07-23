@@ -13,8 +13,13 @@ import {
 import { captureServerError } from "../../../../lib/revora/sentry-capture";
 import { encryptField } from "../../../../lib/server/crypto";
 import { getDb, schema, type Db } from "../../../../lib/server/db";
-import { sendEmail, type SendEmailResult } from "../../../../lib/server/email";
+import {
+  sendEmail,
+  type SendEmailInput,
+  type SendEmailResult
+} from "../../../../lib/server/email";
 import { bandRepresentativeA1c } from "../../../../lib/server/pantry/band";
+import { isPrivatePantryBlobUrlForOrder } from "../../../../lib/server/pantry/blob-access";
 import { supportInbox } from "../../../../lib/server/email";
 import {
   getSessionInfo,
@@ -26,32 +31,12 @@ export const runtime = "nodejs";
 // OPS: requires the Vercel plan's 300s function ceiling (Pro default).
 export const maxDuration = 300;
 
-// Photos must come from OUR blob store (the same origins the CSP allows).
-// Without this, a signed-in buyer could point the vision provider's fetcher
-// at an arbitrary host via photoUrls.
-function isBlobPhotoUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return (
-      url.protocol === "https:" &&
-      (url.hostname === "blob.vercel-storage.com" ||
-        url.hostname.endsWith(".blob.vercel-storage.com"))
-    );
-  } catch {
-    return false;
-  }
-}
-
 const SubmitSchema = z
   .object({
     orderId: z.string().uuid(),
     photoUrls: z
       .array(
-        z
-          .string()
-          .url()
-          .max(2048)
-          .refine(isBlobPhotoUrl, "Photos must come from the Revora upload store.")
+        z.string().url().max(2048)
       )
       .min(1)
       .max(10),
@@ -73,7 +58,7 @@ type Deps = {
   db?: () => Db;
   getSession?: () => Promise<SessionInfo>;
   vision?: () => PantryVisionClient;
-  email?: { send: (input: { to: string; subject: string; text: string }) => Promise<SendEmailResult> };
+  email?: { send: (input: SendEmailInput) => Promise<SendEmailResult> };
   rateLimit?: PantryRateLimit;
   now?: () => Date;
 };
@@ -137,6 +122,14 @@ export function createPantrySubmitHandler(deps: Deps = {}) {
       return NextResponse.json({ error: "Invalid request." }, { status: 400 });
     }
     const input = parsed.data;
+    if (
+      new Set(input.photoUrls).size !== input.photoUrls.length ||
+      !input.photoUrls.every((url) =>
+        isPrivatePantryBlobUrlForOrder(url, input.orderId)
+      )
+    ) {
+      return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+    }
 
     const limit = await rateLimit(session.userId);
     if (!limit.ok) {
@@ -226,7 +219,9 @@ export function createPantrySubmitHandler(deps: Deps = {}) {
       await email.send({
         to: supportInbox(),
         subject: `Pantry order needs manual review: ${order.id}`,
-        text: `Extraction produced zero items for order ${order.id} (${failedPhotos} photo(s) failed). Handle via /admin/pantry.`
+        text: `Extraction produced zero items for order ${order.id} (${failedPhotos} photo(s) failed). Handle via /admin/pantry.`,
+        category: "pantry_alert",
+        idempotencyKey: `pantry-extraction-alert/${order.id}`
       });
       return NextResponse.json({ status: "needs_manual" });
     }

@@ -12,7 +12,10 @@
 import { describe, expect, it } from "vitest";
 import type { ErrorEvent } from "@sentry/node";
 
-import { scrubSentryEvent } from "../../../lib/revora/sentry-scrub";
+import {
+  SENTRY_IP_GEO_SENTINEL,
+  scrubSentryEvent
+} from "../../../lib/revora/sentry-scrub";
 
 const FOOD = "SENTINEL_FOOD_two_slices_of_pizza";
 const A1C = "SENTINEL_A1C_7point4";
@@ -41,6 +44,23 @@ function eventWithAllPiiVectors(): ErrorEvent {
           }
         }
       ]
+    },
+    // Nothing populates threads today (defaultIntegrations off), but the
+    // scrubber must cover the container so a future integration can't leak
+    // frame vars through it.
+    threads: {
+      values: [
+        {
+          stacktrace: {
+            frames: [
+              {
+                function: "backgroundWorker",
+                vars: { prompt: `thread copy ${FOOD} ${A1C}` }
+              }
+            ]
+          }
+        }
+      ]
     }
   } as unknown as ErrorEvent;
 }
@@ -55,14 +75,25 @@ describe("scrubSentryEvent", () => {
     expect(serialized).not.toContain("203.0.113.7");
   });
 
-  it("removes the request, user, server_name, contexts, and breadcrumbs containers", () => {
+  it("removes identifying user data and replaces the IP with the geo-suppression sentinel", () => {
     const scrubbed = scrubSentryEvent(eventWithAllPiiVectors());
 
     expect(scrubbed.request).toBeUndefined();
-    expect(scrubbed.user).toBeUndefined();
+    expect(scrubbed.user).toEqual({
+      ip_address: SENTRY_IP_GEO_SENTINEL
+    });
     expect(scrubbed.server_name).toBeUndefined();
     expect(scrubbed.contexts).toBeUndefined();
     expect(scrubbed.breadcrumbs).toBeUndefined();
+  });
+
+  it("sets the geo-suppression sentinel even when the source event has no user", () => {
+    const minimal = { type: undefined } as unknown as ErrorEvent;
+    const scrubbed = scrubSentryEvent(minimal);
+
+    expect(scrubbed.user).toEqual({
+      ip_address: SENTRY_IP_GEO_SENTINEL
+    });
   });
 
   it("redacts an empty-string message (the truthy guard would have skipped it)", () => {

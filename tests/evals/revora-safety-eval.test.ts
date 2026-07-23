@@ -417,7 +417,6 @@ describe("revora stratified real-world corpus (P1.4)", () => {
         ? `known_gaps (tracked, excluded from hard gate): ${knownGaps.join(", ")}`
         : "known_gaps: none"
     ];
-    // eslint-disable-next-line no-console
     console.log(lines.join("\n"));
 
     // Every named stratum carries at least six cases.

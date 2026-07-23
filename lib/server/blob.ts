@@ -3,6 +3,7 @@ import { eq, inArray, lt, ne, or, and, isNotNull } from "drizzle-orm";
 import type { Db } from "./db";
 import * as schema from "./db/schema";
 import { captureServerError } from "../revora/sentry-capture";
+import { pantryBlobToken } from "./pantry/blob-access";
 
 /**
  * Blob lifecycle (N-23/N-24).
@@ -13,7 +14,7 @@ import { captureServerError } from "../revora/sentry-capture";
  * this module both were false: deletion fired on exactly one happy path
  * (successful report delivery), and `DELETE users` cascaded away the
  * `pantry_photos` row holding `blob_url`, destroying the only pointer to a
- * still-live public object.
+ * still-live private object.
  *
  * Every deletion path in the app now funnels through here.
  */
@@ -31,7 +32,7 @@ export const deleteBlobUrls: BlobDeleter = async (urls) => {
   }
 
   const { del } = await import("@vercel/blob");
-  await del(urls);
+  await del(urls, { token: pantryBlobToken() });
 };
 
 /** One object as the Blob store itself sees it — the store is the source of truth. */
@@ -47,7 +48,11 @@ export const listBlobObjects: BlobLister = async () => {
   let cursor: string | undefined;
 
   do {
-    const page = await list({ cursor, limit: 1000 });
+    const page = await list({
+      cursor,
+      limit: 1000,
+      token: pantryBlobToken()
+    });
     for (const blob of page.blobs) {
       objects.push({ url: blob.url, uploadedAt: new Date(blob.uploadedAt) });
     }
@@ -157,16 +162,9 @@ export async function deleteUserBlobs(
   }
 
   // Unlike deleteOrderBlobs we do not mark rows — the caller is about to delete
-  // them anyway. But we must NOT swallow a failure silently: if the blob API is
-  // down we still delete the account (the user asked), and we surface the
-  // orphan loudly — this is the one path with no retry, because the pointer
-  // dies with the cascade.
-  try {
-    await deleteBlobs(urls);
-  } catch (error) {
-    await captureServerError(error, "route");
-    return 0;
-  }
+  // them anyway. A provider failure MUST propagate so the caller can stop the
+  // cascade. That leaves every URL in the database for a safe retry.
+  await deleteBlobs(urls);
 
   return urls.length;
 }
@@ -230,7 +228,7 @@ export async function reapPantryBlobs(
  * Every other function here walks `pantry_photos` to find objects. A true orphan
  * is precisely the object whose row is already GONE: before the account-delete
  * fix, `DELETE users` cascaded the row away and destroyed the only pointer to a
- * still-live, public-read object. No query over that table can ever see one
+ * still-live private object. No query over that table can ever see one
  * again — the evidence was deleted along with the pointer.
  *
  * So this walks the other way: the STORE is the source of truth, and any object

@@ -41,7 +41,7 @@ Revora now has two data postures:
 | `profiles` | A1C band, timezone, nudge prefs, consent timestamp | plaintext (coarse) |
 | `checks` | meal text | **ciphertext only** (`food_ciphertext`) |
 | `checks` | risk class, band, input method, client id, timestamps, action-done | plaintext (coarse) |
-| `push_subscriptions` | endpoint + keys | opt-in only; deleted on opt-out/account deletion |
+| `push_subscriptions` | endpoint + keys; confirmed-send day; bounded local-day attempt count, retry time, and opaque lease | opt-in only; no notification content or health data; attempt state clears on success/preference change or after its local day; row deleted on opt-out/account deletion |
 | `subscriptions` | provider ref, product, status, period end | no payment instruments — Play/Stripe hold those |
 | `bai_weekly` | behavioral scores | derived, qualitative-banded |
 | `pantry_orders` | buyer email (plaintext), Stripe refs, order status | email is the Stripe checkout address, used to send the intake link + report; no payment instruments |
@@ -50,6 +50,13 @@ Revora now has two data postures:
 **Never stored anywhere:** plaintext food, plaintext exact A1C, prompt text,
 full model output, audio (voice is transcribed on-device/in-browser; servers
 receive final text only), payment card data.
+
+Nudge recovery metadata is operational rather than behavioral content. It
+contains a local date, a count capped at three, timestamps, and a random lease
+token. It never contains notification copy, device activity, meal text, A1C,
+email, or a provider response. A successful send clears it; preference changes
+clear it; an opted-in stale prior-day attempt is cleared by the next hourly
+worker; subscription/account deletion removes the entire row.
 
 ## Encryption & key handling
 

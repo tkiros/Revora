@@ -168,7 +168,8 @@ export function SavedMealsSection() {
     if (!mealMemoryUiEnabled()) {
       return;
     }
-    void loadList();
+    const initialLoad = window.setTimeout(() => void loadList(), 0);
+    return () => window.clearTimeout(initialLoad);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -14,6 +14,7 @@ import {
 import { FREE_DAILY_CHECKS } from "../lib/free-tier";
 import { TERMS_VERSION } from "../lib/legal/terms";
 import { type PaywallConfig, usePaywallConfig } from "../lib/client/paywall-config";
+import { useHydrated } from "../lib/client/use-hydrated";
 import { playBillingEnabled } from "../lib/play-billing-flag";
 
 /**
@@ -47,26 +48,38 @@ export function PaywallCard() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [playPrices, setPlayPrices] = useState<Record<string, string>>({});
-  const [usesPlay, setUsesPlay] = useState(false);
+  const hydrated = useHydrated();
+  const usesPlay =
+    hydrated && playBillingEnabled() && isPlayBillingAvailable();
   const [termsAccepted, setTermsAccepted] = useState(false);
   const { state, retry } = usePaywallConfig();
 
   useEffect(() => {
     track({ name: "paywall_viewed" });
+  }, []);
 
-    if (playBillingEnabled() && isPlayBillingAvailable()) {
-      setUsesPlay(true);
-      listPlaySkus()
-        .then((skus) => {
+  useEffect(() => {
+    if (!usesPlay) {
+      return;
+    }
+
+    let active = true;
+    listPlaySkus()
+      .then((skus) => {
+        if (active) {
           setPlayPrices(
             Object.fromEntries(skus.map((sku) => [sku.itemId, sku.priceLabel]))
           );
-        })
-        .catch(() => {
-          // fall back to the config labels
-        });
-    }
-  }, []);
+        }
+      })
+      .catch(() => {
+        // fall back to the config labels
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [usesPlay]);
 
   async function subscribe(plan: "monthly" | "annual") {
     track({ name: "subscribe_started" });

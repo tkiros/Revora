@@ -7,15 +7,20 @@ Every variable, per phase. Provision in Vercel for **preview + production**
 | Variable | Phase | Notes |
 |---|---|---|
 | `OPENAI_API_KEY` | existing | engine calls |
+| `OPENAI_BASE_URL` | preview/eval only | Optional OpenAI-compatible endpoint for controlled evaluation. The production app rejects any non-empty value and provider-prefixed model id, because its safety evidence is for direct OpenAI and compatible Responses endpoints may have different or beta behavior. |
 | `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | existing | rate limit; prod instance |
 | `SENTRY_DSN` | existing/P7 | server-only capture |
 | `EDGE_CONFIG` | existing | launch-controls kill switch |
-| `DATABASE_URL` | 4A | **Railway Postgres** URL (`docs/adr/hosting-hybrid.md`) — plain TCP, human-provisioned; the app connects via `pg`/`drizzle-orm/node-postgres` with a small per-instance pool (`max: 3`) |
+| `DATABASE_URL` | 4A | **Restricted runtime-role** Railway Postgres URL (`docs/adr/hosting-hybrid.md`) — DML on app tables, no database/schema `CREATE`; the app connects via `pg`/`drizzle-orm/node-postgres` with a bounded per-instance pool (default `max: 3`) |
+| `DATABASE_POOL_MAX` | I-15 | Optional per-instance pool cap, integer `1..10`, default `3`. Do not raise it to hide provider connection pressure; follow `docs/runbooks/database-governance.md` |
+| `DATABASE_MIGRATION_URL` | I-15 / operator CLI only | Railway owner/migrator URL used by Drizzle. Never bind it to Vercel runtime. `REVORA_DB_ENV=production` requires this URL, requires `DATABASE_URL`, and rejects identical usernames |
+| `REVORA_DB_ENV` | I-15 / operator CLI only | Set to exact `production` only for the protected production migration command. Do not set in Vercel; it exists to make `npm run db:migrate:production` fail closed on missing/undivided roles |
 | ⚙ `AUTH_SECRET` | 4A | Auth.js session/token signing |
 | ⚙ `HEALTH_DATA_KEY` | 4A | **exactly 32 bytes base64** — AES-256-GCM key for A1C + food text. Losing it orphans all ciphertext; store it like a root credential. **Never replace it in isolation** — rotation has a procedure: `docs/runbooks/health-key-rotation.md` (PR-2) |
 | `HEALTH_DATA_KEY_VERSION` | PR-2 | Integer stamped into new ciphertext payloads (`v<n>:` prefix). Default `1`. Bump only as part of the rotation runbook |
 | `HEALTH_DATA_KEYS_OLD` | PR-2 | Retired **decrypt-only** keys, `version:base64key` comma-separated (e.g. `1:AAAA…`). **INVARIANT: never drop a key while any row encrypted under it exists** — decryption fails quietly and the data is silently lost. See `docs/runbooks/health-key-rotation.md` |
 | `RESEND_API_KEY` | 4A | magic-link email |
+| `RESEND_WEBHOOK_SECRET` | email delivery | Signing secret for `POST /api/webhooks/resend`. Required in production; the route verifies the raw body plus `svix-id`, `svix-timestamp`, and `svix-signature` before updating PII-minimized delivery/suppression state. Subscribe the provider endpoint to `email.sent`, `email.delivered`, `email.delivery_delayed`, `email.bounced`, `email.complained`, `email.suppressed`, and `email.failed`. |
 | `AUTH_EMAIL_FROM` | 4A | e.g. `Revora <signin@yourdomain>`; domain must be Resend-verified |
 | `AUTH_EMAIL_STUB_DIR` | dev/test only | writes magic links to disk instead of sending — never set in production |
 | `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | 4D | full JSON of the Play API service account |
@@ -32,6 +37,7 @@ Every variable, per phase. Provision in Vercel for **preview + production**
 | `NEXT_PUBLIC_PHOTO_INPUT` | owner/evidence gate | **Meal photo-assist gate** (`lib/photo-input-flag.ts`): only exact `1` renders the control and permits `/api/check/photo-draft`; unset, `0`, and every other value return `404` before model use. Keep unset in preview and production until a function-specific evidence review and explicit written owner approval. Tests that exercise enabled behavior must opt in explicitly. Build-time variable — changing it requires a newly reviewed build and redeploy |
 | `NEXT_PUBLIC_LONGITUDINAL_INSIGHTS` | owner/evidence gate | **Longitudinal-insights gate** (`lib/longitudinal-insights-flag.ts`): only exact `1` permits derived pattern output or its product/paid promises. Unset, `0`, and every other value produce no coach insight in server payloads, guest/signed-in dashboards, or the daily loop. Keep unset until a function-specific evidence review and explicit written owner approval. Build-time variable — changing it requires a newly reviewed build and redeploy |
 | `PANTRY_EXTRACT_STUB` | dev/test only | same idea for the Pantry Review photo extraction |
+| `PANTRY_BLOB_READ_WRITE_TOKEN` | Pantry private storage | Credential for a dedicated **private** Vercel Blob store. Required by upload, authenticated vision reads, deletion, and orphan listing. Do not reuse the legacy public-store `BLOB_READ_WRITE_TOKEN`; Vercel store access mode is immutable, so provision and bind a new private store before enabling Pantry. |
 | `REVORA_DAILY_CHECK_CAP` | existing | **GLOBAL** daily check cap — all users combined, enforced by the middleware (default 2000, `lib/revora/rate-limit.ts`). It is **not** per-user; the per-user model-spend limit is the separate `check_user` bucket (200/24h per userId, RE-04), enforced in the check handler and not configurable by this variable |
 | `NEXT_PUBLIC_WAITLIST_URL` | launch-readiness | Tally waitlist form URL for `/get-the-app`; section hidden when unset |
 | ⚙ `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | P5 | `npx web-push generate-vapid-keys`; also expose the public key as `NEXT_PUBLIC_VAPID_PUBLIC_KEY` |
@@ -60,12 +66,15 @@ openssl rand -base64 32   # → HEALTH_DATA_KEY
 npx web-push generate-vapid-keys   # → VAPID_*
 ```
 
-Migrations: `DATABASE_URL=<railway-url> npx drizzle-kit migrate` (run per
-Railway Postgres environment: dev → preview → prod). The canonical production
+Migrations: use `DATABASE_MIGRATION_URL` for schema ownership and keep
+`DATABASE_URL` on the restricted app role. For production run
+`REVORA_DB_ENV=production DATABASE_URL=<runtime-url> DATABASE_MIGRATION_URL=<owner-url> npm run db:migrate:production`, then
+`npm run db:governance:check` (run per Railway Postgres environment: dev →
+preview → prod). The canonical production
 database is the Railway service named `Postgres` (the `Postgres-D2oG` /
 `Postgres-FOMu` services are empty orphans — never migrate those). The
 production journal was baselined 2026-07-19 (`drizzle.__drizzle_migrations`
 seeded 0000–0012); if a database was ever schema-pushed by hand instead of
 migrated, re-baseline with
-`DATABASE_URL=<url> node scripts/baseline-drizzle-journal.mjs` (dry-run flag
+`DATABASE_MIGRATION_URL=<url> node scripts/baseline-drizzle-journal.mjs` (dry-run flag
 available) before trusting `drizzle-kit migrate`.

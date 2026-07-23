@@ -1,6 +1,12 @@
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { createAccountDeleteHandler } from "../../../app/api/account/delete/route";
+import Stripe from "stripe";
+
+import {
+  createAccountDeleteHandler,
+  defaultCancelStripe
+} from "../../../app/api/account/delete/route";
 import { encryptField } from "../../../lib/server/crypto";
 import { schema } from "../../../lib/server/db";
 import { createTestDb } from "../../helpers/test-db";
@@ -70,7 +76,7 @@ describe("POST /api/account/delete", () => {
     expect((await POST()).status).toBe(401);
   });
 
-  it("removes every user-linked row, cancels providers best-effort, logs a hashed audit row", async () => {
+  it("removes every user-linked row after provider cancellation and logs a hashed audit row", async () => {
     const user = await seedFullUser("delete-me@test.dev");
     const cancelStripe = vi.fn().mockResolvedValue(undefined);
 
@@ -109,24 +115,84 @@ describe("POST /api/account/delete", () => {
     expect(row.user_id_hash).not.toBe(user.id);
   });
 
-  it("still deletes when provider cancellation fails (best-effort)", async () => {
+  it("returns 503 and preserves the account when Stripe cancellation fails", async () => {
     const user = await seedFullUser("delete-anyway@test.dev");
+    const deleteBlobs = vi.fn();
 
     const POST = createAccountDeleteHandler({
       db: () => testDb.db,
       getSession: async () => ({ userId: user.id, email: user.email }),
       cancelStripeSubscription: vi
         .fn()
-        .mockRejectedValue(new Error("stripe down"))
+        .mockRejectedValue(new Error("stripe down")),
+      deleteBlobs
     });
 
     const response = await POST();
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(503);
 
     const rows = await testDb.raw.query(
       `SELECT count(*)::int AS n FROM users WHERE id = '${user.id}'`
     );
-    expect((rows.rows[0] as { n: number }).n).toBe(0);
+    expect((rows.rows[0] as { n: number }).n).toBe(1);
+    const subscriptions = await testDb.db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.userId, user.id));
+    expect(subscriptions).toHaveLength(1);
+    expect(deleteBlobs).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when Stripe cancellation is not configured", async () => {
+    const user = await seedFullUser("delete-no-stripe-key@test.dev");
+    const previousKey = process.env.STRIPE_SECRET_KEY;
+    delete process.env.STRIPE_SECRET_KEY;
+
+    try {
+      const POST = createAccountDeleteHandler({
+        db: () => testDb.db,
+        getSession: async () => ({ userId: user.id, email: user.email }),
+        deleteBlobs: vi.fn()
+      });
+
+      expect((await POST()).status).toBe(503);
+      const [preserved] = await testDb.db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.id, user.id));
+      expect(preserved.id).toBe(user.id);
+    } finally {
+      if (previousKey === undefined) {
+        delete process.env.STRIPE_SECRET_KEY;
+      } else {
+        process.env.STRIPE_SECRET_KEY = previousKey;
+      }
+    }
+  });
+
+  it("requires store-owned Play cancellation before account deletion", async () => {
+    const user = await seedFullUser("delete-play@test.dev");
+    await testDb.db
+      .update(schema.subscriptions)
+      .set({ provider: "play" })
+      .where(eq(schema.subscriptions.userId, user.id));
+    const cancelStripe = vi.fn();
+
+    const POST = createAccountDeleteHandler({
+      db: () => testDb.db,
+      getSession: async () => ({ userId: user.id, email: user.email }),
+      cancelStripeSubscription: cancelStripe,
+      deleteBlobs: vi.fn()
+    });
+
+    const response = await POST();
+    expect(response.status).toBe(409);
+    expect(cancelStripe).not.toHaveBeenCalled();
+    const [preserved] = await testDb.db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.id, user.id));
+    expect(preserved.id).toBe(user.id);
   });
 
   /**
@@ -175,7 +241,7 @@ describe("POST /api/account/delete", () => {
     expect((rows.rows[0] as { n: number }).n).toBe(0);
   });
 
-  it("deletes the account even if the Blob API is down (the user asked)", async () => {
+  it("returns 503 and preserves the account and photo pointer if Blob is down", async () => {
     const user = await seedFullUser("delete-blob-down@test.dev");
     const [order] = await testDb.db
       .insert(schema.pantryOrders)
@@ -200,11 +266,51 @@ describe("POST /api/account/delete", () => {
       deleteBlobs: vi.fn().mockRejectedValue(new Error("blob api down"))
     });
 
-    expect((await POST()).status).toBe(200);
+    expect((await POST()).status).toBe(503);
 
-    const rows = await testDb.raw.query(
+    const users = await testDb.raw.query(
       `SELECT count(*)::int AS n FROM users WHERE id = '${user.id}'`
     );
-    expect((rows.rows[0] as { n: number }).n).toBe(0);
+    expect((users.rows[0] as { n: number }).n).toBe(1);
+    const photos = await testDb.raw.query(
+      `SELECT count(*)::int AS n FROM pantry_photos WHERE order_id = '${order.id}'`
+    );
+    expect((photos.rows[0] as { n: number }).n).toBe(1);
+  });
+});
+
+describe("defaultCancelStripe retry semantics", () => {
+  const invalidRequest = () =>
+    new Stripe.errors.StripeInvalidRequestError({
+      type: "invalid_request_error",
+      message: "A canceled subscription can only update its cancellation_details."
+    });
+
+  beforeAll(() => {
+    process.env.STRIPE_SECRET_KEY = "sk_test_account_delete_unit";
+  });
+
+  it("treats cancel-of-already-canceled as success (retry after partial failure)", async () => {
+    const client = {
+      subscriptions: {
+        cancel: vi.fn().mockRejectedValue(invalidRequest()),
+        retrieve: vi.fn().mockResolvedValue({ status: "canceled" })
+      }
+    } as unknown as Pick<Stripe, "subscriptions">;
+
+    // Old behavior: only resource_missing was swallowed, so the retry after a
+    // cancel-succeeded-then-blob-failed 503 was stuck on this error forever.
+    await expect(defaultCancelStripe("sub_retry", client)).resolves.toBeUndefined();
+  });
+
+  it("still fails closed when the subscription is NOT actually canceled", async () => {
+    const client = {
+      subscriptions: {
+        cancel: vi.fn().mockRejectedValue(invalidRequest()),
+        retrieve: vi.fn().mockResolvedValue({ status: "active" })
+      }
+    } as unknown as Pick<Stripe, "subscriptions">;
+
+    await expect(defaultCancelStripe("sub_live", client)).rejects.toThrow();
   });
 });

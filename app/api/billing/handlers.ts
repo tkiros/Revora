@@ -21,7 +21,11 @@ import {
   resolveAnnualPrice,
   resolvePriceVariant
 } from "../../../lib/server/pricing";
-import { sendEmail, type SendEmailResult } from "../../../lib/server/email";
+import {
+  sendEmail,
+  type SendEmailInput,
+  type SendEmailResult
+} from "../../../lib/server/email";
 import {
   emitBillingEvent,
   type BillingTelemetryEvent,
@@ -54,11 +58,7 @@ export type BillingDeps = {
 };
 
 export type PantryEmailSender = {
-  send: (input: {
-    to: string;
-    subject: string;
-    text: string;
-  }) => Promise<SendEmailResult>;
+  send: (input: SendEmailInput) => Promise<SendEmailResult>;
 };
 
 /**
@@ -75,10 +75,7 @@ export type PantryEmailSender = {
  * sender, defers. Production reaches this reducer solely through the inbox, so
  * production always defers.
  */
-export type PendingEmail = {
-  to: string;
-  subject: string;
-  text: string;
+export type PendingEmail = SendEmailInput & {
   onSent?: (db: Db, sentAt: Date) => Promise<void>;
 };
 
@@ -100,7 +97,9 @@ async function emitEmail(
   const result = await email.send({
     to: msg.to,
     subject: msg.subject,
-    text: msg.text
+    text: msg.text,
+    category: msg.category,
+    idempotencyKey: msg.idempotencyKey
   });
   if (result.ok && msg.onSent) {
     await msg.onSent(db, now);
@@ -738,7 +737,18 @@ export function createStripeWebhookHandler(deps: BillingDeps = {}) {
   return async function POST(request: Request) {
     const payload = await request.text();
     const signature = request.headers.get("stripe-signature") ?? "";
-    const secret = process.env.STRIPE_WEBHOOK_SECRET ?? "";
+
+    // Fail CLOSED on a missing secret, mirroring the Resend webhook. An empty
+    // secret is not "no verification": stripe-node would HMAC under the empty
+    // (public) key, so any caller could forge a passing signature and mint or
+    // revoke entitlements. 503 keeps Stripe retrying until config is fixed.
+    const secret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
+    if (!secret) {
+      return NextResponse.json(
+        { error: "Webhook is not configured." },
+        { status: 503 }
+      );
+    }
 
     let event: Stripe.Event;
     try {
@@ -1119,7 +1129,9 @@ export async function applyStripeEvent(
           month: "long",
           day: "numeric"
         })
-      )
+      ),
+      category: "payment_failed",
+      idempotencyKey: `payment-failed/${event.id}`
     });
     return pending;
   }
@@ -1345,8 +1357,14 @@ async function applyPantryCheckout(
     return;
   }
 
-  const buyerEmail =
-    session.customer_details?.email ?? session.customer_email;
+  let buyerEmail = session.customer_details?.email ?? session.customer_email;
+  if (!buyerEmail) {
+    // The durable inbox intentionally does not retain buyer PII. Rehydrate the
+    // one field this reducer needs from Stripe when processing/retrying a
+    // minimized Pantry event.
+    const current = await stripe().checkout.sessions.retrieve(session.id);
+    buyerEmail = current.customer_details?.email ?? current.customer_email;
+  }
   if (!buyerEmail) {
     return; // Payment Links always collect email; belt-and-suspenders.
   }
@@ -1389,6 +1407,8 @@ async function applyPantryCheckout(
   await emitEmail(db, pending, email, now, {
     to: buyerEmail,
     ...intakeEmailText(appUrl, token),
+    category: "pantry_intake",
+    idempotencyKey: `pantry-intake/${orderId}/${tokenHash}`,
     onSent: async (d, sentAt) => {
       await d
         .update(schema.pantryOrders)

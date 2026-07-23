@@ -4,7 +4,6 @@ import Script from "next/script";
 import type { ReactNode } from "react";
 
 import { AttributionCapture } from "../components/attribution-capture";
-import { ClientErrorReporting } from "../components/client-error-reporting";
 import { SwRegister } from "../components/sw-register";
 
 import "./globals.css";
@@ -68,7 +67,6 @@ export default function RootLayout({
         {children}
         <SwRegister />
         <AttributionCapture />
-        <ClientErrorReporting />
         {UMAMI_SRC && UMAMI_WEBSITE_ID ? (
           <Script
             src={UMAMI_SRC}

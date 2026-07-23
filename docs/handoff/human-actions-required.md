@@ -3,7 +3,9 @@
 **Started:** 2026-07-01 · **Maintained by:** the build session — appended as phases surface human-only steps.
 Source inventory: `docs/production-implementation-plan-2026-07-01.md` §10. Status legend: ☐ open · ⏳ long-lead, start NOW · ✅ done.
 
-Reconciled 2026-07-04 against docs/handoff/2026-07-04-unified-completion-plan.md Appendix A — that appendix is the deduplicated master list.
+Reconciled 2026-07-22 against the live service audit. Provider claims below
+remain open until their stated provider-side evidence exists; local code or
+environment-variable presence does not close them.
 
 ## ⚠ Longest-lead items — start these today
 
@@ -30,22 +32,21 @@ Reconciled 2026-07-04 against docs/handoff/2026-07-04-unified-completion-plan.md
 
 ## §1 Accounts to create
 
-- ☐ open — Railway (Postgres database; backups on — supersedes the earlier Neon
-  plan, `docs/adr/hosting-hybrid.md`): CLI installed and logged in; **DB not yet
-  provisioned — no `DATABASE_URL` exists**
-- ☐ open — Resend (+ verified sending domain): signed up, API key in the
-  environment file, CLI installed and authenticated; **domain verification
-  unconfirmed**
+- ✅ runtime exists — canonical Railway Postgres is provisioned and production
+  can query it. ☐ Still open: backup/PITR evidence, isolated restore proof,
+  least-privilege role review, and a separate preview database.
+- ☐ open — Resend account, API key, and sending-domain records exist, but the
+  required Return-Path MX and provider/inbox/bounce proof remain incomplete.
 - ✅ done — Upstash prod: signed up, API key set in environment file, CLI
   installed and authenticated
-- ☐ open — Sentry prod: signed up, CLI installed and authenticated;
-  **`SENTRY_DSN` in Vercel unconfirmed**
-- ☐ open — Vercel Edge Config
-- ☐ open — Umami: cloud account created; self-host on Railway **failing**
-  (`git clone` + `pnpm install` erroring) — decide cloud-vs-self-host, see
-  Appendix A H8 (`docs/handoff/2026-07-04-unified-completion-plan.md`)
-  (self-hosted on Railway — supersedes the earlier Plausible plan,
-  `docs/adr/analytics-umami.md`)
+- ☐ open — Sentry is configured in production; provider receipt, scrubbing,
+  source-map, and alert-delivery canaries remain unproven.
+- ✅ runtime exists — Vercel Edge Config read path is proven. ☐ Still open:
+  ownership, safe pause/resume drill, and owner-routed alert proof.
+- ☐ open — Umami Cloud is the chosen/current production deployment and the
+  script/gateway transport is configured. Provider dashboard receipt and an
+  exactly-once allowlisted browser event remain unproven. Do not provision a
+  Railway Umami service for launch.
 - ⏳ Google Play Developer ($25)
 - ☐ Google Cloud project (Play Developer API enabled, service-account JSON, RTDN Pub/Sub topic)
 - ☐ Vercel Pro (hourly crons + function limits)
@@ -80,7 +81,7 @@ Reconciled 2026-07-04 against docs/handoff/2026-07-04-unified-completion-plan.md
 · Vercel Pro ~$20/mo 
 · domain ~$12/yr 
 · OpenAI usage 
-· Railway/Resend/Umami-hosting/Upstash tiers 
+· Railway/Resend/Umami Cloud/Upstash tiers
 · Stripe fees 
 · optional future counsel fees
 
@@ -144,18 +145,17 @@ Reconciled 2026-07-04 against docs/handoff/2026-07-04-unified-completion-plan.md
 
 ### P7 — Production hardening + observability (2026-07-02)
 
-Two owner infra decisions are implemented in code and waiting on
-provisioning (`docs/adr/hosting-hybrid.md`, `docs/adr/analytics-umami.md`):
+Current provider closeout actions (`docs/adr/hosting-hybrid.md`,
+`docs/adr/analytics-umami.md`):
 
-- ☐ **Provision Railway Postgres** and set `DATABASE_URL` in Vercel
-  (preview + production). The app already speaks plain Postgres over TCP
-  (`pg` / `drizzle-orm/node-postgres`, `lib/server/db/index.ts`) — no code
-  change needed once the URL is set. Run `npx drizzle-kit migrate` against
-  it once provisioned (`docs/ops/env-reference.md`).
-- ☐ **Deploy/self-host Umami** (on Railway, per the ADR) and set
-  `NEXT_PUBLIC_UMAMI_SRC` + `NEXT_PUBLIC_UMAMI_WEBSITE_ID` in Vercel
-  (preview + production). Analytics stays fully inert (no script tag, no
-  tracking calls) until both are set.
+- ☐ **Finish Railway Postgres governance**: provision a separate preview DB,
+  apply every checked-in migration in order, verify `drizzle.__drizzle_migrations`,
+  restrict the app role, document the connection budget, and perform a timed
+  restore into an isolated service (`docs/ops/env-reference.md`).
+- ☐ **Finish Umami Cloud proof**: set `NEXT_PUBLIC_UMAMI_SRC` +
+  `NEXT_PUBLIC_UMAMI_WEBSITE_ID` in preview and production, confirm CSP permits
+  the configured script and ingest origins, and observe one allowlisted browser
+  event exactly once in the intended provider website.
 - ☐ **Sentry canary verification** — trigger one real error on a deployed
   preview and confirm it lands in Sentry (`SENTRY_DSN` is already wired
   through `captureServerError`; this task only verifies live delivery,
@@ -282,7 +282,7 @@ Appendix A, items H1–H6 (the deduplicated master list):
 |---|---|---|
 | H1 | **Rotate the Resend + Upstash keys** (they sat in `.env.example` and passed through AI transcripts) | New keys live in Resend/Upstash dashboards + updated in Vercel + local `.env`; old keys revoked |
 | H2 | **Create the $25 pre-order Stripe Payment Link** (dashboard, no code) for the day-2 ask; copy its **price ID** → `STRIPE_PRICE_PANTRY` env; point the Stripe webhook endpoint at the deploy and set `STRIPE_WEBHOOK_SECRET`; **write the day-45 fallback paragraph (design doc Q1)**; **post the day-2 ask** (community rules read first). Ongoing: **pause the Payment Link whenever open orders ≥10** (weekly cap guardrail — check `/admin/pantry`) | Payment Link public; a test purchase produces a `pantry_orders` row on preview; the post is live; the paragraph is written and signed |
-| H3 | **Enable Vercel Blob** on the project → `BLOB_READ_WRITE_TOKEN` (preview + prod + local for E2E) | Task 3.1 provisioned run passes |
+| H3 | **Provision a dedicated private Vercel Blob store** on the project → `PANTRY_BLOB_READ_WRITE_TOKEN` (preview + prod + approved local E2E). Do not reuse the legacy public-store `BLOB_READ_WRITE_TOKEN`; Blob access mode is immutable. | Authorized upload/process/delete passes; unauthenticated and cross-user reads fail; delete-failure pointer recovery is proven |
 | H4 | Set `ADMIN_EMAIL` (founder's sign-in email) and `CRON_SECRET` in Vercel (preview + prod). Note: ADMIN_EMAIL comparison is case-sensitive — set it exactly lowercase matching the founder sign-in email. | `/admin/pantry` loads for founder, 404s for others; crons authenticate |
 | H5 | **Verify Vercel Pro** is active (300s `maxDuration` + hourly crons need it) | Plan visible in Vercel dashboard settings |
 | H6 | **8–10 pantry/fridge photos of your own kitchen**, exhaustively labeled into `tests/fixtures/pantry-photos/labels.json`; provide `OPENAI_API_KEY` for the two live eval runs | Task 4.1 + 4.2 verdict doc has real numbers |
@@ -312,3 +312,19 @@ No `trial_period_days` on any price (deliberate — the 7-day trial is set per C
 | H23 | **OQ-2: provision a test-mode mirror** of the same products/prices (test-mode API keys) for QA/DoR walkthrough; provide test keys + test price IDs for the preview env | Preview checkout completes with `4242…` card |
 | H24 | **Verify the Stripe webhook endpoint API version is 2025-03-31.basil or later** (Dashboard → Developers → Webhooks → endpoint version) so invoice.paid payloads carry `parent.subscription_details`; the code has a legacy top-level fallback but pinning basil removes the ambiguity | Endpoint shows basil+ version |
 | H25 | **Create the Tally store-intent waitlist form** (the connected Tally MCP exposes only auth endpoints — no form-creation API, so this is human-only). Fields: **email** (required) + **platform** (Android / iPhone, required) + a one-line purpose statement: "Only used to tell you when the store version ships." Then set `NEXT_PUBLIC_WAITLIST_URL` in Vercel (preview + prod) to the published Tally form URL. Task 5.6's `/get-the-app` page is env-gated and fully functional without it — the waitlist section stays hidden until the var is set. | `/get-the-app` shows the "Prefer the store version?" section + "Tell me when it ships" CTA on the deploy, and the CTA opens the Tally form |
+
+### 2026-07-23 — service-integrations GO closeout (owner-only residuals)
+
+The registrar is Namecheap BasicDNS (`dns1/dns2.registrar-servers.com`) and no
+DNS API credential exists on this workstation, so every DNS change below is
+owner-only. Apply in this order and wait for propagation between steps.
+
+| # | Action | Done when |
+|---|---|---|
+| H26 | **Publish the Resend Return-Path MX** at Namecheap: host `send.contact`, type MX, value `feedback-smtp.us-east-1.amazonses.com`, priority `10`, TTL automatic. Resend's domain screen currently reports this record verified from an earlier check, but the authoritative nameservers do not serve it — trust `dig`, not the cached provider state. | `dig +short MX send.contact.revora.plus @dns1.registrar-servers.com` returns the record, and two public resolvers agree |
+| H27 | **Tighten DMARC** on `_dmarc.revora.plus` from `p=none` to `p=quarantine` (then `p=reject` after a clean week of reports). Add `rua=mailto:` reporting to a monitored inbox first. | Updated TXT visible on authoritative NS + two resolvers; reports arriving |
+| H28 | **Add apex CAA records** allowing only the CAs actually used (Vercel provisions via Let's Encrypt and Google Trust Services): `0 issue "letsencrypt.org"` and `0 issue "pki.goog"`. | `dig +short CAA revora.plus` shows exactly the intended CAs and certificate renewal still succeeds |
+| H29 | **Enable DNSSEC** at Namecheap for `revora.plus` (BasicDNS supports one-click DNSSEC). | `dig +short DS revora.plus` returns a DS record and resolution stays healthy from two validating resolvers |
+| H30 | **GitHub Pro** ($4/mo) on the `tkiros` account — the private `Revora` repo returns HTTP 403 for branch protection, rulesets, code scanning, and secret scanning on the free plan, so required reviews/checks and forbidden-merge enforcement cannot be configured by any session until the plan exists. Do not make the repository public as a workaround. | Branch-protection API returns 200; a required-checks + review ruleset on `main` rejects an unreviewed push |
+| H31 | **Upstash payment method** (pay-as-you-go) if a dedicated preview Redis is wanted — the free plan is capped at one database, so preview currently runs with Upstash unbound and the abuse doors fail closed by design. | A second database named `revora-preview` exists and its REST URL/token are bound to the Vercel preview environment |
+| H32 | **Umami Cloud API key** (Account → API keys) if dashboard-receipt/blackout-alert proof should be automated — only the browser transport (script load + `/api/send` 200) is provable without it. | `UMAMI_API_KEY` available to the operator session; events queryable via `api.umami.is` |

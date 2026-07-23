@@ -12,6 +12,7 @@ import {
   type NudgeSettings
 } from "../../../lib/client/nudge-settings";
 import { profileStore } from "../../../lib/client/profile-store";
+import { useHydrated } from "../../../lib/client/use-hydrated";
 import { SupportCaseForm } from "../../../components/support-case-form";
 
 type EntitlementInfo = {
@@ -51,12 +52,21 @@ export default function AccountPage() {
   const [withdrawingHealthConsent, setWithdrawingHealthConsent] = useState(false);
   const [confirmHealthWithdrawal, setConfirmHealthWithdrawal] = useState(false);
   // PR-6: per-browser analytics opt-out (Umami's localStorage kill switch).
-  const [analyticsDisabled, setAnalyticsDisabled] = useState(false);
-  useEffect(() => {
-    setAnalyticsDisabled(
-      window.localStorage.getItem("umami.disabled") !== null
-    );
-  }, []);
+  const hydrated = useHydrated();
+  const [analyticsPreference, setAnalyticsPreference] = useState<
+    boolean | null
+  >(null);
+  const analyticsDisabled =
+    analyticsPreference ??
+    (hydrated
+      ? (() => {
+          try {
+            return window.localStorage.getItem("umami.disabled") !== null;
+          } catch {
+            return false;
+          }
+        })()
+      : false);
   // Free-tier copy is mode-dependent: legacy has a real 5/day free plan, the
   // trial funnel doesn't. Default to trial (the code default) so the copy
   // never resurrects the retired free offer on a failed lookup.
@@ -70,6 +80,11 @@ export default function AccountPage() {
   // user gets an explicit refresh hint instead of a silent drop to free copy.
   const [syncTimedOut, setSyncTimedOut] = useState(false);
   const syncStartRef = useRef<number>(0);
+  const checkoutReturnRef = useRef<{
+    subscribed: boolean;
+    sessionId: string | null;
+  } | null>(null);
+  const checkoutSideEffectsRanRef = useRef(false);
 
   useEffect(() => {
     fetch("/api/paywall")
@@ -88,27 +103,42 @@ export default function AccountPage() {
     // Landing point after both checkout paths (Stripe's success_url and the
     // Play Billing verify redirect both point here with ?subscribed=1) —
     // this is the only client-side moment that knows checkout completed.
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("subscribed") === "1") {
+    if (checkoutReturnRef.current === null) {
+      const params = new URLSearchParams(window.location.search);
+      checkoutReturnRef.current = {
+        subscribed: params.get("subscribed") === "1",
+        sessionId: params.get("session_id"),
+      };
+    }
+
+    const checkoutReturn = checkoutReturnRef.current;
+    if (!checkoutReturn.subscribed) {
+      return;
+    }
+
+    if (!checkoutSideEffectsRanRef.current) {
+      checkoutSideEffectsRanRef.current = true;
       track({ name: "subscribe_completed" });
       // BC-3: server-side retrieve+upsert from the Checkout session id, so
       // entitlement flips even when the webhook is unregistered or delayed.
       // Fire-and-forget — the poll below picks up the row it writes.
-      const sessionId = params.get("session_id");
-      if (sessionId) {
+      if (checkoutReturn.sessionId) {
         void fetch("/api/billing/stripe/sync", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId })
+          body: JSON.stringify({ sessionId: checkoutReturn.sessionId }),
         }).catch(() => {});
       }
-      // Enter the "syncing" surface: the entitlement poll below waits for the
-      // webhook/inbox to write the row before we render a plan state.
-      setSyncing(true);
       syncStartRef.current = Date.now();
       // Strip the params so a refresh doesn't re-fire the event.
       window.history.replaceState(null, "", window.location.pathname);
     }
+
+    // Enter the syncing surface after the effect commits. Caching the return
+    // above keeps this StrictMode-safe even though the URL is stripped during
+    // the first setup pass.
+    const beginSync = window.setTimeout(() => setSyncing(true), 0);
+    return () => window.clearTimeout(beginSync);
   }, []);
 
   // While syncing, poll the entitlement endpoint until premium appears (or we
@@ -729,7 +759,7 @@ export default function AccountPage() {
                     checked={analyticsDisabled}
                     onChange={(event) => {
                       const off = event.target.checked;
-                      setAnalyticsDisabled(off);
+                      setAnalyticsPreference(off);
                       // Umami's built-in kill switch: any truthy value stops
                       // the tracker in this browser (PR-6 opt-out gate).
                       if (off) {

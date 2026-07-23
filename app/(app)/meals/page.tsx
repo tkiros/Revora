@@ -92,7 +92,10 @@ export default function HistoryPage() {
   );
 
   useEffect(() => {
-    void loadFirstPage({ q: "", from: "", to: "" });
+    const initialLoad = window.setTimeout(() => {
+      void loadFirstPage({ q: "", from: "", to: "" });
+    }, 0);
+    return () => window.clearTimeout(initialLoad);
   }, [loadFirstPage]);
 
   // Fixed 7-day source for the week strip, independent of the paginated list.
@@ -104,7 +107,10 @@ export default function HistoryPage() {
   }, []);
 
   useEffect(() => {
-    void loadWeek();
+    const initialLoad = window.setTimeout(() => {
+      void loadWeek();
+    }, 0);
+    return () => window.clearTimeout(initialLoad);
   }, [loadWeek]);
 
   async function onLoadMore() {

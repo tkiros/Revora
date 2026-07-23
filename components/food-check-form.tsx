@@ -12,6 +12,7 @@ import {
 } from "../lib/revora/clarify";
 import { historyStore } from "../lib/client/history-store";
 import { profileStore } from "../lib/client/profile-store";
+import { useHydrated } from "../lib/client/use-hydrated";
 import { tasterStore } from "../lib/client/taster-store";
 import { routeA1C } from "../lib/revora/a1c";
 import {
@@ -61,7 +62,7 @@ export function FoodCheckForm() {
   const [input, setInput] = useState<CheckFormInput>({ food: "", a1c: "" });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [uiState, setUiState] = useState<CheckUiState>({ kind: "idle" });
-  const [isHydrated, setIsHydrated] = useState(false);
+  const isHydrated = useHydrated();
   const [inputMethod, setInputMethod] = useState<"text" | "voice" | "photo">("text");
   const [photoDraft, setPhotoDraft] = useState<{
     dish: string | null;
@@ -78,6 +79,10 @@ export function FoodCheckForm() {
   const [actionDone, setActionDone] = useState(false);
   const [mode, setMode] = useState<PaywallMode>("legacy");
   const foodInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const initialPrefillRef = useRef<{
+    profile: ReturnType<typeof profileStore.get>;
+    recheck: string | null;
+  } | null>(null);
   // One-clarification cap + clarify metrics (P1.3 §8/§10.1). Holds the reason
   // and start time of an OUTSTANDING deterministic clarify — set when a clarify
   // card renders, cleared when the next submission answers it. A ref, not
@@ -109,28 +114,34 @@ export function FoodCheckForm() {
   }, []);
 
   useEffect(() => {
-    setIsHydrated(true);
-
     // Daily-loop conveniences (P3): remember the onboarding A1C, and honor a
     // one-tap re-check handoff from the history page. Storage reads stay
     // outside the setState updater — updaters must be pure (StrictMode
     // double-invokes them).
-    const profile = profileStore.get();
-    let recheck: string | null = null;
-    try {
-      recheck = window.sessionStorage.getItem("revora.recheck");
-      if (recheck) {
-        window.sessionStorage.removeItem("revora.recheck");
+    if (initialPrefillRef.current === null) {
+      const profile = profileStore.get();
+      let recheck: string | null = null;
+      try {
+        recheck = window.sessionStorage.getItem("revora.recheck");
+        if (recheck) {
+          window.sessionStorage.removeItem("revora.recheck");
+        }
+      } catch {
+        // best-effort prefill only
       }
-    } catch {
-      // best-effort prefill only
+      initialPrefillRef.current = { profile, recheck };
     }
 
-    setInput((current) => ({
-      food: current.food === "" && recheck ? recheck : current.food,
-      a1c:
-        current.a1c === "" && profile ? profile.a1c.toFixed(1) : current.a1c
-    }));
+    const { profile, recheck } = initialPrefillRef.current;
+    const update = window.setTimeout(() => {
+      setInput((current) => ({
+        food: current.food === "" && recheck ? recheck : current.food,
+        a1c:
+          current.a1c === "" && profile ? profile.a1c.toFixed(1) : current.a1c,
+      }));
+    }, 0);
+
+    return () => window.clearTimeout(update);
   }, []);
 
   const isSubmitting =

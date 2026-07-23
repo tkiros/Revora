@@ -56,6 +56,10 @@ const rateLimitDeps: RateLimitDeps | null = createRateLimitDeps();
  */
 function isPublicDeploy(): boolean {
   if (process.env.NODE_ENV === "test") return false;
+  // Optimized local E2E uses `next start`, which forces NODE_ENV=production.
+  // An explicit Vercel development tier still means local/non-public; real
+  // preview and production deployments remain fail-closed below.
+  if (process.env.VERCEL_ENV === "development") return false;
   if (process.env.VERCEL_ENV === "preview" || process.env.VERCEL_ENV === "production") {
     return true;
   }

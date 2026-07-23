@@ -81,9 +81,8 @@ describe("getLaunchControls() default mode", () => {
   });
 
   it("defaults to normal mode with public checks enabled when no configuration is present", async () => {
-    const { getLaunchControls } = await import(
-      "../../../lib/revora/launch-controls"
-    );
+    const { getLaunchControls } =
+      await import("../../../lib/revora/launch-controls");
     const controls = await getLaunchControls();
 
     expect(controls.launchMode).toBe("normal");
@@ -94,9 +93,8 @@ describe("getLaunchControls() default mode", () => {
   it("respects REVORA_LAUNCH_MODE_OVERRIDE=paused in non-production environments", async () => {
     process.env.REVORA_LAUNCH_MODE_OVERRIDE = "paused";
 
-    const { getLaunchControls } = await import(
-      "../../../lib/revora/launch-controls"
-    );
+    const { getLaunchControls } =
+      await import("../../../lib/revora/launch-controls");
     const controls = await getLaunchControls();
 
     expect(controls.launchMode).toBe("paused");
@@ -115,9 +113,8 @@ describe("evaluateLaunchMode() pause path", () => {
   it("returns a friendly 503 paused response when public_checks_enabled is false", async () => {
     process.env.REVORA_LAUNCH_MODE_OVERRIDE = "paused";
 
-    const { evaluateLaunchMode } = await import(
-      "../../../lib/revora/launch-controls"
-    );
+    const { evaluateLaunchMode } =
+      await import("../../../lib/revora/launch-controls");
     const result = await evaluateLaunchMode();
 
     expect(result.ok).toBe(false);
@@ -133,9 +130,8 @@ describe("evaluateLaunchMode() pause path", () => {
   it("returns ok:true in normal mode", async () => {
     delete process.env.REVORA_LAUNCH_MODE_OVERRIDE;
 
-    const { evaluateLaunchMode } = await import(
-      "../../../lib/revora/launch-controls"
-    );
+    const { evaluateLaunchMode } =
+      await import("../../../lib/revora/launch-controls");
     const result = await evaluateLaunchMode();
 
     expect(result.ok).toBe(true);
@@ -147,13 +143,14 @@ describe("evaluateLaunchMode() pause path", () => {
   it("never leaks raw errors or provider stack traces in the pause message", async () => {
     process.env.REVORA_LAUNCH_MODE_OVERRIDE = "paused";
 
-    const { evaluateLaunchMode } = await import(
-      "../../../lib/revora/launch-controls"
-    );
+    const { evaluateLaunchMode } =
+      await import("../../../lib/revora/launch-controls");
     const result = await evaluateLaunchMode();
 
     if (!result.ok) {
-      expect(result.message).not.toMatch(/Error:|stack|at Object|node_modules/i);
+      expect(result.message).not.toMatch(
+        /Error:|stack|at Object|node_modules/i,
+      );
     }
   });
 });
@@ -170,12 +167,11 @@ describe("Edge Config unreachable → fail closed (RE-02)", () => {
   it("pauses checks when EDGE_CONFIG is set but the read throws and no last-good exists", async () => {
     process.env.EDGE_CONFIG = "https://edge-config.vercel.com/ecfg_x?token=t";
     vi.doMock("@vercel/edge-config", () => ({
-      get: vi.fn().mockRejectedValue(new Error("network down"))
+      get: vi.fn().mockRejectedValue(new Error("network down")),
     }));
 
-    const { evaluateLaunchMode } = await import(
-      "../../../lib/revora/launch-controls"
-    );
+    const { evaluateLaunchMode } =
+      await import("../../../lib/revora/launch-controls");
     const result = await evaluateLaunchMode();
 
     // The operator HAS a kill switch but it is unreadable: no emergency brake
@@ -195,9 +191,8 @@ describe("Edge Config unreachable → fail closed (RE-02)", () => {
       .mockRejectedValue(new Error("network down"));
     vi.doMock("@vercel/edge-config", () => ({ get }));
 
-    const { evaluateLaunchMode } = await import(
-      "../../../lib/revora/launch-controls"
-    );
+    const { evaluateLaunchMode } =
+      await import("../../../lib/revora/launch-controls");
 
     const first = await evaluateLaunchMode();
     expect(first.ok).toBe(true);
@@ -210,67 +205,62 @@ describe("Edge Config unreachable → fail closed (RE-02)", () => {
 
 describe("shouldPauseForOps() threshold helper", () => {
   it("returns true for harmful-guidance incidents", async () => {
-    const { shouldPauseForOps } = await import(
-      "../../../lib/revora/launch-controls"
-    );
+    const { shouldPauseForOps } =
+      await import("../../../lib/revora/launch-controls");
     expect(
       shouldPauseForOps({
         checksLast24h: 100,
         harmfulGuidanceIncident: true,
-        providerFailureSpike: false
-      })
+        providerFailureSpike: false,
+      }),
     ).toBe(true);
   });
 
   it("returns true for provider-failure spikes", async () => {
-    const { shouldPauseForOps } = await import(
-      "../../../lib/revora/launch-controls"
-    );
+    const { shouldPauseForOps } =
+      await import("../../../lib/revora/launch-controls");
     expect(
       shouldPauseForOps({
         checksLast24h: 100,
         harmfulGuidanceIncident: false,
-        providerFailureSpike: true
-      })
+        providerFailureSpike: true,
+      }),
     ).toBe(true);
   });
 
   it("returns true when checksLast24h reaches 2,000", async () => {
-    const { shouldPauseForOps } = await import(
-      "../../../lib/revora/launch-controls"
-    );
+    const { shouldPauseForOps } =
+      await import("../../../lib/revora/launch-controls");
     expect(
       shouldPauseForOps({
         checksLast24h: 2000,
         harmfulGuidanceIncident: false,
-        providerFailureSpike: false
-      })
+        providerFailureSpike: false,
+      }),
     ).toBe(true);
   });
 
   it("returns true when checksLast24h exceeds 2,000", async () => {
-    const { shouldPauseForOps } = await import(
-      "../../../lib/revora/launch-controls"
-    );
+    const { shouldPauseForOps } =
+      await import("../../../lib/revora/launch-controls");
     expect(
       shouldPauseForOps({
         checksLast24h: 2001,
         harmfulGuidanceIncident: false,
-        providerFailureSpike: false
-      })
+        providerFailureSpike: false,
+      }),
     ).toBe(true);
   });
 
   it("returns false when under threshold and no incidents", async () => {
-    const { shouldPauseForOps } = await import(
-      "../../../lib/revora/launch-controls"
-    );
+    const { shouldPauseForOps } =
+      await import("../../../lib/revora/launch-controls");
     expect(
       shouldPauseForOps({
         checksLast24h: 1999,
         harmfulGuidanceIncident: false,
-        providerFailureSpike: false
-      })
+        providerFailureSpike: false,
+      }),
     ).toBe(false);
   });
 });
@@ -288,9 +278,8 @@ describe("missing Edge Config values fail closed to safe defaults", () => {
     delete process.env.EDGE_CONFIG;
     delete process.env.REVORA_LAUNCH_MODE_OVERRIDE;
 
-    const { getLaunchControls } = await import(
-      "../../../lib/revora/launch-controls"
-    );
+    const { getLaunchControls } =
+      await import("../../../lib/revora/launch-controls");
     const controls = await getLaunchControls();
 
     // Must not throw; defaults to safe (normal / enabled)
@@ -305,9 +294,8 @@ describe("missing Edge Config values fail closed to safe defaults", () => {
   it("gracefully handles an unreadable Edge Config without throwing — and fails CLOSED", async () => {
     process.env.EDGE_CONFIG = "ecfg_fake_for_test";
 
-    const { getLaunchControls } = await import(
-      "../../../lib/revora/launch-controls"
-    );
+    const { getLaunchControls } =
+      await import("../../../lib/revora/launch-controls");
     // SDK fails on a fake connection string; module must not throw.
     const controls = await getLaunchControls();
 
@@ -319,14 +307,13 @@ describe("missing Edge Config values fail closed to safe defaults", () => {
   it("handles a provider error from Edge Config without propagating raw stack traces", async () => {
     process.env.EDGE_CONFIG = "ecfg_another_fake";
 
-    const { getLaunchControls } = await import(
-      "../../../lib/revora/launch-controls"
-    );
+    const { getLaunchControls } =
+      await import("../../../lib/revora/launch-controls");
 
     // Must not throw — and must fail CLOSED (the brake holds).
     await expect(getLaunchControls()).resolves.toMatchObject({
       launchMode: "paused",
-      publicChecksEnabled: false
+      publicChecksEnabled: false,
     });
   });
 });
@@ -345,7 +332,7 @@ describe("/api/health reports launchMode from launch-control seam", () => {
       ...ORIGINAL_ENV,
       NODE_ENV: "production",
       VERCEL_ENV: "preview",
-      OPENAI_API_KEY: "sk-preview-test"
+      OPENAI_API_KEY: "sk-preview-test",
     };
     delete process.env.EDGE_CONFIG;
     delete process.env.REVORA_LAUNCH_MODE_OVERRIDE;
@@ -354,8 +341,10 @@ describe("/api/health reports launchMode from launch-control seam", () => {
     const response = await GET();
     const payload = await response.json();
 
-    expect(response.status).toBe(200);
-    expect(payload.ok).toBe(true);
+    // The launch-control seam is normal, while readiness still correctly
+    // fails because this hermetic test has no database or rate-limit store.
+    expect(response.status).toBe(503);
+    expect(payload.ok).toBe(false);
     expect(payload.launchMode).toBe("normal");
   });
 
@@ -364,7 +353,7 @@ describe("/api/health reports launchMode from launch-control seam", () => {
       ...ORIGINAL_ENV,
       NODE_ENV: "production",
       VERCEL_ENV: "preview",
-      OPENAI_API_KEY: "sk-preview-test"
+      OPENAI_API_KEY: "sk-preview-test",
     };
     delete process.env.EDGE_CONFIG;
     delete process.env.REVORA_LAUNCH_MODE_OVERRIDE;
@@ -384,7 +373,7 @@ describe("/api/health reports launchMode from launch-control seam", () => {
       VERCEL_ENV: "preview",
       OPENAI_API_KEY: "sk-preview-test",
       UPSTASH_REDIS_REST_URL: "https://fake.upstash.io",
-      UPSTASH_REDIS_REST_TOKEN: "fake-token"
+      UPSTASH_REDIS_REST_TOKEN: "fake-token",
     };
     delete process.env.EDGE_CONFIG;
     delete process.env.REVORA_LAUNCH_MODE_OVERRIDE;
@@ -402,7 +391,7 @@ describe("/api/health reports launchMode from launch-control seam", () => {
       VERCEL_ENV: "preview",
       OPENAI_API_KEY: "sk-preview-test",
       UPSTASH_REDIS_REST_URL: "rediss://default:pass@fake.upstash.io:6379",
-      UPSTASH_REDIS_REST_TOKEN: "fake-token"
+      UPSTASH_REDIS_REST_TOKEN: "fake-token",
     };
     delete process.env.EDGE_CONFIG;
     delete process.env.REVORA_LAUNCH_MODE_OVERRIDE;
@@ -418,7 +407,7 @@ describe("/api/health reports launchMode from launch-control seam", () => {
       ...ORIGINAL_ENV,
       NODE_ENV: "development",
       OPENAI_API_KEY: "sk-dev-test",
-      REVORA_LAUNCH_MODE_OVERRIDE: "paused"
+      REVORA_LAUNCH_MODE_OVERRIDE: "paused",
     };
     delete process.env.EDGE_CONFIG;
 
@@ -438,7 +427,7 @@ describe("/api/health reports launchMode from launch-control seam", () => {
       NODE_ENV: "production",
       VERCEL_ENV: "preview",
       OPENAI_API_KEY: "sk-secret-key-value",
-      EDGE_CONFIG: "ecfg_secret_connection"
+      EDGE_CONFIG: "ecfg_secret_connection",
     };
     delete process.env.REVORA_LAUNCH_MODE_OVERRIDE;
 
@@ -461,9 +450,8 @@ describe("middleware pause gate (evaluateLaunchMode integration)", () => {
   it("returns ok:true in normal mode so the public path can continue", async () => {
     delete process.env.REVORA_LAUNCH_MODE_OVERRIDE;
 
-    const { evaluateLaunchMode } = await import(
-      "../../../lib/revora/launch-controls"
-    );
+    const { evaluateLaunchMode } =
+      await import("../../../lib/revora/launch-controls");
     const result = await evaluateLaunchMode();
 
     expect(result.ok).toBe(true);
@@ -472,9 +460,8 @@ describe("middleware pause gate (evaluateLaunchMode integration)", () => {
   it("returns ok:false with 503 and friendly copy in paused mode (pre-model gate)", async () => {
     process.env.REVORA_LAUNCH_MODE_OVERRIDE = "paused";
 
-    const { evaluateLaunchMode } = await import(
-      "../../../lib/revora/launch-controls"
-    );
+    const { evaluateLaunchMode } =
+      await import("../../../lib/revora/launch-controls");
     const result = await evaluateLaunchMode();
 
     expect(result.ok).toBe(false);
@@ -482,7 +469,7 @@ describe("middleware pause gate (evaluateLaunchMode integration)", () => {
       expect(result.status).toBe(503);
       // Must never contain raw errors, stack traces, food text, or prompt text
       expect(result.message).not.toMatch(
-        /Error:|TypeError|stack|node_modules|OpenAI|prompt/i
+        /Error:|TypeError|stack|node_modules|OpenAI|prompt/i,
       );
       expect(result.message.length).toBeGreaterThan(10);
     }
@@ -491,9 +478,8 @@ describe("middleware pause gate (evaluateLaunchMode integration)", () => {
   it("pause response never leaks raw food text or prompt text", async () => {
     process.env.REVORA_LAUNCH_MODE_OVERRIDE = "paused";
 
-    const { evaluateLaunchMode } = await import(
-      "../../../lib/revora/launch-controls"
-    );
+    const { evaluateLaunchMode } =
+      await import("../../../lib/revora/launch-controls");
     const result = await evaluateLaunchMode();
 
     if (!result.ok) {

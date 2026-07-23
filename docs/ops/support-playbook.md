@@ -176,17 +176,17 @@ per-user one.
 > settings for Revora specifically; (2) some phones aggressively battery-
 > optimize background apps, which can delay or block web push — look for
 > a battery-optimization or "allow background activity" setting for
-> Revora/your browser and allow it; (3) it's normal to occasionally miss a
-> single day if the reminder job runs during a brief hiccup — it will
-> resume the next day automatically, nothing needs to be reset. If it's
-> been missing for several days in a row after checking the above, reply
-> here and we'll take a look.
+> Revora/your browser and allow it; (3) after a brief delivery error Revora
+> retries later the same day, outside your quiet hours, and stops after a
+> small bounded number of attempts. If it's been missing for several days
+> in a row after checking the above, reply here and we'll take a look.
 
 Support-internal: never manually re-fire a nudge for a user
 (`docs/ops/launch-controls.md` §10, "push misfire" scenario) — the cron
-is idempotent and skips already-notified users by design
-(`lib/server/nudge.ts` `lastNudgeDate`); a manual re-fire risks a double
-send, which the system is specifically built to prevent.
+uses a per-attempt lease and skips already-notified users by design. A provider
+error can be acknowledgement-ambiguous, so the automatic retry is deliberately
+bounded; a manual re-fire adds duplicate risk and bypasses the operational
+evidence in the cron result.
 
 ---
 

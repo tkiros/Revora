@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/browser";
 
+import { resolveSentryRelease } from "./lib/revora/sentry-release";
 import { scrubSentryEvent } from "./lib/revora/sentry-scrub";
 
 /**
@@ -70,6 +71,7 @@ export function clientSentryOptions(dsn: string | undefined) {
     dsn,
     environment:
       process.env.NEXT_PUBLIC_VERCEL_ENV ?? process.env.NODE_ENV,
+    release: resolveSentryRelease(process.env.NEXT_PUBLIC_SENTRY_RELEASE),
     tracesSampleRate: 0, // errors only — no perf spans, no transactions
     sendDefaultPii: false, // never attach IP / user
     defaultIntegrations: false as const, // allowlist: see the header

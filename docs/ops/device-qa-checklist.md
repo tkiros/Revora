@@ -94,8 +94,14 @@ result is observed on-device, not from the browser dev-server.
   conversion is correct.
 - [ ] **No double-send.** Steps: check again after the nudge above has fired
   once. **Expected:** no second notification arrives later the same day —
-  `lib/server/nudge.ts` stamps `lastNudgeDate` so the cron skips
-  already-notified users on subsequent hourly runs.
+  `lib/server/nudge.ts` stamps the success-only `lastNudgeDate` so the cron
+  skips already-notified users on subsequent hourly runs.
+- [ ] **Bounded transient recovery.** Steps: in isolated preview, make the push
+  sender return a confirmed error at the configured hour, restore it before the
+  next non-quiet hourly tick, and inspect the cron/database evidence.
+  **Expected:** no success heartbeat on the failed run; exactly one later retry;
+  attempt/lease state clears on success; later same-day ticks dedupe. Repeat
+  with errors through the three-attempt cap and confirm `exhausted` stays red.
 
 ## 9. Play Billing purchase → entitlement → progress → cancel → grace → restore
 
