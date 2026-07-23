@@ -70,6 +70,12 @@ const trialWebServer = {
 
 export default defineConfig({
   testDir: "./tests/smoke",
+  // Compile every route the always-on suite owns before parallel browser
+  // workers start. `next dev` reports ready before route bundles exist; without
+  // this gate, the first test for a route pays compilation + hydration cost and
+  // races the normal 5s assertion timeout. The setup fails on a bad response —
+  // it does not hide a broken route or widen assertions.
+  globalSetup: "./tests/smoke/global-setup.ts",
   // Axe scans and cold route compilation can exceed Playwright's 30s default
   // on the documented slow-filesystem CI/worktree path. Product assertions
   // still use Playwright's short expect timeout; this only prevents the whole
