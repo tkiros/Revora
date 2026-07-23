@@ -52,15 +52,13 @@ truth. A green item in one bucket does not imply a green item in another.
 - All synthetic Stripe test customers deleted; synthetic preview nudge user cascade-deleted; Sentry canary is synthetic-only
 - `Postgres-FOMu` RETAINED as the dedicated preview database (owner: engineering; rationale: preview isolation)
 
-## Owner-only blockers (unchanged, cannot be closed by an agent)
+## Post-addendum state (owner actions landed same day)
 
-- H26–H29: Return-Path MX (still absent on authoritative NS), DMARC quarantine/reject (still `p=none`), CAA, DNSSEC — Namecheap access
-- H30: GitHub Pro — platform enforcement of required reviews/checks/scanning; **prevents printing GO** under the master prompt's definition (I-05/I-21)
-- H31: Upstash preview isolation (billing); current preview state is fail-closed `INTENTIONAL_OFF_SAFE`
-- H32: Umami API key for dashboard receipt/blackout-alert proof
-- Owner-assisted: Sentry dashboard/alert acknowledgement; real-inbox + forwarded-inbox magic-link receipt
+- H30 CLOSED: repo public; branch protection (4 required checks strict, enforce_admins, no force-push/deletions), secret scanning + push protection, Dependabot, CodeQL all active; forbidden-merge proven on PR #46 (pending/red/admin-bypass all refused). Review requirement demonstrated, then set for solo operability (re-enable with a second reviewer).
+- H26/H27 CLOSED: Return-Path MX + DMARC p=quarantine verified authoritative + two public resolvers. H28/H29 (CAA, DNSSEC) remain absent — hardening-tier.
+- H31/H32 + Sentry ack: owner-declined paid/ack legs — recorded as deliberate waivers; Upstash preview stays INTENTIONAL_OFF_SAFE.
+- Scheduler observation window COMPLETE (13:00–16:00, 4× completed=4 failed=0).
 
-## Remaining
+## Sole open blocker
 
-1. Complete the 4-run scheduler observation window (15:00, 16:00) with heartbeat correlation.
-2. Final closeout report in `docs/handoff/` + this directory's artifacts committed via PR (that docs-only merge re-deploys production; record both SHAs).
+- **REGRESSION_OPEN: production Resend API key invalid (http_401 on live probe; workstation key also rejected).** Auth email cannot send until the owner mints a new key and RESEND_API_KEY is rebound (Vercel production + preview). Everything else within accepted scope is proven.
