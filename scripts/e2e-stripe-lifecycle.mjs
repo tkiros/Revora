@@ -139,6 +139,11 @@ const serverEnv = {
   HEALTH_DATA_KEY: Buffer.alloc(32, 7).toString("base64"),
   RESEND_API_KEY: "", // stub dir handles every email
   SENTRY_DSN: "",
+  // next dev auto-loads the repo .env — blank the ambient Upstash store so
+  // the email cooldown skips (dev semantics) instead of failing closed on a
+  // store blip and 429ing the harness.
+  UPSTASH_REDIS_REST_URL: "",
+  UPSTASH_REDIS_REST_TOKEN: "",
   PAYWALL_MODE: "trial"
 };
 
@@ -188,7 +193,10 @@ async function fetchRetry(url, init, attempts = 5) {
 }
 
 try {
-  await waitFor(`${BASE}/api/health`);
+  // Liveness, not readiness: /api/health deliberately 503s on a fresh DB
+  // (cron heartbeats "never") until the first scheduler run, which this
+  // harness never performs.
+  await waitFor(`${BASE}/api/health/live`);
 
   // ── step 1: trial checkout ────────────────────────────────────────────────
   const buyer = `e2e06-${Date.now()}@revora-e2e.test`;
@@ -249,10 +257,17 @@ try {
     };
     // The accordion mounts the card form on selection; no single click target
     // is reliable across Checkout revisions — keep clicking until it mounts.
-    for (let sel = 0; sel < 6 && !(await cardFieldVisible()); sel += 1) {
+    for (let sel = 0; sel < 12 && !(await cardFieldVisible()); sel += 1) {
       if (await cardRadio.count()) {
         await cardRadio.first().click({ force: true }).catch(() => {});
         await page.getByText("Card", { exact: true }).first().click().catch(() => {});
+      }
+      // A mid-load interface flap (docker veth churn → ERR_NETWORK_CHANGED)
+      // kills Checkout's in-flight requests and strands the skeleton UI — a
+      // reload recovers it.
+      if (sel === 3 || sel === 7) {
+        await page.reload({ waitUntil: "domcontentloaded" }).catch(() => {});
+        await page.waitForSelector("#payment-method-accordion-item-title-card, #cardNumber", { timeout: 30_000 }).catch(() => {});
       }
       await page.waitForTimeout(3000);
     }
@@ -374,10 +389,18 @@ try {
   const { rows: stamped } = await pool.query("select pre_charge_email_sent_at from subscriptions where id = $1", [subRow.id]);
   record("4b pre_charge_email_sent_at stamped (idempotent resend guard)", !!stamped[0]?.pre_charge_email_sent_at, stamped[0]);
 
-  // ── step 5: one-tap cancel from the email link (signed out) ──────────────
+  // ── step 5: cancel from the email link (signed out) ───────────────────────
+  // Two-step by design: GET 303s to the confirm page (so link prefetchers
+  // can't silently cancel); the confirm page's POST performs the cancel.
   const cancelRes = await fetchRetry(cancelLink.replace(/^https?:\/\/[^/]+/, BASE), { redirect: "manual" });
+  const confirmToken = new URL(cancelRes.headers.get("location") ?? "", BASE).searchParams.get("token");
+  const confirmRes = await fetchRetry(`${BASE}/api/billing/cancel`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ token: confirmToken })
+  });
   const stripeSub = await stripe.subscriptions.retrieve(subRow.provider_ref);
-  record("5 email-link cancel flips cancel_at_period_end on Stripe", cancelRes.status === 303 && stripeSub.cancel_at_period_end === true, { redirect: cancelRes.headers.get("location"), cancel_at_period_end: stripeSub.cancel_at_period_end });
+  record("5 email-link cancel (GET confirm 303 + POST) flips cancel_at_period_end on Stripe", cancelRes.status === 303 && confirmRes.status < 300 && stripeSub.cancel_at_period_end === true, { redirect: cancelRes.headers.get("location"), confirmStatus: confirmRes.status, cancel_at_period_end: stripeSub.cancel_at_period_end });
 
   const updEvents = await relayEvents(["customer.subscription.updated"]);
   const { rows: afterCancel } = await pool.query("select status from subscriptions where id = $1", [subRow.id]);
