@@ -27,7 +27,11 @@ test.skip(
 
 function seedOrder(email: string): { claimUrl: string } {
   const out = execFileSync("node", ["scripts/seed-pantry-order.mjs", email], {
-    env: { ...process.env, NEXT_PUBLIC_APP_URL: "http://127.0.0.1:3100" }
+    // localhost, not 127.0.0.1: next start reports request.url on localhost
+    // regardless of the bind address, so the whole signed-in flow (magic link,
+    // host-only session cookie, claim binding) lives on localhost — a
+    // 127.0.0.1 claim URL never sees the session cookie.
+    env: { ...process.env, NEXT_PUBLIC_APP_URL: "http://localhost:3100" }
   });
   return JSON.parse(out.toString());
 }
@@ -75,7 +79,7 @@ test("claim → intake → edit drafts → confirm → processing (extraction st
   await page.getByRole("button", { name: /send photos for review/i }).click();
 
   // Stubbed extraction returns 3 fixed items.
-  await expect(page.getByText(/here's what we saw/i)).toBeVisible({
+  await expect(page.getByRole("heading", { name: /here's what we saw/i })).toBeVisible({
     timeout: 60_000
   });
 
@@ -106,7 +110,7 @@ test("report is generated and emailed (live judge)", async ({ page }) => {
   await page.locator("#band").selectOption("prediabetes_60_62");
   await page.getByRole("checkbox").check();
   await page.getByRole("button", { name: /send photos for review/i }).click();
-  await expect(page.getByText(/here's what we saw/i)).toBeVisible({
+  await expect(page.getByRole("heading", { name: /here's what we saw/i })).toBeVisible({
     timeout: 60_000
   });
   await page.getByRole("button", { name: "Remove" }).last().click();
@@ -135,7 +139,7 @@ test("report is generated and emailed (live judge)", async ({ page }) => {
 
   const link =
     /https?:\/\/\S+\/report\/[a-f0-9-]+/.exec(reportEmail()!.text)?.[0] ?? "";
-  await page.goto(link.replace(/^https?:\/\/[^/]+/, "http://127.0.0.1:3100"));
+  await page.goto(link.replace(/^https?:\/\/[^/]+/, "http://localhost:3100"));
   await expect(
     page.getByText(/enjoy freely|worth a tweak|handle with care/i).first()
   ).toBeVisible();

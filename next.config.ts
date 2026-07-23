@@ -142,7 +142,11 @@ const nextConfig: NextConfig = {
             "style-src 'self' 'unsafe-inline'",
             "img-src 'self' blob: data: https://*.blob.vercel-storage.com https://*.public.blob.vercel-storage.com",
             "font-src 'self' data:",
-            `connect-src 'self' https://*.blob.vercel-storage.com https://blob.vercel-storage.com${umami}${umamiIngest}${sentry}`,
+            // https://vercel.com: private-store client uploads
+            // (@vercel/blob/client with access "private") exchange and upload
+            // through vercel.com/api/blob, not *.blob.vercel-storage.com —
+            // without it the paid Pantry photo upload is CSP-refused.
+            `connect-src 'self' https://vercel.com https://*.blob.vercel-storage.com https://blob.vercel-storage.com${umami}${umamiIngest}${sentry}`,
             "frame-ancestors 'none'",
             "base-uri 'self'",
             "form-action 'self'",
