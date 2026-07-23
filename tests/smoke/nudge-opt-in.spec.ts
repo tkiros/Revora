@@ -104,6 +104,11 @@ test("fresh users and guests never see the nudge ask", async ({ page }) => {
     await route.fulfill({ status: 401, contentType: "application/json", body: "{}" });
   });
 
+  // This test owns the empty-check surface, not FirstRunGate. A truly fresh
+  // visitor at `/check` is intentionally redirected to onboarding; asserting
+  // DailyLoop during that redirect made the test pass or fail based on which
+  // client effect won the race. `stay=1` is the product's explicit bypass for
+  // tests and direct check flows that need to remain on this surface.
   // DailyLoop renders null until loadHistory() resolves, and that awaits
   // fetch("/api/history"). Under `next dev` the route is compiled on first
   // request, so asserting straight after goto() races a cold compile — this
@@ -111,7 +116,7 @@ test("fresh users and guests never see the nudge ask", async ({ page }) => {
   // response the component is actually blocked on instead of widening a timeout
   // and hoping.
   const history = page.waitForResponse((r) => r.url().includes("/api/history"));
-  await page.goto("/check");
+  await page.goto("/check?stay=1");
   await history;
 
   await expect(page.getByTestId("daily-loop-empty")).toBeVisible();
