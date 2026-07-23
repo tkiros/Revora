@@ -79,7 +79,9 @@ test("magic-link round trip: email → link → session → consent → profile"
   ).toEqual([]);
 
   await page.getByLabel("Latest A1C").fill("6.1");
-  await page.getByLabel(/I consent to Revora storing/).check();
+  await page
+    .getByLabel(/I explicitly consent to Revora collecting and using my A1C/)
+    .check();
   await page.getByTestId("welcome-save").click();
 
   await expect(page).toHaveURL(/\/check$/);
