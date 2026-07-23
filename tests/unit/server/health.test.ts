@@ -1,4 +1,12 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from "vitest";
 
 import { schema, type Db } from "../../../lib/server/db";
 import { createTestDb } from "../../helpers/test-db";
@@ -22,7 +30,7 @@ beforeEach(async () => {
     ...ORIGINAL_ENV,
     NODE_ENV: "production",
     VERCEL_ENV: "preview",
-    OPENAI_API_KEY: "sk-preview-test"
+    OPENAI_API_KEY: "sk-preview-test",
   };
   delete process.env.EDGE_CONFIG;
   delete process.env.REVORA_LAUNCH_MODE_OVERRIDE;
@@ -47,14 +55,14 @@ describe("createHealthHandler — db + cron probes (P7)", () => {
 
     const payload = await (await GET()).json();
 
-    expect(payload.ok).toBe(true);
+    expect(payload.ok).toBe(false);
     expect(payload.db).toBe("ok");
     expect(payload.crons).toEqual({
       nudge: "never",
       baiWeekly: "never",
       trialPrecharge: "never",
       pantrySweep: "never",
-      stripeReconcile: "never"
+      stripeReconcile: "never",
     });
   });
 
@@ -77,13 +85,25 @@ describe("createHealthHandler — db + cron probes (P7)", () => {
     vi.unstubAllEnvs();
   });
 
-  it("reports crons:ok when all four heartbeats are fresh", async () => {
+  it("reports crons:ok when all five heartbeats are fresh", async () => {
     await testDb.db.insert(schema.cronHeartbeat).values([
       { name: "nudge", lastRunAt: new Date(NOW.getTime() - 30 * 60 * 1000) }, // 30m ago
-      { name: "bai-weekly", lastRunAt: new Date(NOW.getTime() - 24 * 60 * 60 * 1000) }, // 1 day ago
-      { name: "trial-precharge", lastRunAt: new Date(NOW.getTime() - 30 * 60 * 1000) }, // 30m ago
-      { name: "pantry-sweep", lastRunAt: new Date(NOW.getTime() - 30 * 60 * 1000) }, // 30m ago
-      { name: "stripe-reconcile", lastRunAt: new Date(NOW.getTime() - 30 * 60 * 1000) } // 30m ago
+      {
+        name: "bai-weekly",
+        lastRunAt: new Date(NOW.getTime() - 24 * 60 * 60 * 1000),
+      }, // 1 day ago
+      {
+        name: "trial-precharge",
+        lastRunAt: new Date(NOW.getTime() - 30 * 60 * 1000),
+      }, // 30m ago
+      {
+        name: "pantry-sweep",
+        lastRunAt: new Date(NOW.getTime() - 30 * 60 * 1000),
+      }, // 30m ago
+      {
+        name: "stripe-reconcile",
+        lastRunAt: new Date(NOW.getTime() - 30 * 60 * 1000),
+      }, // 30m ago
     ]);
 
     const createHealthHandler = await importHandler();
@@ -91,28 +111,46 @@ describe("createHealthHandler — db + cron probes (P7)", () => {
 
     const payload = await (await GET()).json();
 
+    expect(payload.ok).toBe(true);
+    expect(payload.status).toBe("healthy");
+    expect(payload.issues).toEqual([]);
     expect(payload.db).toBe("ok");
     expect(payload.crons).toEqual({
       nudge: "ok",
       baiWeekly: "ok",
       trialPrecharge: "ok",
       pantrySweep: "ok",
-      stripeReconcile: "ok"
+      stripeReconcile: "ok",
     });
   });
 
   it("reports crons:stale past each job's own staleness window", async () => {
     await testDb.db.insert(schema.cronHeartbeat).values([
       // nudge stale past 2h
-      { name: "nudge", lastRunAt: new Date(NOW.getTime() - 3 * 60 * 60 * 1000) },
+      {
+        name: "nudge",
+        lastRunAt: new Date(NOW.getTime() - 3 * 60 * 60 * 1000),
+      },
       // bai-weekly stale past 8 days
-      { name: "bai-weekly", lastRunAt: new Date(NOW.getTime() - 9 * 24 * 60 * 60 * 1000) },
+      {
+        name: "bai-weekly",
+        lastRunAt: new Date(NOW.getTime() - 9 * 24 * 60 * 60 * 1000),
+      },
       // trial-precharge stale past 2h
-      { name: "trial-precharge", lastRunAt: new Date(NOW.getTime() - 3 * 60 * 60 * 1000) },
+      {
+        name: "trial-precharge",
+        lastRunAt: new Date(NOW.getTime() - 3 * 60 * 60 * 1000),
+      },
       // pantry-sweep stale past 2h
-      { name: "pantry-sweep", lastRunAt: new Date(NOW.getTime() - 3 * 60 * 60 * 1000) },
+      {
+        name: "pantry-sweep",
+        lastRunAt: new Date(NOW.getTime() - 3 * 60 * 60 * 1000),
+      },
       // stripe-reconcile stale past 2h
-      { name: "stripe-reconcile", lastRunAt: new Date(NOW.getTime() - 3 * 60 * 60 * 1000) }
+      {
+        name: "stripe-reconcile",
+        lastRunAt: new Date(NOW.getTime() - 3 * 60 * 60 * 1000),
+      },
     ]);
 
     const createHealthHandler = await importHandler();
@@ -120,19 +158,33 @@ describe("createHealthHandler — db + cron probes (P7)", () => {
 
     const payload = await (await GET()).json();
 
+    expect(payload.ok).toBe(false);
+    expect(payload.status).toBe("degraded");
+    expect(payload.issues).toEqual([
+      "cron_nudge_stale",
+      "cron_baiWeekly_stale",
+      "cron_trialPrecharge_stale",
+      "cron_pantrySweep_stale",
+      "cron_stripeReconcile_stale",
+    ]);
     expect(payload.crons).toEqual({
       nudge: "stale",
       baiWeekly: "stale",
       trialPrecharge: "stale",
       pantrySweep: "stale",
-      stripeReconcile: "stale"
+      stripeReconcile: "stale",
     });
   });
 
   it("stays db:ok/crons:ok exactly at the staleness boundary (not yet stale)", async () => {
-    await testDb.db.insert(schema.cronHeartbeat).values([
-      { name: "nudge", lastRunAt: new Date(NOW.getTime() - 2 * 60 * 60 * 1000) }
-    ]);
+    await testDb.db
+      .insert(schema.cronHeartbeat)
+      .values([
+        {
+          name: "nudge",
+          lastRunAt: new Date(NOW.getTime() - 2 * 60 * 60 * 1000),
+        },
+      ]);
 
     const createHealthHandler = await importHandler();
     const GET = createHealthHandler({ db: () => testDb.db, now: () => NOW });
@@ -149,36 +201,39 @@ describe("createHealthHandler — db + cron probes (P7)", () => {
 
     const payload = await (await GET()).json();
 
-    expect(payload.ok).toBe(true); // db being unconfigured never flips ok
+    expect(payload.ok).toBe(false);
+    expect(payload.issues).toContain("database_unconfigured");
+    expect(payload.issues).toContain("rate_limit_unavailable");
     expect(payload.db).toBe("unconfigured");
     expect(payload.crons).toEqual({
       nudge: "unknown",
       baiWeekly: "unknown",
       trialPrecharge: "unknown",
       pantrySweep: "unknown",
-      stripeReconcile: "unknown"
+      stripeReconcile: "unknown",
     });
   });
 
-  it("reports db:error (and never flips ok) when the db accessor throws mid-query", async () => {
+  it("reports db:error and fails readiness when the db accessor throws mid-query", async () => {
     const createHealthHandler = await importHandler();
     const brokenDb = {
       select: () => {
         throw new Error("connection reset");
-      }
+      },
     } as unknown as Db;
 
     const GET = createHealthHandler({ db: () => brokenDb, now: () => NOW });
     const payload = await (await GET()).json();
 
-    expect(payload.ok).toBe(true);
+    expect(payload.ok).toBe(false);
+    expect(payload.issues).toContain("database_unavailable");
     expect(payload.db).toBe("error");
     expect(payload.crons).toEqual({
       nudge: "unknown",
       baiWeekly: "unknown",
       trialPrecharge: "unknown",
       pantrySweep: "unknown",
-      stripeReconcile: "unknown"
+      stripeReconcile: "unknown",
     });
   });
 
@@ -192,5 +247,33 @@ describe("createHealthHandler — db + cron probes (P7)", () => {
     expect(body).not.toContain("secret-pw");
     expect(body).not.toContain("railway.example");
     expect(body).not.toContain("postgres://");
+  });
+
+  it("returns 503 so uptime monitors alert when a production cron is stale", async () => {
+    process.env.VERCEL_ENV = "production";
+    process.env.UPSTASH_REDIS_REST_URL = "https://fake.upstash.io";
+    process.env.UPSTASH_REDIS_REST_TOKEN = "fake-token";
+    await testDb.db.insert(schema.cronHeartbeat).values([
+      {
+        name: "nudge",
+        lastRunAt: new Date(NOW.getTime() - 3 * 60 * 60 * 1000),
+      },
+      { name: "bai-weekly", lastRunAt: NOW },
+      { name: "trial-precharge", lastRunAt: NOW },
+      { name: "pantry-sweep", lastRunAt: NOW },
+      { name: "stripe-reconcile", lastRunAt: NOW },
+    ]);
+
+    const createHealthHandler = await importHandler();
+    const GET = createHealthHandler({ db: () => testDb.db, now: () => NOW });
+    const response = await GET();
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toMatchObject({
+      ok: false,
+      status: "degraded",
+      issues: ["cron_nudge_stale"],
+    });
   });
 });

@@ -13,13 +13,13 @@ unavailable.
 
 ## 1. Threshold Table
 
-| Signal | Value | Response |
-|--------|-------|----------|
-| WAF rate limit (Vercel WAF) | 10 requests / 10 minutes / IP on `/api/check` | Vercel blocks the request; client sees friendly 429 |
-| App daily cap | 2,000 checks / 24h (aggregate across IPs, configurable by `REVORA_DAILY_CHECK_CAP`) | Middleware returns friendly 429 before model spend and emits `reasonCode:"daily_cap"` |
-| Operator pause gate | Any manual cost, abuse, legal, or safety concern | Operator sets `public_checks_enabled = false` or `launch_mode = "paused"` in Edge Config |
-| Harmful-guidance incident | Any SAFE classification for a high-risk food | Operator sets `launch_mode = paused` and reviews model outputs |
-| Provider-failure spike | Repeated provider errors (`check_failed` events) | Operator sets `launch_mode = paused` until provider recovers |
+| Signal                      | Value                                                                               | Response                                                                                 |
+| --------------------------- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| WAF rate limit (Vercel WAF) | 10 requests / 10 minutes / IP on `/api/check`                                       | Vercel blocks the request; client sees friendly 429                                      |
+| App daily cap               | 2,000 checks / 24h (aggregate across IPs, configurable by `REVORA_DAILY_CHECK_CAP`) | Middleware returns friendly 429 before model spend and emits `reasonCode:"daily_cap"`    |
+| Operator pause gate         | Any manual cost, abuse, legal, or safety concern                                    | Operator sets `public_checks_enabled = false` or `launch_mode = "paused"` in Edge Config |
+| Harmful-guidance incident   | Any SAFE classification for a high-risk food                                        | Operator sets `launch_mode = paused` and reviews model outputs                           |
+| Provider-failure spike      | Repeated provider errors (`check_failed` events)                                    | Operator sets `launch_mode = paused` until provider recovers                             |
 
 Upstash backs both the per-IP limiter and the aggregate daily cap. A public
 deploy with missing Upstash env fails closed on `/api/check`; `/api/health`
@@ -32,11 +32,11 @@ operator kill switch for incidents and rollback drills.
 
 ### 2.1 Required keys
 
-| Key | Type | Default when absent | Effect |
-|-----|------|---------------------|--------|
-| `launch_mode` | `"normal"` \| `"paused"` | `"normal"` | `"paused"` activates the kill switch |
-| `public_checks_enabled` | `boolean` | `true` | `false` blocks all public checks before model spend |
-| `incident_message` | `string` | `"Revora checks are temporarily paused. Please try again later."` | Copy shown to users during a pause |
+| Key                     | Type                     | Default when absent                                               | Effect                                              |
+| ----------------------- | ------------------------ | ----------------------------------------------------------------- | --------------------------------------------------- |
+| `launch_mode`           | `"normal"` \| `"paused"` | `"normal"`                                                        | `"paused"` activates the kill switch                |
+| `public_checks_enabled` | `boolean`                | `true`                                                            | `false` blocks all public checks before model spend |
+| `incident_message`      | `string`                 | `"Revora checks are temporarily paused. Please try again later."` | Copy shown to users during a pause                  |
 
 ### 2.2 Edge Config connection string
 
@@ -82,13 +82,13 @@ curl https://your-domain.com/api/health
 
 ### 3.1 Rule configuration
 
-| Field | Value |
-|-------|-------|
-| Rule name | `revora-check-rate-limit` |
-| Path matcher | `/api/check` |
-| Limit | 10 requests / 10 minutes / IP |
-| Action | Block (return 429) |
-| Publish state | `published` |
+| Field         | Value                         |
+| ------------- | ----------------------------- |
+| Rule name     | `revora-check-rate-limit`     |
+| Path matcher  | `/api/check`                  |
+| Limit         | 10 requests / 10 minutes / IP |
+| Action        | Block (return 429)            |
+| Publish state | `published`                   |
 
 ### 3.2 How to publish
 
@@ -166,7 +166,12 @@ curl https://your-domain.com/api/health
 Expected response after successful rollback:
 
 ```json
-{"ok":true,"environment":"production","launch":"ready","launchMode":"normal"}
+{
+  "ok": true,
+  "environment": "production",
+  "launch": "ready",
+  "launchMode": "normal"
+}
 ```
 
 If `/api/health` reports `{"ok":false,...}` after rollback, the environment
@@ -207,18 +212,18 @@ All Revora secrets are **server-only**. None may be prefixed with
 Settings → Environment Variables for **Production + Preview** scopes only.
 `.env.example` (repo root) lists every required name with empty values.
 
-| Variable | Scope | Purpose | Required |
-|----------|-------|---------|----------|
-| `OPENAI_API_KEY` | prod+preview | Live model calls (Responses API) | Yes |
-| `EDGE_CONFIG` | prod+preview | Kill-switch / launch-mode reads | Yes (for pause control) |
-| `UPSTASH_REDIS_REST_URL` | prod+preview | Per-IP rate limit + daily counter store | Yes (prod fails closed without it) |
-| `UPSTASH_REDIS_REST_TOKEN` | prod+preview | Auth for the Upstash REST client | Yes (prod fails closed without it) |
-| `REVORA_DAILY_CHECK_CAP` | prod+preview | Global daily cap (default `2000`) | No (defaults) |
-| `REVORA_MODEL` | prod+preview | Model id override (default `gpt-5.4-mini`) | No |
-| `REVORA_REASONING_EFFORT` | prod+preview | Reasoning-effort lever (blank = neutral) | No |
-| `SENTRY_DSN` | prod+preview | Server-side error capture (Responses-path exceptions) | No (SDK inert without it) |
-| `REVORA_LAUNCH_MODE_OVERRIDE` | non-prod only | Force pause in dev/CI (ignored in prod) | No |
-| `REVORA_LIVE_EVAL` | non-prod only | Route eval suite at the live model | No |
+| Variable                      | Scope         | Purpose                                               | Required                           |
+| ----------------------------- | ------------- | ----------------------------------------------------- | ---------------------------------- |
+| `OPENAI_API_KEY`              | prod+preview  | Live model calls (Responses API)                      | Yes                                |
+| `EDGE_CONFIG`                 | prod+preview  | Kill-switch / launch-mode reads                       | Yes (for pause control)            |
+| `UPSTASH_REDIS_REST_URL`      | prod+preview  | Per-IP rate limit + daily counter store               | Yes (prod fails closed without it) |
+| `UPSTASH_REDIS_REST_TOKEN`    | prod+preview  | Auth for the Upstash REST client                      | Yes (prod fails closed without it) |
+| `REVORA_DAILY_CHECK_CAP`      | prod+preview  | Global daily cap (default `2000`)                     | No (defaults)                      |
+| `REVORA_MODEL`                | prod+preview  | Model id override (default `gpt-5.4-mini`)            | No                                 |
+| `REVORA_REASONING_EFFORT`     | prod+preview  | Reasoning-effort lever (blank = neutral)              | No                                 |
+| `SENTRY_DSN`                  | prod+preview  | Server-side error capture (Responses-path exceptions) | No (SDK inert without it)          |
+| `REVORA_LAUNCH_MODE_OVERRIDE` | non-prod only | Force pause in dev/CI (ignored in prod)               | No                                 |
+| `REVORA_LIVE_EVAL`            | non-prod only | Route eval suite at the live model                    | No                                 |
 
 **Verification (run before each release):**
 
@@ -245,6 +250,7 @@ When set to `false`, the middleware intercepts requests to `/api/check`
 and returns a 503 pause response before any OpenAI model call is made.
 
 This ensures:
+
 - No model spend during a pause incident.
 - No raw food text, prompt text, or stack traces in the pause response.
 - The public page remains accessible; only the check path is blocked.
@@ -286,6 +292,7 @@ middleware**, which is why it is a log signal and not a Sentry event.
 Each line looks like: `{"name":"check_failed","environment":"production","reasonCode":"daily_cap"}`
 
 **Alert rule (ops):** in the Vercel log drain / log search, alert on:
+
 - any line with `"reasonCode":"daily_cap"` (cost ceiling hit — investigate), and
 - a rate spike of `"name":"check_failed"` lines (sustained failure burst).
 
@@ -305,11 +312,17 @@ in < 60s** following only this section.
 
 ### 10.2 Expected `/api/health` by state
 
-| State | Response |
-|-------|----------|
-| Healthy | `{"ok":true,"launch":"ready","launchMode":"normal","upstash":"configured", ...}` |
-| Paused | `{"ok":true,"launch":"paused","launchMode":"paused", ...}` |
-| Missing config (no `OPENAI_API_KEY`) | `503 {"ok":false,"launch":"missing_config", ...}` |
+| State                                | Response                                                                                                            |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| Ready                                | `200 {"ok":true,"status":"healthy","issues":[],"launch":"ready","launchMode":"normal","upstash":"configured", ...}` |
+| Degraded dependency or stale cron    | `503 {"ok":false,"status":"degraded","issues":[...], ...}`                                                          |
+| Missing config (no `OPENAI_API_KEY`) | `503 {"ok":false,"launch":"missing_config", ...}`                                                                   |
+
+`/api/health` is the end-user readiness probe. It fails when the database is
+unavailable/unconfigured, a required scheduler heartbeat is stale or has never
+run, or a public deployment lacks a valid Upstash REST configuration. Use
+`/api/health/live` only for process liveness; it intentionally does not claim
+that stateful product journeys are working.
 
 `upstash:"unconfigured"` in a healthy response is a **red flag** on a public
 deploy: the rate-limit/cap store is unset, so the middleware is failing closed
@@ -345,9 +358,10 @@ fail soft around the stateless engine, not take it down with it.
 check engine itself is stateless and never reads the database
 (`lib/revora/service.ts`). What breaks: history, coach insights, and
 progress all fail soft with calm, on-brand copy rather than a raw error
-(they depend on `lib/server/db`). `/api/health` reflects this precisely:
-`db:"error"` alongside `ok:true` — the overall health probe stays healthy
-because the public check path is unaffected. **Action:** check Railway
+(they depend on `lib/server/db`). `/api/health` reflects this precisely with
+`503`, `ok:false`, `status:"degraded"`, and `db:"error"`; `/api/health/live`
+remains 200 so operators can distinguish dependency failure from a dead
+process. **Action:** check Railway
 status/incident page first; no engine pause is needed. Do not flip
 `launch_mode = "paused"` for a DB outage alone — that would needlessly take
 down the one path (public checks) that doesn't depend on the database.
@@ -369,7 +383,7 @@ their normal retry window.
 hourly run is acceptable and self-heals: the nudge cron
 (`app/api/cron/nudge/route.ts`, `lib/server/nudge.ts`) stamps
 `lastNudgeDate` per user, so it never double-sends — a user who didn't get
-their hour's nudge simply gets the next day's normally, and a user who *did*
+their hour's nudge simply gets the next day's normally, and a user who _did_
 get it is skipped on every subsequent run that day even if the cron fires
 again. **Action:** check the cron heartbeat (`/api/health`'s `crons.nudge`
 staleness probe — `ok`/`stale`/`never`) and the Railway `hourly-crons`
@@ -467,10 +481,10 @@ Evidence slot: record the status-code sequence + a sample log line.
 
 Run both drills on the live production deploy and **time them**:
 
-| Drill | Procedure | Target | Start | Restored | Elapsed | Operator |
-|-------|-----------|--------|-------|----------|---------|----------|
-| Pause via Edge Config | §10.1 → restore §2.4 | < 60s | | | | |
-| Vercel instant rollback | §5.1–5.5 (incl. health + synthetic check) | < 5 min | | | | |
+| Drill                   | Procedure                                 | Target  | Start | Restored | Elapsed | Operator |
+| ----------------------- | ----------------------------------------- | ------- | ----- | -------- | ------- | -------- |
+| Pause via Edge Config   | §10.1 → restore §2.4                      | < 60s   |       |          |         |          |
+| Vercel instant rollback | §5.1–5.5 (incl. health + synthetic check) | < 5 min |       |          |         |          |
 
 Both drills must pass — pause restores public checks in < 60s, and rollback
 reaches recovery (§5.3–5.5 all green) in < 5 min. If either misses its target,

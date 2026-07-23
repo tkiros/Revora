@@ -15,36 +15,36 @@ describe("getRevoraEnv", () => {
       getRevoraEnv({
         NODE_ENV: "production",
         VERCEL_ENV: "preview",
-        OPENAI_API_KEY: "sk-preview"
-      })
+        OPENAI_API_KEY: "sk-preview",
+      }),
     ).toMatchObject({ environment: "preview", openAiApiKey: "sk-preview" });
 
     expect(
       getRevoraEnv({
         NODE_ENV: "production",
         VERCEL_ENV: "production",
-        OPENAI_API_KEY: "sk-production"
-      })
+        OPENAI_API_KEY: "sk-production",
+      }),
     ).toMatchObject({
       environment: "production",
-      openAiApiKey: "sk-production"
+      openAiApiKey: "sk-production",
     });
 
     expect(
       getRevoraEnv({
         NODE_ENV: "development",
-        OPENAI_API_KEY: "sk-development"
-      })
+        OPENAI_API_KEY: "sk-development",
+      }),
     ).toMatchObject({
       environment: "development",
-      openAiApiKey: "sk-development"
+      openAiApiKey: "sk-development",
     });
 
     expect(
       getRevoraEnv({
         NODE_ENV: "test",
-        OPENAI_API_KEY: "sk-test"
-      })
+        OPENAI_API_KEY: "sk-test",
+      }),
     ).toMatchObject({ environment: "test", openAiApiKey: "sk-test" });
   });
 
@@ -52,8 +52,8 @@ describe("getRevoraEnv", () => {
     expect(() =>
       getRevoraEnv({
         NODE_ENV: "production",
-        VERCEL_ENV: "production"
-      })
+        VERCEL_ENV: "production",
+      }),
     ).toThrow("OPENAI_API_KEY");
 
     expect(
@@ -61,12 +61,12 @@ describe("getRevoraEnv", () => {
         NODE_ENV: "production",
         VERCEL_ENV: "preview",
         OPENAI_API_KEY: "sk-preview",
-        EDGE_CONFIG: "ecfg_connection_string"
-      })
+        EDGE_CONFIG: "ecfg_connection_string",
+      }),
     ).toEqual({
       environment: "preview",
       openAiApiKey: "sk-preview",
-      edgeConfigConnectionString: "ecfg_connection_string"
+      edgeConfigConnectionString: "ecfg_connection_string",
     });
   });
 
@@ -77,8 +77,8 @@ describe("getRevoraEnv", () => {
         VERCEL_ENV: "production",
         OPENAI_API_KEY: "sk-production",
         OPENAI_BASE_URL: "https://openrouter.ai/api/v1",
-        REVORA_MODEL: "openai/gpt-5.4-mini"
-      })
+        REVORA_MODEL: "openai/gpt-5.4-mini",
+      }),
     ).toThrow("evaluation-only");
   });
 });
@@ -92,7 +92,7 @@ describe("GET /api/health", () => {
       ...ORIGINAL_ENV,
       NODE_ENV: "production",
       VERCEL_ENV: "preview",
-      OPENAI_API_KEY: "sk-preview"
+      OPENAI_API_KEY: "sk-preview",
     };
     delete process.env.EDGE_CONFIG;
     delete process.env.UPSTASH_REDIS_REST_URL;
@@ -103,9 +103,11 @@ describe("GET /api/health", () => {
     const response = await GET();
     const payload = await response.json();
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(503);
     expect(payload).toEqual({
-      ok: true,
+      ok: false,
+      status: "degraded",
+      issues: ["database_unconfigured", "rate_limit_unavailable"],
       environment: "preview",
       launch: "ready",
       launchMode: "normal",
@@ -119,8 +121,8 @@ describe("GET /api/health", () => {
         baiWeekly: "unknown",
         trialPrecharge: "unknown",
         pantrySweep: "unknown",
-        stripeReconcile: "unknown"
-      }
+        stripeReconcile: "unknown",
+      },
     });
     expect(JSON.stringify(payload)).not.toContain("sk-preview");
     expect(JSON.stringify(payload)).not.toContain("ecfg_connection_string");
@@ -130,7 +132,7 @@ describe("GET /api/health", () => {
     process.env = {
       ...ORIGINAL_ENV,
       NODE_ENV: "development",
-      VERCEL_ENV: "development"
+      VERCEL_ENV: "development",
     };
     delete process.env.OPENAI_API_KEY;
     delete process.env.EDGE_CONFIG;
@@ -143,6 +145,8 @@ describe("GET /api/health", () => {
     expect(response.status).toBe(503);
     expect(payload).toEqual({
       ok: false,
+      status: "degraded",
+      issues: ["model_configuration"],
       environment: "development",
       launch: "missing_config",
       launchMode: "normal",
@@ -153,8 +157,8 @@ describe("GET /api/health", () => {
         baiWeekly: "unknown",
         trialPrecharge: "unknown",
         pantrySweep: "unknown",
-        stripeReconcile: "unknown"
-      }
+        stripeReconcile: "unknown",
+      },
     });
   });
 });
