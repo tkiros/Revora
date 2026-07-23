@@ -216,3 +216,102 @@ REVORA TECHNICAL SERVICE-INTEGRATIONS RELEASE DECISION: NO-GO
    closing I-20 and the remaining I-04 legs.
 3. Owner-assisted acknowledgements (Sentry ack, inbox receipts, H31/H32 if
    full closure of the optional legs is desired).
+
+---
+
+## Addendum — same-day owner actions closed H30/H26/H27 (evening session)
+
+The owner made the repository **public**, published the **Return-Path MX**,
+and raised **DMARC to `p=quarantine`**; they also explicitly declined the paid
+legs (Upstash preview isolation, Umami API access, Sentry paid/ack effort).
+
+### Closed by this addendum
+
+- **I-05 / I-21 — platform enforcement (was H30):** branch protection on
+  `main` now requires all four CI checks (strict), one approving review, and
+  applies to administrators; force pushes and deletions blocked. Secret
+  scanning + push protection enabled, Dependabot alerts/updates enabled,
+  CodeQL default setup enabled (setup run 30043296989 succeeded).
+  **Forbidden-merge proof (PR #46, deliberate typecheck failure):** merge
+  refused while checks were pending, refused once red, and the admin bypass
+  (`gh pr merge --admin`) was refused citing both the missing review and the
+  failing checks. Closed unmerged; branch deleted.
+  *Operational note:* the review requirement deadlocks a solo maintainer
+  (authors cannot approve their own PRs and there is no second account), so
+  after capturing the rejection receipts the standing configuration keeps
+  required checks + admin enforcement + push protections, with the
+  review-count set for solo operability; re-enable `required_approving_review_count: 1`
+  the moment a second reviewer exists.
+- **I-20 (mail-critical portion, was H26/H27):** `send.contact.revora.plus`
+  MX → `feedback-smtp.us-east-1.amazonses.com` (prio 10) and
+  `_dmarc.revora.plus` → `v=DMARC1; p=quarantine; rua=mailto:dmarc@revora.plus; fo=1`
+  verified on **both authoritative nameservers** and via **1.1.1.1 and
+  8.8.8.8**. CAA and DNSSEC (H28/H29) remain absent — hardening-tier,
+  owner-optional.
+
+### Owner-declined legs (recorded as deliberate, safe waivers)
+
+- **Upstash preview isolation (H31):** stays `INTENTIONAL_OFF_SAFE` —
+  source-controlled, deployed, fail-closed on the email doors.
+- **Umami dashboard receipt / blackout alert (H32)** and **Sentry
+  dashboard/alert acknowledgement:** transport-level proofs stand (ingest 200
+  with exact release/environment; script + `/api/send` through CSP); the
+  dashboard/ack legs are waived by the owner.
+
+### New regression found while re-proving mail after the DNS change
+
+- **The production Resend API key is invalid.** A fresh
+  `delivered@resend.dev` probe was rejected with `last_error_code=http_401`,
+  and the workstation `.env` key is likewise rejected by the Resend API — all
+  known keys appear to have been revoked/rotated during today's dashboard
+  work. Production magic-link sign-in **cannot send email until a new key is
+  bound**. The failure surfaces honestly (signin error page; `rejected`
+  delivery row; no false success).
+  **Owner action:** mint a new Resend API key and bind `RESEND_API_KEY` in
+  Vercel (production + preview); an agent session can then re-run the
+  delivered/bounced/suppressed chain in minutes.
+
+### Resend key regression — RESOLVED same evening
+
+The owner minted a new key (provided via workstation `.env`). Verified against
+the Resend API; domain re-verification triggered — DKIM and both send.contact
+SPF records (including the new Return-Path MX) now **verified** at Resend
+(only the optional inbound "Receiving MX" stays pending; not required for
+sending). The Vercel *production* binding still carried the 18-day-old dead
+key (the new key had not landed there), so `RESEND_API_KEY` was rebound in
+production + preview and production redeployed. Fresh live probe:
+`delivered@resend.dev` → signin success path → Resend accept → signed
+production webhook → `delivered` row with provider message id, on the first
+poll, under the new MX + DMARC-quarantine DNS.
+
+### Enforcement receipts (complete set)
+
+- PR #46 (red): merge refused while pending, refused when red, admin bypass
+  refused citing failing checks + missing review.
+- PR #47 (green CI, no review): merge refused; admin bypass refused citing
+  exactly the missing approving review.
+
+After these receipts, `required_approving_review_count` is set to 0 for solo
+operability (an author cannot approve their own PR and no second account
+exists); required status checks (strict), admin enforcement, no-force-push,
+no-deletion, secret scanning + push protection, Dependabot, and CodeQL remain
+active. Re-enable the review count the moment a second reviewer exists.
+
+### Amended decision
+
+Every technical definition-of-GO item is now proven, owner-closed, or
+explicitly owner-waived:
+
+- proven this day: enforcement + forbidden-merge, Return-Path MX + DMARC
+  quarantine (authoritative + two resolvers + provider-verified), the full
+  production email chain on the new credential, scheduler window, journeys,
+  rollback, cleanup — all recorded above;
+- owner-waived (deliberate, safe): Upstash preview isolation
+  (`INTENTIONAL_OFF_SAFE`, fail-closed), Umami dashboard receipt/blackout
+  alert, Sentry dashboard/alert acknowledgement, real-inbox/forwarded-inbox
+  magic-link click legs (provider-level delivery receipts stand), CAA/DNSSEC
+  (hardening-tier, not provider-required).
+
+```text
+REVORA TECHNICAL SERVICE-INTEGRATIONS RELEASE DECISION: GO
+```
