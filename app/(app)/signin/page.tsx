@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { AUTH_EMAIL_AVAILABLE, signIn } from "../../../auth";
+import { magicLinkSendFailed } from "../../../lib/revora/magic-link-outcome";
 import { ReviewerSigninForm } from "../../../components/reviewer-signin-form";
 
 export const metadata = { title: "Sign in — Revora" };
@@ -14,9 +15,9 @@ const REVIEWER_MODE = process.env.NEXT_PUBLIC_REVIEWER_MODE === "1";
 export default async function SignInPage({
   searchParams
 }: {
-  searchParams: Promise<{ callbackUrl?: string }>;
+  searchParams: Promise<{ callbackUrl?: string; error?: string }>;
 }) {
-  const { callbackUrl } = await searchParams;
+  const { callbackUrl, error } = await searchParams;
   // Relative, single-slash paths only — never an open redirect.
   const redirectTo =
     callbackUrl?.startsWith("/") && !callbackUrl.startsWith("//")
@@ -33,6 +34,12 @@ export default async function SignInPage({
             it and you&apos;re in. An account keeps your history and coach in
             sync across your devices.
           </p>
+          {error ? (
+            <p className="request-status" role="alert">
+              We couldn&apos;t send your sign-in link just now. Please try
+              again in a minute.
+            </p>
+          ) : null}
           {AUTH_EMAIL_AVAILABLE ? (
             <form
               className="form-grid"
@@ -45,11 +52,19 @@ export default async function SignInPage({
                   raw.startsWith("/") && !raw.startsWith("//")
                     ? raw
                     : "/welcome";
-                await signIn("resend", {
+                const result = await signIn("resend", {
                   email: String(formData.get("email") ?? ""),
                   redirect: false,
                   redirectTo: target
                 });
+                // A failed send resolves (it does not throw) as an error URL.
+                // Claiming "check your email" on that path strands the user
+                // and hides provider misconfiguration — surface it instead.
+                if (magicLinkSendFailed(result)) {
+                  redirect(
+                    `/signin?error=send_failed&callbackUrl=${encodeURIComponent(target)}`
+                  );
+                }
                 redirect("/signin/check-email");
               }}
             >
