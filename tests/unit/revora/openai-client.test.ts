@@ -246,6 +246,22 @@ describe("createOpenAIRevoraModelClient", () => {
     ).toThrow(RevoraModelConfigurationError);
   });
 
+  it("rejects any base URL when VERCEL_ENV is production, whatever NODE_ENV says", () => {
+    // Vercel production is classified by VERCEL_ENV, not NODE_ENV — this is
+    // the exact combination the deployed platform presents.
+    expect(() =>
+      createOpenAIRevoraModelClient({
+        apiKey: "k",
+        env: {
+          VERCEL_ENV: "production",
+          NODE_ENV: "test",
+          OPENAI_BASE_URL: "https://openrouter.ai/api/v1",
+          REVORA_MODEL: "openai/gpt-5.4-mini"
+        }
+      })
+    ).toThrow(RevoraModelConfigurationError);
+  });
+
   it("rejects provider-prefixed model ids on direct OpenAI", () => {
     expect(() =>
       createOpenAIRevoraModelClient({
