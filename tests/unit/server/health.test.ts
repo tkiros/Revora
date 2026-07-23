@@ -33,6 +33,7 @@ beforeEach(async () => {
     OPENAI_API_KEY: "sk-preview-test",
     RESEND_API_KEY: "re_test",
     RESEND_WEBHOOK_SECRET: "whsec_test",
+    STRIPE_WEBHOOK_SECRET: "whsec_billing_test",
     AUTH_SECRET: "auth-test",
     UPSTASH_REDIS_REST_URL: "https://fake.upstash.io",
     UPSTASH_REDIS_REST_TOKEN: "upstash-test",
@@ -127,6 +128,30 @@ describe("createHealthHandler — db + cron probes (P7)", () => {
       pantrySweep: "ok",
       stripeReconcile: "ok",
     });
+  });
+
+  it("degrades when the Stripe webhook signing secret is missing (money path down)", async () => {
+    delete process.env.STRIPE_WEBHOOK_SECRET;
+    await testDb.db.insert(schema.cronHeartbeat).values([
+      { name: "nudge", lastRunAt: new Date(NOW.getTime() - 30 * 60 * 1000) },
+      { name: "bai-weekly", lastRunAt: new Date(NOW.getTime() - 60 * 60 * 1000) },
+      { name: "trial-precharge", lastRunAt: new Date(NOW.getTime() - 30 * 60 * 1000) },
+      { name: "pantry-sweep", lastRunAt: new Date(NOW.getTime() - 30 * 60 * 1000) },
+      { name: "stripe-reconcile", lastRunAt: new Date(NOW.getTime() - 30 * 60 * 1000) },
+    ]);
+
+    const createHealthHandler = await importHandler();
+    const GET = createHealthHandler({ db: () => testDb.db, now: () => NOW });
+
+    const response = await GET();
+    const payload = await response.json();
+
+    // The webhook handler fails closed (503) without its secret, which
+    // silently stops entitlement minting — readiness must say so.
+    expect(response.status).toBe(503);
+    expect(payload.ok).toBe(false);
+    expect(payload.issues).toEqual(["billing_webhook_unconfigured"]);
+    expect(payload.billingWebhook).toBe("unconfigured");
   });
 
   it("reports crons:stale past each job's own staleness window", async () => {

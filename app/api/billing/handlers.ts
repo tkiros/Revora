@@ -737,7 +737,18 @@ export function createStripeWebhookHandler(deps: BillingDeps = {}) {
   return async function POST(request: Request) {
     const payload = await request.text();
     const signature = request.headers.get("stripe-signature") ?? "";
-    const secret = process.env.STRIPE_WEBHOOK_SECRET ?? "";
+
+    // Fail CLOSED on a missing secret, mirroring the Resend webhook. An empty
+    // secret is not "no verification": stripe-node would HMAC under the empty
+    // (public) key, so any caller could forge a passing signature and mint or
+    // revoke entitlements. 503 keeps Stripe retrying until config is fixed.
+    const secret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
+    if (!secret) {
+      return NextResponse.json(
+        { error: "Webhook is not configured." },
+        { status: 503 }
+      );
+    }
 
     let event: Stripe.Event;
     try {

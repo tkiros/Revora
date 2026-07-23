@@ -196,6 +196,29 @@ describe("webhook handler — retry-honest HTTP status", () => {
     });
   }
 
+  beforeEach(() => {
+    process.env.STRIPE_WEBHOOK_SECRET = "whsec_unit_test_secret";
+  });
+
+  it("503s (fail closed) when the signing secret is missing — never verifies under an empty key", async () => {
+    delete process.env.STRIPE_WEBHOOK_SECRET;
+    const constructEventAsync = vi.fn();
+    const GET = createStripeWebhookHandler({
+      db: () => testDb.db,
+      stripeClient: () =>
+        ({ webhooks: { constructEventAsync } }) as unknown as Stripe,
+      now: () => NOW
+    });
+
+    const response = await GET(webhookRequest());
+
+    // Old behavior passed secret="" to stripe-node, which happily HMACs under
+    // the empty (public) key — a forgeable signature that could mint premium.
+    expect(response.status).toBe(503);
+    expect(constructEventAsync).not.toHaveBeenCalled();
+    expect(await testDb.db.select().from(schema.billingEventInbox)).toHaveLength(0);
+  });
+
   it("200 on first process, 200 duplicate on redelivery, 500 on reducer failure", async () => {
     const event = evt("customer.subscription.updated", { id: "sub_wh" }, 100, "evt_wh_ok");
     const okStripe = () =>

@@ -32,6 +32,7 @@ type ReadinessIssue =
   | "database_unavailable"
   | "database_unconfigured"
   | "email_delivery_unavailable"
+  | "billing_webhook_unconfigured"
   | "rate_limit_unavailable"
   | `cron_${keyof CronsProbe}_${Exclude<CronProbeStatus, "ok" | "unknown">}`;
 
@@ -59,6 +60,7 @@ export function createHealthHandler(deps: HealthDeps = {}) {
   return async function GET() {
     const { db, crons } = await probeDbAndCrons(dbAccessor, now());
     const emailDelivery = emailDeliveryConfigState();
+    const billingWebhook = billingWebhookConfigState();
 
     let environment: "preview" | "production" | "development" | "test";
 
@@ -79,6 +81,7 @@ export function createHealthHandler(deps: HealthDeps = {}) {
           launchMode: "normal",
           upstash: rateLimitConfigState(),
           emailDelivery,
+          billingWebhook,
           db,
           crons,
         },
@@ -96,6 +99,7 @@ export function createHealthHandler(deps: HealthDeps = {}) {
       environment,
       upstash,
       emailDelivery,
+      billingWebhook,
       db,
       crons,
     });
@@ -117,6 +121,7 @@ export function createHealthHandler(deps: HealthDeps = {}) {
         // so a ping failure isn't app-fatal and doesn't belong in a hot probe.
         upstash,
         emailDelivery,
+        billingWebhook,
         // W-04 gate state, boolean-only (G8): checkout now 401s unauthenticated
         // before the legal gate runs, so an external probe can no longer tell
         // whether LEGAL_TERMS_FINAL is set. Same predicate as checkoutGate() in
@@ -141,6 +146,7 @@ function readinessIssues(input: {
   environment: "preview" | "production" | "development" | "test";
   upstash: ReturnType<typeof rateLimitConfigState>;
   emailDelivery: "configured" | "unconfigured";
+  billingWebhook: "configured" | "unconfigured";
   db: DbProbeStatus;
   crons: CronsProbe;
 }): ReadinessIssue[] {
@@ -172,6 +178,12 @@ function readinessIssues(input: {
   ) {
     issues.push("email_delivery_unavailable");
   }
+  if (
+    (input.environment === "production" || input.environment === "preview") &&
+    input.billingWebhook !== "configured"
+  ) {
+    issues.push("billing_webhook_unconfigured");
+  }
 
   return issues;
 }
@@ -180,6 +192,15 @@ function emailDeliveryConfigState(): "configured" | "unconfigured" {
   return process.env.RESEND_API_KEY?.trim() &&
     process.env.RESEND_WEBHOOK_SECRET?.trim() &&
     process.env.AUTH_SECRET?.trim()
+    ? "configured"
+    : "unconfigured";
+}
+
+// The Stripe webhook handler fails CLOSED (503) without its signing secret,
+// which silently stops entitlement minting — readiness must surface that the
+// money path is down, exactly like email delivery above.
+function billingWebhookConfigState(): "configured" | "unconfigured" {
+  return process.env.STRIPE_WEBHOOK_SECRET?.trim()
     ? "configured"
     : "unconfigured";
 }
