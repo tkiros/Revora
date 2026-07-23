@@ -22,4 +22,20 @@ describe("authoritative provider documentation", () => {
       );
     },
   );
+
+  it("names only the dedicated private Pantry Blob credential in operator templates", () => {
+    const envExample = readFileSync(
+      resolve(process.cwd(), ".env.example"),
+      "utf8",
+    );
+    const humanActions = readFileSync(
+      resolve(process.cwd(), "docs/handoff/human-actions-required.md"),
+      "utf8",
+    );
+
+    expect(envExample).toContain("PANTRY_BLOB_READ_WRITE_TOKEN=");
+    expect(envExample).not.toMatch(/^BLOB_READ_WRITE_TOKEN=/m);
+    expect(humanActions).toContain("PANTRY_BLOB_READ_WRITE_TOKEN");
+    expect(humanActions).toContain("dedicated private Vercel Blob store");
+  });
 });
