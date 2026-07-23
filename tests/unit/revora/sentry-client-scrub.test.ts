@@ -111,6 +111,24 @@ describe("browser Sentry init contract", () => {
     expect(opts.tracesSampleRate).toBe(0);
   });
 
+  it("uses the build-injected exact release when present", () => {
+    const previousRelease = process.env.NEXT_PUBLIC_SENTRY_RELEASE;
+    process.env.NEXT_PUBLIC_SENTRY_RELEASE =
+      "80ea9fb93bb015084963aa707298c58c6355eeb7";
+
+    try {
+      expect(clientSentryOptions("https://x@example.test/1").release).toBe(
+        "80ea9fb93bb015084963aa707298c58c6355eeb7"
+      );
+    } finally {
+      if (previousRelease === undefined) {
+        delete process.env.NEXT_PUBLIC_SENTRY_RELEASE;
+      } else {
+        process.env.NEXT_PUBLIC_SENTRY_RELEASE = previousRelease;
+      }
+    }
+  });
+
   it("routes every event through the same scrubber the server uses", () => {
     expect(clientSentryOptions(undefined).beforeSend).toBe(scrubSentryEvent);
   });

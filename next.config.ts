@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+import { resolveSentryRelease } from "./lib/revora/sentry-release";
+
 // P0.3: a production deploy without measurement is a silent analytics outage —
 // the funnel reads as zero and nobody notices. Fail the BUILD when production
 // is missing the analytics env, unless the owner explicitly waives it
@@ -55,6 +57,17 @@ const nextConfig: NextConfig = {
   // directories, then starts both optimized servers together. Normal builds
   // leave NEXT_DIST_DIR unset and continue to use Next's default `.next`.
   distDir: process.env.NEXT_DIST_DIR || ".next",
+  // The browser SDK cannot read server-only system variables. Vercel exposes
+  // the exact Git SHA at build time, so deliberately inline that public,
+  // non-secret identifier and keep browser/server events on the same release.
+  env: {
+    NEXT_PUBLIC_SENTRY_RELEASE:
+      resolveSentryRelease(
+        process.env.VERCEL_GIT_COMMIT_SHA,
+        process.env.SENTRY_RELEASE,
+        process.env.NEXT_PUBLIC_SENTRY_RELEASE
+      ) ?? ""
+  },
   // C7 four-jobs restructure (2026-07-21): old bookmarks and deep links keep
   // working. /memory folded into /meals as its "Saved meals" section.
   redirects: async () => [

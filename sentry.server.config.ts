@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/node";
 
 import { scrubSentryEvent } from "./lib/revora/sentry-scrub";
+import { resolveSentryRelease } from "./lib/revora/sentry-release";
 
 /**
  * Server-only Sentry init. Loaded from instrumentation.ts on the Node runtime
@@ -16,6 +17,10 @@ import { scrubSentryEvent } from "./lib/revora/sentry-scrub";
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
   environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV,
+  release: resolveSentryRelease(
+    process.env.VERCEL_GIT_COMMIT_SHA,
+    process.env.SENTRY_RELEASE
+  ),
   tracesSampleRate: 0, // errors only — no perf spans/transactions
   sendDefaultPii: false, // never attach IP / user
   defaultIntegrations: false, // allowlist: dangerous integrations never load
