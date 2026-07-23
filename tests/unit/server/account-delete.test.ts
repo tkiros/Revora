@@ -236,7 +236,7 @@ describe("POST /api/account/delete", () => {
     expect((rows.rows[0] as { n: number }).n).toBe(0);
   });
 
-  it("deletes the account even if the Blob API is down (the user asked)", async () => {
+  it("returns 503 and preserves the account and photo pointer if Blob is down", async () => {
     const user = await seedFullUser("delete-blob-down@test.dev");
     const [order] = await testDb.db
       .insert(schema.pantryOrders)
@@ -261,11 +261,15 @@ describe("POST /api/account/delete", () => {
       deleteBlobs: vi.fn().mockRejectedValue(new Error("blob api down"))
     });
 
-    expect((await POST()).status).toBe(200);
+    expect((await POST()).status).toBe(503);
 
-    const rows = await testDb.raw.query(
+    const users = await testDb.raw.query(
       `SELECT count(*)::int AS n FROM users WHERE id = '${user.id}'`
     );
-    expect((rows.rows[0] as { n: number }).n).toBe(0);
+    expect((users.rows[0] as { n: number }).n).toBe(1);
+    const photos = await testDb.raw.query(
+      `SELECT count(*)::int AS n FROM pantry_photos WHERE order_id = '${order.id}'`
+    );
+    expect((photos.rows[0] as { n: number }).n).toBe(1);
   });
 });

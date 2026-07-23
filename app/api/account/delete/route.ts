@@ -110,9 +110,20 @@ export function createAccountDeleteHandler(deps: DeleteDeps = {}) {
     // pointer to a live Blob object, and `DELETE users` cascades those rows
     // away — after that the photos are unreachable and undeletable forever,
     // which is exactly the "we keep nothing" promise this route exists to keep.
-    // Failure is captured, never thrown: the user asked to be deleted and a
-    // Blob outage must not block that.
-    await deleteUserBlobs(db(), session.userId, deleteBlobs);
+    // A failed provider delete must stop the cascade. Otherwise the only URL
+    // pointer disappears and no retry or reaper can identify the object.
+    try {
+      await deleteUserBlobs(db(), session.userId, deleteBlobs);
+    } catch (error) {
+      await captureServerError(error, "route");
+      return NextResponse.json(
+        {
+          error:
+            "Stored-photo deletion could not be confirmed. Your account is unchanged; please try again."
+        },
+        { status: 503 }
+      );
+    }
 
     // One delete; profiles/checks/subscriptions/push/sessions/pantry cascade.
     await db().delete(schema.users).where(eq(schema.users.id, session.userId));

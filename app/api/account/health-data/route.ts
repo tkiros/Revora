@@ -7,6 +7,7 @@ import {
   type BlobDeleter
 } from "../../../../lib/server/blob";
 import { getDb, schema, type Db } from "../../../../lib/server/db";
+import { captureServerError } from "../../../../lib/revora/sentry-capture";
 import {
   getSessionInfo,
   type SessionInfo
@@ -40,11 +41,22 @@ export function createHealthDataDeleteHandler(
 
     const userId = session.userId;
 
-    // Blob deletion is external and best-effort, so it stays OUTSIDE the
-    // transaction, and must precede the order cascade: `pantry_photos.blob_url`
-    // is the only pointer to each live object. A Blob failure does not block
-    // consent withdrawal, matching full-account deletion behavior.
-    await deleteUserBlobs(db(), userId, deleteBlobs);
+    // Blob deletion stays OUTSIDE the transaction and must precede the order
+    // cascade: `pantry_photos.blob_url` is the only pointer to each object.
+    // Fail closed so a provider outage cannot turn a live object into an
+    // untraceable orphan.
+    try {
+      await deleteUserBlobs(db(), userId, deleteBlobs);
+    } catch (error) {
+      await captureServerError(error, "route");
+      return NextResponse.json(
+        {
+          error:
+            "Stored-photo deletion could not be confirmed. Your health data is unchanged; please try again."
+        },
+        { status: 503 }
+      );
+    }
 
     // E5: every health-row delete runs in ONE transaction, so a crash
     // mid-withdrawal can never leave a half-erased account, and a concurrent

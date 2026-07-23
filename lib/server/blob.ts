@@ -162,16 +162,9 @@ export async function deleteUserBlobs(
   }
 
   // Unlike deleteOrderBlobs we do not mark rows — the caller is about to delete
-  // them anyway. But we must NOT swallow a failure silently: if the blob API is
-  // down we still delete the account (the user asked), and we surface the
-  // orphan loudly — this is the one path with no retry, because the pointer
-  // dies with the cascade.
-  try {
-    await deleteBlobs(urls);
-  } catch (error) {
-    await captureServerError(error, "route");
-    return 0;
-  }
+  // them anyway. A provider failure MUST propagate so the caller can stop the
+  // cascade. That leaves every URL in the database for a safe retry.
+  await deleteBlobs(urls);
 
   return urls.length;
 }
