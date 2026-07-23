@@ -1,7 +1,12 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { createAccountDeleteHandler } from "../../../app/api/account/delete/route";
+import Stripe from "stripe";
+
+import {
+  createAccountDeleteHandler,
+  defaultCancelStripe
+} from "../../../app/api/account/delete/route";
 import { encryptField } from "../../../lib/server/crypto";
 import { schema } from "../../../lib/server/db";
 import { createTestDb } from "../../helpers/test-db";
@@ -271,5 +276,41 @@ describe("POST /api/account/delete", () => {
       `SELECT count(*)::int AS n FROM pantry_photos WHERE order_id = '${order.id}'`
     );
     expect((photos.rows[0] as { n: number }).n).toBe(1);
+  });
+});
+
+describe("defaultCancelStripe retry semantics", () => {
+  const invalidRequest = () =>
+    new Stripe.errors.StripeInvalidRequestError({
+      type: "invalid_request_error",
+      message: "A canceled subscription can only update its cancellation_details."
+    });
+
+  beforeAll(() => {
+    process.env.STRIPE_SECRET_KEY = "sk_test_account_delete_unit";
+  });
+
+  it("treats cancel-of-already-canceled as success (retry after partial failure)", async () => {
+    const client = {
+      subscriptions: {
+        cancel: vi.fn().mockRejectedValue(invalidRequest()),
+        retrieve: vi.fn().mockResolvedValue({ status: "canceled" })
+      }
+    } as unknown as Pick<Stripe, "subscriptions">;
+
+    // Old behavior: only resource_missing was swallowed, so the retry after a
+    // cancel-succeeded-then-blob-failed 503 was stuck on this error forever.
+    await expect(defaultCancelStripe("sub_retry", client)).resolves.toBeUndefined();
+  });
+
+  it("still fails closed when the subscription is NOT actually canceled", async () => {
+    const client = {
+      subscriptions: {
+        cancel: vi.fn().mockRejectedValue(invalidRequest()),
+        retrieve: vi.fn().mockResolvedValue({ status: "active" })
+      }
+    } as unknown as Pick<Stripe, "subscriptions">;
+
+    await expect(defaultCancelStripe("sub_live", client)).rejects.toThrow();
   });
 });

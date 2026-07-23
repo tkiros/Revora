@@ -34,19 +34,32 @@ type DeleteDeps = {
   now?: () => Date;
 };
 
-async function defaultCancelStripe(subscriptionId: string): Promise<void> {
+export async function defaultCancelStripe(
+  subscriptionId: string,
+  client?: Pick<Stripe, "subscriptions">
+): Promise<void> {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) {
     throw new Error("Stripe cancellation is not configured.");
   }
+  const stripe = client ?? new Stripe(key);
   try {
-    await new Stripe(key).subscriptions.cancel(subscriptionId);
+    await stripe.subscriptions.cancel(subscriptionId);
   } catch (error) {
-    if (
-      error instanceof Stripe.errors.StripeInvalidRequestError &&
-      error.code === "resource_missing"
-    ) {
-      return;
+    if (error instanceof Stripe.errors.StripeInvalidRequestError) {
+      if (error.code === "resource_missing") {
+        return;
+      }
+      // Retry after a partial failure: the first attempt already canceled the
+      // provider subscription, but the local row stays active/trialing until
+      // the deleted-webhook lands, so this route cancels again and Stripe
+      // rejects the second cancel. Already-canceled is the goal state — we
+      // confirm it by reading the subscription instead of pattern-matching
+      // Stripe's message; any other invalid-request error still fails closed.
+      const current = await stripe.subscriptions.retrieve(subscriptionId);
+      if (current.status === "canceled") {
+        return;
+      }
     }
     throw error;
   }
