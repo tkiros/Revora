@@ -31,6 +31,10 @@ export default [
   {
     ignores: [
       ".next/**",
+      // Playwright uses isolated Next dist dirs (for example
+      // `.next-e2e-trial`) so parallel projects cannot corrupt each other's
+      // chunks. They are generated output just like `.next`, never source.
+      ".next-*/**",
       "node_modules/**",
       "coverage/**",
       "playwright-report/**",
