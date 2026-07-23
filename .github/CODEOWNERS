@@ -1,0 +1,5 @@
+/.github/ @tkiros
+/drizzle/ @tkiros
+/lib/server/db/ @tkiros
+/app/api/billing/ @tkiros
+/app/api/webhooks/ @tkiros
