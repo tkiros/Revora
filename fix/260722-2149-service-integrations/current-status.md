@@ -59,6 +59,10 @@ truth. A green item in one bucket does not imply a green item in another.
 - H31/H32 + Sentry ack: owner-declined paid/ack legs — recorded as deliberate waivers; Upstash preview stays INTENTIONAL_OFF_SAFE.
 - Scheduler observation window COMPLETE (13:00–16:00, 4× completed=4 failed=0).
 
-## Sole open blocker
+## Resend key regression — RESOLVED
 
-- **REGRESSION_OPEN: production Resend API key invalid (http_401 on live probe; workstation key also rejected).** Auth email cannot send until the owner mints a new key and RESEND_API_KEY is rebound (Vercel production + preview). Everything else within accepted scope is proven.
+- New owner-minted key verified against the Resend API; domain sending posture verified at Resend (DKIM + SPF TXT + Return-Path MX); RESEND_API_KEY rebound in Vercel production + preview (the production slot still held the 18-day-old dead key); production redeployed; live probe delivered on first poll (`delivered` row + provider message id).
+
+## Decision
+
+GO — see the closeout report addendum for the exact proof set and the owner-waived legs (Upstash preview, Umami/Sentry dashboard+ack, inbox click legs, CAA/DNSSEC).

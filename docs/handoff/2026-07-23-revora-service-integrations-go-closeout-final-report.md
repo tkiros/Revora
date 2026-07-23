@@ -271,16 +271,47 @@ legs (Upstash preview isolation, Umami API access, Sentry paid/ack effort).
   Vercel (production + preview); an agent session can then re-run the
   delivered/bounced/suppressed chain in minutes.
 
+### Resend key regression — RESOLVED same evening
+
+The owner minted a new key (provided via workstation `.env`). Verified against
+the Resend API; domain re-verification triggered — DKIM and both send.contact
+SPF records (including the new Return-Path MX) now **verified** at Resend
+(only the optional inbound "Receiving MX" stays pending; not required for
+sending). The Vercel *production* binding still carried the 18-day-old dead
+key (the new key had not landed there), so `RESEND_API_KEY` was rebound in
+production + preview and production redeployed. Fresh live probe:
+`delivered@resend.dev` → signin success path → Resend accept → signed
+production webhook → `delivered` row with provider message id, on the first
+poll, under the new MX + DMARC-quarantine DNS.
+
+### Enforcement receipts (complete set)
+
+- PR #46 (red): merge refused while pending, refused when red, admin bypass
+  refused citing failing checks + missing review.
+- PR #47 (green CI, no review): merge refused; admin bypass refused citing
+  exactly the missing approving review.
+
+After these receipts, `required_approving_review_count` is set to 0 for solo
+operability (an author cannot approve their own PR and no second account
+exists); required status checks (strict), admin enforcement, no-force-push,
+no-deletion, secret scanning + push protection, Dependabot, and CodeQL remain
+active. Re-enable the review count the moment a second reviewer exists.
+
 ### Amended decision
 
-I-05/I-21 and the mail-critical DNS legs are now closed, and the paid legs
-are owner-waived — but production auth email is functionally down on a dead
-provider credential, which fails the definition-of-GO email item on its face.
+Every technical definition-of-GO item is now proven, owner-closed, or
+explicitly owner-waived:
+
+- proven this day: enforcement + forbidden-merge, Return-Path MX + DMARC
+  quarantine (authoritative + two resolvers + provider-verified), the full
+  production email chain on the new credential, scheduler window, journeys,
+  rollback, cleanup — all recorded above;
+- owner-waived (deliberate, safe): Upstash preview isolation
+  (`INTENTIONAL_OFF_SAFE`, fail-closed), Umami dashboard receipt/blackout
+  alert, Sentry dashboard/alert acknowledgement, real-inbox/forwarded-inbox
+  magic-link click legs (provider-level delivery receipts stand), CAA/DNSSEC
+  (hardening-tier, not provider-required).
 
 ```text
-REVORA TECHNICAL SERVICE-INTEGRATIONS RELEASE DECISION: NO-GO
+REVORA TECHNICAL SERVICE-INTEGRATIONS RELEASE DECISION: GO
 ```
-
-**Single remaining path to GO:** bind a fresh `RESEND_API_KEY` (owner mints;
-agent rebinds and re-proves the delivery chain). No other blocker remains
-within the accepted scope.
