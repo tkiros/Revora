@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { AUTH_EMAIL_AVAILABLE, signIn } from "../../../auth";
 import { ReviewerSigninForm } from "../../../components/reviewer-signin-form";
@@ -46,8 +47,10 @@ export default async function SignInPage({
                     : "/welcome";
                 await signIn("resend", {
                   email: String(formData.get("email") ?? ""),
+                  redirect: false,
                   redirectTo: target
                 });
+                redirect("/signin/check-email");
               }}
             >
               <input type="hidden" name="callbackUrl" value={redirectTo} />
