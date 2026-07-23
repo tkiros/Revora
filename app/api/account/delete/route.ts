@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
@@ -10,6 +10,7 @@ import {
   type BlobDeleter
 } from "../../../../lib/server/blob";
 import { getDb, schema, type Db } from "../../../../lib/server/db";
+import { captureServerError } from "../../../../lib/revora/sentry-capture";
 import {
   getSessionInfo,
   type SessionInfo
@@ -18,8 +19,8 @@ import {
 export const runtime = "nodejs";
 
 /**
- * Account + data deletion (plan 4E). Cancels provider subscriptions
- * best-effort, deletes the user's pantry photos from Blob, deletes the user
+ * Account + data deletion (plan 4E). Confirms that charge-capable provider
+ * subscriptions are canceled, deletes the user's pantry photos from Blob, deletes the user
  * row (every user-linked table cascades), writes an identity-free audit row,
  * and ends the session (DB sessions cascade with the user). Declared publicly
  * at /account/delete.
@@ -36,9 +37,19 @@ type DeleteDeps = {
 async function defaultCancelStripe(subscriptionId: string): Promise<void> {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) {
-    return;
+    throw new Error("Stripe cancellation is not configured.");
   }
-  await new Stripe(key).subscriptions.cancel(subscriptionId);
+  try {
+    await new Stripe(key).subscriptions.cancel(subscriptionId);
+  } catch (error) {
+    if (
+      error instanceof Stripe.errors.StripeInvalidRequestError &&
+      error.code === "resource_missing"
+    ) {
+      return;
+    }
+    throw error;
+  }
 }
 
 export function createAccountDeleteHandler(deps: DeleteDeps = {}) {
@@ -56,20 +67,41 @@ export function createAccountDeleteHandler(deps: DeleteDeps = {}) {
 
     const requestedAt = now();
 
-    // Best-effort provider cancellation — deletion must not depend on a
-    // provider being reachable. (Play subscriptions cancel via the Play app;
-    // the store owns that relationship.)
+    // Never destroy the only local billing pointer until the provider confirms
+    // that a charge-capable subscription can no longer renew.
     const subscriptions = await db()
       .select()
       .from(schema.subscriptions)
-      .where(eq(schema.subscriptions.userId, session.userId));
+      .where(
+        and(
+          eq(schema.subscriptions.userId, session.userId),
+          inArray(schema.subscriptions.status, ["active", "trialing", "grace"])
+        )
+      );
+
+    if (subscriptions.some((subscription) => subscription.provider === "play")) {
+      return NextResponse.json(
+        {
+          error:
+            "Cancel your Google Play subscription first, then delete your account."
+        },
+        { status: 409 }
+      );
+    }
 
     for (const subscription of subscriptions) {
       if (subscription.provider === "stripe") {
         try {
           await cancelStripe(subscription.providerRef);
-        } catch {
-          // best-effort only
+        } catch (error) {
+          await captureServerError(error, "route");
+          return NextResponse.json(
+            {
+              error:
+                "Billing cancellation could not be confirmed. Your account is unchanged; please try again."
+            },
+            { status: 503 }
+          );
         }
       }
     }
