@@ -264,7 +264,7 @@ describe("createOpenAIRevoraModelClient", () => {
       captured.push(opts);
       return { responses: { create: async () => ({ output_text: "{}" }) } };
     } as unknown as typeof import("openai").default;
-    const env = {
+    const env: NodeJS.ProcessEnv = {
       VERCEL_ENV: "preview",
       NODE_ENV: "production",
       OPENAI_BASE_URL: "https://openrouter.ai/api/v1",

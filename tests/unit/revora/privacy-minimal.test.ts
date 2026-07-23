@@ -4,6 +4,9 @@ import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import { createCheckRouteHandler } from "../../../app/api/check/route";
+import { buildRetryResponse } from "../../../lib/revora/fallback";
+import { loadSafetyContract } from "../../../lib/revora/safety-contract";
+import { checkFood } from "../../../lib/revora/service";
 
 const DISCLAIMER =
   "Revora is informational only and is not medical advice. Talk with a doctor or registered dietitian for guidance that is specific to you.";
@@ -183,7 +186,6 @@ describe("privacy-minimal audit", () => {
     expect(emitEvent).toHaveBeenCalledWith({
       name: "check_failed",
       environment: "test",
-      responseKind: "retry",
       reasonCode: "provider_error",
       latencyBucket: "5-12s",
       durationMs: expect.any(Number),
@@ -192,5 +194,38 @@ describe("privacy-minimal audit", () => {
       promptVersion: expect.any(String),
       contractVersion: expect.any(String)
     });
+  });
+
+  it("records a swallowed model fallback as failure, never completion", async () => {
+    const emitEvent = vi.fn();
+    const modelError = Object.assign(new Error("provider failed"), {
+      status: 503
+    });
+    const checkFoodImpl: typeof checkFood = async (_request, deps) => {
+      deps.onModelError?.(modelError);
+      return buildRetryResponse(loadSafetyContract());
+    };
+    const POST = createCheckRouteHandler({
+      checkFoodImpl,
+      emitEvent,
+      modelFactory: () => ({ generate: vi.fn() }),
+      now: vi.fn().mockReturnValueOnce(1_000).mockReturnValueOnce(1_439)
+    });
+
+    const response = await POST(
+      createRequest({ food: "synthetic meal", a1c: 6.1 })
+    );
+
+    await expect(response.json()).resolves.toMatchObject({ kind: "retry" });
+    expect(emitEvent).toHaveBeenCalledOnce();
+    expect(emitEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "check_failed",
+        responseKind: "retry",
+        reasonCode: "provider_error",
+        durationMs: 439,
+        modelProvider: "openai"
+      })
+    );
   });
 });
