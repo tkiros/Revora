@@ -41,6 +41,9 @@ edge-adjacent request handling and preview-deploy workflow depend on it.
   pressure, put **PgBouncer** (or Railway's own pooling add-on) in front of
   the database and point `DATABASE_URL` at the pooler instead of raising
   `max`.
+- Credential split: Vercel receives a DML-only `DATABASE_URL`; schema changes
+  use an operator-only `DATABASE_MIGRATION_URL`. Production migration tooling
+  rejects missing or same-role credentials (`docs/runbooks/database-governance.md`).
 - TLS: enabled for every host except `localhost`/`127.0.0.1` (local dev
   Postgres typically has no cert to offer; Railway requires TLS on its
   public TCP endpoint).

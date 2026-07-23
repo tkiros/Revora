@@ -11,7 +11,10 @@ Every variable, per phase. Provision in Vercel for **preview + production**
 | `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | existing | rate limit; prod instance |
 | `SENTRY_DSN` | existing/P7 | server-only capture |
 | `EDGE_CONFIG` | existing | launch-controls kill switch |
-| `DATABASE_URL` | 4A | **Railway Postgres** URL (`docs/adr/hosting-hybrid.md`) — plain TCP, human-provisioned; the app connects via `pg`/`drizzle-orm/node-postgres` with a small per-instance pool (`max: 3`) |
+| `DATABASE_URL` | 4A | **Restricted runtime-role** Railway Postgres URL (`docs/adr/hosting-hybrid.md`) — DML on app tables, no database/schema `CREATE`; the app connects via `pg`/`drizzle-orm/node-postgres` with a bounded per-instance pool (default `max: 3`) |
+| `DATABASE_POOL_MAX` | I-15 | Optional per-instance pool cap, integer `1..10`, default `3`. Do not raise it to hide provider connection pressure; follow `docs/runbooks/database-governance.md` |
+| `DATABASE_MIGRATION_URL` | I-15 / operator CLI only | Railway owner/migrator URL used by Drizzle. Never bind it to Vercel runtime. `REVORA_DB_ENV=production` requires this URL, requires `DATABASE_URL`, and rejects identical usernames |
+| `REVORA_DB_ENV` | I-15 / operator CLI only | Set to exact `production` only for the protected production migration command. Do not set in Vercel; it exists to make `npm run db:migrate:production` fail closed on missing/undivided roles |
 | ⚙ `AUTH_SECRET` | 4A | Auth.js session/token signing |
 | ⚙ `HEALTH_DATA_KEY` | 4A | **exactly 32 bytes base64** — AES-256-GCM key for A1C + food text. Losing it orphans all ciphertext; store it like a root credential. **Never replace it in isolation** — rotation has a procedure: `docs/runbooks/health-key-rotation.md` (PR-2) |
 | `HEALTH_DATA_KEY_VERSION` | PR-2 | Integer stamped into new ciphertext payloads (`v<n>:` prefix). Default `1`. Bump only as part of the rotation runbook |
@@ -63,12 +66,15 @@ openssl rand -base64 32   # → HEALTH_DATA_KEY
 npx web-push generate-vapid-keys   # → VAPID_*
 ```
 
-Migrations: `DATABASE_URL=<railway-url> npx drizzle-kit migrate` (run per
-Railway Postgres environment: dev → preview → prod). The canonical production
+Migrations: use `DATABASE_MIGRATION_URL` for schema ownership and keep
+`DATABASE_URL` on the restricted app role. For production run
+`REVORA_DB_ENV=production DATABASE_URL=<runtime-url> DATABASE_MIGRATION_URL=<owner-url> npm run db:migrate:production`, then
+`npm run db:governance:check` (run per Railway Postgres environment: dev →
+preview → prod). The canonical production
 database is the Railway service named `Postgres` (the `Postgres-D2oG` /
 `Postgres-FOMu` services are empty orphans — never migrate those). The
 production journal was baselined 2026-07-19 (`drizzle.__drizzle_migrations`
 seeded 0000–0012); if a database was ever schema-pushed by hand instead of
 migrated, re-baseline with
-`DATABASE_URL=<url> node scripts/baseline-drizzle-journal.mjs` (dry-run flag
+`DATABASE_MIGRATION_URL=<url> node scripts/baseline-drizzle-journal.mjs` (dry-run flag
 available) before trusting `drizzle-kit migrate`.

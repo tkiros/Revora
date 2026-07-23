@@ -9,7 +9,7 @@
 // schema is actually current; a wrongly baselined DB will silently skip the
 // migrations it is missing.
 //
-// Usage: DATABASE_URL=<url> node scripts/baseline-drizzle-journal.mjs [--dry-run]
+// Usage: DATABASE_MIGRATION_URL=<owner-url> node scripts/baseline-drizzle-journal.mjs [--dry-run]
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import pg from 'pg';
@@ -21,8 +21,8 @@ if (unknown.length > 0) {
   process.exit(1);
 }
 const dry = args.includes('--dry-run');
-const url = process.env.DATABASE_URL;
-if (!url) { console.error('DATABASE_URL required'); process.exit(1); }
+const url = process.env.DATABASE_MIGRATION_URL;
+if (!url) { console.error('DATABASE_MIGRATION_URL required'); process.exit(1); }
 
 const journal = JSON.parse(readFileSync('drizzle/meta/_journal.json', 'utf8'));
 const client = new pg.Client({ connectionString: url });
