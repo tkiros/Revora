@@ -168,21 +168,27 @@ jobs:
       # PR with more than 30 commits its default range silently stops early.
       # The action installs the pinned binary; this second scan derives the
       # complete first-parent range from Git itself and therefore covers every
-      # non-merge commit in the PR.
+      # non-merge commit in the PR. Pull-request workflows check out GitHub's
+      # synthetic merge commit by default, so the range must end at the real PR
+      # head SHA rather than HEAD.
       - name: scan complete pull-request commit range
         if: github.event_name == 'pull_request'
         shell: bash
+        env:
+          PR_BASE_REF: ${{ github.base_ref }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          scan_base="$(git merge-base "origin/${GITHUB_BASE_REF}" HEAD)"
-          scan_count="$(git rev-list --count --no-merges --first-parent "${scan_base}..HEAD")"
+          git cat-file -e "${PR_HEAD_SHA}^{commit}"
+          scan_base="$(git merge-base "origin/${PR_BASE_REF}" "${PR_HEAD_SHA}")"
+          scan_count="$(git rev-list --count --no-merges --first-parent "${scan_base}..${PR_HEAD_SHA}")"
           if [ "${scan_count}" -lt 1 ]; then
             echo "::error::complete PR scan resolved to zero commits"
             exit 1
           fi
-          echo "Scanning ${scan_count} non-merge commits from merge base to HEAD"
+          echo "Scanning ${scan_count} non-merge commits from merge base to PR head"
           gitleaks detect \
             --redact \
             --exit-code=2 \
             --report-format=sarif \
             --report-path=results-full-range.sarif \
-            --log-opts="--no-merges --first-parent ${scan_base}..HEAD"
+            --log-opts="--no-merges --first-parent ${scan_base}..${PR_HEAD_SHA}"
