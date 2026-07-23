@@ -84,7 +84,7 @@ test("magic-link round trip: email → link → session → consent → profile"
     .check();
   await page.getByTestId("welcome-save").click();
 
-  await expect(page).toHaveURL(/\/check$/);
+  await expect(page).toHaveURL(/\/home$/);
 
   // Session survives a reload; profile exists.
   const profile = await page.evaluate(async () => {
