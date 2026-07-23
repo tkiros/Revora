@@ -1,8 +1,9 @@
 # Revora service-integrations remediation — current status
 
-> Recorded: 2026-07-23 EDT (GO-closeout session, pre-merge checkpoint)
+> Recorded: 2026-07-23 EDT (GO-closeout session 2 — merge, deploy, live proofs)
 >
-> Release decision: `NO-GO / IN PROGRESS` — merge/deploy/live-proof phases executing
+> Release decision: technical gates proven except owner-blocked items (see
+> "Owner-only blockers"); final decision statement lives in the closeout report
 
 This document separates local source/test truth, committed branch truth, GitHub
 truth, preview runtime truth, production runtime truth, and external-owner
@@ -12,52 +13,54 @@ truth. A green item in one bucket does not imply a green item in another.
 
 | Bucket | Evidence-backed state |
 |---|---|
-| Working checkout | `docs/b1-b2-final-closeout`; unrelated modified and untracked user files preserved untouched |
-| Branch head | `660c51a664cfed21615e815d4e2d6a70fcb96f77` (10 review-fix commits on top of `a485081`) |
-| Independent review | Four parallel adversarial passes over the full `origin/main...HEAD` range; all remediation claims verified with file:line evidence; 8 defects found, fixed, and regression-tested (see fix-results.tsv rows 30–38); review trail posted on PR #35 |
-| Local gate (a485081) | build/typecheck/zero-warning lint/contract/Drizzle green; 1975 unit tests; Playwright 225 passed / 12 provider-gated skips / 0 failures; npm audit 0 vulnerabilities |
-| Local gate (post-fix) | build/typecheck/lint/contract/Drizzle green; full vitest re-running on `660c51a`; final full Playwright pending as the clean-room step |
-| GitHub | PR #35 open; CI running on `660c51a`; secret scan already green |
-| GitHub enforcement | Free-plan private repo: branch protection/rulesets/scanning APIs return 403 ("Upgrade to GitHub Pro or make this repository public") — owner action H30; environments carry zero protection rules |
-| Vercel preview | Fresh preview building for head with the new isolated preview environment |
-| Vercel production | Still old SHA `fc8e9fa`; env corrections staged and bind at the merge deploy |
-| Merged revision | None yet |
+| Merged revisions | PR #35 → `795d1a374f0acb052c2bed01e1d74781527472e8`; PR #43 (harness fixes + evidence) → `7409afd8ba6ef9d15dfe741581de6ba871a2eb56`; PR #44 (CSP fix) → `210d8898432e974b3a40cda2a4a5a1226cb77730` (current `origin/main`) |
+| CI on merged SHAs | main runs 30020772770 (795d1a3), 30032553040 (210d8898) — all green; every PR merged only on a fully green exact-head run |
+| Vercel production | alias `revora.plus` → `dpl_4bdyJHK7z8mFXJnKDePkd2bgLUwv` = `210d8898` READY; `/api/health/live` 200 no-store; `/api/health` 200 healthy (all crons ok); `security.txt` 200 canonical; CSP now includes `https://vercel.com` (private-Blob uploads) |
+| Vercel preview | branch alias redeployed with full isolated env; `db: ok`; only expected issues: cron `never` (no scheduler targets preview) + `rate_limit_unavailable` (Upstash preview = owner H31, fail-closed) |
+| Railway scheduler | strict runner (`Dockerfile.cron` + `run-hourly-crons.mjs`) live; 13:00 and 14:00 runs `completed=4 failed=0`, all `result=ok`; observation window continuing through 16:00; red path proven (`wrong CRON_SECRET → 4×401, failed=4, exit 1`) |
+| Production DB | restricted `revora_app` runtime role live in production (first deploy exposed missing `sslmode=no-verify` — fixed, `db: ok`); heartbeats advance hourly |
+| GitHub enforcement | unchanged: free-plan private repo blocks protection/rulesets/scanning APIs — owner action H30; merges gated on green CI by discipline, not platform enforcement |
 
-## Provider state changed this session (all receipts in session evidence)
+## Live journeys proven this session (correlation ids in closeout report)
 
-| Provider | Action | Proof |
-|---|---|---|
-| Vercel Blob | Created **private** store `revora-pantry-private` (`store_xg5sMWEFxtWqzdIE`, iad1); connected under `PANTRY_BLOB_READ_WRITE_TOKEN` (prod/preview/dev) | Anonymous direct-URL and downloadUrl fetches 403; authorized head/delete verified; drill object deleted |
-| Vercel env (production) | Removed `OPENAI_BASE_URL`, `REVORA_MODEL`, `REVORA_VISION_MODEL`; replaced `OPENAI_API_KEY` with a live-verified direct key; replaced `DATABASE_URL` with the restricted `revora_app` credential; bound `RESEND_WEBHOOK_SECRET` | Applies at next production deploy (running deployment unaffected) |
-| Vercel env (preview) | Bound isolated stack: dedicated preview `DATABASE_URL`, test-mode `STRIPE_SECRET_KEY` + 6 mirror price ids, fresh `AUTH_SECRET`/`HEALTH_DATA_KEY`/`CRON_SECRET`/VAPID pair, `OPENAI_API_KEY`, `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `STRIPE_WEBHOOK_SECRET` | Names inventoried; values never printed |
-| Railway Postgres (main) | Backup (47,956 B, sha256-recorded, 33.8 s); isolated restore drill (1.1 s, tables/migrations/rows exact); `revora_app` role + runbook grants; migrations 0016–0017 via owner path; governance check all-true 18/18 (with the fixed AND-semantics probe); journal hashes 18/18 match source | Live DML insert/update/delete proven and cleaned; CREATE/DROP denied |
-| Railway Postgres-FOMu | Repurposed as the dedicated preview database: migrated to 18/18 | Retained with owner rationale (preview isolation) instead of deletion |
-| Railway Postgres-D2oG | Re-verified zero tables/rows | Deletion deferred to post-merge cleanup phase per preconditions |
-| Railway scheduler | Fresh plan re-verified exactly `0 add / 4 change / 0 destroy` | Apply deliberately deferred: `Dockerfile.cron` exists only on the branch and railway.ts builds from `main` — apply follows the merge |
-| Stripe (test mode) | Test product/price mirror with lookup keys; test webhook `we_1TwN5WKweWSWjefkp6gDnIr2` (livemode:false, 5 events) at the preview branch alias | Live-mode never touched; the live-mode MCP surface was identified and not used |
-| Resend | Production webhook `e0a79b06…` at `https://revora.plus/api/webhooks/resend` and preview webhook `f2570dde…` at the branch alias, each with all 7 runbook events; signing secrets bound | Delivery/bounce/suppression journeys follow the production deploy |
-| Upstash | Outage drill: fail-closed 503+Retry-After on email doors, fail-open elsewhere, recovery proven | Free plan caps at one database — preview isolation needs owner billing (H31) |
+| Journey | Result |
+|---|---|
+| Model routing (I-01) | 3 varied structured calls via repo client, base URL unset, default `gpt-5.4-mini`, direct OpenAI; strict-schema SAFE/MODERATE/SAFE; run with local key (bound prod key is write-only; live-verified session 1); prod health shows no `model_configuration` |
+| Auth email (I-04) | production magic link → Resend accept → signed webhook → `delivered` row with provider msg id; `bounced@resend.dev` → `bounced` + suppression row; repeat send → `suppressed` row, signin surfaces error (no false success); replay/expiry + real-inbox legs owner-assisted |
+| Sentry (I-10/I-17) | browser canary `REVORA_PROD_CANARY_20260723T114550` accepted by ingest (200), client release = merged SHA, env production; server-event + dashboard/alert-ack legs owner-assisted (DSNs write-only, no Sentry API token) |
+| Umami (I-17) | `script.js` 200 + `/api/send` fired through production CSP, zero violations; dashboard receipt owner-assisted (H32) |
+| Stripe lifecycle (I-06/I-07/I-18) | local controlled E2E-06 ALL STEPS PASSED: checkout 4242 → signed webhook (500-then-200 retry) → trialing → session → entitlement → pre-charge email (idempotent) → two-step cancel → entitled-until-period-end → portal → deletion lapse; synthetic customers deleted after |
+| Pantry live (I-03/I-09) | formerly-gated 12 cases now run: 35/36 green + the single workstation network-flap case re-verified green in isolation; live private-Blob upload, live model judge, emailed report |
+| Push/nudge (I-12/I-23) | real Chrome FCM subscription on preview → cron `sent:1` → notification rendered; forced provider error → `ok:false failed:1`, attempt consumed, retry armed, no false success; next-tick retry → `sent:1` + durable local-day stamp; real unsubscribe → `pruned:1`, row deleted; synthetic user cascade-deleted |
+| Readiness (I-13) | production readiness correctly 503-degraded (`cron_*_stale`) until first strict run, then 200 healthy; DB outage surfaced as `database_unavailable` when the TLS binding was wrong (real detection, then fixed) |
+| Rollback (Phase E) | `vercel rollback` to previous SHA verified by CSP fingerprint (~16 s); `vercel promote` back to final SHA (~20 s); healthy after |
 
-## Unambiguous ledger deltas vs the 2026-07-23 starting table
+## Defects found and fixed this session
 
-- I-01 `VERIFIED_PROVIDER (config)` — production routing deliberately direct-OpenAI; three live structured calls remain a post-deploy gate.
-- I-03 `VERIFIED_PROVIDER (store)` — private store + privacy drill done; app-journey proof rides the provider-gated Playwright cases (now runnable via `E2E_PANTRY_LIVE=1`).
-- I-11 `VERIFIED_LOCAL` outage/recovery drill complete.
-- I-14 `VERIFIED_PROVIDER` backup/restore/RPO/RTO/checksum evidence complete; Railway console PITR settings remain dashboard-only.
-- I-15 `VERIFIED_PROVIDER` role split, migrations, DML/DDL, journal hashes complete; connection-pressure measurement under live traffic remains open.
-- I-16 `VERIFIED_PROVIDER (bindings)` — isolated preview stack bound; journey proofs follow the fresh preview.
-- I-23 heartbeat/route semantics corrected after review (D1) — live scheduler correlation still follows the Railway apply.
-- New review defects (rows 31–38) all `fixed` with regression tests.
-- I-21 remains `BLOCKED_EXTERNAL` on the GitHub plan (owner action H30).
-- I-20 remains `BLOCKED_EXTERNAL` on Namecheap DNS access (owner actions H26–H29).
+| Fix | Where |
+|---|---|
+| Production/preview `DATABASE_URL` lacked `sslmode=no-verify` → pg rejected Railway's self-signed TLS → `database_unavailable` | Vercel env rebind (prod + preview) |
+| **CSP blocked private-store pantry uploads** (`vercel.com` missing from `connect-src`) — every paid Pantry photo upload failed | PR #44 + regression test |
+| Stripe lifecycle harness: waited on readiness (now deliberately 503 on fresh DB), missed the two-step cancel, no reload-on-stall, inherited ambient Upstash → 429 fail-closed | PR #43 |
+| Pantry live specs: claim URL host vs session-cookie host mismatch; ambiguous heading selector | PR #44 |
 
-## Remaining before GO
+## Cleanup executed
 
-1. CI green on `660c51a`; clean-room full vitest + Playwright on the final head.
-2. Merge PR #35; production deploy; alias→SHA proof; production readiness/security.txt/liveness.
-3. Railway apply + four consecutive hourly runs with heartbeats, downstream effects, and red-path proof.
-4. Production journeys: model calls, auth email + Resend events, Sentry canaries on the exact release, Umami transport.
-5. Stripe test-mode lifecycle (local controlled run) + preview checkout journey.
-6. Provider-gated Pantry Playwright cases under `E2E_PANTRY_LIVE=1`.
-7. Rollback drill; orphan deletion (D2oG, duplicate Vercel project) with receipts; re-inventory; final closeout handoff.
-8. Owner-only: GitHub Pro enforcement (H30), Return-Path MX + DNS hardening (H26–H29), Upstash preview billing (H31), Umami API key (H32).
+- `Postgres-D2oG` deleted (re-verified 0 tables immediately before); detached volume `postgres-volume-yrjb` deleted
+- Duplicate Vercel project `revora-irj3` deleted (re-verified no aliases/custom domains; removes its duplicate PR checks)
+- Protection-bypass secret rotated; preview Resend webhook `f2570dde…` and Stripe test endpoint `we_1TwN5WKweWSWjefkp6gDnIr2` repointed to the new secret (both verified: Resend 200, Stripe enabled/livemode:false)
+- All synthetic Stripe test customers deleted; synthetic preview nudge user cascade-deleted; Sentry canary is synthetic-only
+- `Postgres-FOMu` RETAINED as the dedicated preview database (owner: engineering; rationale: preview isolation)
+
+## Owner-only blockers (unchanged, cannot be closed by an agent)
+
+- H26–H29: Return-Path MX (still absent on authoritative NS), DMARC quarantine/reject (still `p=none`), CAA, DNSSEC — Namecheap access
+- H30: GitHub Pro — platform enforcement of required reviews/checks/scanning; **prevents printing GO** under the master prompt's definition (I-05/I-21)
+- H31: Upstash preview isolation (billing); current preview state is fail-closed `INTENTIONAL_OFF_SAFE`
+- H32: Umami API key for dashboard receipt/blackout-alert proof
+- Owner-assisted: Sentry dashboard/alert acknowledgement; real-inbox + forwarded-inbox magic-link receipt
+
+## Remaining
+
+1. Complete the 4-run scheduler observation window (15:00, 16:00) with heartbeat correlation.
+2. Final closeout report in `docs/handoff/` + this directory's artifacts committed via PR (that docs-only merge re-deploys production; record both SHAs).
