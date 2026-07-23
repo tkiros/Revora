@@ -123,11 +123,13 @@ export default function OnboardingPage() {
   // agree; a returning guest's counter settles to "of 4" before any tap.
   const [skipsA1c, setSkipsA1c] = useState(false);
   useEffect(() => {
-    setSkipsA1c(profileStore.get() !== null);
+    const skip = profileStore.get() !== null;
+    const update = window.setTimeout(() => setSkipsA1c(skip), 0);
     // W-10/N-12: the top of the activation funnel. Without a *_started event
     // there is no denominator, so the onboarding drop-off — the single number
     // that decides whether the funnel works — was not computable at all.
     track({ name: "onboarding_started" });
+    return () => window.clearTimeout(update);
   }, []);
 
   function advanceFromSegment(choice?: Segment) {

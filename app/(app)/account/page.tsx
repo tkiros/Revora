@@ -12,6 +12,7 @@ import {
   type NudgeSettings
 } from "../../../lib/client/nudge-settings";
 import { profileStore } from "../../../lib/client/profile-store";
+import { useHydrated } from "../../../lib/client/use-hydrated";
 import { SupportCaseForm } from "../../../components/support-case-form";
 
 type EntitlementInfo = {
@@ -51,12 +52,21 @@ export default function AccountPage() {
   const [withdrawingHealthConsent, setWithdrawingHealthConsent] = useState(false);
   const [confirmHealthWithdrawal, setConfirmHealthWithdrawal] = useState(false);
   // PR-6: per-browser analytics opt-out (Umami's localStorage kill switch).
-  const [analyticsDisabled, setAnalyticsDisabled] = useState(false);
-  useEffect(() => {
-    setAnalyticsDisabled(
-      window.localStorage.getItem("umami.disabled") !== null
-    );
-  }, []);
+  const hydrated = useHydrated();
+  const [analyticsPreference, setAnalyticsPreference] = useState<
+    boolean | null
+  >(null);
+  const analyticsDisabled =
+    analyticsPreference ??
+    (hydrated
+      ? (() => {
+          try {
+            return window.localStorage.getItem("umami.disabled") !== null;
+          } catch {
+            return false;
+          }
+        })()
+      : false);
   // Free-tier copy is mode-dependent: legacy has a real 5/day free plan, the
   // trial funnel doesn't. Default to trial (the code default) so the copy
   // never resurrects the retired free offer on a failed lookup.
@@ -729,7 +739,7 @@ export default function AccountPage() {
                     checked={analyticsDisabled}
                     onChange={(event) => {
                       const off = event.target.checked;
-                      setAnalyticsDisabled(off);
+                      setAnalyticsPreference(off);
                       // Umami's built-in kill switch: any truthy value stops
                       // the tracker in this browser (PR-6 opt-out gate).
                       if (off) {

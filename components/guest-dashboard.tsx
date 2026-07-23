@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
 import { historyStore, type StoredCheck } from "../lib/client/history-store";
+import { useHydrated } from "../lib/client/use-hydrated";
 import {
   computeStreak,
   dayKeyLocal,
@@ -75,11 +74,7 @@ function buildData(checks: StoredCheck[]): DashboardData {
 }
 
 export function GuestDashboard() {
-  const [checks, setChecks] = useState<StoredCheck[]>([]);
-
-  useEffect(() => {
-    setChecks(historyStore.all());
-  }, []);
+  const checks = useHydrated() ? historyStore.all() : [];
 
   return <DashboardView data={buildData(checks)} />;
 }
