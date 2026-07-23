@@ -34,6 +34,8 @@ beforeEach(async () => {
     RESEND_API_KEY: "re_test",
     RESEND_WEBHOOK_SECRET: "whsec_test",
     AUTH_SECRET: "auth-test",
+    UPSTASH_REDIS_REST_URL: "https://fake.upstash.io",
+    UPSTASH_REDIS_REST_TOKEN: "upstash-test",
   };
   delete process.env.EDGE_CONFIG;
   delete process.env.REVORA_LAUNCH_MODE_OVERRIDE;
