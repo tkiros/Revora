@@ -91,6 +91,40 @@ describe("E2E production-build selection", () => {
     }
   });
 
+  it("passes through only the Pantry-live credentials on explicit opt-in", () => {
+    const env = isolatedE2ERuntimeEnv({
+      E2E_PANTRY_LIVE: "1",
+      DATABASE_URL: "postgres://e2e@127.0.0.1:55432/revora",
+      OPENAI_API_KEY: "live-model-key",
+      PANTRY_BLOB_READ_WRITE_TOKEN: "live-blob-token",
+      RESEND_API_KEY: "live-email-key",
+      STRIPE_SECRET_KEY: "live-billing-key",
+      UPSTASH_REDIS_REST_URL: "https://live-rate-limit.example",
+      UPSTASH_REDIS_REST_TOKEN: "live-rate-limit-token"
+    });
+
+    expect(env.OPENAI_API_KEY).toBe("live-model-key");
+    expect(env.PANTRY_BLOB_READ_WRITE_TOKEN).toBe("live-blob-token");
+    for (const name of [
+      "RESEND_API_KEY",
+      "STRIPE_SECRET_KEY",
+      "UPSTASH_REDIS_REST_URL",
+      "UPSTASH_REDIS_REST_TOKEN"
+    ]) {
+      expect(env[name]).toBe("");
+    }
+  });
+
+  it("keeps the Pantry-live credentials blank without the exact opt-in value", () => {
+    const env = isolatedE2ERuntimeEnv({
+      E2E_PANTRY_LIVE: "true",
+      OPENAI_API_KEY: "live-model-key",
+      PANTRY_BLOB_READ_WRITE_TOKEN: "live-blob-token"
+    });
+    expect(env.OPENAI_API_KEY).toBe("");
+    expect(env.PANTRY_BLOB_READ_WRITE_TOKEN).toBe("");
+  });
+
   it("refuses a remote database even when the caller provides it", () => {
     expect(() =>
       isolatedE2ERuntimeEnv({

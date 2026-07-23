@@ -35,6 +35,13 @@ function isolatedDatabaseUrl(value?: string): string {
 export function isolatedE2ERuntimeEnv(
   base: Partial<NodeJS.ProcessEnv> = process.env
 ): NodeJS.ProcessEnv {
+  // The private-store Pantry specs are live provider proofs: they need the
+  // dedicated private Blob token, and the report-delivery case additionally
+  // judges live (no stub, deliberately). E2E_PANTRY_LIVE=1 is the explicit
+  // operator opt-in for exactly those two credentials; every other provider
+  // credential stays blanked, and a default run stays fully isolated.
+  const pantryLive = base.E2E_PANTRY_LIVE === "1";
+
   return {
     ...base,
 
@@ -80,10 +87,12 @@ export function isolatedE2ERuntimeEnv(
     NEXT_PUBLIC_UMAMI_SRC: "",
     NEXT_PUBLIC_UMAMI_WEBSITE_ID: "",
     NEXT_PUBLIC_WAITLIST_URL: "",
-    OPENAI_API_KEY: "",
+    OPENAI_API_KEY: pantryLive ? base.OPENAI_API_KEY?.trim() || "" : "",
     OPENAI_BASE_URL: "",
     OPENROUTER_API_KEY: "",
-    PANTRY_BLOB_READ_WRITE_TOKEN: "",
+    PANTRY_BLOB_READ_WRITE_TOKEN: pantryLive
+      ? base.PANTRY_BLOB_READ_WRITE_TOKEN?.trim() || ""
+      : "",
     PHOTO_INPUT_ENABLED: "",
     PLAY_PACKAGE_NAME: "",
     RESEND_API_KEY: "",
