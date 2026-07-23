@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
+import type { Page } from "@playwright/test";
 
 import {
   DEFAULT_WARMUP_ROUTES,
+  warmBrowserRoutes,
   warmRoutes,
   type WarmupClient,
   type WarmupResponse
@@ -68,5 +70,46 @@ describe("smoke global setup", () => {
       "Playwright route warmup failed for /broken: HTTP 503"
     );
     expect(calls).toEqual(["/healthy", "/broken"]);
+  });
+
+  it("loads browser chunks serially and proves the check form hydrated", async () => {
+    const calls: string[] = [];
+    const waits: Array<{ state?: string; timeout?: number }> = [];
+    const page = {
+      async goto(route: string) {
+        calls.push(route);
+        return response(200);
+      },
+      getByRole(role: string, options: { name: string }) {
+        expect({ role, options }).toEqual({
+          role: "button",
+          options: { name: "Check this meal" }
+        });
+        return {
+          async waitFor(options: { state?: string; timeout?: number }) {
+            waits.push(options);
+          }
+        };
+      }
+    } as unknown as Page;
+
+    await warmBrowserRoutes(page, ["/one", "/two"], 54_000);
+
+    expect(calls).toEqual(["/one", "/two", "/check?stay=1"]);
+    expect(waits).toEqual([{ state: "visible", timeout: 54_000 }]);
+  });
+
+  it("fails browser warmup on a non-success response", async () => {
+    const page = {
+      async goto(route: string) {
+        return response(route === "/broken" ? 503 : 200);
+      }
+    } as unknown as Page;
+
+    await expect(
+      warmBrowserRoutes(page, ["/healthy", "/broken", "/never"])
+    ).rejects.toThrow(
+      "Playwright browser warmup failed for /broken: HTTP 503"
+    );
   });
 });
