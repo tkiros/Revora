@@ -33,11 +33,15 @@ try {
           current_user,
           has_schema_privilege(current_user, 'public', 'CREATE') AS can_create_schema,
           has_database_privilege(current_user, current_database(), 'CREATE') AS can_create_database,
-          COALESCE(bool_and(has_table_privilege(
-            current_user,
-            format('%I.%I', table_schema, table_name),
-            'SELECT,INSERT,UPDATE,DELETE'
-          )), false) AS has_runtime_dml
+          COALESCE(bool_and(
+            -- A comma-separated privilege list is OR ("any of") in Postgres,
+            -- which would pass a SELECT-only role. Probe each privilege
+            -- separately so this boolean means ALL four are held.
+            has_table_privilege(current_user, format('%I.%I', table_schema, table_name), 'SELECT')
+            AND has_table_privilege(current_user, format('%I.%I', table_schema, table_name), 'INSERT')
+            AND has_table_privilege(current_user, format('%I.%I', table_schema, table_name), 'UPDATE')
+            AND has_table_privilege(current_user, format('%I.%I', table_schema, table_name), 'DELETE')
+          ), false) AS has_runtime_dml
         FROM information_schema.tables
         WHERE table_schema = 'public'
         GROUP BY current_user
