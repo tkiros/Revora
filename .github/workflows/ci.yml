@@ -93,10 +93,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
 
-    # Both `next dev` servers in playwright.config.ts inherit DATABASE_URL from
-    # the environment, and auth.ts:21 only constructs the Auth.js adapter when
-    # it is set. Without a database every auth path dies on MissingAdapter and
-    # all 15 specs fail — which is exactly what the first CI run did.
+    # Both `next start` servers in playwright.config.ts inherit DATABASE_URL
+    # from the environment, and auth.ts:21 only constructs the Auth.js adapter
+    # when it is set. Without a database every auth path dies on MissingAdapter.
     services:
       postgres:
         image: postgres:16@sha256:33f923b05f64ca54ac4401c01126a6b92afe839a0aa0a52bc5aeb5cc958e5f20
@@ -125,6 +124,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx drizzle-kit migrate
+      # E2E runs the immutable production server, not a recompiling dev server.
+      # The public VAPID value is a syntactically valid smoke-only key baked into
+      # the client bundle; no notification leaves the mocked browser tests.
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_VAPID_PUBLIC_KEY: BDd3_hVL9fZi9Ybo2UUmA0mNzLFmwEsuJdyxdCLVQV-XFotN0jkNqp7GQ96_2enX0mUeXBIvBqXAiCveKuMhGJ0
       # playwright.config.ts runs two projects: Mobile Chrome (Pixel 5, chromium)
       # and Mobile Safari (iPhone 12, webkit). Installing chromium alone failed
       # all 110 Mobile Safari tests at browser launch.
