@@ -6,9 +6,9 @@ import { join } from "node:path";
  *
  * `next dev` regenerates tsconfig.json's `include` globs on boot to wire in
  * `${distDir}/...`. The trial server on :3101 runs with
- * NEXT_DIST_DIR=".next/e2e-trial" (see playwright.config.ts / next.config.ts),
+ * NEXT_DIST_DIR=".next-e2e-trial" (see playwright.config.ts / next.config.ts),
  * so after a run that booted it the TRACKED tsconfig.json carries a
- * ".next/e2e-trial" segment and the working tree is left dirty. On a test-only
+ * ".next-e2e-trial" segment and the working tree is left dirty. On a test-only
  * CI leg no default-distDir `next dev` ever runs afterward to heal it, so a
  * clean-tree gate would fail, or the e2e-trial globs could be committed by
  * accident. (next-env.d.ts also gets rewritten, but it is gitignored and
@@ -31,7 +31,7 @@ import { join } from "node:path";
  * typecheck/dev run dirty the tree again.
  */
 
-const MARKER = ".next/e2e-trial";
+const MARKER = ".next-e2e-trial";
 
 function restoreTsconfig(path: string): void {
   const before = readFileSync(path, "utf8");

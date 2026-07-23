@@ -53,9 +53,10 @@ if (process.env.VERCEL_ENV === "production") {
 const nextConfig: NextConfig = {
   // E2E-only lever: lets tests/smoke/trial-wall.spec.ts run a second `next dev`
   // (PAYWALL_MODE=trial, port 3101) alongside the default legacy server by
-  // isolating its build dir + dev lock (Next 16 forbids two dev servers sharing
-  // one distDir). Inert in every normal run — NEXT_DIST_DIR is unset, so this is
-  // exactly ".next".
+  // isolating its sibling build dir + dev lock (Next 16 forbids two dev servers
+  // sharing one distDir, and nesting one distDir inside another lets the parent
+  // server invalidate the child). Inert in every normal run — NEXT_DIST_DIR is
+  // unset, so this is exactly ".next".
   distDir: process.env.NEXT_DIST_DIR || ".next",
   // C7 four-jobs restructure (2026-07-21): old bookmarks and deep links keep
   // working. /memory folded into /meals as its "Saved meals" section.

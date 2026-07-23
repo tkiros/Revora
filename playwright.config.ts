@@ -2,7 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 // The PAYWALL_MODE=trial server on :3101 is only needed when the trial-wall spec
 // is actually in the run. Booting it also rewrites the tracked tsconfig.json
-// to the e2e-trial distDir (healed by tests/smoke/global-teardown.ts),
+// to the sibling e2e-trial distDir (healed by tests/smoke/global-teardown.ts),
 // so we keep its blast radius to runs that provably don't need it.
 //
 // SUPPRESSION RULE: only a set of CONCRETE spec-file filters (each arg
@@ -59,10 +59,12 @@ const trialWebServer = {
     AUTH_EMAIL_STUB_DIR: "/tmp/revora-trial-smoke-stub",
     // Isolate this server's build dir + dev lock from the :3100 server so
     // both `next dev` instances coexist (see next.config.ts distDir gate).
-    // Under .next/, so it inherits the .next/ gitignore — nothing new to track.
-    // Its price is the tsconfig.json rewrite that global-teardown.ts
-    // reverts (keeping the run self-contained).
-    NEXT_DIST_DIR: ".next/e2e-trial"
+    // This MUST be a sibling of `.next`, not nested inside it: either dev
+    // server may replace its own distDir, and nesting made the :3101 output a
+    // child of the :3100 server's disposable tree. The sibling is gitignored.
+    // Next still adds its type globs to tsconfig.json; global-teardown.ts
+    // removes exactly those entries after the run.
+    NEXT_DIST_DIR: ".next-e2e-trial"
   }
 };
 

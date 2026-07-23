@@ -18,7 +18,7 @@ import { expect, test, type Page } from "@playwright/test";
  *   the checkout POST is stubbed at the fetch boundary with page.route.
  *
  * SELF-CONTAINED RUN (dev-artifact rewrite):
- *   The :3101 server sets NEXT_DIST_DIR=".next/e2e-trial" (next.config.ts gates
+ *   The :3101 server sets NEXT_DIST_DIR=".next-e2e-trial" (next.config.ts gates
  *   distDir on it) so two `next dev` instances don't collide on one dev lock.
  *   Side effect: `next dev` regenerates the TRACKED tsconfig.json (include
  *   globs) to point at that distDir, which used to leave the working tree
@@ -31,7 +31,7 @@ import { expect, test, type Page } from "@playwright/test";
  *   a whole-suite run, an explicit trial-wall filter, AND any directory-style
  *   filter (e.g. `tests/smoke/`, `tests/`) all boot it — a directory may
  *   contain this spec — and the teardown below restores the rewrite;
- *   (2) tests/smoke/global-teardown.ts surgically drops any ".next/e2e-trial"
+ *   (2) tests/smoke/global-teardown.ts surgically drops any ".next-e2e-trial"
  *   include glob after the run — restoring tsconfig.json without git and
  *   without clobbering unrelated local edits.
  */
