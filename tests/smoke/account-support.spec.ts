@@ -12,7 +12,8 @@ import { expect, test, type Page } from "@playwright/test";
  *
  * Env-gated like auth.spec.ts: needs a real database + the email stub.
  *
- *   DATABASE_URL=... AUTH_EMAIL_STUB_DIR=/tmp/revora-mailbox \
+ *   DATABASE_URL=<disposable loopback database> \
+ *     AUTH_EMAIL_STUB_DIR=/tmp/revora-mailbox \
  *     npx playwright test tests/smoke/account-support.spec.ts
  */
 

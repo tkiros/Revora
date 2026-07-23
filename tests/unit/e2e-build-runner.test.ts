@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { includesTrialWall } from "../../scripts/e2e-spec-selection";
+import { isolatedE2ERuntimeEnv } from "../../scripts/e2e-runtime-env";
 import {
   buildModesForArgs,
   stripE2ETypeIncludes
@@ -57,5 +58,44 @@ describe("E2E production-build selection", () => {
         `${JSON.stringify({ include: ["**/*.ts", ".next/types/**/*.ts"] })}\n`
       )
     ).toBeNull();
+  });
+
+  it("replaces ambient provider credentials with isolated test values", () => {
+    const env = isolatedE2ERuntimeEnv({
+      DATABASE_URL: "postgres://e2e@127.0.0.1:55432/revora",
+      OPENAI_API_KEY: "live-model-key",
+      RESEND_API_KEY: "live-email-key",
+      STRIPE_SECRET_KEY: "live-billing-key",
+      UPSTASH_REDIS_REST_URL: "https://live-rate-limit.example",
+      UPSTASH_REDIS_REST_TOKEN: "live-rate-limit-token",
+      EDGE_CONFIG: "live-edge-config",
+      PANTRY_BLOB_READ_WRITE_TOKEN: "live-blob-token",
+      SENTRY_DSN: "https://live-sentry.example/1"
+    });
+
+    expect(env.DATABASE_URL).toBe(
+      "postgres://e2e@127.0.0.1:55432/revora"
+    );
+    expect(env.VERCEL_ENV).toBe("development");
+    for (const name of [
+      "OPENAI_API_KEY",
+      "RESEND_API_KEY",
+      "STRIPE_SECRET_KEY",
+      "UPSTASH_REDIS_REST_URL",
+      "UPSTASH_REDIS_REST_TOKEN",
+      "EDGE_CONFIG",
+      "PANTRY_BLOB_READ_WRITE_TOKEN",
+      "SENTRY_DSN"
+    ]) {
+      expect(env[name]).toBe("");
+    }
+  });
+
+  it("refuses a remote database even when the caller provides it", () => {
+    expect(() =>
+      isolatedE2ERuntimeEnv({
+        DATABASE_URL: "postgres://runtime@production.example/revora"
+      })
+    ).toThrow("disposable loopback database");
   });
 });

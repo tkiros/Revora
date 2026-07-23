@@ -128,11 +128,12 @@ jobs:
       # and Mobile Safari (iPhone 12, webkit). Installing chromium alone failed
       # all 110 Mobile Safari tests at browser launch.
       - run: npx playwright install --with-deps chromium webkit
-      # The runner builds isolated legacy + trial optimized preview outputs
+      # The runner builds isolated legacy + trial optimized local outputs
       # before Playwright starts, including its syntactically valid smoke-only
-      # VAPID key. With the isolated CI database present it also provisions and
-      # removes an owner-only disk mailbox, so auth/account E2E cannot skip or
-      # contact Resend. No notification leaves the mocked browser tests.
+      # VAPID key. It explicitly blanks every provider credential before Next
+      # can load env files. With the isolated CI database present it also
+      # provisions and removes an owner-only disk mailbox, so auth/account E2E
+      # cannot skip or contact Resend. No provider mutation leaves this job.
       - run: npm run e2e
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: failure()

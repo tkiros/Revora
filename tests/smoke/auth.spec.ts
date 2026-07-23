@@ -7,13 +7,12 @@ import { expect, test } from "@playwright/test";
 /**
  * Magic-link auth E2E (plan 4A). Needs a real database and the email stub:
  *
- *   DATABASE_URL=<railway dev database> \
+ *   DATABASE_URL=<disposable loopback database> \
  *   AUTH_SECRET=<any> HEALTH_DATA_KEY=<32B base64> \
  *   AUTH_EMAIL_STUB_DIR=/tmp/revora-mailbox \
  *   npx playwright test tests/smoke/auth.spec.ts
  *
- * Skipped automatically when the environment isn't provisioned (see
- * docs/handoff/human-actions-required.md §1 — Railway Postgres).
+ * Skipped automatically when the isolated database isn't provisioned.
  */
 
 const STUB_DIR = process.env.AUTH_EMAIL_STUB_DIR;

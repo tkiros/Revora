@@ -59,6 +59,13 @@ describe("middleware", () => {
     expect(body.kind).toBe("retry");
   });
 
+  it("allows an optimized local server explicitly marked Vercel development", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL_ENV", "development");
+    const response = await middleware(post("/api/check"));
+    expect(isPassthrough(response)).toBe(true);
+  });
+
   it("returns a 503 pause response when launch mode is paused", async () => {
     vi.stubEnv("REVORA_LAUNCH_MODE_OVERRIDE", "paused");
     const response = await middleware(post("/api/check"));

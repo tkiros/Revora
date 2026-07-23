@@ -51,8 +51,8 @@ const BUCKETS: Record<
   billing_ip: { limit: 10, window: "1 h", prefix: "revora:billing:ip" },
   trial_email: { limit: 3, window: "1 h", prefix: "revora:trial:email" },
   auth_email: { limit: 3, window: "1 h", prefix: "revora:auth:email" },
-  // P0.4: authenticated help/refund cases — each POST sends a full-copy email
-  // to the support inbox, so this is an email amplifier and fails CLOSED like
+  // P0.4: authenticated help/refund cases — each POST sends a PII-minimized
+  // queue notice, so this is still an email amplifier and fails CLOSED like
   // the other email doors. 5/24h never touches a real user in distress.
   support_ip: { limit: 5, window: "24 h", prefix: "revora:support:ip" }
 };

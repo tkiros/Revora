@@ -11,15 +11,12 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { includesTrialWall } from "./e2e-spec-selection";
+import { isolatedE2ERuntimeEnv } from "./e2e-runtime-env";
 
 export const E2E_DIST_DIRS = {
   legacy: ".next-e2e-legacy",
   trial: ".next-e2e-trial"
 } as const;
-
-const E2E_VAPID_PUBLIC_KEY =
-  "BDd3_hVL9fZi9Ybo2UUmA0mNzLFmwEsuJdyxdCLVQV-XFotN0jkNqp7GQ96_2enX0mUeXBIvBqXAiCveKuMhGJ0";
-const E2E_AUTH_SECRET = "revora-e2e-smoke-only-secret-0000000000000000";
 
 export function buildModesForArgs(
   args: readonly string[]
@@ -73,13 +70,10 @@ function runNodeScript(script: string, args: readonly string[], env = process.en
 
 function buildMode(mode: keyof typeof E2E_DIST_DIRS): void {
   runNodeScript(resolve("node_modules/next/dist/bin/next"), ["build"], {
-    ...process.env,
-    AUTH_SECRET: E2E_AUTH_SECRET,
+    ...isolatedE2ERuntimeEnv(process.env),
     NEXT_DIST_DIR: E2E_DIST_DIRS[mode],
-    NEXT_PUBLIC_VAPID_PUBLIC_KEY: E2E_VAPID_PUBLIC_KEY,
     PAYWALL_MODE: mode,
-    STRIPE_PRICE_ANNUAL: "price_e2e_annual_smoke_only",
-    VERCEL_ENV: "preview"
+    STRIPE_PRICE_ANNUAL: "price_e2e_annual_smoke_only"
   });
 }
 
@@ -92,14 +86,14 @@ export function main(args = process.argv.slice(2)): void {
     cleanGeneratedTsconfigEntries();
   }
 
-  const playwrightEnv = { ...process.env };
   const automaticMailbox =
-    playwrightEnv.DATABASE_URL && !playwrightEnv.AUTH_EMAIL_STUB_DIR
+    process.env.DATABASE_URL && !process.env.AUTH_EMAIL_STUB_DIR
       ? mkdtempSync(join(tmpdir(), "revora-e2e-mailbox-"))
       : null;
-  if (automaticMailbox) {
-    playwrightEnv.AUTH_EMAIL_STUB_DIR = automaticMailbox;
-  }
+  const playwrightEnv = isolatedE2ERuntimeEnv({
+    ...process.env,
+    ...(automaticMailbox ? { AUTH_EMAIL_STUB_DIR: automaticMailbox } : {})
+  });
 
   try {
     runNodeScript(

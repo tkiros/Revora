@@ -26,9 +26,18 @@ describe("Playwright release-gate configuration", () => {
       ".next-e2e-trial"
     ]);
     expect(servers.map((server) => server.env?.VERCEL_ENV)).toEqual([
-      "preview",
-      "preview"
+      "development",
+      "development"
     ]);
+    expect(
+      servers.every(
+        (server) =>
+          server.env?.OPENAI_API_KEY === "" &&
+          server.env?.RESEND_API_KEY === "" &&
+          server.env?.UPSTASH_REDIS_REST_URL === "" &&
+          server.env?.STRIPE_SECRET_KEY === ""
+      )
+    ).toBe(true);
   });
 
   it("does not mask a release-gate failure with an automatic retry", () => {

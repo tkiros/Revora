@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 import { includesTrialWall } from "./scripts/e2e-spec-selection";
+import { isolatedE2ERuntimeEnv } from "./scripts/e2e-runtime-env";
 
 // The PAYWALL_MODE=trial server on :3101 is only needed when the trial-wall spec
 // is actually in the run. Both E2E servers read the same immutable production
@@ -13,6 +14,7 @@ import { includesTrialWall } from "./scripts/e2e-spec-selection";
 // directory can contain trial-wall.spec.ts and we cannot prove otherwise.
 //
 const runsTrialSpec = includesTrialWall(process.argv.slice(2));
+const isolatedRuntimeEnv = isolatedE2ERuntimeEnv(process.env);
 
 const trialWebServer = {
   // Second production server on :3101 running PAYWALL_MODE=trial for
@@ -29,15 +31,10 @@ const trialWebServer = {
   stderr: "pipe" as const,
   timeout: 60_000,
   env: {
-    // Test-only secret so Auth.js stops logging MissingSecret in smoke runs
-    // (2026-07-09 E2E-05). Never a production value.
-    AUTH_SECRET: "revora-e2e-smoke-only-secret-0000000000000000",
+    ...isolatedRuntimeEnv,
     PAYWALL_MODE: "trial",
-    AUTH_EMAIL_STUB_DIR: "/tmp/revora-trial-smoke-stub",
     NEXT_DIST_DIR: ".next-e2e-trial",
-    // Optimized preview build: the disk mailbox is deliberately allowed for
-    // synthetic auth tests, while email-stub policy still rejects production.
-    VERCEL_ENV: "preview"
+    NEXT_PUBLIC_APP_URL: "http://127.0.0.1:3101"
   }
 };
 
@@ -98,6 +95,7 @@ export default defineConfig({
       stderr: "pipe",
       timeout: 60_000,
       env: {
+        ...isolatedRuntimeEnv,
         // Trial is now the code default (lib/server/pricing.ts), so the
         // legacy-mode assertions (billing-pages.spec, trial-wall's legacy
         // guard) need this server pinned to legacy explicitly.
@@ -109,11 +107,8 @@ export default defineConfig({
         // billing-pages.spec's annual assertion has nothing to match. A dummy
         // id is fine — annual checkout is never exercised here (no Stripe).
         STRIPE_PRICE_ANNUAL: "price_e2e_annual_smoke_only",
-        // Test-only secret so Auth.js stops logging MissingSecret in smoke
-        // runs (2026-07-09 E2E-05). Never a production value.
-        AUTH_SECRET: "revora-e2e-smoke-only-secret-0000000000000000",
         NEXT_DIST_DIR: ".next-e2e-legacy",
-        VERCEL_ENV: "preview"
+        NEXT_PUBLIC_APP_URL: "http://127.0.0.1:3100"
       }
     },
     ...(runsTrialSpec ? [trialWebServer] : [])
