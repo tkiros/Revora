@@ -42,6 +42,11 @@ object ownership during this change.
 
 ## Migration sequence
 
+The current source journal ends at `0017_nudge-delivery-retries.sql`.
+Migrations `0014` through `0017` are additive. Migration `0017` adds only
+bounded operational attempt/lease metadata to `push_subscriptions`; existing
+rows receive `nudge_attempt_count = 0` and require no data backfill.
+
 1. Take/verify a provider backup and record its timestamp.
 2. Export both URLs only in the operator shell. Confirm they target the same
    host/database and different usernames without printing passwords.

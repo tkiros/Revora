@@ -87,6 +87,31 @@ describe("push subscribe/unsubscribe", () => {
     expect(await testDb.db.select().from(schema.pushSubscriptions)).toHaveLength(1);
   });
 
+  it("refreshing an endpoint clears attempt ownership but preserves success dedupe", async () => {
+    await testDb.db.insert(schema.pushSubscriptions).values({
+      userId,
+      endpoint: SUBSCRIPTION.endpoint,
+      p256dh: "old-key",
+      auth: "old-auth",
+      lastNudgeDate: "2026-07-03",
+      nudgeAttemptDate: "2026-07-04",
+      nudgeAttemptCount: 1,
+      nudgeLeaseToken: "00000000-0000-4000-8000-000000000002",
+      nudgeLeaseUntil: new Date("2026-07-04T15:05:00.000Z")
+    });
+
+    const { POST } = handlers();
+    await POST(request("POST", SUBSCRIPTION));
+
+    const [row] = await testDb.db.select().from(schema.pushSubscriptions);
+    expect(row.p256dh).toBe(SUBSCRIPTION.keys.p256dh);
+    expect(row.lastNudgeDate).toBe("2026-07-03");
+    expect(row.nudgeAttemptDate).toBeNull();
+    expect(row.nudgeAttemptCount).toBe(0);
+    expect(row.nudgeLeaseToken).toBeNull();
+    expect(row.nudgeLeaseUntil).toBeNull();
+  });
+
   it("DELETE removes the subscription and flips opt-in off", async () => {
     const { POST, DELETE } = handlers();
     await POST(request("POST", SUBSCRIPTION));
@@ -174,5 +199,53 @@ describe("GET /api/cron/nudge auth", () => {
       sent: 0,
       failed: 1
     });
+  });
+
+  it("returns 503 while a same-day retry is pending", async () => {
+    const now = new Date();
+    await testDb.db
+      .update(schema.profiles)
+      .set({ nudgeOptIn: true, timezone: "UTC" })
+      .where(eq(schema.profiles.userId, userId));
+    await testDb.db.insert(schema.pushSubscriptions).values({
+      userId,
+      endpoint: SUBSCRIPTION.endpoint,
+      p256dh: SUBSCRIPTION.keys.p256dh,
+      auth: SUBSCRIPTION.keys.auth,
+      nudgeAttemptDate: now.toISOString().slice(0, 10),
+      nudgeAttemptCount: 1,
+      nudgeRetryAfter: new Date(now.getTime() + 60 * 60 * 1000)
+    });
+    await testDb.db
+      .insert(schema.subscriptions)
+      .values({
+        userId,
+        provider: "stripe",
+        providerRef: "sub_push_route_pending",
+        productId: "premium_monthly",
+        status: "active",
+        currentPeriodEnd: new Date(now.getTime() + 24 * 60 * 60 * 1000)
+      })
+      .onConflictDoNothing();
+    const send = vi.fn().mockResolvedValue("ok");
+    const GET = createNudgeCronHandler({
+      db: () => testDb.db,
+      send
+    });
+
+    const response = await GET(
+      new Request("http://t/api/cron/nudge", {
+        headers: { authorization: "Bearer cron-secret" }
+      })
+    );
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({
+      ok: false,
+      failed: 0,
+      pending: 1,
+      exhausted: 0
+    });
+    expect(send).not.toHaveBeenCalled();
   });
 });

@@ -411,19 +411,47 @@ export const weeklyReflections = pgTable(
   (table) => [primaryKey({ columns: [table.userId, table.weekStart] })]
 );
 
-export const pushSubscriptions = pgTable("push_subscriptions", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  endpoint: text("endpoint").notNull().unique(),
-  p256dh: text("p256dh").notNull(),
-  auth: text("auth").notNull(),
-  lastNudgeDate: date("last_nudge_date"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow()
-});
+export const pushSubscriptions = pgTable(
+  "push_subscriptions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    endpoint: text("endpoint").notNull().unique(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    // Success-only local-day marker. Delivery attempts use the separate
+    // bounded state below so "never due" cannot be confused with "failed".
+    lastNudgeDate: date("last_nudge_date"),
+    nudgeAttemptDate: date("nudge_attempt_date"),
+    nudgeAttemptCount: smallint("nudge_attempt_count").notNull().default(0),
+    nudgeRetryAfter: timestamp("nudge_retry_after", { withTimezone: true }),
+    nudgeLeaseToken: uuid("nudge_lease_token"),
+    nudgeLeaseUntil: timestamp("nudge_lease_until", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (table) => [
+    check(
+      "push_nudge_attempt_count_check",
+      sql`${table.nudgeAttemptCount} BETWEEN 0 AND 3`
+    ),
+    check(
+      "push_nudge_attempt_state_check",
+      sql`(${table.nudgeAttemptDate} IS NULL AND ${table.nudgeAttemptCount} = 0) OR (${table.nudgeAttemptDate} IS NOT NULL AND ${table.nudgeAttemptCount} BETWEEN 1 AND 3)`
+    ),
+    check(
+      "push_nudge_lease_pair_check",
+      sql`(${table.nudgeLeaseToken} IS NULL) = (${table.nudgeLeaseUntil} IS NULL)`
+    ),
+    check(
+      "push_nudge_retry_state_check",
+      sql`${table.nudgeRetryAfter} IS NULL OR (${table.nudgeAttemptDate} IS NOT NULL AND ${table.nudgeLeaseToken} IS NULL)`
+    )
+  ]
+);
 
 export const subscriptions = pgTable(
   "subscriptions",

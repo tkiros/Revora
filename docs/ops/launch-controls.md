@@ -385,17 +385,23 @@ closing; escalate to the provider only if deliveries stay absent well past
 their normal retry window.
 
 **Push misfire (nudge cron gap or a burst of failures).** A single missed
-hourly run is acceptable and self-heals: the nudge cron
-(`app/api/cron/nudge/route.ts`, `lib/server/nudge.ts`) stamps
-`lastNudgeDate` per user, so it never double-sends — a user who didn't get
-their hour's nudge simply gets the next day's normally, and a user who _did_
-get it is skipped on every subsequent run that day even if the cron fires
-again. **Action:** check the cron heartbeat (`/api/health`'s `crons.nudge`
-staleness probe — `ok`/`stale`/`never`) and the Railway `hourly-crons`
-service logs (`docs/runbooks/price-test.md`) to confirm the
-job is actually running on schedule; never manually re-fire a nudge send for
-a user or cohort — the skip-if-already-notified design means a manual re-fire
-risks being the actual cause of a double-send, not the fix for a missed one.
+hourly run does not broaden the normal send window. A provider-confirmed error
+does create explicit same-local-day recovery state: the worker retries on later
+non-quiet hourly ticks, with an atomic five-minute lease and a maximum of three
+total attempts. `lastNudgeDate` is written only after provider success and
+dedupes every later tick that day. A check, entitlement loss, journey stop, or
+preference change cancels retry eligibility; stale state never crosses the
+local-day boundary. The cron route stays non-green and withholds its success
+heartbeat while a retry is failed, pending, or exhausted.
+
+**Residual delivery boundary:** web-push has no application idempotency key. A
+network/provider error can mean “delivered but acknowledgement lost,” so a
+bounded retry can rarely duplicate a notification. The attempt cap limits that
+at-least-once tradeoff; do not manually re-fire a user or cohort because it
+bypasses neither this ambiguity nor the lease. **Action:** check
+`/api/health`'s `crons.nudge` staleness probe and the Railway
+`hourly-crons` logs (`docs/runbooks/price-test.md`). Escalate an `exhausted`
+count instead of editing retry rows or invoking the endpoint by hand.
 
 ---
 

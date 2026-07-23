@@ -120,6 +120,13 @@
       "when": 1784778807236,
       "tag": "0016_email-delivery-state",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1784784451727,
+      "tag": "0017_nudge-delivery-retries",
+      "breakpoints": true
     }
   ]
 }

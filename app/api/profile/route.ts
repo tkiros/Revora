@@ -173,6 +173,20 @@ export function createProfilePatchHandler(deps: ProfileRouteDeps = {}) {
       .set(parsed.data)
       .where(eq(schema.profiles.userId, session.userId));
 
+    // A preference mutation (including opt-out, cadence, hour, or quiet hours)
+    // cancels a pending attempt. A future send must be newly eligible under the
+    // updated preferences; confirmed last-send history remains intact.
+    await db()
+      .update(schema.pushSubscriptions)
+      .set({
+        nudgeAttemptDate: null,
+        nudgeAttemptCount: 0,
+        nudgeRetryAfter: null,
+        nudgeLeaseToken: null,
+        nudgeLeaseUntil: null
+      })
+      .where(eq(schema.pushSubscriptions.userId, session.userId));
+
     return NextResponse.json({ ok: true });
   };
 }

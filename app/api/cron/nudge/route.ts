@@ -60,7 +60,10 @@ export function createNudgeCronHandler(deps: Deps = {}) {
 
     try {
       const result = await runNudgeCron(db(), { send });
-      const ok = result.failed === 0;
+      const ok =
+        result.failed === 0 &&
+        result.pending === 0 &&
+        result.exhausted === 0;
       return NextResponse.json(
         { ok, ...result },
         { status: ok ? 200 : 503 }

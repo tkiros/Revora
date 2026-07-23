@@ -12,6 +12,7 @@ import { createTestDb } from "../../helpers/test-db";
 const TEST_KEY = Buffer.alloc(32, 11).toString("base64");
 // 15:00 UTC = 11:00 in New York (EDT), 09:00 in Denver (MDT)
 const NOW = new Date("2026-07-03T15:00:00.000Z");
+const HOUR_MS = 60 * 60 * 1000;
 
 let testDb: Awaited<ReturnType<typeof createTestDb>>;
 
@@ -37,7 +38,12 @@ async function seedUser(options: {
   optIn?: boolean;
   premium?: boolean;
   checkedTodayAt?: Date;
-  lastNudgeDate?: string;
+  lastNudgeDate?: string | null;
+  nudgeAttemptDate?: string | null;
+  nudgeAttemptCount?: number;
+  nudgeRetryAfter?: Date | null;
+  nudgeLeaseToken?: string | null;
+  nudgeLeaseUntil?: Date | null;
   cadence?: "daily" | "few_per_week" | "weekly";
   quietStart?: number | null;
   quietEnd?: number | null;
@@ -65,7 +71,12 @@ async function seedUser(options: {
     endpoint: `https://push.example/${options.email}`,
     p256dh: "k",
     auth: "a",
-    lastNudgeDate: options.lastNudgeDate ?? null
+    lastNudgeDate: options.lastNudgeDate ?? null,
+    nudgeAttemptDate: options.nudgeAttemptDate ?? null,
+    nudgeAttemptCount: options.nudgeAttemptCount ?? 0,
+    nudgeRetryAfter: options.nudgeRetryAfter ?? null,
+    nudgeLeaseToken: options.nudgeLeaseToken ?? null,
+    nudgeLeaseUntil: options.nudgeLeaseUntil ?? null
   });
 
   if (options.premium ?? true) {
@@ -97,6 +108,14 @@ function runWith(send = vi.fn().mockResolvedValue("ok" as const)) {
     send,
     run: () => runNudgeCron(testDb.db, { now: () => NOW, send })
   };
+}
+
+function runAt(
+  now: Date,
+  send = vi.fn().mockResolvedValue("ok" as const),
+  env?: { LEARNING_JOURNEY_ENABLED?: string }
+) {
+  return runNudgeCron(testDb.db, { now: () => now, send, env });
 }
 
 const JOURNEY_ON = { LEARNING_JOURNEY_ENABLED: "1" };
@@ -202,6 +221,11 @@ describe("runNudgeCron", () => {
     expect(result.failed).toBe(1);
     const [row] = await testDb.db.select().from(schema.pushSubscriptions);
     expect(row.lastNudgeDate).toBeNull();
+    expect(row.nudgeAttemptDate).toBe("2026-07-03");
+    expect(row.nudgeAttemptCount).toBe(1);
+    expect(row.nudgeRetryAfter).toEqual(new Date("2026-07-03T16:00:00.000Z"));
+    expect(row.nudgeLeaseToken).toBeNull();
+    expect(row.nudgeLeaseUntil).toBeNull();
     expect(await testDb.db.select().from(schema.cronHeartbeat)).toHaveLength(0);
 
     const retrySend = vi.fn().mockResolvedValue("ok" as const);
@@ -214,6 +238,13 @@ describe("runNudgeCron", () => {
     expect(retrySend).toHaveBeenCalledOnce();
     const [retried] = await testDb.db.select().from(schema.pushSubscriptions);
     expect(retried.lastNudgeDate).toBe("2026-07-03");
+    expect(retried.nudgeAttemptDate).toBeNull();
+    expect(retried.nudgeAttemptCount).toBe(0);
+    expect(retried.nudgeRetryAfter).toBeNull();
+    const [heartbeat] = await testDb.db.select().from(schema.cronHeartbeat);
+    expect(heartbeat.lastRunAt).toEqual(
+      new Date(NOW.getTime() + HOUR_MS)
+    );
   });
 
   it("contains a rejected provider send and retries other subscriptions", async () => {
@@ -229,6 +260,309 @@ describe("runNudgeCron", () => {
     expect(send).toHaveBeenCalledTimes(2);
     expect(result).toMatchObject({ sent: 1, failed: 1 });
     expect(await testDb.db.select().from(schema.cronHeartbeat)).toHaveLength(0);
+  });
+
+  it("does not turn a never-due user into a late send", async () => {
+    await seedUser({ email: "never-due@test.dev", timezone: "America/New_York" });
+    const send = vi.fn().mockResolvedValue("ok" as const);
+
+    const result = await runAt(new Date(NOW.getTime() + HOUR_MS), send);
+
+    expect(result.sent).toBe(0);
+    expect(result.pending).toBe(0);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("bounds a local day to three attempts and reports exhaustion", async () => {
+    await seedUser({ email: "bounded@test.dev", timezone: "America/New_York" });
+    const send = vi.fn().mockResolvedValue("error" as const);
+
+    for (const offset of [0, 1, 2]) {
+      const result = await runAt(
+        new Date(NOW.getTime() + offset * HOUR_MS),
+        send
+      );
+      expect(result.failed).toBe(1);
+    }
+
+    const [row] = await testDb.db.select().from(schema.pushSubscriptions);
+    expect(row.nudgeAttemptDate).toBe("2026-07-03");
+    expect(row.nudgeAttemptCount).toBe(3);
+    expect(row.nudgeRetryAfter).toBeNull();
+
+    const afterBoundSend = vi.fn().mockResolvedValue("ok" as const);
+    const afterBound = await runAt(
+      new Date(NOW.getTime() + 3 * HOUR_MS),
+      afterBoundSend
+    );
+    expect(afterBound).toMatchObject({
+      sent: 0,
+      failed: 0,
+      pending: 0,
+      exhausted: 1
+    });
+    expect(afterBoundSend).not.toHaveBeenCalled();
+    expect(await testDb.db.select().from(schema.cronHeartbeat)).toHaveLength(0);
+  });
+
+  it("uses an atomic lease for overlapping initial attempts", async () => {
+    await seedUser({ email: "overlap-initial@test.dev", timezone: "America/New_York" });
+    let release!: (result: "ok") => void;
+    const firstSend = vi.fn(
+      () =>
+        new Promise<"ok">((resolve) => {
+          release = resolve;
+        })
+    );
+    const firstRun = runAt(NOW, firstSend);
+    await vi.waitFor(() => expect(firstSend).toHaveBeenCalledOnce());
+
+    const competingSend = vi.fn().mockResolvedValue("ok" as const);
+    const competing = await runAt(NOW, competingSend);
+    expect(competing.sent).toBe(0);
+    expect(competing.pending).toBe(1);
+    expect(competingSend).not.toHaveBeenCalled();
+
+    release("ok");
+    expect((await firstRun).sent).toBe(1);
+  });
+
+  it("uses an atomic lease for overlapping retry attempts", async () => {
+    await seedUser({ email: "overlap-retry@test.dev", timezone: "America/New_York" });
+    await runAt(NOW, vi.fn().mockResolvedValue("error" as const));
+
+    let release!: (result: "ok") => void;
+    const firstRetrySend = vi.fn(
+      () =>
+        new Promise<"ok">((resolve) => {
+          release = resolve;
+        })
+    );
+    const retryAt = new Date(NOW.getTime() + HOUR_MS);
+    const firstRetry = runAt(retryAt, firstRetrySend);
+    await vi.waitFor(() => expect(firstRetrySend).toHaveBeenCalledOnce());
+
+    const competingSend = vi.fn().mockResolvedValue("ok" as const);
+    const competing = await runAt(retryAt, competingSend);
+    expect(competing.sent).toBe(0);
+    expect(competing.pending).toBe(1);
+    expect(competingSend).not.toHaveBeenCalled();
+
+    release("ok");
+    expect((await firstRetry).sent).toBe(1);
+  });
+
+  it("recovers an expired ambiguous lease within the bounded attempt budget", async () => {
+    await seedUser({
+      email: "expired-lease@test.dev",
+      timezone: "America/New_York",
+      nudgeAttemptDate: "2026-07-03",
+      nudgeAttemptCount: 1,
+      nudgeLeaseToken: "00000000-0000-4000-8000-000000000001",
+      nudgeLeaseUntil: new Date(NOW.getTime() + 30 * 60 * 1000)
+    });
+    const retrySend = vi.fn().mockResolvedValue("ok" as const);
+
+    const result = await runAt(
+      new Date(NOW.getTime() + HOUR_MS),
+      retrySend
+    );
+
+    expect(result.sent).toBe(1);
+    expect(retrySend).toHaveBeenCalledOnce();
+  });
+
+  it("keeps a retry pending through quiet hours, then sends afterward", async () => {
+    await seedUser({
+      email: "retry-quiet@test.dev",
+      timezone: "America/New_York",
+      quietStart: 12,
+      quietEnd: 13
+    });
+    await runAt(NOW, vi.fn().mockResolvedValue("error" as const));
+
+    const quietSend = vi.fn().mockResolvedValue("ok" as const);
+    const quiet = await runAt(
+      new Date(NOW.getTime() + HOUR_MS),
+      quietSend
+    );
+    expect(quiet).toMatchObject({ sent: 0, pending: 1 });
+    expect(quietSend).not.toHaveBeenCalled();
+
+    const recoveredSend = vi.fn().mockResolvedValue("ok" as const);
+    const recovered = await runAt(
+      new Date(NOW.getTime() + 2 * HOUR_MS),
+      recoveredSend
+    );
+    expect(recovered.sent).toBe(1);
+    expect(recoveredSend).toHaveBeenCalledOnce();
+  });
+
+  it("does not carry a retry across the user's local-day boundary", async () => {
+    const late = new Date("2026-07-04T03:00:00.000Z"); // 23:00 July 3 EDT
+    await seedUser({
+      email: "day-boundary@test.dev",
+      timezone: "America/New_York",
+      nudgeHour: 23
+    });
+    await runAt(late, vi.fn().mockResolvedValue("error" as const));
+
+    const afterMidnightSend = vi.fn().mockResolvedValue("ok" as const);
+    const afterMidnight = await runAt(
+      new Date(late.getTime() + HOUR_MS),
+      afterMidnightSend
+    );
+    expect(afterMidnight).toMatchObject({
+      sent: 0,
+      pending: 0,
+      exhausted: 0
+    });
+    expect(afterMidnightSend).not.toHaveBeenCalled();
+    const [cleared] = await testDb.db.select().from(schema.pushSubscriptions);
+    expect(cleared.nudgeAttemptDate).toBeNull();
+
+    const nextScheduledSend = vi.fn().mockResolvedValue("ok" as const);
+    const nextScheduled = await runAt(
+      new Date(late.getTime() + 24 * HOUR_MS),
+      nextScheduledSend
+    );
+    expect(nextScheduled.sent).toBe(1);
+  });
+
+  it("cancels retry eligibility when the user checks a meal", async () => {
+    const user = await seedUser({
+      email: "checked-between@test.dev",
+      timezone: "America/New_York"
+    });
+    await runAt(NOW, vi.fn().mockResolvedValue("error" as const));
+    await testDb.db.insert(schema.checks).values({
+      userId: user.id,
+      foodCiphertext: encryptField("later meal"),
+      risk: "SAFE",
+      a1cBand: "prediabetes_60_62",
+      createdAt: new Date(NOW.getTime() + 30 * 60 * 1000)
+    });
+
+    const send = vi.fn().mockResolvedValue("ok" as const);
+    expect((await runAt(new Date(NOW.getTime() + HOUR_MS), send)).sent).toBe(0);
+    expect(send).not.toHaveBeenCalled();
+    const [row] = await testDb.db.select().from(schema.pushSubscriptions);
+    expect(row.nudgeAttemptDate).toBeNull();
+  });
+
+  it("does not retry after opt-out", async () => {
+    const user = await seedUser({
+      email: "optout-between@test.dev",
+      timezone: "America/New_York"
+    });
+    await runAt(NOW, vi.fn().mockResolvedValue("error" as const));
+    await testDb.db
+      .update(schema.profiles)
+      .set({ nudgeOptIn: false })
+      .where(eq(schema.profiles.userId, user.id));
+
+    const send = vi.fn().mockResolvedValue("ok" as const);
+    expect((await runAt(new Date(NOW.getTime() + HOUR_MS), send)).sent).toBe(0);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("cancels retry eligibility after entitlement loss", async () => {
+    const user = await seedUser({
+      email: "entitlement-between@test.dev",
+      timezone: "America/New_York"
+    });
+    await runAt(NOW, vi.fn().mockResolvedValue("error" as const));
+    await testDb.db
+      .update(schema.subscriptions)
+      .set({ status: "expired" })
+      .where(eq(schema.subscriptions.userId, user.id));
+
+    const send = vi.fn().mockResolvedValue("ok" as const);
+    expect((await runAt(new Date(NOW.getTime() + HOUR_MS), send)).sent).toBe(0);
+    expect(send).not.toHaveBeenCalled();
+    const [row] = await testDb.db.select().from(schema.pushSubscriptions);
+    expect(row.nudgeAttemptDate).toBeNull();
+  });
+
+  it("prunes a gone endpoint during a retry and removes all retry state", async () => {
+    await seedUser({ email: "gone-retry@test.dev", timezone: "America/New_York" });
+    await runAt(NOW, vi.fn().mockResolvedValue("error" as const));
+
+    const result = await runAt(
+      new Date(NOW.getTime() + HOUR_MS),
+      vi.fn().mockResolvedValue("gone" as const)
+    );
+
+    expect(result.pruned).toBe(1);
+    expect(await testDb.db.select().from(schema.pushSubscriptions)).toHaveLength(0);
+  });
+
+  it("dedupes a successful retry for the rest of the local day", async () => {
+    await seedUser({ email: "retry-dedupe@test.dev", timezone: "America/New_York" });
+    await runAt(NOW, vi.fn().mockResolvedValue("error" as const));
+    await runAt(
+      new Date(NOW.getTime() + HOUR_MS),
+      vi.fn().mockResolvedValue("ok" as const)
+    );
+
+    const laterSend = vi.fn().mockResolvedValue("ok" as const);
+    const later = await runAt(
+      new Date(NOW.getTime() + 2 * HOUR_MS),
+      laterSend
+    );
+    expect(later.sent).toBe(0);
+    expect(laterSend).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["daily", null],
+    ["few_per_week", "2026-07-01"],
+    ["weekly", "2026-06-26"]
+  ] as const)(
+    "preserves %s cadence eligibility from initial failure through retry",
+    async (cadence, lastNudgeDate) => {
+      await seedUser({
+        email: `retry-${cadence}@test.dev`,
+        timezone: "America/New_York",
+        cadence,
+        lastNudgeDate
+      });
+      await runAt(NOW, vi.fn().mockResolvedValue("error" as const));
+
+      const retrySend = vi.fn().mockResolvedValue("ok" as const);
+      const result = await runAt(
+        new Date(NOW.getTime() + HOUR_MS),
+        retrySend
+      );
+      expect(result.sent).toBe(1);
+      expect(retrySend).toHaveBeenCalledOnce();
+    }
+  );
+
+  it("cancels retry eligibility when a journey stop rule activates", async () => {
+    const user = await seedUser({
+      email: "journey-stop-between@test.dev",
+      timezone: "America/New_York"
+    });
+    await seedJourney(user.id);
+    await runAt(
+      NOW,
+      vi.fn().mockResolvedValue("error" as const),
+      JOURNEY_ON
+    );
+    await testDb.db
+      .update(schema.learningJourneys)
+      .set({ state: "paused", pausedAt: new Date(NOW.getTime() + 30 * 60 * 1000) })
+      .where(eq(schema.learningJourneys.userId, user.id));
+
+    const retrySend = vi.fn().mockResolvedValue("ok" as const);
+    const result = await runAt(
+      new Date(NOW.getTime() + HOUR_MS),
+      retrySend,
+      JOURNEY_ON
+    );
+    expect(result.sent).toBe(0);
+    expect(retrySend).not.toHaveBeenCalled();
   });
 });
 
@@ -296,7 +630,14 @@ describe("runNudgeCron — heartbeat (P7)", () => {
         now: () => NOW,
         send: vi.fn().mockResolvedValue("ok" as const)
       })
-    ).resolves.toEqual({ sent: 1, pruned: 0, failed: 0, skipped: 0 });
+    ).resolves.toEqual({
+      sent: 1,
+      pruned: 0,
+      failed: 0,
+      pending: 0,
+      exhausted: 0,
+      skipped: 0
+    });
 
     // No row was written (the insert threw), and that's fine — the response
     // above already proves the run itself didn't fail.

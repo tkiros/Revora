@@ -1,4 +1,16 @@
-import { and, eq, gte, isNull, lt, or } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
+
+import {
+  and,
+  eq,
+  gt,
+  gte,
+  isNotNull,
+  isNull,
+  lt,
+  lte,
+  or
+} from "drizzle-orm";
 
 import { dayKeyInTimezone, hourInTimezone } from "../coach/days";
 import { learningJourneyServerEnabled } from "../learning-journey-flag";
@@ -54,6 +66,9 @@ export type NudgeDeps = {
 };
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+const NUDGE_LEASE_MS = 5 * 60 * 1000;
+const NUDGE_MAX_ATTEMPTS = 3;
 
 type ProfileCandidate = {
   userId: string;
@@ -63,6 +78,174 @@ type ProfileCandidate = {
   nudgeQuietStart: number | null;
   nudgeQuietEnd: number | null;
 };
+
+type PushSubscription = typeof schema.pushSubscriptions.$inferSelect;
+
+type NudgeAttemptPlan = {
+  subscription: PushSubscription;
+  kind: "initial" | "retry";
+  attemptCount: number;
+};
+
+type NudgeCronResult = {
+  sent: number;
+  pruned: number;
+  failed: number;
+  pending: number;
+  exhausted: number;
+  skipped: number;
+};
+
+const clearedNudgeAttemptState = {
+  nudgeAttemptDate: null,
+  nudgeAttemptCount: 0,
+  nudgeRetryAfter: null,
+  nudgeLeaseToken: null,
+  nudgeLeaseUntil: null
+} as const;
+
+function nextHourlyTick(now: Date): Date {
+  return new Date(Math.floor(now.getTime() / HOUR_MS) * HOUR_MS + HOUR_MS);
+}
+
+function retryState(
+  subscription: PushSubscription,
+  todayKey: string,
+  now: Date
+): "ready" | "pending" | "exhausted" | null {
+  if (subscription.nudgeAttemptDate !== todayKey) {
+    return null;
+  }
+  if (subscription.nudgeAttemptCount >= NUDGE_MAX_ATTEMPTS) {
+    return "exhausted";
+  }
+  if (
+    subscription.nudgeLeaseUntil &&
+    subscription.nudgeLeaseUntil.getTime() > now.getTime()
+  ) {
+    return "pending";
+  }
+  if (subscription.nudgeRetryAfter) {
+    return subscription.nudgeRetryAfter.getTime() <= now.getTime()
+      ? "ready"
+      : "pending";
+  }
+  // A worker can disappear after claiming but before recording a provider
+  // result. Once its lease expires, a later hourly run may recover the attempt.
+  return subscription.nudgeLeaseUntil ? "ready" : "pending";
+}
+
+async function clearTodayNudgeAttempts(
+  db: Db,
+  userId: string,
+  todayKey: string,
+  now: Date
+): Promise<void> {
+  await db
+    .update(schema.pushSubscriptions)
+    .set(clearedNudgeAttemptState)
+    .where(
+      and(
+        eq(schema.pushSubscriptions.userId, userId),
+        eq(schema.pushSubscriptions.nudgeAttemptDate, todayKey),
+        or(
+          isNull(schema.pushSubscriptions.nudgeLeaseUntil),
+          lte(schema.pushSubscriptions.nudgeLeaseUntil, now)
+        )
+      )
+    );
+}
+
+async function clearStaleNudgeAttempts(
+  db: Db,
+  userId: string,
+  todayKey: string,
+  now: Date
+): Promise<void> {
+  await db
+    .update(schema.pushSubscriptions)
+    .set(clearedNudgeAttemptState)
+    .where(
+      and(
+        eq(schema.pushSubscriptions.userId, userId),
+        or(
+          lt(schema.pushSubscriptions.nudgeAttemptDate, todayKey),
+          gt(schema.pushSubscriptions.nudgeAttemptDate, todayKey)
+        ),
+        or(
+          isNull(schema.pushSubscriptions.nudgeLeaseUntil),
+          lte(schema.pushSubscriptions.nudgeLeaseUntil, now)
+        )
+      )
+    );
+}
+
+async function claimNudgeAttempt(
+  db: Db,
+  plan: NudgeAttemptPlan,
+  todayKey: string,
+  now: Date
+): Promise<string | null> {
+  const leaseToken = randomUUID();
+  const leaseUntil = new Date(now.getTime() + NUDGE_LEASE_MS);
+  const leaseAvailable = or(
+    isNull(schema.pushSubscriptions.nudgeLeaseUntil),
+    lte(schema.pushSubscriptions.nudgeLeaseUntil, now)
+  );
+  const eligibility =
+    plan.kind === "initial"
+      ? or(
+          isNull(schema.pushSubscriptions.nudgeAttemptDate),
+          lt(schema.pushSubscriptions.nudgeAttemptDate, todayKey),
+          gt(schema.pushSubscriptions.nudgeAttemptDate, todayKey)
+        )
+      : and(
+          eq(schema.pushSubscriptions.nudgeAttemptDate, todayKey),
+          eq(
+            schema.pushSubscriptions.nudgeAttemptCount,
+            plan.subscription.nudgeAttemptCount
+          ),
+          lt(
+            schema.pushSubscriptions.nudgeAttemptCount,
+            NUDGE_MAX_ATTEMPTS
+          ),
+          or(
+            and(
+              isNotNull(schema.pushSubscriptions.nudgeRetryAfter),
+              lte(schema.pushSubscriptions.nudgeRetryAfter, now)
+            ),
+            and(
+              isNull(schema.pushSubscriptions.nudgeRetryAfter),
+              isNotNull(schema.pushSubscriptions.nudgeLeaseUntil),
+              lte(schema.pushSubscriptions.nudgeLeaseUntil, now)
+            )
+          )
+        );
+
+  const claimed = await db
+    .update(schema.pushSubscriptions)
+    .set({
+      nudgeAttemptDate: todayKey,
+      nudgeAttemptCount: plan.attemptCount,
+      nudgeRetryAfter: null,
+      nudgeLeaseToken: leaseToken,
+      nudgeLeaseUntil: leaseUntil
+    })
+    .where(
+      and(
+        eq(schema.pushSubscriptions.id, plan.subscription.id),
+        or(
+          isNull(schema.pushSubscriptions.lastNudgeDate),
+          lt(schema.pushSubscriptions.lastNudgeDate, todayKey)
+        ),
+        leaseAvailable,
+        eligibility
+      )
+    )
+    .returning({ id: schema.pushSubscriptions.id });
+
+  return claimed.length === 1 ? leaseToken : null;
+}
 
 /** The caller's stored journey, or the not-started sentinel when there is no row. */
 async function loadJourney(db: Db, userId: string): Promise<Journey> {
@@ -185,7 +368,7 @@ async function loadStageIntentMet(
 export async function runNudgeCron(
   db: Db,
   deps: NudgeDeps
-): Promise<{ sent: number; pruned: number; failed: number; skipped: number }> {
+): Promise<NudgeCronResult> {
   const now = deps.now?.() ?? new Date();
   const journeyEnabled = learningJourneyServerEnabled(
     deps.env ??
@@ -194,6 +377,8 @@ export async function runNudgeCron(
   let sent = 0;
   let pruned = 0;
   let failed = 0;
+  let pending = 0;
+  let exhausted = 0;
   let skipped = 0;
 
   const candidates = (await db
@@ -210,28 +395,20 @@ export async function runNudgeCron(
 
   for (const candidate of candidates) {
     const localHour = hourInTimezone(candidate.timezone)(now);
-    if (localHour !== candidate.nudgeHour) {
-      skipped += 1;
-      continue;
-    }
-
-    // Quiet hours: even at the chosen hour, honor an explicit quiet window.
-    if (
-      isQuietHour(localHour, candidate.nudgeQuietStart, candidate.nudgeQuietEnd)
-    ) {
-      skipped += 1;
-      continue;
-    }
-
     const dayKey = dayKeyInTimezone(candidate.timezone);
     const todayKey = dayKey(now);
+
+    // Retry state is local-day bounded. Remove yesterday's metadata before
+    // considering a new initial attempt; a stale retry never rolls forward.
+    await clearStaleNudgeAttempts(db, candidate.userId, todayKey, now);
 
     const subscriptions = await db
       .select()
       .from(schema.pushSubscriptions)
       .where(eq(schema.pushSubscriptions.userId, candidate.userId));
 
-    // Cadence spacing per subscription (daily = one/local-day, unchanged).
+    // Cadence spacing remains tied to the last confirmed success. Attempt
+    // metadata cannot make a user who was never due eligible for a late send.
     const due = subscriptions.filter((subscription) =>
       cadenceAllowsSend(
         candidate.nudgeCadence,
@@ -239,7 +416,13 @@ export async function runNudgeCron(
         subscription.lastNudgeDate
       )
     );
-    if (due.length === 0) {
+    const retrying = due.filter(
+      (subscription) => subscription.nudgeAttemptDate === todayKey
+    );
+    const initialWindow =
+      localHour === candidate.nudgeHour &&
+      due.some((subscription) => subscription.nudgeAttemptDate !== todayKey);
+    if (!initialWindow && retrying.length === 0) {
       skipped += 1;
       continue;
     }
@@ -251,6 +434,7 @@ export async function runNudgeCron(
       .from(schema.checks)
       .where(eq(schema.checks.userId, candidate.userId));
     if (recent.some((row) => dayKey(row.createdAt) === todayKey)) {
+      await clearTodayNudgeAttempts(db, candidate.userId, todayKey, now);
       skipped += 1;
       continue;
     }
@@ -261,6 +445,7 @@ export async function runNudgeCron(
     // The nudge is a paid capability — gate on the matrix, not an inline tier
     // check, so "who gets a reminder" has exactly one definition (T10).
     if (!capabilitiesFor(entitlement).nudges) {
+      await clearTodayNudgeAttempts(db, candidate.userId, todayKey, now);
       skipped += 1;
       continue;
     }
@@ -313,10 +498,56 @@ export async function runNudgeCron(
       const chosen = selectJourneyNudge(signals);
       if (!chosen) {
         // A stop rule fired (paused / graduated / 14-day inactivity).
+        await clearTodayNudgeAttempts(db, candidate.userId, todayKey, now);
         skipped += 1;
         continue;
       }
       selection = chosen;
+    }
+
+    // Quiet hours apply again at the actual retry hour. An initial attempt is
+    // simply suppressed; an explicit same-day retry remains pending until a
+    // later non-quiet hourly tick.
+    if (
+      isQuietHour(localHour, candidate.nudgeQuietStart, candidate.nudgeQuietEnd)
+    ) {
+      for (const subscription of retrying) {
+        const state = retryState(subscription, todayKey, now);
+        if (state === "exhausted") {
+          exhausted += 1;
+        } else if (state !== null) {
+          pending += 1;
+        }
+      }
+      skipped += 1;
+      continue;
+    }
+
+    const attempts: NudgeAttemptPlan[] = [];
+    for (const subscription of due) {
+      const state = retryState(subscription, todayKey, now);
+      if (state === "ready") {
+        attempts.push({
+          subscription,
+          kind: "retry",
+          attemptCount: subscription.nudgeAttemptCount + 1
+        });
+      } else if (state === "pending") {
+        pending += 1;
+      } else if (state === "exhausted") {
+        exhausted += 1;
+      } else if (localHour === candidate.nudgeHour) {
+        attempts.push({
+          subscription,
+          kind: "initial",
+          attemptCount: 1
+        });
+      }
+    }
+
+    if (attempts.length === 0) {
+      skipped += 1;
+      continue;
     }
 
     // Deterministic generic rotation by day so all of a user's devices say the
@@ -332,76 +563,98 @@ export async function runNudgeCron(
       stage: selection.stage === null ? "none" : String(selection.stage)
     });
 
-    for (const subscription of due) {
-      // RE-06: claim-before-send (same lease pattern as the pre-charge
-      // sweep). Stamp-after-send let two overlapping runs both read the
-      // stale lastNudgeDate and both push. The atomic claim makes exactly
-      // one run own today's send. A confirmed provider failure releases only
-      // this exact claim so a later hourly tick can retry; a successful send
-      // retains the date as the durable daily dedupe marker.
-      const claimed = await db
-        .update(schema.pushSubscriptions)
-        .set({ lastNudgeDate: todayKey })
-        .where(
-          and(
-            eq(schema.pushSubscriptions.id, subscription.id),
-            or(
-              isNull(schema.pushSubscriptions.lastNudgeDate),
-              lt(schema.pushSubscriptions.lastNudgeDate, todayKey)
-            )
-          )
-        )
-        .returning({ id: schema.pushSubscriptions.id });
-      if (claimed.length === 0) {
-        continue; // another run claimed this subscription for today
+    for (const plan of attempts) {
+      const leaseToken = await claimNudgeAttempt(db, plan, todayKey, now);
+      if (!leaseToken) {
+        // Another overlapping run or a concurrent preference/subscription
+        // change won. Do not send without owning the exact attempt.
+        pending += 1;
+        continue;
       }
 
       let result: PushSendResult = "error";
       try {
         result = await deps.send(
           {
-            endpoint: subscription.endpoint,
-            keys: { p256dh: subscription.p256dh, auth: subscription.auth }
+            endpoint: plan.subscription.endpoint,
+            keys: {
+              p256dh: plan.subscription.p256dh,
+              auth: plan.subscription.auth
+            }
           },
           payload
         );
       } catch {
         // Treat an injected/provider transport rejection the same as the
         // sender's bounded "error" result. Never let one endpoint prevent the
-        // rest of the cohort from being attempted.
+        // rest of the cohort from being attempted. A provider/network error can
+        // be acknowledgement-ambiguous: bounded at-least-once retry may produce
+        // a duplicate if delivery succeeded but its acknowledgement was lost.
       }
 
       if (result === "gone") {
-        await db
+        const deleted = await db
           .delete(schema.pushSubscriptions)
-          .where(eq(schema.pushSubscriptions.id, subscription.id));
-        pruned += 1;
+          .where(
+            and(
+              eq(schema.pushSubscriptions.id, plan.subscription.id),
+              eq(schema.pushSubscriptions.nudgeLeaseToken, leaseToken)
+            )
+          )
+          .returning({ id: schema.pushSubscriptions.id });
+        pruned += deleted.length;
         continue;
       }
 
       if (result === "ok") {
-        sent += 1;
+        const finalized = await db
+          .update(schema.pushSubscriptions)
+          .set({
+            lastNudgeDate: todayKey,
+            ...clearedNudgeAttemptState
+          })
+          .where(
+            and(
+              eq(schema.pushSubscriptions.id, plan.subscription.id),
+              eq(schema.pushSubscriptions.nudgeLeaseToken, leaseToken)
+            )
+          )
+          .returning({ id: schema.pushSubscriptions.id });
+        if (finalized.length === 1) {
+          sent += 1;
+        } else {
+          // Provider success without a durable matching lease is not safe to
+          // report as a completed attempt.
+          failed += 1;
+        }
         continue;
       }
 
       await db
         .update(schema.pushSubscriptions)
-        .set({ lastNudgeDate: subscription.lastNudgeDate })
+        .set({
+          nudgeRetryAfter:
+            plan.attemptCount < NUDGE_MAX_ATTEMPTS
+              ? nextHourlyTick(now)
+              : null,
+          nudgeLeaseToken: null,
+          nudgeLeaseUntil: null
+        })
         .where(
           and(
-            eq(schema.pushSubscriptions.id, subscription.id),
-            eq(schema.pushSubscriptions.lastNudgeDate, todayKey)
+            eq(schema.pushSubscriptions.id, plan.subscription.id),
+            eq(schema.pushSubscriptions.nudgeLeaseToken, leaseToken)
           )
         );
       failed += 1;
     }
   }
 
-  if (failed === 0) {
+  if (failed === 0 && pending === 0 && exhausted === 0) {
     await recordHeartbeat(db, "nudge", now);
   }
 
-  return { sent, pruned, failed, skipped };
+  return { sent, pruned, failed, pending, exhausted, skipped };
 }
 
 /**

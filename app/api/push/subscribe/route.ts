@@ -64,7 +64,15 @@ export function createPushSubscribeHandlers(deps: Deps = {}) {
           set: {
             userId: session.userId,
             p256dh: parsed.data.keys.p256dh,
-            auth: parsed.data.keys.auth
+            auth: parsed.data.keys.auth,
+            // A refreshed browser subscription supersedes any attempt owned by
+            // the old key material. Preserve confirmed daily success, but
+            // cancel in-flight retry/lease state.
+            nudgeAttemptDate: null,
+            nudgeAttemptCount: 0,
+            nudgeRetryAfter: null,
+            nudgeLeaseToken: null,
+            nudgeLeaseUntil: null
           }
         });
 
