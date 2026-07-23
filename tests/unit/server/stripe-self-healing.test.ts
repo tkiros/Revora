@@ -149,7 +149,7 @@ describe("durable inbox — dedupe by provider event id", () => {
     let [row] = await testDb.db.select().from(schema.billingEventInbox);
     expect(row.status).toBe("failed");
     expect(row.attempts).toBe(1);
-    expect(row.lastError).toContain("transient");
+    expect(row.lastError).toBe("Error");
 
     // Stripe redelivers the same event id → we reprocess the failed row.
     const second = await ingestStripeEvent(testDb.db, event, deps({ apply }));
@@ -717,16 +717,35 @@ describe("reconcile — charge scan window + pruning", () => {
         status: "processed",
         receivedAt: new Date(NOW.getTime() - 5 * 24 * 60 * 60 * 1000),
         processedAt: new Date(NOW.getTime() - 5 * 24 * 60 * 60 * 1000)
+      },
+      {
+        provider: "stripe",
+        providerEventId: "evt_stale_failed",
+        eventType: "customer.subscription.updated",
+        payload: { customer_email: "old-failed@example.com" } as never,
+        status: "failed",
+        attempts: MAX_INBOX_ATTEMPTS,
+        receivedAt: new Date(NOW.getTime() - 40 * 24 * 60 * 60 * 1000)
+      },
+      {
+        provider: "stripe",
+        providerEventId: "evt_stale_dead",
+        eventType: "customer.subscription.updated",
+        payload: { customer_email: "old-dead@example.com" } as never,
+        status: "dead_letter",
+        receivedAt: new Date(NOW.getTime() - 40 * 24 * 60 * 60 * 1000)
       }
     ]);
 
     const result = await runStripeReconcileCron(testDb.db, { now: () => NOW });
 
-    expect(result.pruned).toBe(1);
+    expect(result.pruned).toBe(3);
     const remaining = await testDb.db.select().from(schema.billingEventInbox);
     const ids = remaining.map((r) => r.providerEventId);
     expect(ids).toContain("evt_fresh_processed");
     expect(ids).not.toContain("evt_stale_processed");
+    expect(ids).not.toContain("evt_stale_failed");
+    expect(ids).not.toContain("evt_stale_dead");
   });
 });
 
@@ -1052,6 +1071,10 @@ describe("inbox email dispatch (B4) — post-commit, once, stable token", () => 
     ({
       checkout: {
         sessions: {
+          retrieve: vi.fn().mockResolvedValue({
+            customer_details: { email: "buyer@example.com" },
+            customer_email: null
+          }),
           listLineItems: vi.fn().mockResolvedValue({
             data: [{ price: { id: "price_pantry_25" } }]
           })

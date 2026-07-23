@@ -486,8 +486,9 @@ export const subscriptions = pgTable(
 // and "entitlement written". `providerEventId` is UNIQUE: a duplicate delivery
 // conflicts and is acked without re-applying. `status`/`attempts`/`lastError`
 // carry retry + dead-letter metadata for the reconciliation sweep. `payload`
-// is the verified Stripe event object (non-PAN by construction — Stripe never
-// sends card numbers), stored so a failed row can be reprocessed offline.
+// is an allowlisted replay envelope, never the raw provider event: it retains
+// only event timing/type plus the exact ids/status fields the reducer needs.
+// Terminal rows are deleted after the bounded retention window.
 export const billingEventInbox = pgTable(
   "billing_event_inbox",
   {

@@ -1345,8 +1345,14 @@ async function applyPantryCheckout(
     return;
   }
 
-  const buyerEmail =
-    session.customer_details?.email ?? session.customer_email;
+  let buyerEmail = session.customer_details?.email ?? session.customer_email;
+  if (!buyerEmail) {
+    // The durable inbox intentionally does not retain buyer PII. Rehydrate the
+    // one field this reducer needs from Stripe when processing/retrying a
+    // minimized Pantry event.
+    const current = await stripe().checkout.sessions.retrieve(session.id);
+    buyerEmail = current.customer_details?.email ?? current.customer_email;
+  }
   if (!buyerEmail) {
     return; // Payment Links always collect email; belt-and-suspenders.
   }

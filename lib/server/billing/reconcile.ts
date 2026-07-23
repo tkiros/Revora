@@ -1,4 +1,17 @@
-import { and, asc, count, desc, eq, gte, inArray, lt, lte, notInArray, or } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  inArray,
+  lt,
+  lte,
+  notInArray,
+  or,
+  sql
+} from "drizzle-orm";
 import type Stripe from "stripe";
 
 import { schema, type Db } from "../db";
@@ -10,6 +23,7 @@ import {
 } from "../../../app/api/billing/handlers";
 import {
   MAX_INBOX_ATTEMPTS,
+  minimizeBillingPayload,
   processInboxRow,
   type InboxDeps
 } from "./inbox";
@@ -61,6 +75,7 @@ export type ReconcileDeps = {
 };
 
 export type ReconcileResult = {
+  minimized: number;
   reprocessed: number;
   deadLettered: number;
   verified: number;
@@ -82,6 +97,7 @@ export async function runStripeReconcileCron(
   };
 
   const result: ReconcileResult = {
+    minimized: 0,
     reprocessed: 0,
     deadLettered: 0,
     verified: 0,
@@ -89,6 +105,30 @@ export async function runStripeReconcileCron(
     chargesWithoutEntitlement: 0,
     pruned: 0
   };
+
+  // One bounded page per run migrates historical payloads written before the
+  // allowlist marker existed. This includes already-processed rows that will
+  // never pass through processInboxRow again.
+  const legacyPayloads = await db
+    .select()
+    .from(schema.billingEventInbox)
+    .where(
+      sql`${schema.billingEventInbox.payload}->>'_revora_minimized' IS DISTINCT FROM '1'`
+    )
+    .orderBy(asc(schema.billingEventInbox.receivedAt))
+    .limit(RECONCILE_BATCH);
+  for (const row of legacyPayloads) {
+    const updated = await db
+      .update(schema.billingEventInbox)
+      .set({
+        payload: minimizeBillingPayload(
+          row.payload as unknown as Stripe.Event
+        ) as unknown as Record<string, unknown>
+      })
+      .where(eq(schema.billingEventInbox.id, row.id))
+      .returning({ id: schema.billingEventInbox.id });
+    result.minimized += updated.length;
+  }
 
   // ── 1. Reprocess pending/failed inbox rows ────────────────────────────────
   const retryable = await db

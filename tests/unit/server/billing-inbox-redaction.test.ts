@@ -3,6 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 
 import {
   ingestStripeEvent,
+  minimizeBillingPayload,
   redactBillingPayload
 } from "../../../lib/server/billing/inbox";
 import { schema } from "../../../lib/server/db";
@@ -64,6 +65,50 @@ describe("redactBillingPayload", () => {
   });
 });
 
+describe("minimizeBillingPayload", () => {
+  it("allowlists only replay fields and drops unknown/free-text PII", () => {
+    const minimized = minimizeBillingPayload({
+      id: "evt_min_1",
+      type: "invoice.paid",
+      created: 1_721_562_000,
+      data: {
+        object: {
+          id: "in_1",
+          billing_reason: "subscription_cycle",
+          customer_email: "buyer@example.com",
+          customer_name: "Ada Buyer",
+          description: "private support note",
+          metadata: { phone: "+1-555-0100" },
+          parent: {
+            subscription_details: { subscription: { id: "sub_9" } }
+          }
+        }
+      }
+    } as unknown as Stripe.Event);
+
+    expect(minimized).toEqual({
+      _revora_minimized: 1,
+      id: "evt_min_1",
+      type: "invoice.paid",
+      created: 1_721_562_000,
+      data: {
+        object: {
+          id: "in_1",
+          billing_reason: "subscription_cycle",
+          parent: {
+            subscription_details: { subscription: "sub_9" }
+          },
+          subscription: "sub_9"
+        }
+      }
+    });
+    const serialized = JSON.stringify(minimized);
+    expect(serialized).not.toContain("buyer@example.com");
+    expect(serialized).not.toContain("private support note");
+    expect(serialized).not.toContain("+1-555-0100");
+  });
+});
+
 describe("ingestStripeEvent → processed rows hold a redacted payload", () => {
   it("removes customer details once the event is processed", async () => {
     const event = {
@@ -90,5 +135,39 @@ describe("ingestStripeEvent → processed rows hold a redacted payload", () => {
     expect(row.status).toBe("processed");
     expect(JSON.stringify(row.payload)).not.toContain("buyer@example.com");
     expect(JSON.stringify(row.payload)).toContain("sub_none");
+  });
+
+  it("never retains payload PII or free-form error text on a failed row", async () => {
+    const event = {
+      id: "evt_failed_minimized",
+      type: "customer.subscription.updated",
+      created: Math.floor(NOW.getTime() / 1000),
+      data: {
+        object: {
+          id: "sub_failed",
+          status: "active",
+          customer_email: "failed-buyer@example.com",
+          description: "private account note",
+          items: { data: [{ current_period_end: 1_725_000_000 }] }
+        }
+      }
+    } as unknown as Stripe.Event;
+
+    const outcome = await ingestStripeEvent(testDb.db, event, {
+      now: () => NOW,
+      apply: vi.fn().mockRejectedValue(
+        new Error("failed-buyer@example.com could not be processed")
+      )
+    });
+
+    expect(outcome).toBe("failed");
+    const [row] = await testDb.db.select().from(schema.billingEventInbox);
+    expect(row.status).toBe("failed");
+    expect(row.lastError).toBe("Error");
+    const serialized = JSON.stringify(row.payload);
+    expect(serialized).toContain('"_revora_minimized":1');
+    expect(serialized).toContain("sub_failed");
+    expect(serialized).not.toContain("failed-buyer@example.com");
+    expect(serialized).not.toContain("private account note");
   });
 });
