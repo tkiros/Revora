@@ -334,19 +334,23 @@ describe("checkFood", () => {
   });
 
   it("makes a single live attempt then falls back to retry copy when the model errors", async () => {
+    const error = new Error("malformed output");
     const model = {
-      generate: vi.fn().mockRejectedValue(new Error("malformed output"))
+      generate: vi.fn().mockRejectedValue(error)
     };
+    const onModelError = vi.fn();
 
     const response = await checkFood(
       {
         food: "sweetened cereal",
         a1c: 6.1
       },
-      { model }
+      { model, onModelError }
     );
 
     expect(model.generate).toHaveBeenCalledTimes(1);
+    expect(onModelError).toHaveBeenCalledOnce();
+    expect(onModelError).toHaveBeenCalledWith(error);
     expect(response.kind).toBe("retry");
     expect(response.disclaimer).toContain("registered dietitian");
   });

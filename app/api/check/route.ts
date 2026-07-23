@@ -14,6 +14,7 @@ import { buildRetryResponse } from "../../../lib/revora/fallback";
 import type { SnapshotMetadata } from "../../../lib/revora/postprocess";
 import {
   activeModelId,
+  activeModelProvider,
   createOpenAIRevoraModelClient,
   type RevoraModelClient
 } from "../../../lib/revora/openai-client";
@@ -320,6 +321,7 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
     };
 
     try {
+      let modelFailure: unknown;
       const response = await checkFoodImpl(body, {
         model: modelFactory(undefined),
         // One-clarification cap (§8/P1.3): the client sets this header when the
@@ -328,27 +330,52 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
         // harmless if forged — it can only suppress a clarify, never a floor or
         // a clinical route.
         clarified: request.headers.get("x-revora-clarified") === "1",
-        snapshot
+        snapshot,
+        onModelError(error) {
+          modelFailure = error;
+        }
       });
 
       const durationMs = now() - startedAt;
 
-      emitEvent({
-        name: "check_completed",
-        environment,
-        responseKind: response.kind,
-        risk: response.kind === "result" ? response.risk : undefined,
-        // W-01: which clinical class fired — never the text that matched it.
-        clinicalRoute:
-          response.kind === "clinical" ? response.route : undefined,
-        latencyBucket: getLatencyBucket(durationMs),
-        // W-13: raw ms makes p95 computable (the buckets never could); the
-        // model + version stamps make a reported bad answer reproducible.
-        durationMs,
+      const modelTruth = {
         model: activeModelId(),
+        modelProvider: activeModelProvider(),
         promptVersion: PROMPT_VERSION,
         contractVersion: CONTRACT_VERSION
-      });
+      } as const;
+
+      if (response.kind === "retry") {
+        // checkFood deliberately converts provider/schema exceptions into calm
+        // retry copy. That is a user-safety boundary, not a successful check:
+        // retain the fallback while recording the operational truth.
+        emitEvent({
+          name: "check_failed",
+          environment,
+          responseKind: response.kind,
+          reasonCode: modelFailure
+            ? classifyFailureReason(modelFailure)
+            : "schema_error",
+          latencyBucket: getLatencyBucket(durationMs),
+          durationMs,
+          ...modelTruth
+        });
+      } else {
+        emitEvent({
+          name: "check_completed",
+          environment,
+          responseKind: response.kind,
+          risk: response.kind === "result" ? response.risk : undefined,
+          // W-01: which clinical class fired — never the text that matched it.
+          clinicalRoute:
+            response.kind === "clinical" ? response.route : undefined,
+          latencyBucket: getLatencyBucket(durationMs),
+          // W-13: raw ms makes p95 computable (the buckets never could); the
+          // model + version stamps make a reported bad answer reproducible.
+          durationMs,
+          ...modelTruth
+        });
+      }
 
       // Decision card v2 (plan P1): coach outputs are derived rule-based from
       // the engine response at the route layer — the engine stays untouched.
@@ -409,11 +436,17 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
       // below always runs.
       await captureServerError(error, "route");
 
+      const durationMs = now() - startedAt;
       emitEvent({
         name: "check_failed",
         environment,
         reasonCode: classifyFailureReason(error),
-        latencyBucket: getLatencyBucket(now() - startedAt)
+        latencyBucket: getLatencyBucket(durationMs),
+        durationMs,
+        model: activeModelId(),
+        modelProvider: activeModelProvider(),
+        promptVersion: PROMPT_VERSION,
+        contractVersion: CONTRACT_VERSION
       });
 
       const retry = buildRetryResponse(loadSafetyContract());

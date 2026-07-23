@@ -69,6 +69,18 @@ describe("getRevoraEnv", () => {
       edgeConfigConnectionString: "ecfg_connection_string"
     });
   });
+
+  it("rejects a compatible model route in production health config", () => {
+    expect(() =>
+      getRevoraEnv({
+        NODE_ENV: "production",
+        VERCEL_ENV: "production",
+        OPENAI_API_KEY: "sk-production",
+        OPENAI_BASE_URL: "https://openrouter.ai/api/v1",
+        REVORA_MODEL: "openai/gpt-5.4-mini"
+      })
+    ).toThrow("evaluation-only");
+  });
 });
 
 describe("GET /api/health", () => {

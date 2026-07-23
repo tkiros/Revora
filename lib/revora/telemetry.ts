@@ -44,6 +44,7 @@ const SafeTelemetryEventSchema = z
     // attributed to a model or reproduced — two models served the same endpoint
     // and nothing recorded which one answered.
     model: z.string().regex(/^[\w.\-/]{1,60}$/).optional(),
+    modelProvider: z.enum(["openai", "openrouter", "compatible"]).optional(),
     promptVersion: z.string().regex(/^[\w.\-]{1,30}$/).optional(),
     contractVersion: z.string().regex(/^[\w.\-]{1,30}$/).optional(),
     reasonCode: z

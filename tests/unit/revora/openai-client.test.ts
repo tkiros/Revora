@@ -5,7 +5,10 @@ import {
   DEFAULT_REVORA_MODEL,
   REVORA_JSON_SCHEMA_NAME,
   RevoraConnectionError,
+  RevoraModelConfigurationError,
+  RevoraProviderResponseError,
   activeModelId,
+  activeModelProvider,
   createOpenAIRevoraModelClient
 } from "../../../lib/revora/openai-client";
 import { revoraModelJsonSchema } from "../../../lib/revora/schemas";
@@ -217,15 +220,90 @@ describe("createOpenAIRevoraModelClient", () => {
       return { responses: { create: async () => ({ output_text: "{}" }) } };
     } as unknown as typeof import("openai").default;
 
-    createOpenAIRevoraModelClient({ apiKey: "k", openAiCtor: FakeOpenAI });
-    expect(captured[0]).toMatchObject({ timeout: 10_000, maxRetries: 0 });
+    createOpenAIRevoraModelClient({
+      apiKey: "k",
+      openAiCtor: FakeOpenAI,
+      env: { NODE_ENV: "test" }
+    });
+    expect(captured[0]).toMatchObject({
+      apiKey: "k",
+      timeout: 10_000,
+      maxRetries: 0
+    });
+    expect(captured[0]).not.toHaveProperty("baseURL");
+  });
+
+  it("rejects compatible provider routing in production", () => {
+    expect(() =>
+      createOpenAIRevoraModelClient({
+        apiKey: "k",
+        env: {
+          NODE_ENV: "production",
+          OPENAI_BASE_URL: "https://openrouter.ai/api/v1",
+          REVORA_MODEL: "openai/gpt-5.4-mini"
+        }
+      })
+    ).toThrow(RevoraModelConfigurationError);
+  });
+
+  it("rejects provider-prefixed model ids on direct OpenAI", () => {
+    expect(() =>
+      createOpenAIRevoraModelClient({
+        apiKey: "k",
+        env: {
+          NODE_ENV: "production",
+          REVORA_MODEL: "openai/gpt-5.4-mini"
+        }
+      })
+    ).toThrow("must not include a provider prefix");
+  });
+
+  it("allows an explicit HTTPS compatible provider in test/preview only", () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const FakeOpenAI = function (this: unknown, opts: Record<string, unknown>) {
+      captured.push(opts);
+      return { responses: { create: async () => ({ output_text: "{}" }) } };
+    } as unknown as typeof import("openai").default;
+    const env = {
+      VERCEL_ENV: "preview",
+      NODE_ENV: "production",
+      OPENAI_BASE_URL: "https://openrouter.ai/api/v1",
+      REVORA_MODEL: "openai/gpt-5.4-mini"
+    };
+
+    createOpenAIRevoraModelClient({
+      apiKey: "k",
+      openAiCtor: FakeOpenAI,
+      env
+    });
+
+    expect(captured[0]).toMatchObject({
+      baseURL: "https://openrouter.ai/api/v1"
+    });
+    expect(activeModelProvider(env)).toBe("openrouter");
+  });
+
+  it("rejects insecure remote compatible-provider URLs", () => {
+    expect(() =>
+      createOpenAIRevoraModelClient({
+        apiKey: "k",
+        env: {
+          NODE_ENV: "test",
+          OPENAI_BASE_URL: "http://provider.example/api/v1",
+          REVORA_MODEL: "provider/model"
+        }
+      })
+    ).toThrow("must use HTTPS");
   });
 
   it("rejects missing output_text instead of returning raw provider output", async () => {
     const client = createOpenAIRevoraModelClient({
       client: {
         responses: {
-          create: vi.fn().mockResolvedValue({})
+          create: vi.fn().mockResolvedValue({
+            status: "failed",
+            error_type: "authentication"
+          })
         }
       }
     });
@@ -235,6 +313,9 @@ describe("createOpenAIRevoraModelClient", () => {
         instructions: "instruction text",
         input: "Food: lentil soup\nA1C: 6.1"
       })
-    ).rejects.toThrow("output_text");
+    ).rejects.toMatchObject({
+      name: "RevoraProviderResponseError",
+      code: "authentication"
+    } satisfies Partial<RevoraProviderResponseError>);
   });
 });

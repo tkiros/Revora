@@ -109,7 +109,8 @@ describe("privacy-minimal audit", () => {
       {
         model,
         clarified: false,
-        snapshot: { floorApplied: null, usedFallback: false }
+        snapshot: { floorApplied: null, usedFallback: false },
+        onModelError: expect.any(Function)
       }
     );
     expect(response.status).toBe(200);
@@ -182,8 +183,14 @@ describe("privacy-minimal audit", () => {
     expect(emitEvent).toHaveBeenCalledWith({
       name: "check_failed",
       environment: "test",
+      responseKind: "retry",
       reasonCode: "provider_error",
-      latencyBucket: "5-12s"
+      latencyBucket: "5-12s",
+      durationMs: expect.any(Number),
+      model: expect.any(String),
+      modelProvider: expect.any(String),
+      promptVersion: expect.any(String),
+      contractVersion: expect.any(String)
     });
   });
 });

@@ -7,6 +7,7 @@ Every variable, per phase. Provision in Vercel for **preview + production**
 | Variable | Phase | Notes |
 |---|---|---|
 | `OPENAI_API_KEY` | existing | engine calls |
+| `OPENAI_BASE_URL` | preview/eval only | Optional OpenAI-compatible endpoint for controlled evaluation. The production app rejects any non-empty value and provider-prefixed model id, because its safety evidence is for direct OpenAI and compatible Responses endpoints may have different or beta behavior. |
 | `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | existing | rate limit; prod instance |
 | `SENTRY_DSN` | existing/P7 | server-only capture |
 | `EDGE_CONFIG` | existing | launch-controls kill switch |
