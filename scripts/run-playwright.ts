@@ -1,6 +1,13 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync
+} from "node:fs";
 import { spawnSync } from "node:child_process";
-import { resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { includesTrialWall } from "./e2e-spec-selection";
@@ -71,7 +78,8 @@ function buildMode(mode: keyof typeof E2E_DIST_DIRS): void {
     NEXT_DIST_DIR: E2E_DIST_DIRS[mode],
     NEXT_PUBLIC_VAPID_PUBLIC_KEY: E2E_VAPID_PUBLIC_KEY,
     PAYWALL_MODE: mode,
-    STRIPE_PRICE_ANNUAL: "price_e2e_annual_smoke_only"
+    STRIPE_PRICE_ANNUAL: "price_e2e_annual_smoke_only",
+    VERCEL_ENV: "preview"
   });
 }
 
@@ -84,10 +92,26 @@ export function main(args = process.argv.slice(2)): void {
     cleanGeneratedTsconfigEntries();
   }
 
-  runNodeScript(
-    resolve("node_modules/@playwright/test/cli.js"),
-    ["test", ...args]
-  );
+  const playwrightEnv = { ...process.env };
+  const automaticMailbox =
+    playwrightEnv.DATABASE_URL && !playwrightEnv.AUTH_EMAIL_STUB_DIR
+      ? mkdtempSync(join(tmpdir(), "revora-e2e-mailbox-"))
+      : null;
+  if (automaticMailbox) {
+    playwrightEnv.AUTH_EMAIL_STUB_DIR = automaticMailbox;
+  }
+
+  try {
+    runNodeScript(
+      resolve("node_modules/@playwright/test/cli.js"),
+      ["test", ...args],
+      playwrightEnv
+    );
+  } finally {
+    if (automaticMailbox) {
+      rmSync(automaticMailbox, { recursive: true, force: true });
+    }
+  }
 }
 
 const invokedPath = process.argv[1] ? resolve(process.argv[1]) : "";

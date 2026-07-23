@@ -34,7 +34,10 @@ const trialWebServer = {
     AUTH_SECRET: "revora-e2e-smoke-only-secret-0000000000000000",
     PAYWALL_MODE: "trial",
     AUTH_EMAIL_STUB_DIR: "/tmp/revora-trial-smoke-stub",
-    NEXT_DIST_DIR: ".next-e2e-trial"
+    NEXT_DIST_DIR: ".next-e2e-trial",
+    // Optimized preview build: the disk mailbox is deliberately allowed for
+    // synthetic auth tests, while email-stub policy still rejects production.
+    VERCEL_ENV: "preview"
   }
 };
 
@@ -109,7 +112,8 @@ export default defineConfig({
         // Test-only secret so Auth.js stops logging MissingSecret in smoke
         // runs (2026-07-09 E2E-05). Never a production value.
         AUTH_SECRET: "revora-e2e-smoke-only-secret-0000000000000000",
-        NEXT_DIST_DIR: ".next-e2e-legacy"
+        NEXT_DIST_DIR: ".next-e2e-legacy",
+        VERCEL_ENV: "preview"
       }
     },
     ...(runsTrialSpec ? [trialWebServer] : [])

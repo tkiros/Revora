@@ -25,6 +25,10 @@ describe("Playwright release-gate configuration", () => {
       ".next-e2e-legacy",
       ".next-e2e-trial"
     ]);
+    expect(servers.map((server) => server.env?.VERCEL_ENV)).toEqual([
+      "preview",
+      "preview"
+    ]);
   });
 
   it("does not mask a release-gate failure with an automatic retry", () => {
