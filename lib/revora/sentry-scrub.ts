@@ -45,5 +45,14 @@ export function scrubSentryEvent(event: ErrorEvent): ErrorEvent {
     }
   }
 
+  // Same treatment for the threads container: nothing populates it today
+  // (defaultIntegrations is off), but a future SDK/integration that does must
+  // not become a frame-vars leak this scrubber silently misses.
+  for (const thread of event.threads?.values ?? []) {
+    for (const frame of thread.stacktrace?.frames ?? []) {
+      delete frame.vars;
+    }
+  }
+
   return event;
 }

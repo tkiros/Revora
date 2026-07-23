@@ -44,6 +44,23 @@ function eventWithAllPiiVectors(): ErrorEvent {
           }
         }
       ]
+    },
+    // Nothing populates threads today (defaultIntegrations off), but the
+    // scrubber must cover the container so a future integration can't leak
+    // frame vars through it.
+    threads: {
+      values: [
+        {
+          stacktrace: {
+            frames: [
+              {
+                function: "backgroundWorker",
+                vars: { prompt: `thread copy ${FOOD} ${A1C}` }
+              }
+            ]
+          }
+        }
+      ]
     }
   } as unknown as ErrorEvent;
 }
