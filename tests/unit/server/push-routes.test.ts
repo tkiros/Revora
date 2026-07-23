@@ -112,6 +112,33 @@ describe("push subscribe/unsubscribe", () => {
     expect(row.nudgeLeaseUntil).toBeNull();
   });
 
+  it("refreshing an endpoint mid-send keeps the live lease but still updates keys", async () => {
+    const liveLeaseUntil = new Date(Date.now() + 5 * 60 * 1000);
+    await testDb.db.insert(schema.pushSubscriptions).values({
+      userId,
+      endpoint: SUBSCRIPTION.endpoint,
+      p256dh: "old-key",
+      auth: "old-auth",
+      nudgeAttemptDate: "2026-07-04",
+      nudgeAttemptCount: 1,
+      nudgeLeaseToken: "00000000-0000-4000-8000-000000000003",
+      nudgeLeaseUntil: liveLeaseUntil
+    });
+
+    const { POST } = handlers();
+    await POST(request("POST", SUBSCRIPTION));
+
+    const [row] = await testDb.db.select().from(schema.pushSubscriptions);
+    // Key material always follows the refresh…
+    expect(row.p256dh).toBe(SUBSCRIPTION.keys.p256dh);
+    // …but an in-flight send keeps its lease: the lease-blind clear recorded
+    // a delivered `ok` as failed and could re-send a duplicate.
+    expect(row.nudgeLeaseToken).toBe("00000000-0000-4000-8000-000000000003");
+    expect(row.nudgeLeaseUntil).toEqual(liveLeaseUntil);
+    expect(row.nudgeAttemptDate).toBe("2026-07-04");
+    expect(row.nudgeAttemptCount).toBe(1);
+  });
+
   it("DELETE removes the subscription and flips opt-in off", async () => {
     const { POST, DELETE } = handlers();
     await POST(request("POST", SUBSCRIPTION));
@@ -201,7 +228,7 @@ describe("GET /api/cron/nudge auth", () => {
     });
   });
 
-  it("returns 503 while a same-day retry is pending", async () => {
+  it("stays green while a same-day retry is pending (expected outcome, not failure)", async () => {
     const now = new Date();
     await testDb.db
       .update(schema.profiles)
@@ -239,9 +266,11 @@ describe("GET /api/cron/nudge auth", () => {
       })
     );
 
-    expect(response.status).toBe(503);
+    // A deferred retry is the bounded-retry design working, not an outage —
+    // the hourly run must stay green so the scheduler doesn't page on it.
+    expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
-      ok: false,
+      ok: true,
       failed: 0,
       pending: 1,
       exhausted: 0

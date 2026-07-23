@@ -210,4 +210,41 @@ describe("PATCH /api/profile", () => {
     expect(subscription.nudgeAttemptCount).toBe(0);
     expect(subscription.nudgeRetryAfter).toBeNull();
   });
+
+  it("leaves an in-flight (live-lease) attempt untouched so its `ok` can finalize", async () => {
+    const { POST } = handlersAs(userId);
+    await POST(postRequest({ a1c: 6.1, consent: true, timezone: "UTC" }));
+    const liveLeaseUntil = new Date(Date.now() + 5 * 60 * 1000);
+    await testDb.db.insert(schema.pushSubscriptions).values({
+      userId,
+      endpoint: "https://push.example/profile-live-lease",
+      p256dh: "key",
+      auth: "auth",
+      nudgeAttemptDate: "2026-07-03",
+      nudgeAttemptCount: 1,
+      nudgeLeaseToken: "00000000-0000-4000-8000-000000000004",
+      nudgeLeaseUntil: liveLeaseUntil
+    });
+    const PATCH = createProfilePatchHandler({
+      db: () => testDb.db,
+      getSession: async () => ({
+        userId,
+        email: "profile@test.dev"
+      })
+    });
+
+    const response = await PATCH(patchRequest({ nudgeCadence: "weekly" }));
+
+    expect(response.status).toBe(200);
+    const [subscription] = await testDb.db
+      .select()
+      .from(schema.pushSubscriptions)
+      .where(eq(schema.pushSubscriptions.userId, userId));
+    // The old clear was lease-blind: it wiped the token mid-send, so a
+    // delivered `ok` finalized against zero rows and was recorded failed.
+    expect(subscription.nudgeLeaseToken).toBe("00000000-0000-4000-8000-000000000004");
+    expect(subscription.nudgeLeaseUntil).toEqual(liveLeaseUntil);
+    expect(subscription.nudgeAttemptDate).toBe("2026-07-03");
+    expect(subscription.nudgeAttemptCount).toBe(1);
+  });
 });

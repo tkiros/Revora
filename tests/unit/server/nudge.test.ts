@@ -226,7 +226,12 @@ describe("runNudgeCron", () => {
     expect(row.nudgeRetryAfter).toEqual(new Date("2026-07-03T16:00:00.000Z"));
     expect(row.nudgeLeaseToken).toBeNull();
     expect(row.nudgeLeaseUntil).toBeNull();
-    expect(await testDb.db.select().from(schema.cronHeartbeat)).toHaveLength(0);
+    // Liveness: the run executed, so the heartbeat stamps even though the
+    // delivery failed — a failed delivery is not a dead scheduler.
+    const [failedRunHeartbeat] = await testDb.db
+      .select()
+      .from(schema.cronHeartbeat);
+    expect(failedRunHeartbeat.lastRunAt).toEqual(NOW);
 
     const retrySend = vi.fn().mockResolvedValue("ok" as const);
     const retry = await runNudgeCron(testDb.db, {
@@ -259,7 +264,10 @@ describe("runNudgeCron", () => {
 
     expect(send).toHaveBeenCalledTimes(2);
     expect(result).toMatchObject({ sent: 1, failed: 1 });
-    expect(await testDb.db.select().from(schema.cronHeartbeat)).toHaveLength(0);
+    const [mixedRunHeartbeat] = await testDb.db
+      .select()
+      .from(schema.cronHeartbeat);
+    expect(mixedRunHeartbeat.lastRunAt).toEqual(NOW);
   });
 
   it("does not turn a never-due user into a late send", async () => {
@@ -302,7 +310,14 @@ describe("runNudgeCron", () => {
       exhausted: 1
     });
     expect(afterBoundSend).not.toHaveBeenCalled();
-    expect(await testDb.db.select().from(schema.cronHeartbeat)).toHaveLength(0);
+    // An exhausted (bounded-retry spent) run is an expected outcome and must
+    // keep the liveness heartbeat fresh — the old gate held it back all day.
+    const [exhaustedRunHeartbeat] = await testDb.db
+      .select()
+      .from(schema.cronHeartbeat);
+    expect(exhaustedRunHeartbeat.lastRunAt).toEqual(
+      new Date(NOW.getTime() + 3 * HOUR_MS)
+    );
   });
 
   it("uses an atomic lease for overlapping initial attempts", async () => {

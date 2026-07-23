@@ -60,10 +60,10 @@ export function createNudgeCronHandler(deps: Deps = {}) {
 
     try {
       const result = await runNudgeCron(db(), { send });
-      const ok =
-        result.failed === 0 &&
-        result.pending === 0 &&
-        result.exhausted === 0;
+      // `pending` (deferred by lease/quiet hours) and `exhausted` (bounded
+      // same-day retry spent) are expected outcomes of the retry design — they
+      // must not redden the hourly run or page anyone. Only true failures do.
+      const ok = result.failed === 0;
       return NextResponse.json(
         { ok, ...result },
         { status: ok ? 200 : 503 }

@@ -650,9 +650,14 @@ export async function runNudgeCron(
     }
   }
 
-  if (failed === 0 && pending === 0 && exhausted === 0) {
-    await recordHeartbeat(db, "nudge", now);
-  }
+  // Liveness, not delivery success: the heartbeat means "the cron executed",
+  // exactly like the other four crons stamp unconditionally. `pending`
+  // (lease/quiet-hour deferral) and `exhausted` (bounded same-day retry gave
+  // up) are EXPECTED outcomes; gating the stamp on them made one stuck push
+  // endpoint suppress the heartbeat all day, flipping /api/health to a false
+  // `cron_nudge_stale` 503 while the cron ran fine every hour. Delivery
+  // failures still surface through the returned counters and the route's 503.
+  await recordHeartbeat(db, "nudge", now);
 
   return { sent, pruned, failed, pending, exhausted, skipped };
 }

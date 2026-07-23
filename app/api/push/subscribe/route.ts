@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -67,12 +67,15 @@ export function createPushSubscribeHandlers(deps: Deps = {}) {
             auth: parsed.data.keys.auth,
             // A refreshed browser subscription supersedes any attempt owned by
             // the old key material. Preserve confirmed daily success, but
-            // cancel in-flight retry/lease state.
-            nudgeAttemptDate: null,
-            nudgeAttemptCount: 0,
-            nudgeRetryAfter: null,
-            nudgeLeaseToken: null,
-            nudgeLeaseUntil: null
+            // cancel retry/lease state — unless a send is in flight RIGHT NOW
+            // (live lease): wiping its token would turn a delivered `ok` into
+            // a recorded failure and allow a duplicate. Same lease predicate
+            // as the cron's own clears; key material always updates.
+            nudgeAttemptDate: sql`CASE WHEN ${schema.pushSubscriptions.nudgeLeaseUntil} IS NULL OR ${schema.pushSubscriptions.nudgeLeaseUntil} <= now() THEN NULL ELSE ${schema.pushSubscriptions.nudgeAttemptDate} END`,
+            nudgeAttemptCount: sql`CASE WHEN ${schema.pushSubscriptions.nudgeLeaseUntil} IS NULL OR ${schema.pushSubscriptions.nudgeLeaseUntil} <= now() THEN 0 ELSE ${schema.pushSubscriptions.nudgeAttemptCount} END`,
+            nudgeRetryAfter: sql`CASE WHEN ${schema.pushSubscriptions.nudgeLeaseUntil} IS NULL OR ${schema.pushSubscriptions.nudgeLeaseUntil} <= now() THEN NULL ELSE ${schema.pushSubscriptions.nudgeRetryAfter} END`,
+            nudgeLeaseToken: sql`CASE WHEN ${schema.pushSubscriptions.nudgeLeaseUntil} IS NULL OR ${schema.pushSubscriptions.nudgeLeaseUntil} <= now() THEN NULL ELSE ${schema.pushSubscriptions.nudgeLeaseToken} END`,
+            nudgeLeaseUntil: sql`CASE WHEN ${schema.pushSubscriptions.nudgeLeaseUntil} IS NULL OR ${schema.pushSubscriptions.nudgeLeaseUntil} <= now() THEN NULL ELSE ${schema.pushSubscriptions.nudgeLeaseUntil} END`
           }
         });
 

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull, lte, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -176,6 +176,9 @@ export function createProfilePatchHandler(deps: ProfileRouteDeps = {}) {
     // A preference mutation (including opt-out, cadence, hour, or quiet hours)
     // cancels a pending attempt. A future send must be newly eligible under the
     // updated preferences; confirmed last-send history remains intact.
+    // Leases are respected exactly like the cron's own clears: wiping the
+    // token of an in-flight send would make its delivered `ok` finalize
+    // against zero rows and get recorded as a failure, then re-send.
     await db()
       .update(schema.pushSubscriptions)
       .set({
@@ -185,7 +188,15 @@ export function createProfilePatchHandler(deps: ProfileRouteDeps = {}) {
         nudgeLeaseToken: null,
         nudgeLeaseUntil: null
       })
-      .where(eq(schema.pushSubscriptions.userId, session.userId));
+      .where(
+        and(
+          eq(schema.pushSubscriptions.userId, session.userId),
+          or(
+            isNull(schema.pushSubscriptions.nudgeLeaseUntil),
+            lte(schema.pushSubscriptions.nudgeLeaseUntil, new Date())
+          )
+        )
+      );
 
     return NextResponse.json({ ok: true });
   };
