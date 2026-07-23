@@ -192,16 +192,43 @@ describe("runNudgeCron", () => {
     expect(rows).toHaveLength(0);
   });
 
-  it("a transient send error skips silently — never a double-send retry", async () => {
+  it("releases a transient-failure claim so the next hourly tick retries", async () => {
     await seedUser({ email: "err@test.dev", timezone: "America/New_York" });
 
     const send = vi.fn().mockResolvedValue("error" as const);
     const result = await runNudgeCron(testDb.db, { now: () => NOW, send });
 
     expect(result.sent).toBe(0);
-    // last_nudge_date was still stamped so the next hourly tick won't retry
+    expect(result.failed).toBe(1);
     const [row] = await testDb.db.select().from(schema.pushSubscriptions);
-    expect(row.lastNudgeDate).toBe("2026-07-03");
+    expect(row.lastNudgeDate).toBeNull();
+    expect(await testDb.db.select().from(schema.cronHeartbeat)).toHaveLength(0);
+
+    const retrySend = vi.fn().mockResolvedValue("ok" as const);
+    const retry = await runNudgeCron(testDb.db, {
+      now: () => new Date(NOW.getTime() + 60 * 60 * 1000),
+      send: retrySend
+    });
+    expect(retry.sent).toBe(1);
+    expect(retry.failed).toBe(0);
+    expect(retrySend).toHaveBeenCalledOnce();
+    const [retried] = await testDb.db.select().from(schema.pushSubscriptions);
+    expect(retried.lastNudgeDate).toBe("2026-07-03");
+  });
+
+  it("contains a rejected provider send and retries other subscriptions", async () => {
+    await seedUser({ email: "reject-a@test.dev", timezone: "America/New_York" });
+    await seedUser({ email: "reject-b@test.dev", timezone: "America/New_York" });
+    const send = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("provider unavailable"))
+      .mockResolvedValueOnce("ok" as const);
+
+    const result = await runNudgeCron(testDb.db, { now: () => NOW, send });
+
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(result).toMatchObject({ sent: 1, failed: 1 });
+    expect(await testDb.db.select().from(schema.cronHeartbeat)).toHaveLength(0);
   });
 });
 
@@ -269,7 +296,7 @@ describe("runNudgeCron — heartbeat (P7)", () => {
         now: () => NOW,
         send: vi.fn().mockResolvedValue("ok" as const)
       })
-    ).resolves.toEqual({ sent: 1, pruned: 0, skipped: 0 });
+    ).resolves.toEqual({ sent: 1, pruned: 0, failed: 0, skipped: 0 });
 
     // No row was written (the insert threw), and that's fine — the response
     // above already proves the run itself didn't fail.

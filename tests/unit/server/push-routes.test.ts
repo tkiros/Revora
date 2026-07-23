@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createPushSubscribeHandlers } from "../../../app/api/push/subscribe/route";
@@ -135,5 +136,43 @@ describe("GET /api/cron/nudge auth", () => {
     expect(response.status).toBe(200);
     expect(body.ok).toBe(true);
     expect(typeof body.sent).toBe("number");
+  });
+
+  it("returns 503 and a bounded failure count when push delivery fails", async () => {
+    await testDb.db
+      .update(schema.profiles)
+      .set({ nudgeOptIn: true, nudgeHour: new Date().getUTCHours() })
+      .where(eq(schema.profiles.userId, userId));
+    await testDb.db.insert(schema.pushSubscriptions).values({
+      userId,
+      endpoint: SUBSCRIPTION.endpoint,
+      p256dh: SUBSCRIPTION.keys.p256dh,
+      auth: SUBSCRIPTION.keys.auth
+    });
+    await testDb.db.insert(schema.subscriptions).values({
+      userId,
+      provider: "stripe",
+      providerRef: "sub_push_route_failure",
+      productId: "premium_monthly",
+      status: "active",
+      currentPeriodEnd: new Date(Date.now() + 24 * 60 * 60 * 1000)
+    }).onConflictDoNothing();
+    const GET = createNudgeCronHandler({
+      db: () => testDb.db,
+      send: vi.fn().mockResolvedValue("error")
+    });
+
+    const response = await GET(
+      new Request("http://t/api/cron/nudge", {
+        headers: { authorization: "Bearer cron-secret" }
+      })
+    );
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({
+      ok: false,
+      sent: 0,
+      failed: 1
+    });
   });
 });

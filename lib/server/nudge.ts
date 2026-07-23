@@ -185,7 +185,7 @@ async function loadStageIntentMet(
 export async function runNudgeCron(
   db: Db,
   deps: NudgeDeps
-): Promise<{ sent: number; pruned: number; skipped: number }> {
+): Promise<{ sent: number; pruned: number; failed: number; skipped: number }> {
   const now = deps.now?.() ?? new Date();
   const journeyEnabled = learningJourneyServerEnabled(
     deps.env ??
@@ -193,6 +193,7 @@ export async function runNudgeCron(
   );
   let sent = 0;
   let pruned = 0;
+  let failed = 0;
   let skipped = 0;
 
   const candidates = (await db
@@ -335,8 +336,9 @@ export async function runNudgeCron(
       // RE-06: claim-before-send (same lease pattern as the pre-charge
       // sweep). Stamp-after-send let two overlapping runs both read the
       // stale lastNudgeDate and both push. The atomic claim makes exactly
-      // one run own today's send; the stamp staying set on a transient send
-      // error keeps the existing skip-not-double-send stance.
+      // one run own today's send. A confirmed provider failure releases only
+      // this exact claim so a later hourly tick can retry; a successful send
+      // retains the date as the durable daily dedupe marker.
       const claimed = await db
         .update(schema.pushSubscriptions)
         .set({ lastNudgeDate: todayKey })
@@ -354,13 +356,20 @@ export async function runNudgeCron(
         continue; // another run claimed this subscription for today
       }
 
-      const result = await deps.send(
-        {
-          endpoint: subscription.endpoint,
-          keys: { p256dh: subscription.p256dh, auth: subscription.auth }
-        },
-        payload
-      );
+      let result: PushSendResult = "error";
+      try {
+        result = await deps.send(
+          {
+            endpoint: subscription.endpoint,
+            keys: { p256dh: subscription.p256dh, auth: subscription.auth }
+          },
+          payload
+        );
+      } catch {
+        // Treat an injected/provider transport rejection the same as the
+        // sender's bounded "error" result. Never let one endpoint prevent the
+        // rest of the cohort from being attempted.
+      }
 
       if (result === "gone") {
         await db
@@ -372,13 +381,27 @@ export async function runNudgeCron(
 
       if (result === "ok") {
         sent += 1;
+        continue;
       }
+
+      await db
+        .update(schema.pushSubscriptions)
+        .set({ lastNudgeDate: subscription.lastNudgeDate })
+        .where(
+          and(
+            eq(schema.pushSubscriptions.id, subscription.id),
+            eq(schema.pushSubscriptions.lastNudgeDate, todayKey)
+          )
+        );
+      failed += 1;
     }
   }
 
-  await recordHeartbeat(db, "nudge", now);
+  if (failed === 0) {
+    await recordHeartbeat(db, "nudge", now);
+  }
 
-  return { sent, pruned, skipped };
+  return { sent, pruned, failed, skipped };
 }
 
 /**

@@ -60,7 +60,11 @@ export function createNudgeCronHandler(deps: Deps = {}) {
 
     try {
       const result = await runNudgeCron(db(), { send });
-      return NextResponse.json({ ok: true, ...result });
+      const ok = result.failed === 0;
+      return NextResponse.json(
+        { ok, ...result },
+        { status: ok ? 200 : 503 }
+      );
     } catch (error) {
       await captureServerError(error, "route");
       return NextResponse.json({ error: "nudge run failed" }, { status: 500 });
