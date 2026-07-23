@@ -26,7 +26,7 @@ import coreWebVitals from "eslint-config-next/core-web-vitals";
  * Every downgrade below carries its reason. CI runs `--max-warnings=-1`, so
  * warnings are visible in the log and never silently block the build.
  */
-export default [
+const eslintConfig = [
   ...coreWebVitals,
   {
     ignores: [
@@ -66,17 +66,12 @@ export default [
       // gated by the claims-boundary audit, which is the check that matters.)
       "react/no-unescaped-entities": "warn",
 
-      // setState() inside an effect. All 7 call sites are the same thing: a
-      // client-only read (localStorage profile, taster meter, SpeechRecognition
-      // support) performed after mount, precisely so the first render matches
-      // the server's and hydration does not mismatch. Doing it in an effect is
-      // the CORRECT pattern for that; the rule's real target is derived state
-      // that should have been computed during render, which none of these are.
-      //
-      // Cost of a violation here is one extra render, not a defect — so per the
-      // severity policy above it advises rather than gates. Anything genuinely
-      // derivable during render should still be fixed, not silenced.
-      "react-hooks/set-state-in-effect": "warn"
+      // A synchronous state write during effect setup adds a cascading render
+      // and can race StrictMode setup/cleanup. Client-only snapshots use
+      // useSyncExternalStore; initial async loaders begin after effect commit.
+      "react-hooks/set-state-in-effect": "error"
     }
   }
 ];
+
+export default eslintConfig;

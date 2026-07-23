@@ -280,7 +280,6 @@ function G2({ snap, date, onDecide, onRetry }: {
             <div style={mono}>{specId} — {r.status.toLowerCase()}</div>
             {r.status === "READY" && (
               <>
-                {/* eslint-disable-next-line jsx-a11y/media-has-caption -- disclosure is baked on-screen + in caption */}
                 <video controls src={assetUrl(specId)} style={{ width: 240, maxWidth: "100%", display: "block", margin: "8px 0", background: "#000" }} />
                 {spec && <pre style={{ ...mono, whiteSpace: "pre-wrap", fontSize: 12, color: "#333" }}>{spec.caption_text}</pre>}
                 <div style={{ marginTop: 6 }}>
