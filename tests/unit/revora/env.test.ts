@@ -70,7 +70,8 @@ describe("getRevoraEnv", () => {
     });
   });
 
-  it("rejects a compatible model route in production health config", () => {
+  it("allows the OpenRouter route but rejects other compatible hosts in production health config", () => {
+    // WS-2 (NEW-001): OpenRouter is the decided production architecture.
     expect(() =>
       getRevoraEnv({
         NODE_ENV: "production",
@@ -78,6 +79,16 @@ describe("getRevoraEnv", () => {
         OPENAI_API_KEY: "sk-production",
         OPENAI_BASE_URL: "https://openrouter.ai/api/v1",
         REVORA_MODEL: "openai/gpt-5.4-mini",
+      }),
+    ).not.toThrow();
+
+    expect(() =>
+      getRevoraEnv({
+        NODE_ENV: "production",
+        VERCEL_ENV: "production",
+        OPENAI_API_KEY: "sk-production",
+        OPENAI_BASE_URL: "https://compatible.example/api/v1",
+        REVORA_MODEL: "provider/model",
       }),
     ).toThrow("evaluation-only");
   });

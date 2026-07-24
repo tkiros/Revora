@@ -2,6 +2,11 @@ import OpenAI from "openai";
 import type { ResponseCreateParamsNonStreaming } from "openai/resources/responses/responses";
 import type { ReasoningEffort } from "openai/resources/shared";
 
+import {
+  assertModelIdMatchesTransport,
+  resolveTransportBaseUrl,
+  RevoraModelConfigurationError
+} from "../model-transport";
 import { RevoraModelOutputSchema, revoraModelJsonSchema } from "./schemas";
 import type { RevoraModelOutput } from "./schemas";
 import type { RevoraPromptPayload } from "./prompt";
@@ -11,14 +16,7 @@ export const REVORA_JSON_SCHEMA_NAME = "revora_model_output";
 
 export type RevoraModelProvider = "openai" | "openrouter" | "compatible";
 
-export class RevoraModelConfigurationError extends Error {
-  readonly code = "MODEL_CONFIG";
-
-  constructor(message: string) {
-    super(message);
-    this.name = "RevoraModelConfigurationError";
-  }
-}
+export { RevoraModelConfigurationError };
 
 export class RevoraProviderResponseError extends Error {
   readonly code: string;
@@ -55,19 +53,6 @@ export function activeModelId(input: NodeJS.ProcessEnv = process.env): string {
   return input.REVORA_MODEL?.trim() || DEFAULT_REVORA_MODEL;
 }
 
-function isProductionModelEnvironment(input: NodeJS.ProcessEnv): boolean {
-  if (input.VERCEL_ENV === "production") {
-    return true;
-  }
-  if (
-    input.VERCEL_ENV === "preview" ||
-    input.VERCEL_ENV === "development"
-  ) {
-    return false;
-  }
-  return input.NODE_ENV === "production";
-}
-
 function providerForBaseUrl(baseURL: string | undefined): RevoraModelProvider {
   if (!baseURL) {
     return "openai";
@@ -91,54 +76,14 @@ export function resolveModelTransportConfig(
   input: NodeJS.ProcessEnv = process.env,
   model = activeModelId(input)
 ): { model: string; provider: RevoraModelProvider; baseURL?: string } {
-  const baseURL = input.OPENAI_BASE_URL?.trim() || undefined;
+  // WS-2 (NEW-001): the shared transport policy allows production base URLs
+  // only for the OpenRouter allowlist and enforces HTTPS/no-credentials
+  // everywhere. Other compatible endpoints stay evaluation-only; unsetting
+  // OPENAI_BASE_URL reverts the fleet to direct OpenAI without a redeploy.
+  const baseURL = resolveTransportBaseUrl(input);
   const provider = providerForBaseUrl(baseURL);
 
-  // The production safety/quality evidence in this repository is for direct
-  // OpenAI Responses API calls. OpenRouter documents its compatible Responses
-  // endpoint as beta, and an audited production drift to that path returned
-  // only fallback cards. Fail loudly instead of sending health-adjacent prompts
-  // and credentials to an unvalidated compatible endpoint.
-  if (isProductionModelEnvironment(input) && baseURL) {
-    throw new RevoraModelConfigurationError(
-      "OPENAI_BASE_URL is evaluation-only and must be unset in production."
-    );
-  }
-
-  if (!baseURL && model.includes("/")) {
-    throw new RevoraModelConfigurationError(
-      "Direct OpenAI model ids must not include a provider prefix."
-    );
-  }
-
-  if (baseURL) {
-    let parsed: URL;
-    try {
-      parsed = new URL(baseURL);
-    } catch {
-      throw new RevoraModelConfigurationError(
-        "OPENAI_BASE_URL must be an absolute URL."
-      );
-    }
-    const localHttp =
-      parsed.protocol === "http:" &&
-      (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1");
-    if (parsed.protocol !== "https:" && !localHttp) {
-      throw new RevoraModelConfigurationError(
-        "OPENAI_BASE_URL must use HTTPS unless it targets localhost."
-      );
-    }
-    if (parsed.username || parsed.password) {
-      throw new RevoraModelConfigurationError(
-        "OPENAI_BASE_URL must not contain credentials."
-      );
-    }
-    if (provider === "openrouter" && !model.includes("/")) {
-      throw new RevoraModelConfigurationError(
-        "OpenRouter model ids must include their provider prefix."
-      );
-    }
-  }
+  assertModelIdMatchesTransport(model, baseURL);
 
   return baseURL ? { model, provider, baseURL } : { model, provider };
 }

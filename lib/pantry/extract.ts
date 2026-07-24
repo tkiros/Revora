@@ -1,6 +1,10 @@
 import OpenAI from "openai";
 import { z } from "zod";
 
+import {
+  assertModelIdMatchesTransport,
+  resolveTransportBaseUrl
+} from "../model-transport";
 import { readPrivatePantryPhotoDataUrl } from "../server/pantry/blob-access";
 
 /**
@@ -99,6 +103,11 @@ export function createPantryVisionClient(options?: {
 
       const model =
         options?.model ?? process.env.REVORA_VISION_MODEL ?? DEFAULT_VISION_MODEL;
+      // Injected clients (tests) own their routing; real transports must pair
+      // the model-id naming with the configured base URL before a paid call.
+      if (!options?.client) {
+        assertModelIdMatchesTransport(model, resolveTransportBaseUrl());
+      }
       const transport =
         options?.client ?? createTransport(options?.apiKey ?? process.env.OPENAI_API_KEY);
       const imageDataUrl = await (
@@ -142,8 +151,16 @@ function createTransport(apiKey: string | undefined): PantryVisionTransport {
   if (!apiKey) {
     throw new Error("OPENAI_API_KEY is required for pantry vision extraction.");
   }
+  // WS-2 (NEW-001): same transport policy as the text engine — OpenRouter in
+  // production only via the shared allowlist, direct OpenAI otherwise.
+  const baseURL = resolveTransportBaseUrl();
   // 60s per photo (vision is slower than the text judge); the batch route's
   // own budget (Task 2.11) is the real ceiling. maxRetries 0 — the caller
   // owns retry policy per photo.
-  return new OpenAI({ apiKey, timeout: 60_000, maxRetries: 0 });
+  return new OpenAI({
+    apiKey,
+    timeout: 60_000,
+    maxRetries: 0,
+    ...(baseURL ? { baseURL } : {})
+  });
 }

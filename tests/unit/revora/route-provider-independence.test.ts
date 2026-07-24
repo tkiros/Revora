@@ -55,6 +55,21 @@ describe("checkFood — deterministic routes never construct a model client", ()
             name: "RevoraConnectionError"
           })
         )
+    },
+    {
+      // WS-2: an OpenRouter misconfiguration (missing provider prefix, host
+      // not allowlisted) throws RevoraModelConfigurationError at construction.
+      name: "OpenRouter misconfiguration (config error at construction)",
+      make: () => ({
+        factory: vi.fn((): RevoraModelClient => {
+          const error = new Error(
+            "OpenRouter model ids must include their provider prefix."
+          );
+          error.name = "RevoraModelConfigurationError";
+          throw error;
+        }),
+        generate: null
+      })
     }
   ] as const;
 
