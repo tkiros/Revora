@@ -76,3 +76,19 @@ Checked-in migrations and passing PGlite tests prove source consistency only.
 Launch evidence requires the post-migration governance check against the exact
 production database plus provider backup/restore proof. Never put database URLs,
 role names, query output containing user rows, or passwords in a handoff.
+
+## Store inventory (NEW-002 / OA-4)
+
+Production runs against exactly ONE Postgres store — the Railway database the
+deployed `DATABASE_URL` binds. A second provisioned store, `Postgres-FOMu`,
+was found during the 2026-07 service-integrations audit holding **7 billing
+inbox rows and nothing else** (V013): an artifact of an earlier binding, not a
+live dependency.
+
+Status: **retired, treat as read-only.** Do not point any environment at it,
+do not migrate schemas onto it, and do not delete it until the owner completes
+OA-4 (confirm the deployed `DATABASE_URL` binding, then either migrate the 7
+inbox rows into the live store's `billing_event_inbox` for the AUD-028
+denominator reconciliation, or export them and decommission the store). Any
+change here is an owner action — engineering must never mutate or drop a store
+that could hold billing evidence.

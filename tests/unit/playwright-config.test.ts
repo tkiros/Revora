@@ -45,6 +45,20 @@ describe("Playwright release-gate configuration", () => {
     expect(config.workers).toBe(1);
   });
 
+  it("no spec smuggles a per-suite retry override past the global retries:0 (WS-7)", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const smokeDir = path.join(process.cwd(), "tests", "smoke");
+    for (const file of fs.readdirSync(smokeDir)) {
+      if (!file.endsWith(".spec.ts")) continue;
+      const source = fs.readFileSync(path.join(smokeDir, file), "utf8");
+      expect(
+        /describe\.configure\(\s*\{[^}]*retries\s*:/.test(source),
+        `${file} overrides retries — the release gate runs optimized servers, so retries only hide real flakes`
+      ).toBe(false);
+    }
+  });
+
   it("does not use a teardown to rewrite tracked source after the run", () => {
     expect(config.globalTeardown).toBeUndefined();
   });

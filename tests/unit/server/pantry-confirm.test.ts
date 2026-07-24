@@ -145,4 +145,77 @@ describe("POST /api/pantry/confirm", () => {
       .where(eq(schema.pantryItems.orderId, order.id));
     expect(items).toHaveLength(1);
   });
+
+  it("WS-7: a TRUE concurrent double-confirm yields one 200 + one 409, items written once", async () => {
+    const order = await makeAwaitingOrder();
+    const POST = createPantryConfirmHandler(deps());
+    const body = {
+      orderId: order.id,
+      items: [{ name: "steel cut oats", portion: null }]
+    };
+
+    const responses = await Promise.all([
+      POST(confirmRequest(body)),
+      POST(confirmRequest(body))
+    ]);
+    expect(responses.map((r) => r.status).sort()).toEqual([200, 409]);
+
+    const items = await testDb.db
+      .select()
+      .from(schema.pantryItems)
+      .where(eq(schema.pantryItems.orderId, order.id));
+    expect(items).toHaveLength(1);
+    expect(items[0].status).toBe("confirmed");
+    expect(decryptField(items[0].nameCiphertext)).toBe("steel cut oats");
+  });
+
+  it("WS-7 fault injection: a failure mid-confirm rolls EVERYTHING back — no stranded processing", async () => {
+    const order = await makeAwaitingOrder();
+    // now() is called once for the status transition, then per confirmed
+    // item — throwing from the second call on faults the transaction AFTER
+    // the transition + draft delete have run inside it.
+    let calls = 0;
+    const POST = createPantryConfirmHandler({
+      ...deps(),
+      now: () => {
+        calls += 1;
+        if (calls >= 2) {
+          throw new Error("injected fault mid-transaction");
+        }
+        return NOW;
+      }
+    });
+
+    await expect(
+      POST(
+        confirmRequest({
+          orderId: order.id,
+          items: [{ name: "steel cut oats", portion: null }]
+        })
+      )
+    ).rejects.toThrow("injected fault");
+
+    // Atomicity: the order is NOT stranded `processing`, and the drafts the
+    // buyer was confirming are still there for the retry.
+    const [after] = await testDb.db
+      .select()
+      .from(schema.pantryOrders)
+      .where(eq(schema.pantryOrders.id, order.id));
+    expect(after.status).toBe("awaiting_confirm");
+    const items = await testDb.db
+      .select()
+      .from(schema.pantryItems)
+      .where(eq(schema.pantryItems.orderId, order.id));
+    expect(items).toHaveLength(1);
+    expect(items[0].status).toBe("draft");
+
+    // And the retry (healthy clock) completes normally.
+    const retry = await createPantryConfirmHandler(deps())(
+      confirmRequest({
+        orderId: order.id,
+        items: [{ name: "steel cut oats", portion: null }]
+      })
+    );
+    expect(retry.status).toBe(200);
+  });
 });

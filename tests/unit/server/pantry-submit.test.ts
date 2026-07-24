@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createPantrySubmitHandler } from "../../../app/api/pantry/submit/route";
-import { decryptField } from "../../../lib/server/crypto";
+import { decryptField, encryptField } from "../../../lib/server/crypto";
 import { schema } from "../../../lib/server/db";
 import { createTestDb } from "../../helpers/test-db";
 
@@ -249,5 +249,139 @@ describe("POST /api/pantry/submit", () => {
       .where(eq(schema.pantryOrders.id, order.id));
     expect(updated.status).toBe("needs_manual");
     expect(email.send).toHaveBeenCalledTimes(1);
+  });
+
+  it("WS-7: a TRUE concurrent double-submit runs extraction ONCE — loser 409s with zero vision spend", async () => {
+    const order = await makeClaimedOrder();
+    const vision = {
+      extractFromPhoto: vi
+        .fn()
+        .mockResolvedValue([{ name: "rolled oats", portion: null }])
+    };
+    const POST = createPantrySubmitHandler(makeDeps({ vision: () => vision }));
+
+    const responses = await Promise.all([
+      POST(submitRequest(validBody(order.id))),
+      POST(submitRequest(validBody(order.id)))
+    ]);
+    expect(responses.map((r) => r.status).sort()).toEqual([200, 409]);
+    // One winner × two photos — never four.
+    expect(vision.extractFromPhoto).toHaveBeenCalledTimes(2);
+
+    const items = await testDb.db
+      .select()
+      .from(schema.pantryItems)
+      .where(eq(schema.pantryItems.orderId, order.id));
+    expect(items).toHaveLength(1);
+    const photos = await testDb.db
+      .select()
+      .from(schema.pantryPhotos)
+      .where(eq(schema.pantryPhotos.orderId, order.id));
+    expect(photos).toHaveLength(2);
+  });
+
+  it("WS-7: a fresh extracting lease 409s; a stale one is reclaimed with a clean slate", async () => {
+    const order = await makeClaimedOrder();
+
+    // Fresh lease (updatedAt = now): another request is mid-extraction.
+    await testDb.db
+      .update(schema.pantryOrders)
+      .set({ status: "extracting", updatedAt: NOW })
+      .where(eq(schema.pantryOrders.id, order.id));
+    const fresh = await createPantrySubmitHandler(makeDeps())(
+      submitRequest(validBody(order.id))
+    );
+    expect(fresh.status).toBe(409);
+
+    // Stale lease (crashed run 11 minutes ago) with leftover partial state.
+    await testDb.db
+      .update(schema.pantryOrders)
+      .set({ updatedAt: new Date(NOW.getTime() - 11 * 60_000) })
+      .where(eq(schema.pantryOrders.id, order.id));
+    await testDb.db.insert(schema.pantryPhotos).values({
+      orderId: order.id,
+      blobUrl: `https://revora.private.blob.vercel-storage.com/pantry/${order.id}/photo-OldCrash0001.jpg`
+    });
+    await testDb.db.insert(schema.pantryItems).values({
+      orderId: order.id,
+      position: 0,
+      nameCiphertext: encryptField("stale draft"),
+      source: "vision",
+      status: "draft"
+    });
+
+    const retry = await createPantrySubmitHandler(makeDeps())(
+      submitRequest(validBody(order.id))
+    );
+    expect(retry.status).toBe(200);
+
+    // Clean slate: exactly the retry's photos and items, no crash leftovers.
+    const photos = await testDb.db
+      .select()
+      .from(schema.pantryPhotos)
+      .where(eq(schema.pantryPhotos.orderId, order.id));
+    expect(photos).toHaveLength(2);
+    const items = await testDb.db
+      .select()
+      .from(schema.pantryItems)
+      .where(eq(schema.pantryItems.orderId, order.id));
+    expect(items).toHaveLength(2);
+    expect(items.map((i) => decryptField(i.nameCiphertext)).sort()).toEqual([
+      "orange juice",
+      "rolled oats"
+    ]);
+  });
+
+  it("WS-7 fault injection: a crash between item insert and transition leaves a RECOVERABLE order", async () => {
+    const order = await makeClaimedOrder();
+
+    // Fail the first write of the final transaction: once extraction has
+    // finished, the next now() call (item timestamps / transition) throws.
+    let failAfterExtraction = false;
+    const vision = {
+      extractFromPhoto: vi.fn().mockImplementation(async () => {
+        failAfterExtraction = true;
+        return [{ name: "rolled oats", portion: null }];
+      })
+    };
+    let clockCalls = 0;
+    const faultyNow = () => {
+      if (failAfterExtraction) {
+        clockCalls += 1;
+        throw new Error("injected fault after extraction");
+      }
+      return NOW;
+    };
+
+    await expect(
+      createPantrySubmitHandler(makeDeps({ vision: () => vision, now: faultyNow }))(
+        submitRequest(validBody(order.id))
+      )
+    ).rejects.toThrow("injected fault");
+    expect(clockCalls).toBeGreaterThan(0);
+
+    // The transaction rolled back: no half-written items, order still holds
+    // the extracting lease (not awaiting_confirm with missing items).
+    const [after] = await testDb.db
+      .select()
+      .from(schema.pantryOrders)
+      .where(eq(schema.pantryOrders.id, order.id));
+    expect(after.status).toBe("extracting");
+    const itemsAfterFault = await testDb.db
+      .select()
+      .from(schema.pantryItems)
+      .where(eq(schema.pantryItems.orderId, order.id));
+    expect(itemsAfterFault).toHaveLength(0);
+
+    // Recovery: once the lease is stale, a healthy retry completes end-to-end.
+    await testDb.db
+      .update(schema.pantryOrders)
+      .set({ updatedAt: new Date(NOW.getTime() - 11 * 60_000) })
+      .where(eq(schema.pantryOrders.id, order.id));
+    const retry = await createPantrySubmitHandler(makeDeps())(
+      submitRequest(validBody(order.id))
+    );
+    expect(retry.status).toBe(200);
+    expect((await retry.json()).status).toBe("awaiting_confirm");
   });
 });

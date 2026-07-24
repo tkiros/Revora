@@ -1,6 +1,6 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, lt, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -148,23 +148,22 @@ export function createPantrySubmitHandler(deps: Deps = {}) {
       .where(
         and(
           eq(schema.pantryOrders.id, input.orderId),
-          eq(schema.pantryOrders.userId, session.userId),
-          inArray(schema.pantryOrders.status, ["claimed", "submitted"])
+          eq(schema.pantryOrders.userId, session.userId)
         )
       );
     if (!order) {
       return NextResponse.json({ error: "Order not found." }, { status: 404 });
     }
 
-    // Record intake: photos + encrypted health-adjacent fields + consent.
-    const photoRows = await db()
-      .insert(schema.pantryPhotos)
-      .values(
-        input.photoUrls.map((blobUrl) => ({ orderId: order.id, blobUrl }))
-      )
-      .returning();
-
-    await db()
+    // WS-7: the submit lease. One conditional transition claims the order for
+    // extraction — a concurrent double-submit loses the CAS and 409s with
+    // ZERO vision spend (this is a paid workflow; extraction must run once).
+    // A crashed run parks the order in `extracting` forever, so the lease is
+    // reclaimable once updatedAt is older than the function ceiling
+    // (maxDuration 300s) plus buffer — that makes a fault mid-extraction a
+    // RECOVERABLE state: the buyer's retry re-runs from a clean slate.
+    const staleLeaseCutoff = new Date(now().getTime() - 10 * 60_000);
+    const claimed = await db()
       .update(schema.pantryOrders)
       .set({
         a1cBand: input.a1cBand,
@@ -176,7 +175,48 @@ export function createPantrySubmitHandler(deps: Deps = {}) {
         status: "extracting",
         updatedAt: now()
       })
-      .where(eq(schema.pantryOrders.id, order.id));
+      .where(
+        and(
+          eq(schema.pantryOrders.id, order.id),
+          or(
+            inArray(schema.pantryOrders.status, ["claimed", "submitted"]),
+            and(
+              eq(schema.pantryOrders.status, "extracting"),
+              lt(schema.pantryOrders.updatedAt, staleLeaseCutoff)
+            )
+          )
+        )
+      )
+      .returning();
+    if (claimed.length === 0) {
+      return NextResponse.json(
+        { error: "This order is already being processed." },
+        { status: 409 }
+      );
+    }
+
+    // Idempotent restart: a reclaimed stale lease starts from a clean slate —
+    // drop any photo rows and draft items a crashed run left behind so a
+    // retry can never double them up.
+    await db()
+      .delete(schema.pantryItems)
+      .where(
+        and(
+          eq(schema.pantryItems.orderId, order.id),
+          eq(schema.pantryItems.status, "draft")
+        )
+      );
+    await db()
+      .delete(schema.pantryPhotos)
+      .where(eq(schema.pantryPhotos.orderId, order.id));
+
+    // Record intake: photos + encrypted health-adjacent fields + consent.
+    const photoRows = await db()
+      .insert(schema.pantryPhotos)
+      .values(
+        input.photoUrls.map((blobUrl) => ({ orderId: order.id, blobUrl }))
+      )
+      .returning();
 
     // Extract per photo — failure isolation feeds the designed partial state.
     const client = vision();
@@ -226,25 +266,32 @@ export function createPantrySubmitHandler(deps: Deps = {}) {
       return NextResponse.json({ status: "needs_manual" });
     }
 
-    const inserted = await db()
-      .insert(schema.pantryItems)
-      .values(
-        drafts.map((draft, position) => ({
-          orderId: order.id,
-          position,
-          nameCiphertext: encryptField(draft.name),
-          portionCiphertext: draft.portion ? encryptField(draft.portion) : null,
-          source: "vision" as const,
-          status: "draft" as const,
-          updatedAt: now()
-        }))
-      )
-      .returning();
-
-    await db()
-      .update(schema.pantryOrders)
-      .set({ status: "awaiting_confirm", updatedAt: now() })
-      .where(eq(schema.pantryOrders.id, order.id));
+    // WS-7: item writes + the awaiting_confirm transition are ONE transaction,
+    // so a fault between them can't leave confirmable drafts on an order still
+    // marked `extracting` (or the transition without its items).
+    const inserted = await db().transaction(async (tx) => {
+      const rows = await tx
+        .insert(schema.pantryItems)
+        .values(
+          drafts.map((draft, position) => ({
+            orderId: order.id,
+            position,
+            nameCiphertext: encryptField(draft.name),
+            portionCiphertext: draft.portion
+              ? encryptField(draft.portion)
+              : null,
+            source: "vision" as const,
+            status: "draft" as const,
+            updatedAt: now()
+          }))
+        )
+        .returning();
+      await tx
+        .update(schema.pantryOrders)
+        .set({ status: "awaiting_confirm", updatedAt: now() })
+        .where(eq(schema.pantryOrders.id, order.id));
+      return rows;
+    });
 
     return NextResponse.json({
       status: "awaiting_confirm",

@@ -14,7 +14,13 @@ import { normalizeItemName } from "../../lib/pantry/extract";
  * see labels.example.json); like eval:pantry-extract, this skips without them.
  */
 const FIXTURES = path.join(process.cwd(), "tests/fixtures/meal-photos");
-const READY = fs.existsSync(path.join(FIXTURES, "labels.json")) && !!process.env.OPENAI_API_KEY;
+// WS-7: live model spend requires an EXPLICIT opt-in (EVAL_MEAL_PHOTO_LIVE=1),
+// not merely an ambient key + fixture files — a developer with credentials in
+// their shell must never buy vision calls by running the suite.
+const READY =
+  process.env.EVAL_MEAL_PHOTO_LIVE === "1" &&
+  fs.existsSync(path.join(FIXTURES, "labels.json")) &&
+  !!process.env.OPENAI_API_KEY;
 
 function toDataUrl(file: string): string {
   const buffer = fs.readFileSync(path.join(FIXTURES, file));
