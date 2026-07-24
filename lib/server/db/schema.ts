@@ -5,6 +5,7 @@ import {
   check,
   date,
   index,
+  integer,
   jsonb,
   pgTable,
   primaryKey,
@@ -46,7 +47,9 @@ export const accounts = pgTable(
     providerAccountId: text("provider_account_id").notNull(),
     refresh_token: text("refresh_token"),
     access_token: text("access_token"),
-    expires_at: smallint("expires_at"),
+    // AUD-006: Unix-epoch seconds — smallint overflowed at 32767. Email-only
+    // auth never writes it, but OAuth would on day one.
+    expires_at: integer("expires_at"),
     token_type: text("token_type"),
     scope: text("scope"),
     id_token: text("id_token"),

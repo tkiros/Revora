@@ -9,6 +9,7 @@ import {
 } from "./lib/server/email-stub";
 import { checkEmailCooldown } from "./lib/revora/rate-limit";
 import { EMAIL_FROM } from "./lib/revora/contact";
+import { normalizeSigninIdentifier } from "./lib/server/auth-identifier";
 import { sendEmail } from "./lib/server/email";
 
 /**
@@ -37,6 +38,10 @@ export const AUTH_EMAIL_AVAILABLE = Boolean(adapter);
 const emailProvider = Resend({
   apiKey: process.env.RESEND_API_KEY,
   from: EMAIL_FROM,
+  // AUD-024 defense in depth: canonicalize the identifier ourselves (NFKC
+  // first, exactly one ASCII "@") even though the upgraded @auth/core is
+  // patched — see lib/server/auth-identifier.ts.
+  normalizeIdentifier: normalizeSigninIdentifier,
   async sendVerificationRequest(params) {
     // Resolve the test seam before doing network work. In production the
     // shared policy treats AUTH_EMAIL_STUB_DIR as absent, so a one-time login
