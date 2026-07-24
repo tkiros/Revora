@@ -450,12 +450,22 @@ export async function runNudgeCron(
       continue;
     }
 
+    // AUD-019: pause/graduate is the user's RECORDED intent to stop journey
+    // nudging, and it must survive a flag-off rollback — so the stop-state is
+    // checked BEFORE the flag gate. Rolling LEARNING_JOURNEY_ENABLED back off
+    // can never silently resume reminders for a paused or graduated journey.
+    const journey = await loadJourney(db, candidate.userId);
+    if (journey.state === "paused" || journey.state === "graduated") {
+      await clearTodayNudgeAttempts(db, candidate.userId, todayKey, now);
+      skipped += 1;
+      continue;
+    }
+
     // Journey-aware trigger selection (flag-gated). When the flag is off, the
-    // class is always generic and there are no journey stop rules — behavior is
-    // unchanged from the pre-journey cron.
+    // class is always generic and the remaining journey rules (stage choice,
+    // 14-day inactivity, weekly-artifact freshness) do not apply.
     let selection: NudgeSelection = { class: "generic", stage: null };
     if (journeyEnabled) {
-      const journey = await loadJourney(db, candidate.userId);
       const stage = currentStage(journey, now);
 
       const daysSinceLastCheck = mostRecentCheckAgeDays(recent, now);

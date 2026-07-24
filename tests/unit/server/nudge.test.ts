@@ -745,18 +745,45 @@ describe("runNudgeCron — journey-aware triggers (flag on)", () => {
     expect(result.sent).toBe(0);
   });
 
-  it("flag OFF leaves behavior generic even with a paused journey", async () => {
+  it("flag OFF still honors a paused journey — rollback never resumes nudges (AUD-019)", async () => {
     const user = await seedUser({ email: "off@test.dev", timezone: "America/New_York" });
     await seedJourney(user.id, { state: "paused" });
 
     const send = vi.fn().mockResolvedValue("ok" as const);
-    // No env → flag off → journey stop rules do not apply.
+    // No env → flag off. The pause is the user's recorded stop intent; a
+    // flag-off rollback must fail QUIET, not silently restart reminders.
+    const result = await runNudgeCron(testDb.db, { now: () => NOW, send });
+
+    expect(result.sent).toBe(0);
+    expect(result.skipped).toBeGreaterThanOrEqual(1);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("flag OFF still honors a graduated journey (AUD-019)", async () => {
+    const user = await seedUser({
+      email: "grad-off@test.dev",
+      timezone: "America/New_York"
+    });
+    await seedJourney(user.id, { state: "graduated" });
+
+    const send = vi.fn().mockResolvedValue("ok" as const);
+    const result = await runNudgeCron(testDb.db, { now: () => NOW, send });
+
+    expect(result.sent).toBe(0);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("flag OFF keeps generic nudges for users with no journey row", async () => {
+    // The stop-state guard must not regress the ordinary generic path: a user
+    // who never started a journey still gets their reminder.
+    await seedUser({ email: "plain@test.dev", timezone: "America/New_York" });
+
+    const send = vi.fn().mockResolvedValue("ok" as const);
     const result = await runNudgeCron(testDb.db, { now: () => NOW, send });
 
     expect(result.sent).toBe(1);
     const payload = JSON.parse(send.mock.calls[0][1] as string);
     expect(payload.class).toBe("generic");
-    expect(payload.stage).toBe("none");
   });
 });
 
