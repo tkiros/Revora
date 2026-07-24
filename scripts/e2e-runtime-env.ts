@@ -58,6 +58,10 @@ export function isolatedE2ERuntimeEnv(
     NEXT_PUBLIC_APP_URL: "http://127.0.0.1:3100",
     NEXT_PUBLIC_VAPID_PUBLIC_KEY: E2E_VAPID_PUBLIC_KEY,
     PANTRY_EXTRACT_STUB: "1",
+    // AUD-010: /pantry renders only a Stripe-verified price and fails closed
+    // without one. E2E blanks STRIPE_SECRET_KEY, so the funnel specs need the
+    // test seam (ignored in production builds, like the extract stubs above).
+    PANTRY_PRICE_STUB: "1",
     PAYWALL_MODE: base.PAYWALL_MODE?.trim() || "legacy",
     REVORA_ALLOW_NO_MEASUREMENT: "1",
     SUPPORT_INBOX_EMAIL: "support@revora.test",

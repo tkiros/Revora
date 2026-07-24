@@ -21,6 +21,7 @@ import {
   resolveAnnualPrice,
   resolvePriceVariant
 } from "../../../lib/server/pricing";
+import { resolvePantryPrice } from "../../../lib/server/pantry-price";
 import {
   sendEmail,
   type SendEmailInput,
@@ -530,9 +531,15 @@ export function createPantryCheckoutSessionHandler(deps: BillingDeps = {}) {
       );
     }
 
-    const price = env.STRIPE_PRICE_PANTRY;
+    // AUD-010: charge the SAME verified Price object the landing displays —
+    // resolvePantryPrice fails closed (null) unless the configured Price is an
+    // active one-time USD amount, so display and charge share one authority.
+    const verifiedPrice = await resolvePantryPrice({
+      stripeClient: stripe,
+      env
+    });
     const appUrl = paymentReturnUrl(env)!;
-    if (!price) {
+    if (!verifiedPrice) {
       return NextResponse.json({ error: "The Pantry Review is not available right now." }, { status: 503 });
     }
     // No session gate: buyers may be anonymous. Checkout collects the email;
@@ -540,7 +547,7 @@ export function createPantryCheckoutSessionHandler(deps: BillingDeps = {}) {
     // Payment Link path (applyPantryCheckout is reused byte-identically).
     const checkout = await stripe().checkout.sessions.create({
       mode: "payment",
-      line_items: [{ price, quantity: 1 }],
+      line_items: [{ price: verifiedPrice.priceId, quantity: 1 }],
       metadata: { terms_version: parsed.data.termsVersion },
       success_url: `${appUrl}/pantry/thanks`,
       cancel_url: `${appUrl}/pantry`
@@ -1449,7 +1456,13 @@ const TrialStartSchema = z
     // clients keep working unchanged.
     plan: z.enum(["monthly", "annual"]).optional(),
     termsAccepted: z.literal(true),
-    termsVersion: z.literal(TERMS_VERSION)
+    termsVersion: z.literal(TERMS_VERSION),
+    // AUD-011: a prior subscriber gets no free week (W-16). Their first
+    // request answers with an ineligible-trial disclosure instead of a
+    // checkout URL; only an explicit resubmit with this flag opens the
+    // immediate-billing session — the UI can never promise "nothing is
+    // charged today" for a checkout that charges today.
+    acknowledgeImmediate: z.literal(true).optional()
   })
   .strict();
 
@@ -1546,12 +1559,6 @@ export function createTrialCheckoutHandler(
       }
     }
 
-    try {
-      await sendMagicLink(email);
-    } catch {
-      // Non-fatal: /trial/started offers a resend; checkout must not block on email.
-    }
-
     // W-16 — one free week per account, ever. Every checkout used to carry a
     // fresh trial_period_days, so cancel → re-subscribe → cancel bought free
     // premium forever. ANY prior subscriptions row disqualifies the trial,
@@ -1559,11 +1566,32 @@ export function createTrialCheckoutHandler(
     // was already taken. The row itself is the flag, so this needs no migration
     // and no new column to keep in sync. A user who merely abandoned checkout
     // never got a row — they still get the week they never used. Correct.
+    // Checked BEFORE the magic link so the disclosure bounce (below) costs no
+    // email send.
     const [priorSubscription] = await db()
       .select({ id: schema.subscriptions.id })
       .from(schema.subscriptions)
       .where(eq(schema.subscriptions.userId, user.id))
       .limit(1);
+
+    // AUD-011: eligibility is disclosed before checkout, not silently priced
+    // in. Without the acknowledgment flag, an ineligible account gets the
+    // authoritative charge terms (amount due today, cadence) and NO Stripe
+    // session — the wall re-renders them and asks before any authorization.
+    if (priorSubscription && !parsed.data.acknowledgeImmediate) {
+      return NextResponse.json({
+        ineligibleTrial: true,
+        priceDisplay:
+          plan === "annual" ? resolveAnnualPrice(env).display : monthly.display,
+        cadence: plan === "annual" ? "year" : "month"
+      });
+    }
+
+    try {
+      await sendMagicLink(email);
+    } catch {
+      // Non-fatal: /trial/started offers a resend; checkout must not block on email.
+    }
 
     const appUrl = paymentReturnUrl(env)!;
     const checkout = await stripe().checkout.sessions.create({

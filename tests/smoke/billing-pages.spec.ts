@@ -37,7 +37,14 @@ test("signed-out account page offers sign-in; deletion URL is public", async ({
   await expect(
     page.getByRole("heading", { name: /delete your account/i })
   ).toBeVisible();
-  await expect(page.getByText(/no retention window/i)).toBeVisible();
+  // AUD-013: the public deletion promise carries its two honest boundaries —
+  // the Play-cancellation precondition and the retained-record disclosure —
+  // instead of the old absolute "no retention window" claim.
+  await expect(
+    page.getByText(/cancel that subscription in Google Play first/i)
+  ).toBeVisible();
+  await expect(page.getByText(/What remains afterwards/i)).toBeVisible();
+  await expect(page.getByText(/no retention window/i)).not.toBeVisible();
 
   await expectNoSeriousViolations(page);
 });

@@ -426,7 +426,7 @@ function decodeCard(ciphertext: string | null): RecalledCard | null {
   }
 }
 
-function toResponseCheck(row: CheckRow, food: string) {
+export function toResponseCheck(row: CheckRow, food: string) {
   return {
     id: row.id,
     clientId: row.clientId ?? row.id,
