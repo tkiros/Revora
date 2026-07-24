@@ -69,33 +69,34 @@ export function createPantryConfirmHandler(deps: Deps = {}) {
       return NextResponse.json({ error: "Order not found." }, { status: 404 });
     }
 
-    // Conditional transition = the double-confirm guard: only ONE request
-    // can win awaiting_confirm -> processing.
-    const transitioned = await db()
-      .update(schema.pantryOrders)
-      .set({ status: "processing", updatedAt: now() })
-      .where(
-        and(
-          eq(schema.pantryOrders.id, order.id),
-          eq(schema.pantryOrders.status, "awaiting_confirm")
+    // AUD-021 (narrowed): the transition + delete + reinsert are ONE
+    // transaction. A failure anywhere rolls the whole confirm back, so an
+    // order can never be stranded `processing` with drafts deleted and no
+    // confirmed items — this is a paid workflow, partial state costs money.
+    // The conditional transition inside the transaction stays the
+    // double-confirm guard: only ONE request wins awaiting_confirm →
+    // processing; the loser's CAS matches zero rows and rolls back to a 409.
+    const outcome = await db().transaction(async (tx) => {
+      const transitioned = await tx
+        .update(schema.pantryOrders)
+        .set({ status: "processing", updatedAt: now() })
+        .where(
+          and(
+            eq(schema.pantryOrders.id, order.id),
+            eq(schema.pantryOrders.status, "awaiting_confirm")
+          )
         )
-      )
-      .returning();
-    if (transitioned.length === 0) {
-      return NextResponse.json(
-        { error: "Already confirmed." },
-        { status: 409 }
-      );
-    }
+        .returning();
+      if (transitioned.length === 0) {
+        return "already_confirmed" as const;
+      }
 
-    // The confirmed list REPLACES the drafts — what the buyer approved is
-    // exactly what the judge will see (locked decision 1).
-    await db()
-      .delete(schema.pantryItems)
-      .where(eq(schema.pantryItems.orderId, order.id));
-    await db()
-      .insert(schema.pantryItems)
-      .values(
+      // The confirmed list REPLACES the drafts — what the buyer approved is
+      // exactly what the judge will see (locked decision 1).
+      await tx
+        .delete(schema.pantryItems)
+        .where(eq(schema.pantryItems.orderId, order.id));
+      await tx.insert(schema.pantryItems).values(
         input.items.map((item, position) => ({
           orderId: order.id,
           position,
@@ -106,6 +107,15 @@ export function createPantryConfirmHandler(deps: Deps = {}) {
           updatedAt: now()
         }))
       );
+      return "ok" as const;
+    });
+
+    if (outcome === "already_confirmed") {
+      return NextResponse.json(
+        { error: "Already confirmed." },
+        { status: 409 }
+      );
+    }
 
     return NextResponse.json({ ok: true });
   };
