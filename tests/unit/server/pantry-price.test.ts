@@ -13,7 +13,7 @@ import {
  * session will charge.
  */
 
-const ENV = { STRIPE_PRICE_PANTRY: "price_pantry_49" } as NodeJS.ProcessEnv;
+const ENV = { STRIPE_PRICE_PANTRY: "price_pantry_49" } as unknown as NodeJS.ProcessEnv;
 
 function stripeWith(price: Record<string, unknown>) {
   return {
@@ -67,7 +67,7 @@ describe("resolvePantryPrice", () => {
     expect(
       await resolvePantryPrice({
         stripeClient: () => stripeWith(GOOD),
-        env: {} as NodeJS.ProcessEnv
+        env: {} as unknown as NodeJS.ProcessEnv
       })
     ).toBeNull();
 
@@ -118,7 +118,7 @@ describe("resolvePantryPrice", () => {
       (
         await resolvePantryPrice({
           stripeClient: () => stripe,
-          env: { STRIPE_PRICE_PANTRY: "price_new" } as NodeJS.ProcessEnv
+          env: { STRIPE_PRICE_PANTRY: "price_new" } as unknown as NodeJS.ProcessEnv
         })
       )?.display
     ).toBe("$59");
