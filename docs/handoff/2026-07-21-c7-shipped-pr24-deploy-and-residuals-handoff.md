@@ -91,3 +91,11 @@ HS-2/4/5 clinical banding · HSTS preload · CSP report-uri · `MEAL_MEMORY_*` /
 4. Truth-index + runbooks ✅ · all §D gates ✅ green with fresh evidence · **shipped via /ship → PR #24**.
 
 **One prioritized next action:** §B1 — apply 0014+0015 to prod Railway, then merge PR #24.
+
+****
+
+Owner blocs
+
+I am not sure what you mean by  "1. Stripe OAuth — open the authorization URL", i don't see this url anywhere. The mcp is authonticated, can you setup everything that need to setup with stripe?
+  DSN
+  https://823a9763757cc5c4be2c7b131d88bce7@o4511672801820672.ingest.us.sentry.io/4511691306696704

@@ -85,10 +85,11 @@ was found during the 2026-07 service-integrations audit holding **7 billing
 inbox rows and nothing else** (V013): an artifact of an earlier binding, not a
 live dependency.
 
-Status: **retired, treat as read-only.** Do not point any environment at it,
-do not migrate schemas onto it, and do not delete it until the owner completes
-OA-4 (confirm the deployed `DATABASE_URL` binding, then either migrate the 7
-inbox rows into the live store's `billing_event_inbox` for the AUD-028
-denominator reconciliation, or export them and decommission the store). Any
-change here is an owner action — engineering must never mutate or drop a store
-that could hold billing evidence.
+Status: **OA-4 CLOSED (Option A, 2026-07-24, owner-authorized).** The full
+contents were exported to the owner's local backup
+(`~/revora-backups/postgres-fomu-export-2026-07-24.json`), the 7
+`billing_event_inbox` rows plus 1 `email_suppressions` row were migrated into
+the live store with conflict-safe inserts (0 duplicates; 2 email-delivery log
+rows and 1 cron heartbeat were export-only), and the `Postgres-FOMu` service
+was deleted from the Railway project. Production now runs against exactly one
+store, verified healthy post-deletion.
