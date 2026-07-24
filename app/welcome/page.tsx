@@ -192,8 +192,9 @@ export default function WelcomePage() {
                   and submitted meal information (health data) to provide meal
                   checks, saved history, and progress
                   {longitudinalInsightsEnabled() ? ", and personalized insights" : ""}.
-                  Each submitted meal and A1C is sent to OpenAI to generate a
-                  response; Revora stores my A1C and saved meal text in
+                  Each submitted meal and A1C is sent to OpenAI, via the
+                  OpenRouter gateway, to generate a response; Revora stores my
+                  A1C and saved meal text in
                   encrypted form. I can withdraw this consent and erase the
                   saved health data from Account without deleting my login or
                   subscription, and I can continue in guest mode. Read the{" "}
