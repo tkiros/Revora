@@ -80,6 +80,10 @@ const AMBIGUOUS_PROTEIN_OR_VEG = [
 // reach the model. PENDING RD/CDCES confirmation under W-05.
 const AMBIGUOUS_UNDERSPECIFIED = [
   "leftovers",
+  // AUD-029: the singular slipped past the plural trigger — a bare "leftover"
+  // now clarifies too, while "leftover fried rice" still reaches the model
+  // via the substantive-remainder rule.
+  "leftover",
   "takeout",
   "take out",
   "breakfast",
@@ -163,7 +167,13 @@ const CARBS_ONLY_PATTERNS = [
   "linguine",
   "rigatoni",
   "raisins",
-  "dried fruit"
+  "dried fruit",
+  // AUD-029 (stratum-sauce-bbq-ribs): sugar-heavy condiments under the same
+  // honey/agave/syrup precedent above — named sugar floors MODERATE without
+  // forcing HIGH on condiment quantities. PENDING RD/CDCES under W-05.
+  "bbq sauce",
+  "barbecue sauce",
+  "bbq ribs"
 ] as const;
 
 const HIGH_RISK_PATTERNS = [
@@ -626,7 +636,7 @@ function isCarbsOnlyMeal(food: string): boolean {
  * Version changes are review-significant. W-05 is not closed until an external
  * RDN/CDCES signs this exact version in the dietitian panel artifact.
  */
-export const CARB_FORWARD_POLICY_VERSION = "2026-07-16.1";
+export const CARB_FORWARD_POLICY_VERSION = "2026-07-24.1";
 
 export const CARB_FORWARD_TOKENS = [
   "sushi",
@@ -710,7 +720,12 @@ export const CARB_FORWARD_TOKENS = [
   "pad thai",
   "banh mi",
   "gallo pinto",
-  "raisin bran"
+  "raisin bran",
+  // AUD-029 (stratum-underdesc-leftover-curry): same failure shape congee
+  // closed — a dish customarily served over a starch base that no token saw,
+  // so a model-SAFE shipped SAFE. Safe-direction: the borderline floor only
+  // ever raises. PENDING RD/CDCES under W-05.
+  "curry"
 ] as const;
 
 /**

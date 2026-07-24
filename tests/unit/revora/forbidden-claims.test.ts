@@ -65,6 +65,45 @@ describe("assertNoForbiddenClaims", () => {
       RevoraContractError
     );
   });
+
+  // AUD-031: all five personal-safety / individual-outcome paraphrases passed
+  // the gate unchanged (blocked=false) because the patterns were anchored to
+  // explicit medical nouns and exact formulations. The widened qualitativeOnly
+  // classes must block each one.
+  it.each([
+    ["outcome: bring levels down", "This will bring your levels down."],
+    ["outcome: lower your levels", "This will lower your levels."],
+    ["outcome: keep blood sugar stable", "This will keep your blood sugar stable."],
+    ["personal safety", "This is safe for you."],
+    ["personal spike assurance", "This will not spike you."]
+  ])("fails closed on an AUD-031 paraphrase — %s", (_label, text) => {
+    expect(() => assertNoForbiddenClaims(contract, [text])).toThrow(
+      RevoraContractError
+    );
+  });
+
+  // AUD-016: the Pantry report's personal-suitability phrasing is now a banned
+  // class, so a model output using it cannot ship either.
+  it.each([
+    ["fit your range", "These fit your range as they are — no changes needed."],
+    ["work better for you", "A timing change makes each of these work better for you."]
+  ])("fails closed on an AUD-016 personal-suitability phrase — %s", (_label, text) => {
+    expect(() => assertNoForbiddenClaims(contract, [text])).toThrow(
+      RevoraContractError
+    );
+  });
+
+  // AUD-015: the retired first-aid instruction classes (grams, timed recheck,
+  // fast-acting carbs) are blocked at the production gate.
+  it.each([
+    ["dose grams", "Take about 15 grams of carbs first."],
+    ["timed recheck", "Then recheck in 15 minutes."],
+    ["fast-acting carbs", "Reach for fast-acting carbs like glucose tablets."]
+  ])("fails closed on a treatment-instruction class — %s", (_label, text) => {
+    expect(() => assertNoForbiddenClaims(contract, [text])).toThrow(
+      RevoraContractError
+    );
+  });
 });
 
 describe("the contract, enforced end to end", () => {

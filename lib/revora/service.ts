@@ -38,7 +38,14 @@ const MAX_MODEL_ATTEMPTS = 1;
 export async function checkFood(
   rawRequest: unknown,
   deps: {
-    model: RevoraModelClient;
+    /**
+     * The model client, or a lazy factory for one (AUD-025). Deterministic
+     * routes (invalid, clinical, out-of-scope, not_food, clarify) return before
+     * the factory is ever called, so a missing/broken provider credential can
+     * never preempt safety routing. A factory that throws on first use falls to
+     * the same calm retry as a failed generate().
+     */
+    model: RevoraModelClient | (() => RevoraModelClient);
     clarified?: boolean;
     /** PII-free route bookkeeping only; errors still go through Sentry here. */
     onModelError?: (error: unknown) => void;
@@ -112,14 +119,17 @@ export async function checkFood(
 
   for (let attempt = 0; attempt < MAX_MODEL_ATTEMPTS; attempt += 1) {
     try {
-      const modelOutput = await deps.model.generate(prompt);
+      const model =
+        typeof deps.model === "function" ? deps.model() : deps.model;
+      const modelOutput = await model.generate(prompt);
       return mapModelOutput(
         modelOutput,
         contract,
         route,
         precheckFlags,
         request.food,
-        deps.snapshot
+        deps.snapshot,
+        deps.clarified
       );
     } catch (error) {
       try {
@@ -144,7 +154,8 @@ function mapModelOutput(
   route: ReturnType<typeof routeA1C>,
   precheckFlags: RevoraPolicyFlag[],
   food: string,
-  snapshot?: SnapshotMetadata
+  snapshot?: SnapshotMetadata,
+  clarified?: boolean
 ): RevoraUserResponse {
   switch (modelOutput.kind) {
     case "result":
@@ -157,6 +168,14 @@ function mapModelOutput(
         snapshot
       });
     case "clarify":
+      // One-clarification cap, model side (AUD-014 / §8). `clarified` was
+      // only checked before the model ran, so a model-authored clarify on the
+      // user's follow-up answer chained a SECOND question. Resolve
+      // conservatively to the calm retry instead — the user is asked to
+      // rephrase once, never interrogated.
+      if (clarified) {
+        return buildRetryResponse(contract);
+      }
       // The clarify and not_food arms bypass postprocess entirely, so before
       // W-06 they were the one model-authored path with NO output-side claims
       // check at all — a banned claim smuggled into a clarifying question

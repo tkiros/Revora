@@ -57,6 +57,9 @@ describe("middleware", () => {
     expect(response.status).toBe(503);
     const body = await response.json();
     expect(body.kind).toBe("retry");
+    // NEW-003: this 503 preempts the deterministic clinical router, so the
+    // copy must carry the human-care boundary a clinical symptom needs.
+    expect(body.message).toMatch(/doctor or your local emergency number/i);
   });
 
   it("allows an optimized local server explicitly marked Vercel development", async () => {

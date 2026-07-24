@@ -99,6 +99,10 @@ export function isolatedE2ERuntimeEnv(
     RESEND_WEBHOOK_SECRET: "",
     REVIEWER_TEST_SECRET: "",
     REVORA_LAUNCH_MODE_OVERRIDE: "",
+    // WS-2: model routing must not leak from the ambient shell into isolated
+    // E2E — a provider-prefixed ambient model id would break the stubbed runs.
+    REVORA_MODEL: "",
+    REVORA_VISION_MODEL: "",
     RTDN_SHARED_TOKEN: "",
     SENTRY_AUTH_TOKEN: "",
     SENTRY_DSN: "",

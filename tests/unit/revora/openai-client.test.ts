@@ -233,20 +233,46 @@ describe("createOpenAIRevoraModelClient", () => {
     expect(captured[0]).not.toHaveProperty("baseURL");
   });
 
-  it("rejects compatible provider routing in production", () => {
+  // WS-2 (NEW-001): production base-URL policy is an OpenRouter-host
+  // allowlist, replacing the blanket rejection. OpenRouter is the decided
+  // production architecture; every OTHER compatible host stays
+  // evaluation-only, and the HTTPS/no-credential guards are unchanged.
+  it("allows OpenRouter routing in production", () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const FakeOpenAI = function (this: unknown, opts: Record<string, unknown>) {
+      captured.push(opts);
+      return { responses: { create: async () => ({ output_text: "{}" }) } };
+    } as unknown as typeof import("openai").default;
+
+    createOpenAIRevoraModelClient({
+      apiKey: "k",
+      openAiCtor: FakeOpenAI,
+      env: {
+        NODE_ENV: "production",
+        OPENAI_BASE_URL: "https://openrouter.ai/api/v1",
+        REVORA_MODEL: "openai/gpt-5.4-mini"
+      }
+    });
+
+    expect(captured[0]).toMatchObject({
+      baseURL: "https://openrouter.ai/api/v1"
+    });
+  });
+
+  it("rejects non-OpenRouter compatible hosts in production", () => {
     expect(() =>
       createOpenAIRevoraModelClient({
         apiKey: "k",
         env: {
           NODE_ENV: "production",
-          OPENAI_BASE_URL: "https://openrouter.ai/api/v1",
-          REVORA_MODEL: "openai/gpt-5.4-mini"
+          OPENAI_BASE_URL: "https://compatible.example/api/v1",
+          REVORA_MODEL: "provider/model"
         }
       })
     ).toThrow(RevoraModelConfigurationError);
   });
 
-  it("rejects any base URL when VERCEL_ENV is production, whatever NODE_ENV says", () => {
+  it("applies the allowlist when VERCEL_ENV is production, whatever NODE_ENV says", () => {
     // Vercel production is classified by VERCEL_ENV, not NODE_ENV — this is
     // the exact combination the deployed platform presents.
     expect(() =>
@@ -255,11 +281,27 @@ describe("createOpenAIRevoraModelClient", () => {
         env: {
           VERCEL_ENV: "production",
           NODE_ENV: "test",
+          OPENAI_BASE_URL: "https://compatible.example/api/v1",
+          REVORA_MODEL: "provider/model"
+        }
+      })
+    ).toThrow(RevoraModelConfigurationError);
+
+    const FakeOpenAI = function (this: unknown) {
+      return { responses: { create: async () => ({ output_text: "{}" }) } };
+    } as unknown as typeof import("openai").default;
+    expect(() =>
+      createOpenAIRevoraModelClient({
+        apiKey: "k",
+        openAiCtor: FakeOpenAI,
+        env: {
+          VERCEL_ENV: "production",
+          NODE_ENV: "test",
           OPENAI_BASE_URL: "https://openrouter.ai/api/v1",
           REVORA_MODEL: "openai/gpt-5.4-mini"
         }
       })
-    ).toThrow(RevoraModelConfigurationError);
+    ).not.toThrow();
   });
 
   it("rejects provider-prefixed model ids on direct OpenAI", () => {

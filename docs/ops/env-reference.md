@@ -7,7 +7,9 @@ Every variable, per phase. Provision in Vercel for **preview + production**
 | Variable | Phase | Notes |
 |---|---|---|
 | `OPENAI_API_KEY` | existing | engine calls |
-| `OPENAI_BASE_URL` | preview/eval only | Optional OpenAI-compatible endpoint for controlled evaluation. The production app rejects any non-empty value and provider-prefixed model id, because its safety evidence is for direct OpenAI and compatible Responses endpoints may have different or beta behavior. |
+| `OPENAI_BASE_URL` | WS-2 | Optional OpenAI-compatible endpoint. **Production allows only the OpenRouter host (`openrouter.ai`)** — the decided provider architecture; every other compatible host stays evaluation-only (preview/test). HTTPS and no-credentials-in-URL are enforced everywhere (`lib/model-transport.ts`). All three transports follow it in lockstep: the text engine and both vision drafters (meal photo, Pantry). Set it together with provider-prefixed `REVORA_MODEL` and `REVORA_VISION_MODEL` (e.g. `openai/gpt-5.4-mini`) — a mismatched pair fails loudly before any paid call. **Unset it to fall back to direct OpenAI** (the rollback path — no redeploy needed, but model ids must drop their prefix in the same change). |
+| `REVORA_MODEL` | existing | Text-engine model id (default `gpt-5.4-mini`). Provider-prefixed (`openai/…`) **iff** `OPENAI_BASE_URL` targets OpenRouter; unprefixed on direct OpenAI. |
+| `REVORA_VISION_MODEL` | WS-2 | Vision model id for meal-photo drafts and Pantry extraction (default `gpt-5.4-mini`). Same prefix rule as `REVORA_MODEL` — keep it in lockstep with `OPENAI_BASE_URL`. |
 | `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | existing | rate limit; prod instance |
 | `SENTRY_DSN` | existing/P7 | server-only capture |
 | `EDGE_CONFIG` | existing | launch-controls kill switch |

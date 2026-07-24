@@ -45,7 +45,8 @@ export const CLINICAL_ROUTES = [
   "pregnancy",
   "organ_disease",
   "allergy",
-  "diagnosed_diabetes"
+  "diagnosed_diabetes",
+  "pediatric"
 ] as const;
 
 export type ClinicalRoute = (typeof CLINICAL_ROUTES)[number];
@@ -245,6 +246,22 @@ const ROUTE_PATTERNS: Record<ClinicalRoute, RegExp[]> = {
     /\bfreestyle\s+libre\b/,
     /\blibre\s+(?:sensor|reading|cgm)\b/,
     /\binsulin\s+pump\b/
+  ],
+
+  // Pediatric context (AUD-030). Revora's A1C bands and meal framing are
+  // adult-only; a check described as being for a child must route to human
+  // care, deterministically, before any A1C/food/model step. Patterns need
+  // CHILD context, not just an age phrase — "5 year old cheddar" and
+  // "10 year old scotch" are foods, and "my daughter" alone can name an
+  // adult, so bare relations without a child marker do not route.
+  pediatric: [
+    /\b(?:my|our|her|his|their)\s+\d{1,2}[\s-]?(?:year|yr)s?[\s-]?old\b/,
+    /\b\d{1,2}[\s-]?(?:year|yr)s?[\s-]?old\s+(?:son|daughter|kid|child|boy|girl|grandson|granddaughter)\b/,
+    /\b(?:my|our)\s+(?:kid|kids|child|children|toddler|teen|teenager|little\s+(?:one|boy|girl)|grandkid|grandchild)\b/,
+    /\b(?:toddler|preschooler|kindergartner)\b/,
+    /\bfor\s+(?:a|my|our)\s+child\b/,
+    /\bchild'?s\s+(?:meal|lunch|dinner|breakfast|snack|plate)\b/,
+    /\bschool\s+lunch\s+for\b/
   ]
 };
 

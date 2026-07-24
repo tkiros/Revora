@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   CLINICAL_ROUTES,
@@ -97,7 +97,8 @@ describe("classifyClinicalRisk", () => {
       covered.add(route);
     }
     expect(covered.size).toBe(CLINICAL_ROUTES.length);
-    expect(CLINICAL_ROUTES.length).toBe(8);
+    // 9 = the original eight + pediatric (AUD-030, 2026-07-24).
+    expect(CLINICAL_ROUTES.length).toBe(9);
   });
 
   it("medical precedence: a valid meal carrying a medical question routes medical", () => {
@@ -215,7 +216,8 @@ describe("checkFood — the clinical route end to end", () => {
         pregnancy: "i am pregnant",
         organ_disease: "i have kidney disease",
         allergy: "peanut allergy",
-        diagnosed_diabetes: "i am type 1 diabetic"
+        diagnosed_diabetes: "i am type 1 diabetic",
+        pediatric: "pizza for my 10 year old"
       };
 
       const response = await checkFood(
@@ -229,5 +231,48 @@ describe("checkFood — the clinical route end to end", () => {
         expect(response.message).not.toMatch(banned);
       }
     }
+  });
+});
+
+// AUD-030 — the pediatric/age class. Deterministic, zero model calls, and
+// scoped to CHILD context: aged foods ("5 year old cheddar") and bare adult
+// relations ("my daughter") must not route.
+describe("pediatric routing (AUD-030)", () => {
+  it.each([
+    "mac and cheese for my 10 year old",
+    "my 10-year-old had pizza and juice",
+    "is oatmeal ok for my 7 yr old daughter",
+    "school lunch for a 9 year old kid",
+    "my toddler ate half my pasta",
+    "snack ideas for my kids",
+    "dinner for our children",
+    "my teenager eats cereal every day"
+  ])("routes to pediatric: %s", (input) => {
+    expect(classifyClinicalRisk(input)?.route).toBe("pediatric");
+  });
+
+  it.each([
+    "5 year old cheddar on crackers",
+    "10 year old scotch with dinner",
+    "aged gouda and grapes",
+    "my daughter recommended this recipe",
+    "chicken and rice for me"
+  ])("does not route food/adult phrasing: %s", (input) => {
+    expect(classifyClinicalRisk(input)?.route).not.toBe("pediatric");
+  });
+
+  it("returns the pediatric card with zero model calls", async () => {
+    const generate = vi.fn();
+    const response = await checkFood(
+      { food: "mac and cheese for my 10 year old", a1c: 6.2 },
+      { model: { generate } }
+    );
+
+    expect(response.kind).toBe("clinical");
+    if (response.kind === "clinical") {
+      expect(response.route).toBe("pediatric");
+      expect(response.message).toMatch(/pediatrician|children/i);
+    }
+    expect(generate).toHaveBeenCalledTimes(0);
   });
 });

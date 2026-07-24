@@ -1,6 +1,11 @@
 import OpenAI from "openai";
 import { z } from "zod";
 
+import {
+  assertModelIdMatchesTransport,
+  resolveTransportBaseUrl
+} from "../model-transport";
+
 /**
  * Vision DRAFTER for the D5 photo-assist check input. It transcribes a meal
  * photo into an editable text draft and does nothing else — it never judges,
@@ -105,6 +110,11 @@ export function createMealVisionClient(options?: {
 
       const model =
         options?.model ?? process.env.REVORA_VISION_MODEL ?? DEFAULT_VISION_MODEL;
+      // Injected clients (tests) own their routing; real transports must pair
+      // the model-id naming with the configured base URL before a paid call.
+      if (!options?.client) {
+        assertModelIdMatchesTransport(model, resolveTransportBaseUrl());
+      }
       const transport =
         options?.client ?? createTransport(options?.apiKey ?? process.env.OPENAI_API_KEY);
 
@@ -145,9 +155,19 @@ function createTransport(apiKey: string | undefined): MealVisionTransport {
   if (!apiKey) {
     throw new Error("OPENAI_API_KEY is required for meal photo drafts.");
   }
+  // WS-2 (NEW-001): vision follows the same transport policy as the text
+  // engine — OpenRouter in production only via the shared allowlist, direct
+  // OpenAI otherwise. Before this, photo drafts silently stayed on direct
+  // OpenAI whatever OPENAI_BASE_URL said.
+  const baseURL = resolveTransportBaseUrl();
   // 25s: vision is slower than the text judge but this is an interactive
   // request (user is watching a spinner) — well under the route's maxDuration
   // and far under the pantry batch budget. maxRetries 0 — one paid attempt;
   // the user can retake.
-  return new OpenAI({ apiKey, timeout: 25_000, maxRetries: 0 });
+  return new OpenAI({
+    apiKey,
+    timeout: 25_000,
+    maxRetries: 0,
+    ...(baseURL ? { baseURL } : {})
+  });
 }
