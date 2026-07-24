@@ -224,6 +224,17 @@ const BANNED: Family[] = [
       sentences(text).some((s) => SWAP_PROMISE.test(s) && !HEDGE.test(s))
   },
   {
+    // AUD-007 (2026-07-24). The C7 journey deliberately renders NO user-visible
+    // score — no composite, no bands, no percentages (RV-3, app/(app)/journey).
+    // The landing shipped "the weekly progress score …" anyway, promising a
+    // recurring artifact the product does not provide. User-facing copy may
+    // describe the recap; a "score" is a feature claim the journey refutes.
+    // The internal BAI stays internal — if a score ever becomes user-visible
+    // again, delete this family in the same PR that renders it.
+    label: "score-artifact",
+    pattern: /\b(?:progress|weekly|behou?rioral|behavioral)\s+score\b|\bscore\s+bands?\b/i
+  },
+  {
     label: "eat-decision",
     pattern: /should\s+i\s+eat\s+this/i
   },
@@ -502,6 +513,11 @@ describe("claims-boundary copy audit", () => {
       "one reason, one adjustment, and one safer swap",
       "every verdict comes with a safer swap",
       "you always get a simple adjustment"
+    ],
+    "score-artifact": [
+      "the weekly progress score is behavioral",
+      "your progress score updates every Monday",
+      "four plain-language score bands"
     ],
     "eat-decision": ["Should I eat this?"],
     "personal-safety": ["safe for your blood sugar"],

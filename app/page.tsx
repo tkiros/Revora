@@ -218,7 +218,9 @@ export default function LandingPage() {
         {/* ── Live example ────────────────────────────────────── */}
         <section className="landing-section" id="live-example">
           <div className="landing-section-head">
-            <h2 className="landing-h2">This is the actual answer you get</h2>
+            {/* AUD-008: "the kind of answer", not "the actual answer" — the
+                card below is an illustration until a live capture exists. */}
+            <h2 className="landing-h2">This is the kind of answer you get</h2>
             <p className="landing-section-lede">
               No dashboard, no numbers to decode — one card, in plain words.
             </p>
@@ -267,8 +269,11 @@ export default function LandingPage() {
             <div className="landing-proof-item">
               <h3>Grounded in published research</h3>
               <p>
-                The weekly progress score is behavioral — it counts what you
-                did, never a lab prediction.{" "}
+                {/* AUD-007: describe the artifact the journey actually renders
+                    — a non-scored weekly recap — never a score it doesn't. */}
+                Your weekly recap is behavioral — plain sentences about what
+                you did, like days checked in and steps followed through.
+                Never a score, a grade, or a lab prediction.{" "}
                 <Link className="inline-link" href="/how-it-works">
                   Read exactly what it measures and its honest limits
                 </Link>
@@ -485,7 +490,7 @@ export default function LandingPage() {
             </div>
             <div className="landing-footer-col">
               <h3>Learn</h3>
-              <Link href="/how-it-works">How the progress score works</Link>
+              <Link href="/how-it-works">How the weekly recap works</Link>
               <a href="#live-example">See a live example</a>
             </div>
             <div className="landing-footer-col">
