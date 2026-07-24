@@ -45,15 +45,21 @@ export type TasterStatus = "available" | "exhausted" | "expired";
 // Pure decision helpers, colocated on the module so they can be unit-tested
 // without a jsdom/component harness (this repo has none — Tasks 4.1/4.2).
 //
-// Gate: only trial mode walls, and only once the anonymous taster has spent or
-// aged out their free checks. Legacy mode never gates (fail-open by shape).
-export function shouldGateSubmit(mode: PaywallMode, status: TasterStatus): boolean {
-  return mode === "trial" && status !== "available";
+// Gate: only trial mode walls, only once the anonymous taster has spent or
+// aged out their free checks, and NEVER for an entitled session (AUD-009: the
+// server says this user is Premium/trialing — the device meter must not send
+// them to /subscribe). Legacy mode never gates (fail-open by shape).
+export function shouldGateSubmit(
+  mode: PaywallMode,
+  status: TasterStatus,
+  entitled = false
+): boolean {
+  return !entitled && mode === "trial" && status !== "available";
 }
 
-// Record: only trial mode meters, and only for anonymous tasters. The check
-// form is session-agnostic, so "anonymous taster" is the only client signal —
-// a live taster store, or a sessionless brand-new user with no store yet.
+// Record: only trial mode meters, and only for anonymous tasters — an entitled
+// session's results are unlimited server-side and must never be metered as
+// anonymous (AUD-009). Callers pass `!entitled` as the anonymous signal.
 export function shouldRecordTaster(mode: PaywallMode, hasStoreOrAnon: boolean): boolean {
   return mode === "trial" && hasStoreOrAnon;
 }
@@ -78,6 +84,9 @@ export function FoodCheckForm() {
   } | null>(null);
   const [actionDone, setActionDone] = useState(false);
   const [mode, setMode] = useState<PaywallMode>("legacy");
+  // AUD-009: server-resolved entitlement. Defaults false (guest posture); an
+  // entitled session skips the device taster gate/meter entirely.
+  const [entitled, setEntitled] = useState(false);
   const foodInputRef = useRef<HTMLTextAreaElement | null>(null);
   const initialPrefillRef = useRef<{
     profile: ReturnType<typeof profileStore.get>;
@@ -100,9 +109,12 @@ export function FoodCheckForm() {
     let cancelled = false;
     fetch("/api/paywall")
       .then((res) => res.json())
-      .then((data: { mode?: unknown }) => {
+      .then((data: { mode?: unknown; entitled?: unknown }) => {
         if (!cancelled && (data?.mode === "trial" || data?.mode === "legacy")) {
           setMode(data.mode);
+        }
+        if (!cancelled && data?.entitled === true) {
+          setEntitled(true);
         }
       })
       .catch(() => {
@@ -156,7 +168,8 @@ export function FoodCheckForm() {
 
     // Day-1 taster gate (trial mode only): an anonymous user who has spent or
     // aged out their free checks goes to the wall — no /api/check spend here.
-    if (shouldGateSubmit(mode, tasterStore.status())) {
+    // An entitled session is never gated (AUD-009).
+    if (shouldGateSubmit(mode, tasterStore.status(), entitled)) {
       window.location.assign("/subscribe");
       return;
     }
@@ -290,11 +303,10 @@ export function FoodCheckForm() {
 
         // Day-1 taster meter (trial mode): count this check against the free
         // allowance BEFORE the result renders, so a reload can't double-spend.
-        // Session-agnostic component → every submitter is an anonymous taster:
-        // a live store (tasterStore.get() !== null) OR a sessionless brand-new
-        // user with no store yet — both count (Task 5.4 clears the store
-        // post-sign-in so entitled users skip this).
-        const anonymousTaster = true;
+        // AUD-009: an entitled session's checks are unlimited server-side and
+        // are never metered as anonymous — otherwise ten Premium checks would
+        // exhaust the device store and the gate above would wall check #11.
+        const anonymousTaster = !entitled;
         if (shouldRecordTaster(mode, anonymousTaster)) {
           const used = tasterStore.recordCheck();
           track({ name: "taster_check", props: { used } });
@@ -362,8 +374,10 @@ export function FoodCheckForm() {
     );
   }
 
-  // Visible Day-1 meter (trial mode): the wall is never a surprise.
-  const tasterRemaining = mode === "trial" ? tasterStore.remaining() : null;
+  // Visible Day-1 meter (trial mode): the wall is never a surprise. Hidden for
+  // entitled sessions — "N free checks left" is false for unlimited Premium.
+  const tasterRemaining =
+    mode === "trial" && !entitled ? tasterStore.remaining() : null;
 
   return (
     <form
@@ -404,8 +418,8 @@ export function FoodCheckForm() {
               onDraft={handlePhotoDraft}
               onRequestOpen={() => {
                 // Same taster gate as handleSubmit: a walled taster never spends
-                // a draft call — the picker never opens.
-                if (shouldGateSubmit(mode, tasterStore.status())) {
+                // a draft call — the picker never opens. Entitled sessions pass.
+                if (shouldGateSubmit(mode, tasterStore.status(), entitled)) {
                   window.location.assign("/subscribe");
                   return false;
                 }

@@ -14,6 +14,24 @@ import { OATMEAL_EXAMPLE } from "../lib/revora/promise-registry";
 import { DisclaimerLine } from "./disclaimer-line";
 import { IconAlert, IconArrowRight, IconLeaf } from "./icons";
 
+/**
+ * AUD-008: the framing follows the evidence state. Until an authorized live
+ * capture exists (lastLiveCaptureAt on the registry entry), the card is an
+ * ILLUSTRATION — the interaction shape is real and pinned by
+ * promise-registry.test.ts, but the wording has never been reproduced on the
+ * current live model path, so it must not be sold as "the actual answer".
+ */
+export function demoExampleEyebrow(lastLiveCaptureAt: string | null): string {
+  if (!lastLiveCaptureAt) {
+    return "An illustrated example";
+  }
+  const date = new Date(`${lastLiveCaptureAt}T00:00:00.000Z`).toLocaleDateString(
+    "en-US",
+    { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" }
+  );
+  return `A real check, captured ${date}`;
+}
+
 export function DemoCheckCard() {
   const example = OATMEAL_EXAMPLE;
   return (
@@ -22,7 +40,9 @@ export function DemoCheckCard() {
       aria-label="Example check"
       data-testid="demo-check-card"
     >
-      <p className="status-eyebrow">A real example</p>
+      <p className="status-eyebrow">
+        {demoExampleEyebrow(example.lastLiveCaptureAt)}
+      </p>
 
       {/* Step 1 — the user enters a genuinely ambiguous food. */}
       <p className="page-copy">

@@ -88,30 +88,46 @@ export function createPhotoDraftHandler(deps: PhotoDraftDeps = {}) {
       return NextResponse.json({ kind: "invalid" }, { status: 400 });
     }
 
-    // Trial-mode hard wall, mirrored from /api/check: a signed-in user without
-    // an active entitlement never triggers model spend. Guests pass (the
-    // middleware IP rate limit + global cap is their gate, exactly as for
-    // /api/check). Fail-open on lookup errors — metering must never take the
-    // product down.
+    // Trial-mode hard wall, mirrored from /api/check with the same SPLIT
+    // failure stances (RE-01): session resolution fails OPEN (a session hiccup
+    // demotes to the IP-metered guest path), but the trial wall is a paid
+    // boundary — an unreadable entitlement fails CLOSED with a retry card and
+    // zero vision spend, exactly like the text route's 503 (AUD-022).
+    let session: SessionInfo = null;
     try {
-      const session = await getSession();
-      if (session && paywallModeDep() === "trial") {
-        const entitlement = await getEntitlementImpl(db(), session.userId, {
-          refreshPlaySubscription: (token) => playLookup(token)
-        });
-        if (entitlement.tier !== "premium") {
-          return NextResponse.json(
-            {
-              kind: "upsell",
-              message: TRIAL_WALL_MESSAGE,
-              disclaimer: loadSafetyContract().copy.disclaimer
-            },
-            { status: 402 }
-          );
-        }
-      }
+      session = await getSession();
     } catch (error) {
       await captureServerError(error, "route");
+    }
+
+    if (session && paywallModeDep() === "trial") {
+      let entitlement;
+      try {
+        entitlement = await getEntitlementImpl(db(), session.userId, {
+          refreshPlaySubscription: (token) => playLookup(token)
+        });
+      } catch (error) {
+        await captureServerError(error, "route");
+        return NextResponse.json(
+          {
+            kind: "retry",
+            message:
+              "Revora had a hiccup checking your plan. Please try again in a moment.",
+            disclaimer: loadSafetyContract().copy.disclaimer
+          },
+          { status: 503 }
+        );
+      }
+      if (entitlement.tier !== "premium") {
+        return NextResponse.json(
+          {
+            kind: "upsell",
+            message: TRIAL_WALL_MESSAGE,
+            disclaimer: loadSafetyContract().copy.disclaimer
+          },
+          { status: 402 }
+        );
+      }
     }
 
     try {

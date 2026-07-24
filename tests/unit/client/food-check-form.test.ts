@@ -52,6 +52,33 @@ describe("food-check-form taster gate helpers", () => {
     });
   });
 
+  describe("AUD-009: an entitled session is never gated or metered", () => {
+    it("does not gate an entitled session even with an exhausted/expired store", () => {
+      expect(shouldGateSubmit("trial", "exhausted", true)).toBe(false);
+      expect(shouldGateSubmit("trial", "expired", true)).toBe(false);
+      expect(shouldGateSubmit("trial", "available", true)).toBe(false);
+    });
+
+    it("still gates the anonymous posture when entitled is false or omitted", () => {
+      expect(shouldGateSubmit("trial", "exhausted", false)).toBe(true);
+      expect(shouldGateSubmit("trial", "exhausted")).toBe(true);
+    });
+
+    it("never meters an entitled result as an anonymous taster (check #11 stays free)", () => {
+      // Mirror the component: anonymousTaster = !entitled. Ten entitled
+      // results record nothing, so the device store never exhausts and the
+      // gate above can never redirect check #11 to /subscribe.
+      const entitled = true;
+      for (let i = 0; i < TASTER_LIMIT; i++) {
+        if (shouldRecordTaster("trial", !entitled)) {
+          tasterStore.recordCheck();
+        }
+      }
+      expect(tasterStore.get()).toBeNull();
+      expect(shouldGateSubmit("trial", tasterStore.status(), entitled)).toBe(false);
+    });
+  });
+
   describe("shouldRecordTaster — behavior (b): trial + result success → record", () => {
     it("records anonymous tasters in trial mode and returns the used count", () => {
       // Mirror the component's post-result branch: record BEFORE render so a

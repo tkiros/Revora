@@ -700,8 +700,9 @@ export default function AccountPage() {
                   <a href="/api/account/export" data-testid="account-export-link">
                     Download your data
                   </a>{" "}
-                  — everything we hold, as one file (checks and saved meals
-                  have their own downloads on those pages).
+                  — everything we hold, as one file, including your checks and
+                  saved meals. Anything not in the file is named inside it,
+                  with the reason.
                 </p>
                 <p className="page-copy">
                   Withdraw your storage consent and erase your saved A1C,
@@ -788,9 +789,15 @@ export default function AccountPage() {
                 <h2 className="section-title">Delete account &amp; data</h2>
                 <p className="page-copy">
                   Deletes your profile, A1C, meal history, reminders, and
-                  subscription records — permanently. Active subscriptions are
-                  cancelled with the store where possible; you can also cancel
-                  them directly in Google Play or the billing portal.
+                  subscription records — permanently. An active Stripe
+                  subscription is cancelled for you; a Google Play
+                  subscription must be cancelled in Google Play first, or
+                  deletion is refused so you&apos;re never left paying
+                  unseen. See{" "}
+                  <a className="inline-link" href="/account/delete">
+                    what deletion removes and what remains
+                  </a>
+                  .
                 </p>
                 {confirmDelete ? (
                   <div className="delete-confirm">
