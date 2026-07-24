@@ -49,7 +49,8 @@ const CLINICAL_EYEBROWS: Record<ClinicalRoute, string> = {
   pregnancy: "Outside Revora's scope",
   organ_disease: "Outside Revora's scope",
   allergy: "Revora cannot confirm this",
-  diagnosed_diabetes: "Outside Revora's scope"
+  diagnosed_diabetes: "Outside Revora's scope",
+  pediatric: "Outside Revora's scope"
 };
 
 // §4D upsell variants. The branch renders the server `message` verbatim in

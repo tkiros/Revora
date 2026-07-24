@@ -17,7 +17,6 @@
 export function normalizeSigninIdentifier(identifier: string): string {
   const normalized = identifier.normalize("NFKC").trim().toLowerCase();
 
-  // eslint-disable-next-line no-control-regex
   if (/[\s\u0000-\u001f\u007f]/.test(normalized)) {
     throw new Error("Invalid sign-in email address.");
   }

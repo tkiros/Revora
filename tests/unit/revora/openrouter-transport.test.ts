@@ -81,6 +81,7 @@ describe("resolveTransportBaseUrl — production policy", () => {
     expect(
       resolveTransportBaseUrl({
         VERCEL_ENV: "preview",
+        NODE_ENV: "test",
         OPENAI_BASE_URL: "https://compatible.example/api/v1"
       } as NodeJS.ProcessEnv)
     ).toBe("https://compatible.example/api/v1");
