@@ -57,7 +57,8 @@ const CLINICAL_COPY_IDS: Record<ClinicalRoute, CopyRowId> = {
   pregnancy: "clinical-pregnancy",
   organ_disease: "clinical-organ-disease",
   allergy: "clinical-allergy",
-  diagnosed_diabetes: "clinical-diagnosed-diabetes"
+  diagnosed_diabetes: "clinical-diagnosed-diabetes",
+  pediatric: "clinical-pediatric"
 };
 
 type CopyRow = {

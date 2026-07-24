@@ -3066,7 +3066,6 @@
       "a1c": 6.1
     },
     "harmfulIfSafe": true,
-    "knownGap": true,
     "expectedKinds": [
       "result"
     ],
@@ -3082,7 +3081,7 @@
         "safe_food"
       ]
     },
-    "notes": "KNOWN GAP: barbecue sauce is sugar-heavy but 'bbq sauce' is in no ontology list and ribs carry no carb token, so a model-SAFE ships SAFE — the floor is blind here. Tracked, not gated. Fix = safe-direction sugary-condiment ontology addition under RD review (W-05).",
+    "notes": "AUD-029 closed 2026-07-24: 'bbq sauce'/'barbecue sauce'/'bbq ribs' joined CARBS_ONLY_PATTERNS under the honey/agave/syrup sugary-condiment precedent, so a model-SAFE now floors to MODERATE deterministically. Was a KNOWN GAP exempted from the hard gate; the exemption class itself is now forbidden (harmfulIfSafe && knownGap cannot coexist). PENDING RD/CDCES review under W-05.",
     "acceptableRisks": [
       "MODERATE",
       "HIGH"
@@ -4073,7 +4072,6 @@
       "a1c": 6
     },
     "harmfulIfSafe": true,
-    "knownGap": true,
     "expectedKinds": [
       "result"
     ],
@@ -4089,7 +4087,7 @@
         "safe_food"
       ]
     },
-    "notes": "KNOWN GAP: 'leftover curry' names no starch token and 'leftover' (singular) is not the 'leftovers' trigger, so it neither clarifies nor floors — a model-SAFE ships SAFE though the dish is unknown (could be rice-served). Tracked, not gated. Fix = clarify/precheck rule under RD review (W-05).",
+    "notes": "AUD-029 closed 2026-07-24: 'curry' joined CARB_FORWARD_TOKENS (same failure shape congee closed - a dish customarily served over a starch base no token saw), so a model-SAFE now floors to MODERATE via the borderline floor; bare 'leftover' (singular) additionally clarifies. Was a KNOWN GAP exempted from the hard gate; the exemption class itself is now forbidden. PENDING RD/CDCES review under W-05.",
     "acceptableRisks": [
       "MODERATE",
       "HIGH"

@@ -119,17 +119,18 @@ export function scoreRun(
   let riskCorrect = 0;
 
   for (const { evalCase, response } of runs) {
-    // Known gaps are tracked in the per-stratum corpus report, not gated here:
-    // the dish is genuinely carb-forward/sugary but no token/precheck rule sees
-    // it, so a model SAFE currently ships SAFE. Excluding them keeps this a gate
-    // on what the engine actually protects, never a silent drop.
-    if (evalCase.knownGap) {
-      continue;
-    }
-
-    // (a) hard gate: harmful-SAFE
+    // (a) hard gate: harmful-SAFE — checked BEFORE the knownGap skip
+    // (AUD-029). A knownGap tag exempts a case from the soft gates below,
+    // never from the one hard safety gate; the corpus guard additionally
+    // forbids harmfulIfSafe && knownGap from coexisting at all.
     if (evalCase.harmfulIfSafe && isSafeResult(response)) {
       harmfulSafe.push(evalCase.id);
+    }
+
+    // Known gaps are tracked in the per-stratum corpus report, not gated on
+    // usefulness/accuracy here — but they can no longer shield a harmful-SAFE.
+    if (evalCase.knownGap) {
+      continue;
     }
 
     // (c) usefulness: non-SAFE results must carry actionable adjustment + swap

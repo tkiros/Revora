@@ -128,7 +128,8 @@ export async function checkFood(
         route,
         precheckFlags,
         request.food,
-        deps.snapshot
+        deps.snapshot,
+        deps.clarified
       );
     } catch (error) {
       try {
@@ -153,7 +154,8 @@ function mapModelOutput(
   route: ReturnType<typeof routeA1C>,
   precheckFlags: RevoraPolicyFlag[],
   food: string,
-  snapshot?: SnapshotMetadata
+  snapshot?: SnapshotMetadata,
+  clarified?: boolean
 ): RevoraUserResponse {
   switch (modelOutput.kind) {
     case "result":
@@ -166,6 +168,14 @@ function mapModelOutput(
         snapshot
       });
     case "clarify":
+      // One-clarification cap, model side (AUD-014 / §8). `clarified` was
+      // only checked before the model ran, so a model-authored clarify on the
+      // user's follow-up answer chained a SECOND question. Resolve
+      // conservatively to the calm retry instead — the user is asked to
+      // rephrase once, never interrogated.
+      if (clarified) {
+        return buildRetryResponse(contract);
+      }
       // The clarify and not_food arms bypass postprocess entirely, so before
       // W-06 they were the one model-authored path with NO output-side claims
       // check at all — a banned claim smuggled into a clarifying question

@@ -424,8 +424,9 @@ describe("trial-mode hard wall (4.4)", () => {
     });
 
     const modelFactory = vi.fn((_model?: string) => ({ generate: vi.fn() }));
+    const checkFoodImpl = vi.fn().mockResolvedValue(RESULT_RESPONSE);
     const POST = createCheckRouteHandler({
-      checkFoodImpl: vi.fn().mockResolvedValue(RESULT_RESPONSE),
+      checkFoodImpl,
       emitEvent: vi.fn(),
       modelFactory,
       db: () => testDb.db,
@@ -438,10 +439,22 @@ describe("trial-mode hard wall (4.4)", () => {
       .insert(schema.checks)
       .values(Array.from({ length: 25 }, seedCheck));
 
+    // AUD-025: the route now hands checkFood a LAZY factory thunk; resolving
+    // it here is what a model-reaching request would do. The assertion is
+    // unchanged in meaning — no call may ever name a cheaper model.
+    const resolveModel = () => {
+      const deps = checkFoodImpl.mock.lastCall?.[1] as {
+        model: () => unknown;
+      };
+      deps.model();
+    };
+
     await POST(checkRequest());
+    resolveModel();
     expect(modelFactory).toHaveBeenLastCalledWith(undefined);
 
     await POST(checkRequest());
+    resolveModel();
     expect(modelFactory).toHaveBeenLastCalledWith(undefined);
 
     // No call anywhere in this session may name a cheaper model.
@@ -452,8 +465,9 @@ describe("trial-mode hard wall (4.4)", () => {
 
   it("model: guests get the primary model", async () => {
     const modelFactory = vi.fn(() => ({ generate: vi.fn() }));
+    const checkFoodImpl = vi.fn().mockResolvedValue(RESULT_RESPONSE);
     const POST = createCheckRouteHandler({
-      checkFoodImpl: vi.fn().mockResolvedValue(RESULT_RESPONSE),
+      checkFoodImpl,
       emitEvent: vi.fn(),
       modelFactory,
       db: () => testDb.db,
@@ -462,6 +476,7 @@ describe("trial-mode hard wall (4.4)", () => {
     });
 
     await POST(checkRequest());
+    (checkFoodImpl.mock.lastCall?.[1] as { model: () => unknown }).model();
     expect(modelFactory).toHaveBeenLastCalledWith(undefined);
   });
 

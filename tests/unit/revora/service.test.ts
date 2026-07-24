@@ -465,6 +465,54 @@ describe("one-clarification cap (§8 / P1.3)", () => {
     expect(model.generate).toHaveBeenCalledTimes(1);
   });
 
+  it("suppresses a MODEL-authored second clarify on a clarified follow-up (AUD-014)", async () => {
+    // `clarified` was only checked pre-model, so a model that answered the
+    // follow-up with kind=clarify chained a second question past the §8 cap.
+    const model = {
+      generate: vi.fn().mockResolvedValue({
+        kind: "clarify",
+        risk: null,
+        reason: null,
+        adjustment: null,
+        swap: null,
+        question: "Is that the sweetened version?",
+        examples: ["sweetened", "unsweetened"],
+        policy_flags: []
+      })
+    };
+
+    const response = await checkFood(
+      { food: "grilled chicken with rice", a1c: 6.1 },
+      { model, clarified: true }
+    );
+
+    // Conservative resolution: the calm retry, never a second question.
+    expect(response.kind).toBe("retry");
+    expect(model.generate).toHaveBeenCalledTimes(1);
+  });
+
+  it("still allows one model-authored clarify when the request was not a clarification answer", async () => {
+    const model = {
+      generate: vi.fn().mockResolvedValue({
+        kind: "clarify",
+        risk: null,
+        reason: null,
+        adjustment: null,
+        swap: null,
+        question: "Is that the sweetened version?",
+        examples: ["sweetened", "unsweetened"],
+        policy_flags: []
+      })
+    };
+
+    const response = await checkFood(
+      { food: "grilled chicken with rice", a1c: 6.1 },
+      { model }
+    );
+
+    expect(response.kind).toBe("clarify");
+  });
+
   it("never lets the cap bypass the carbs-only floor (silences the question, not the routing)", async () => {
     const model = { generate: vi.fn().mockResolvedValue(moderateOutput) };
 
