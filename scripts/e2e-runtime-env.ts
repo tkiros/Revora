@@ -78,7 +78,14 @@ export function isolatedE2ERuntimeEnv(
     EDGE_CONFIG: "",
     GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: "",
     NEXTAUTH_URL: "",
+    // AUD-002/WS-5: the retention-feature flags (and every server twin) are
+    // blanked so isolated E2E runs stop inheriting ambient flags.
+    LEARNING_JOURNEY_ENABLED: "",
+    LONGITUDINAL_INSIGHTS_ENABLED: "",
+    MEAL_MEMORY_ENABLED: "",
+    NEXT_PUBLIC_LEARNING_JOURNEY: "",
     NEXT_PUBLIC_LONGITUDINAL_INSIGHTS: "",
+    NEXT_PUBLIC_MEAL_MEMORY: "",
     NEXT_PUBLIC_PHOTO_INPUT: "",
     NEXT_PUBLIC_PLAY_BILLING: "",
     NEXT_PUBLIC_REVIEWER_MODE: "",

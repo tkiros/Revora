@@ -42,7 +42,16 @@ if (process.env.VERCEL_ENV === "production") {
       "PHOTO_INPUT_ENABLED",
     process.env.NEXT_PUBLIC_LONGITUDINAL_INSIGHTS === "1" &&
       process.env.LONGITUDINAL_INSIGHTS_ENABLED !== "1" &&
-      "LONGITUDINAL_INSIGHTS_ENABLED"
+      "LONGITUDINAL_INSIGHTS_ENABLED",
+    // AUD-002 (V016): the two retention features shipped twin pairs without
+    // guard coverage — a client-on/server-off build passed. Same rule as
+    // photo/insights: the server twin is the runtime kill switch.
+    process.env.NEXT_PUBLIC_MEAL_MEMORY === "1" &&
+      process.env.MEAL_MEMORY_ENABLED !== "1" &&
+      "MEAL_MEMORY_ENABLED",
+    process.env.NEXT_PUBLIC_LEARNING_JOURNEY === "1" &&
+      process.env.LEARNING_JOURNEY_ENABLED !== "1" &&
+      "LEARNING_JOURNEY_ENABLED"
   ].filter((v): v is string => Boolean(v));
   if (twinMismatch.length > 0) {
     throw new Error(

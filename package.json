@@ -11,6 +11,7 @@
     "e2e": "tsx scripts/run-playwright.ts",
     "lint": "eslint .",
     "contract": "node scripts/validate-safety-contract.mjs",
+    "config:production-check": "tsx scripts/check-production-config.ts",
     "db:migrate:production": "REVORA_DB_ENV=production drizzle-kit migrate",
     "db:governance:check": "node scripts/check-db-governance.mjs",
     "test:revora": "vitest run tests/unit/revora",

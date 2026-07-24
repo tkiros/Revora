@@ -51,6 +51,12 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run contract
+      # AUD-005: production-mode config gate. Loads the real next.config.ts
+      # with synthetic non-secret values and asserts the flag twin guards fire
+      # for every client/server pair (client-on/server-off must fail) and stay
+      # quiet for agreeing pairs — so a mis-paired production env can never be
+      # discovered for the first time on a Vercel deploy.
+      - run: npm run config:production-check
       # RE-08: schema drift gate. `check` validates the migration journal is
       # internally consistent; the no-op `generate` proves schema.ts matches
       # the committed migrations (any diff creates files → fail). Without

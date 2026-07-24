@@ -154,6 +154,26 @@ describe("POST applies the state machine and persists", () => {
     expect(rows[0].state).toBe("active");
   });
 
+  it("AUD-020: a true concurrent double-start yields one success + one 409, never a 500", async () => {
+    const POST = createJourneyPostHandler(deps(ownerId));
+    // Promise.all against the real Postgres UNIQUE(user_id): both requests
+    // read not_started, both attempt the insert — one row lands, the loser is
+    // translated to the same 409 as an illegal transition. No 500, no reset.
+    const responses = await Promise.all([
+      POST(postRequest({ action: "start" })),
+      POST(postRequest({ action: "start" }))
+    ]);
+    const statuses = responses.map((r) => r.status).sort();
+    expect(statuses).toEqual([200, 409]);
+
+    const rows = await testDb.db
+      .select()
+      .from(schema.learningJourneys)
+      .where(eq(schema.learningJourneys.userId, ownerId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].state).toBe("active");
+  });
+
   it("pause then resume freezes the day count across the paused span", async () => {
     const start = new Date("2026-01-01T00:00:00.000Z");
     // Start on day 1.

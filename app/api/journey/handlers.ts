@@ -285,20 +285,32 @@ export function createJourneyPostHandler(deps: JourneyRouteDeps = {}) {
 
       if (!exists) {
         // Only `start` reaches here (every other action from not_started throws
-        // above). Insert the singleton row; the UNIQUE(user_id) makes a racing
-        // double-start a constraint error, caught as a 500 rather than two rows.
-        await ctx.db().insert(schema.learningJourneys).values({
-          userId: g.session.userId,
-          state: next.state as JourneyRow["state"],
-          startedAt: next.startedAt as Date,
-          pausedAt: next.pausedAt,
-          accumulatedPauseMs: next.accumulatedPauseMs,
-          graduatedAt: next.graduatedAt,
-          maintenanceAt: next.maintenanceAt,
-          pauseReason: next.pauseReason,
-          createdAt: now,
-          updatedAt: now
-        });
+        // above). Insert the singleton row. AUD-020: a racing double-start hits
+        // UNIQUE(user_id) — translate it to the same 409 the CAS path returns
+        // (the winner's start stands; no hidden reset, no 500).
+        const inserted = await ctx
+          .db()
+          .insert(schema.learningJourneys)
+          .values({
+            userId: g.session.userId,
+            state: next.state as JourneyRow["state"],
+            startedAt: next.startedAt as Date,
+            pausedAt: next.pausedAt,
+            accumulatedPauseMs: next.accumulatedPauseMs,
+            graduatedAt: next.graduatedAt,
+            maintenanceAt: next.maintenanceAt,
+            pauseReason: next.pauseReason,
+            createdAt: now,
+            updatedAt: now
+          })
+          .onConflictDoNothing({ target: schema.learningJourneys.userId })
+          .returning({ id: schema.learningJourneys.id });
+        if (inserted.length === 0) {
+          return NextResponse.json(
+            { error: `Cannot ${action} from active.` },
+            { status: 409 }
+          );
+        }
       } else {
         // Compare-and-swap on the loaded state (U2): the UPDATE only lands if the
         // stored state is STILL what we transitioned from. A concurrent action
