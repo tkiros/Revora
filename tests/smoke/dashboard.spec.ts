@@ -5,8 +5,10 @@ import { expect, test, type Page } from "@playwright/test";
 // data, and the >=1024px shell. Both configured projects are mobile devices,
 // so desktop assertions set the viewport explicitly.
 
-// Same cold-compile shield as a11y.spec.ts: warm the routes serially first.
-test.describe.configure({ retries: 2 });
+// WS-7: the per-suite retries:2 override is gone — `npm run e2e` runs
+// optimized `next start` servers, so the dev cold-compile race this shielded
+// no longer exists, and silent retries hide real flakes. The serial warm-up
+// below stays (cheap, keeps first-hit latency out of test budgets).
 
 test.beforeAll(async ({ playwright }) => {
   const request = await playwright.request.newContext({

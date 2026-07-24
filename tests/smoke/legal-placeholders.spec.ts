@@ -20,11 +20,9 @@ import { expect, test } from "@playwright/test";
  * asked for a test and the branch shipped without one.
  */
 
-// Next dev compiles each route on first hit, and under parallel load that first
-// compile can exceed the default 30s timeout. Same treatment a11y.spec.ts uses
-// for the same reason: warm the routes once, up front, and keep retries as the
-// backstop for the residual cold-compile race.
-test.describe.configure({ retries: 2 });
+// WS-7: retries:2 removed — `npm run e2e` serves optimized `next start`
+// builds, so the dev cold-compile race is gone and silent retries would only
+// hide real flakes. The generous timeout stays for loaded CI runners.
 test.setTimeout(90_000);
 
 const LEGAL_PAGES = ["/terms", "/privacy"];
