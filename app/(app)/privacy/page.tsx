@@ -44,9 +44,11 @@ export default function PrivacyPage() {
         <h2>How a meal check works</h2>
         <p>
           Revora sends the submitted meal description and A1C to OpenAI&apos;s
-          Responses API to generate a response. Calls set <code>store: false</code>,
-          which disables default API response storage. OpenAI may still retain
-          limited abuse-monitoring records under its service terms.
+          Responses API, routed through the OpenRouter gateway, to generate a
+          response. Calls set <code>store: false</code>, which disables default
+          API response storage, and Revora does not enable prompt logging at
+          OpenRouter. OpenAI and OpenRouter may still retain limited
+          abuse-monitoring records under their service terms.
           {photoEnabled
             ? " Meal-check photos are used in memory to draft text for your review and are not saved as meal-check history."
             : " Meal photo-assist is disabled in this release."}
@@ -57,7 +59,8 @@ export default function PrivacyPage() {
           Revora does not create server-side meal history for a guest. Recent
           checks and onboarding settings may remain in that browser&apos;s local
           storage until you clear the site data. Request data still passes
-          through Revora&apos;s hosting provider and OpenAI to answer the check.
+          through Revora&apos;s hosting provider, OpenRouter, and OpenAI to
+          answer the check.
         </p>
 
         <h2>Account use and explicit consent</h2>
@@ -93,7 +96,8 @@ export default function PrivacyPage() {
           than seven days after upload.
         </p>
         <p>
-          A vision model through OpenAI&apos;s API, with <code>store: false</code>,
+          A vision model through OpenAI&apos;s API (routed via OpenRouter), with{" "}
+          <code>store: false</code>,
           reads food items into a list that you review and correct. Item names,
           notes, A1C range, and the finished report are encrypted at rest.
         </p>
@@ -110,6 +114,7 @@ export default function PrivacyPage() {
             OpenAI for meal-check responses and Pantry Review extraction
             {photoEnabled ? ", plus meal photo-draft generation" : ""};
           </li>
+          <li>OpenRouter as the API gateway routing those model calls;</li>
           <li>Vercel for application hosting and delivery;</li>
           <li>Railway-hosted Postgres for encrypted account data;</li>
           <li>Resend for sign-in, reminder, and service email;</li>
