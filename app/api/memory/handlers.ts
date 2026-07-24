@@ -241,7 +241,7 @@ async function gate(
 // Single source for the joined memory + anchoring-check columns, so list, search
 // and export never drift. `mapMemoryRow` owner-decrypts the free text (same trust
 // boundary as the history read path) into the wire shape.
-const memorySelectColumns = {
+export const memorySelectColumns = {
   id: schema.mealMemories.id,
   checkId: schema.mealMemories.checkId,
   choiceCiphertext: schema.mealMemories.choiceCiphertext,
@@ -273,7 +273,7 @@ type MemoryRow = {
   a1cBand: string;
 };
 
-function mapMemoryRow(row: MemoryRow) {
+export function mapMemoryRow(row: MemoryRow) {
   return {
     id: row.id,
     checkId: row.checkId,

@@ -11,7 +11,8 @@ const VALID = {
   variant: "1299",
   priceDisplay: "$12.99",
   annualDisplay: "$99.99",
-  annualMonthlyEquivalent: "$8.33"
+  annualMonthlyEquivalent: "$8.33",
+  entitled: false
 } as const;
 
 function jsonResponse(body: unknown, ok = true): Response {
@@ -32,9 +33,20 @@ describe("parsePaywallConfig — the server commercial contract is the only sour
       variant: "999",
       priceDisplay: "$9.99",
       annualDisplay: null,
-      annualMonthlyEquivalent: null
+      annualMonthlyEquivalent: null,
+      entitled: false
     };
     expect(parsePaywallConfig(noAnnual)).toEqual(noAnnual);
+  });
+
+  it("accepts an entitled session and rejects a missing/non-boolean entitled (AUD-009)", () => {
+    expect(parsePaywallConfig({ ...VALID, entitled: true })).toEqual({
+      ...VALID,
+      entitled: true
+    });
+    const { entitled: _dropped, ...withoutEntitled } = VALID;
+    expect(parsePaywallConfig(withoutEntitled)).toBeNull();
+    expect(parsePaywallConfig({ ...VALID, entitled: "yes" })).toBeNull();
   });
 
   it("rejects a body missing the price (never guesses a fallback)", () => {

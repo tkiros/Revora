@@ -7,6 +7,7 @@ import {
 } from "../../../app/api/billing/handlers";
 import { hashClaimToken } from "../../../lib/server/pantry/claims";
 import { schema } from "../../../lib/server/db";
+import { clearPantryPriceCache } from "../../../lib/server/pantry-price";
 import { createTestDb } from "../../helpers/test-db";
 import { TERMS_VERSION } from "../../../lib/legal/terms";
 
@@ -37,6 +38,9 @@ beforeEach(() => {
   // path — and so the "no price configured" 503 below can't pass for the wrong
   // reason. The gate itself is proven in its own test.
   process.env.LEGAL_TERMS_FINAL = "1";
+  // AUD-010: the resolver memoizes per price id — clear between tests so a
+  // cached verification can't leak across cases.
+  clearPantryPriceCache();
 });
 
 afterEach(() => {
@@ -48,12 +52,26 @@ afterEach(() => {
   else process.env.LEGAL_TERMS_FINAL = savedLegal;
 });
 
-function stripeStub() {
+// AUD-010: the handler now verifies the configured Price object (active,
+// one-time, USD) before opening a session, so the stub answers prices.retrieve
+// with the shape the live catalog holds.
+function stripeStub(
+  price: Record<string, unknown> = {
+    id: PRICE,
+    active: true,
+    recurring: null,
+    currency: "usd",
+    unit_amount: 4900
+  }
+) {
   return {
     checkout: {
       sessions: {
         create: vi.fn().mockResolvedValue({ url: "https://stripe/pantry" })
       }
+    },
+    prices: {
+      retrieve: vi.fn().mockResolvedValue(price)
     }
   };
 }
@@ -99,6 +117,45 @@ describe("createPantryCheckoutSessionHandler", () => {
       stripeClient: () => stripe as never
     });
 
+    const res = await handler(acceptedRequest());
+    expect(res.status).toBe(503);
+    expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
+  });
+
+  // AUD-010: display and charge share one authority. A misconfigured Price —
+  // recurring, non-USD, or inactive — fails closed with NO checkout, because
+  // the landing could not have truthfully displayed it either.
+  for (const [label, price] of [
+    [
+      "recurring",
+      { id: PRICE, active: true, recurring: { interval: "month" }, currency: "usd", unit_amount: 4900 }
+    ],
+    [
+      "non-USD",
+      { id: PRICE, active: true, recurring: null, currency: "eur", unit_amount: 4900 }
+    ],
+    [
+      "inactive",
+      { id: PRICE, active: false, recurring: null, currency: "usd", unit_amount: 4900 }
+    ]
+  ] as const) {
+    it(`503s without a session when the configured Price is ${label}`, async () => {
+      const stripe = stripeStub(price as Record<string, unknown>);
+      const handler = createPantryCheckoutSessionHandler({
+        stripeClient: () => stripe as never
+      });
+      const res = await handler(acceptedRequest());
+      expect(res.status).toBe(503);
+      expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
+    });
+  }
+
+  it("503s without a session when the Price lookup itself fails", async () => {
+    const stripe = stripeStub();
+    stripe.prices.retrieve = vi.fn().mockRejectedValue(new Error("stripe down"));
+    const handler = createPantryCheckoutSessionHandler({
+      stripeClient: () => stripe as never
+    });
     const res = await handler(acceptedRequest());
     expect(res.status).toBe(503);
     expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();

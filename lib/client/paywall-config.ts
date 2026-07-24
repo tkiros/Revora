@@ -23,7 +23,11 @@ export const PaywallConfigSchema = z.strictObject({
   // Annual is offered only when its Stripe price is configured — the server
   // sends null (not a guessed price) when it is not.
   annualDisplay: z.string().min(1).nullable(),
-  annualMonthlyEquivalent: z.string().min(1).nullable()
+  annualMonthlyEquivalent: z.string().min(1).nullable(),
+  // AUD-009: server-resolved "this session is Premium/trialing" — the check
+  // form skips the device-local taster gate/meter when true. Guests and any
+  // resolution failure are false (the server wall remains the authority).
+  entitled: z.boolean()
 });
 
 export type PaywallConfig = z.infer<typeof PaywallConfigSchema>;

@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { GET } from "../../../app/api/paywall/route";
+import { createPaywallHandler, GET } from "../../../app/api/paywall/route";
 import { PaywallConfigSchema } from "../../../lib/client/paywall-config";
+import type { Db } from "../../../lib/server/db";
 
 // Contract test (Task 7): the /api/paywall body must satisfy the exact zod
 // schema the client validates against. If the route ever drops a field or
@@ -72,8 +73,59 @@ describe("GET /api/paywall — server commercial contract", () => {
       priceDisplay: "$12.99",
       annualDisplay: null,
       annualMonthlyEquivalent: null,
+      entitled: false,
       surpriseField: "drift"
     };
     expect(PaywallConfigSchema.safeParse(body).success).toBe(false);
+  });
+
+  // AUD-009: the route resolves entitlement server-side so the check form's
+  // device taster gate can stand down for Premium/trialing sessions.
+  describe("entitled resolution", () => {
+    const fakeDb = () => ({}) as unknown as Db;
+
+    it("reports entitled=true for a premium session", async () => {
+      const handler = createPaywallHandler({
+        db: fakeDb,
+        getSession: async () => ({ userId: "u1", email: "u@example.com" }),
+        getEntitlementImpl: vi.fn().mockResolvedValue({ tier: "premium" })
+      });
+      const body = await (await handler()).json();
+      expect(body.entitled).toBe(true);
+      expect(PaywallConfigSchema.safeParse(body).success).toBe(true);
+    });
+
+    it("reports entitled=false for a guest (no session, no DB read)", async () => {
+      const readEntitlement = vi.fn();
+      const handler = createPaywallHandler({
+        db: fakeDb,
+        getSession: async () => null,
+        getEntitlementImpl: readEntitlement
+      });
+      const body = await (await handler()).json();
+      expect(body.entitled).toBe(false);
+      expect(readEntitlement).not.toHaveBeenCalled();
+    });
+
+    it("reports entitled=false for a signed-in free session", async () => {
+      const handler = createPaywallHandler({
+        db: fakeDb,
+        getSession: async () => ({ userId: "u1", email: "u@example.com" }),
+        getEntitlementImpl: vi.fn().mockResolvedValue({ tier: "free" })
+      });
+      const body = await (await handler()).json();
+      expect(body.entitled).toBe(false);
+    });
+
+    it("degrades to entitled=false (still a full contract) when resolution throws", async () => {
+      const handler = createPaywallHandler({
+        db: fakeDb,
+        getSession: async () => ({ userId: "u1", email: "u@example.com" }),
+        getEntitlementImpl: vi.fn().mockRejectedValue(new Error("db down"))
+      });
+      const body = await (await handler()).json();
+      expect(body.entitled).toBe(false);
+      expect(PaywallConfigSchema.safeParse(body).success).toBe(true);
+    });
   });
 });

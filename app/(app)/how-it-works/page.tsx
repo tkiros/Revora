@@ -23,10 +23,11 @@ export default function HowItWorksPage() {
           <p className="hero-eyebrow">How this works</p>
           <h1 className="page-title">What the progress view measures</h1>
           <p className="page-copy">
-            The weekly progress score is entirely behavioral — it counts what
-            you did, never what a future lab result will be. Here is exactly
-            what goes into it, the research it is grounded in, and its
-            honest limits.
+            {/* AUD-007: the journey renders a non-scored recap (RV-3) — this
+                page must describe that artifact, not a score it never shows. */}
+            The weekly recap is entirely behavioral — it states what you did,
+            never what a future lab result will be. Here is exactly what goes
+            into it, the research it is grounded in, and its honest limits.
           </p>
         </section>
 
@@ -38,19 +39,19 @@ export default function HowItWorksPage() {
               days had at least one check.
             </li>
             <li>
-              <strong>Check-in rhythm</strong> — how many checks you logged
-              per day, toward a target of three.
-            </li>
-            <li>
               <strong>Follow-through</strong> — when a check suggested a
               short after-meal action, how often you marked it done.
             </li>
           </ul>
           <p>
-            These three combine into a single weekly score with four
-            plain-language bands — Getting started, Building, On track, and
-            Excellent. The score is computed once a week, early Monday,
-            from the seven days before.
+            These appear in your weekly recap as plain sentences — no
+            composite score, no bands, no percentages. Checking less as you
+            get more confident is how Revora is meant to work, so the recap
+            states facts that cannot &quot;decline.&quot; The recap is
+            refreshed once a week, early Monday, from the seven days before.
+            (Revora also computes an internal behavioral index to measure the
+            product itself; it is never shown to you and never predicts
+            anything about your health.)
           </p>
         </section>
 
@@ -90,7 +91,7 @@ export default function HowItWorksPage() {
           <h2>An honest limit</h2>
           <p>
             Individual results vary, and Revora has no way to know yours.
-            The progress score tracks behavior you can see and control —
+            The weekly recap tracks behavior you can see and control —
             checking in, and following through. Only a blood test ordered
             by a clinician measures your actual A1C. Please talk with your
             clinician about your own numbers and any changes to your care.

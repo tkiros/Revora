@@ -3,6 +3,9 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { demoExampleEyebrow } from "../../../components/demo-check-card";
+import { OATMEAL_EXAMPLE } from "../../../lib/revora/promise-registry";
+
 // Vitest runs under the "node" environment (no jsdom), so a real render is not
 // possible here. Instead we pin the demo card's SOURCE against the copy ledger:
 // this catches silent copy drift between components/demo-check-card.tsx and the
@@ -23,8 +26,38 @@ describe("DemoCheckCard source (ledger + static-fixture contract)", () => {
   it("carries the MODERATE risk class and the example framing", () => {
     expect(NORMALIZED).toContain('data-risk="MODERATE"');
     expect(NORMALIZED).toContain('data-testid="demo-check-card"');
-    expect(NORMALIZED).toContain("A real example");
+    expect(NORMALIZED).toContain("demoExampleEyebrow(example.lastLiveCaptureAt)");
     expect(NORMALIZED).toContain("Be careful");
+  });
+
+  // AUD-008: the public framing must match the evidence state. With no
+  // authorized live capture recorded, the card labels itself an illustration;
+  // only a recorded capture date may call it a real check.
+  describe("evidence-state framing (AUD-008)", () => {
+    it("labels the card an illustration while lastLiveCaptureAt is null", () => {
+      expect(OATMEAL_EXAMPLE.lastLiveCaptureAt).toBeNull();
+      expect(demoExampleEyebrow(OATMEAL_EXAMPLE.lastLiveCaptureAt)).toBe(
+        "An illustrated example"
+      );
+      // The old overselling framings must be gone from the source.
+      expect(NORMALIZED).not.toContain("A real example");
+    });
+
+    it("only claims a real check when a capture date exists, and names it", () => {
+      expect(demoExampleEyebrow("2026-07-24")).toBe(
+        "A real check, captured July 24, 2026"
+      );
+    });
+
+    it("keeps 'the actual answer' off the landing framing", () => {
+      const landing = fs.readFileSync(
+        path.join(process.cwd(), "app/page.tsx"),
+        "utf8"
+      );
+      expect(landing.replace(/\s+/g, " ")).not.toContain(
+        "the actual answer you get"
+      );
+    });
   });
 
   it("renders the three ledgered lines verbatim (whitespace-normalized)", () => {

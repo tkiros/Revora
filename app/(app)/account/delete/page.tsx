@@ -27,12 +27,30 @@ export default function DeleteAccountPage() {
             <li>subscription records,</li>
             <li>your sign-in sessions and email.</li>
           </ul>
+          {/* AUD-013: the promise matches the handler. A Play subscription
+              blocks deletion (409) until cancelled in Play; a hashed deletion
+              record and provider-side billing records remain. No absolute
+              "immediate and complete, no retention" claim. */}
           <p className="page-copy">
-            There is no retention window and no recovery — deletion is
-            immediate and complete. Subscriptions are cancelled with the store
-            where possible; you can also cancel directly in Google Play
-            (Menu → Payments &amp; subscriptions) or the billing portal.
+            Deletion runs immediately and cannot be undone. Two honest
+            boundaries:
           </p>
+          <ul className="page-copy expectation-list">
+            <li>
+              If you subscribed through <strong>Google Play</strong>, cancel
+              that subscription in Google Play first (Menu → Payments &amp;
+              subscriptions) — deletion is refused until then, so you are
+              never left paying for an account you can&apos;t see. Stripe
+              subscriptions are cancelled for you as part of deletion.
+            </li>
+            <li>
+              What remains afterwards: a one-line deletion record holding only
+              an anonymous code and two timestamps — no name, email, or health
+              data — and the payment provider&apos;s own billing records
+              (Stripe or Google Play), which are retained by the provider
+              under their terms, outside Revora.
+            </li>
+          </ul>
           <h2 className="section-title">How to delete</h2>
           <ol className="page-copy expectation-list">
             <li>

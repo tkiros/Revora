@@ -106,6 +106,49 @@ describe("POST /api/check/photo-draft", () => {
     expect(called).toBe(0);
   });
 
+  // AUD-022: the trial wall is a paid boundary — an unreadable entitlement
+  // fails CLOSED (503 retry, zero vision spend), exactly like /api/check.
+  it("fails CLOSED with 503 and zero vision calls when the entitlement read throws", async () => {
+    vi.stubEnv("NEXT_PUBLIC_PHOTO_INPUT", "1");
+    vi.stubEnv("PHOTO_INPUT_ENABLED", "1");
+    let called = 0;
+    const handler = createPhotoDraftHandler({
+      vision: () => ({ draftFromPhoto: async () => ((called += 1), STUB_DRAFT) }),
+      db: () => ({}) as never,
+      getSession: async () => ({ userId: "u1", email: "t@example.com" } as never),
+      getEntitlementImpl: async () => {
+        throw new Error("db down");
+      },
+      paywallMode: () => "trial"
+    });
+    const response = await handler(post(GOOD_BODY));
+    expect(response.status).toBe(503);
+    const body = await response.json();
+    expect(body.kind).toBe("retry");
+    expect(called).toBe(0);
+  });
+
+  // Session resolution keeps the split stance from /api/check (RE-01): a
+  // session hiccup fails OPEN to the IP-metered guest path, not a 5xx.
+  it("demotes to the guest path when session resolution throws", async () => {
+    vi.stubEnv("NEXT_PUBLIC_PHOTO_INPUT", "1");
+    vi.stubEnv("PHOTO_INPUT_ENABLED", "1");
+    const readEntitlement = vi.fn();
+    const handler = createPhotoDraftHandler({
+      vision: () => visionOk,
+      db: () => ({}) as never,
+      getSession: async () => {
+        throw new Error("session backend down");
+      },
+      getEntitlementImpl: readEntitlement as never,
+      paywallMode: () => "trial"
+    });
+    const response = await handler(post(GOOD_BODY));
+    expect(response.status).toBe(200);
+    expect((await response.json()).kind).toBe("draft");
+    expect(readEntitlement).not.toHaveBeenCalled();
+  });
+
   it("returns a calm 200 retry body when the model call throws (mirrors /api/check)", async () => {
     vi.stubEnv("NEXT_PUBLIC_PHOTO_INPUT", "1");
     vi.stubEnv("PHOTO_INPUT_ENABLED", "1");

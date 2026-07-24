@@ -1,5 +1,6 @@
 import { PantryBuyButton } from "../../components/pantry-buy-button";
 import { BOUNDARY_DISCLAIMER } from "../../lib/revora/boundary-copy";
+import { resolvePantryPrice } from "../../lib/server/pantry-price";
 
 // Indexable on purpose: this is the cold-traffic front door for the one-time
 // Pantry Review, so no `robots: { index: false }` here (unlike the in-app
@@ -8,9 +9,10 @@ export const metadata = {
   title: "Pantry Review — Revora"
 };
 
-// One string for the price line so the hero and post-report CTAs can never
-// drift apart when the price or wording changes.
-const PRICE_LINE = "$49, one payment. Nothing renews.";
+// AUD-010: the displayed price is resolved per-request from the same Stripe
+// Price object checkout charges — never a build-time constant that billing
+// config can silently diverge from.
+export const dynamic = "force-dynamic";
 
 // Sample rows reuse the LIVE report row markup from app/report/[id]/page.tsx
 // (~:24-36) verbatim — same `result-card report-item report-item--{tone}`
@@ -36,7 +38,15 @@ function SampleRow({
   );
 }
 
-export default function PantryLandingPage() {
+export default async function PantryLandingPage() {
+  // Fail closed (AUD-010): without a verified one-time USD amount from the
+  // configured Price, no number is shown and checkout is not offered — the
+  // page never advertises an amount the session might not charge.
+  const pantryPrice = await resolvePantryPrice();
+  const priceLine = pantryPrice
+    ? `${pantryPrice.display}, one payment. Nothing renews.`
+    : null;
+
   return (
     <main className="page-shell">
       <div className="page-frame report-frame">
@@ -52,8 +62,19 @@ export default function PantryLandingPage() {
             into enjoy freely, worth a tweak, and handle with care —
             printable, and yours to keep.
           </p>
-          <PantryBuyButton source="landing" />
-          <p className="field-hint">{PRICE_LINE}</p>
+          {priceLine ? (
+            <>
+              <PantryBuyButton source="landing" />
+              <p className="field-hint" data-testid="pantry-price-line">
+                {priceLine}
+              </p>
+            </>
+          ) : (
+            <p className="field-hint" data-testid="pantry-unavailable">
+              The Pantry Review is not available right now. Please check back
+              soon.
+            </p>
+          )}
         </section>
 
         <section className="surface-card">
@@ -95,17 +116,14 @@ export default function PantryLandingPage() {
           <p className="result-disclaimer">{BOUNDARY_DISCLAIMER}</p>
         </section>
 
-        <section className="surface-card">
-          {/* trackView off: the hero's button already emits pantry_viewed for
-              this page — two mounts must not double the funnel's view count. */}
-          <PantryBuyButton source="landing" trackView={false} />
-          {/*
-            ponytail: the pantry price display is a build-time constant "$49"
-            here — there is no pantry price-variant test yet, so this stays
-            hardcoded rather than wiring up an env/analytics variant.
-          */}
-          <p className="field-hint">{PRICE_LINE}</p>
-        </section>
+        {priceLine ? (
+          <section className="surface-card">
+            {/* trackView off: the hero's button already emits pantry_viewed for
+                this page — two mounts must not double the funnel's view count. */}
+            <PantryBuyButton source="landing" trackView={false} />
+            <p className="field-hint">{priceLine}</p>
+          </section>
+        ) : null}
       </div>
     </main>
   );
