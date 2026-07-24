@@ -323,7 +323,11 @@ export function createCheckRouteHandler(deps: CheckRouteDeps = {}) {
     try {
       let modelFailure: unknown;
       const response = await checkFoodImpl(body, {
-        model: modelFactory(undefined),
+        // AUD-025: lazy — the client is constructed only if a model call is
+        // actually needed. Deterministic routes (clinical, out-of-scope,
+        // invalid, not_food, clarify) must return even when the provider
+        // credential is missing or broken.
+        model: () => modelFactory(undefined),
         // One-clarification cap (§8/P1.3): the client sets this header when the
         // submission is the user's answer to a prior clarify, so the precheck
         // does not chain into a second ambiguity question. Forgeable and

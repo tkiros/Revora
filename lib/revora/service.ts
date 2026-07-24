@@ -38,7 +38,14 @@ const MAX_MODEL_ATTEMPTS = 1;
 export async function checkFood(
   rawRequest: unknown,
   deps: {
-    model: RevoraModelClient;
+    /**
+     * The model client, or a lazy factory for one (AUD-025). Deterministic
+     * routes (invalid, clinical, out-of-scope, not_food, clarify) return before
+     * the factory is ever called, so a missing/broken provider credential can
+     * never preempt safety routing. A factory that throws on first use falls to
+     * the same calm retry as a failed generate().
+     */
+    model: RevoraModelClient | (() => RevoraModelClient);
     clarified?: boolean;
     /** PII-free route bookkeeping only; errors still go through Sentry here. */
     onModelError?: (error: unknown) => void;
@@ -112,7 +119,9 @@ export async function checkFood(
 
   for (let attempt = 0; attempt < MAX_MODEL_ATTEMPTS; attempt += 1) {
     try {
-      const modelOutput = await deps.model.generate(prompt);
+      const model =
+        typeof deps.model === "function" ? deps.model() : deps.model;
+      const modelOutput = await model.generate(prompt);
       return mapModelOutput(
         modelOutput,
         contract,

@@ -38,6 +38,13 @@ import { emitSafeEvent } from "./lib/revora/telemetry";
 const DEFAULT_PAUSE_DISCLAIMER = "Not medical advice.";
 const RATE_LIMIT_COPY =
   "Revora is helping a lot of people right now. Please try again in a moment.";
+// NEW-003: the fail-closed check 503 fires BEFORE the deterministic clinical
+// router can run, so a user describing acute symptoms during a limiter outage
+// would otherwise see only "try again". The abuse gate is not weakened — the
+// copy carries the human-care boundary the clinical route would have given.
+const URGENT_CARE_LINE =
+  "If you're feeling unwell right now — shaky, faint, confused, or worse — don't wait for an app: contact your doctor or your local emergency number.";
+const CHECK_UNAVAILABLE_COPY = `${RATE_LIMIT_COPY} ${URGENT_CARE_LINE}`;
 // Abuse-route copy is deliberately plain: these responses go to a form, not the
 // check UI, and must not hint at whether the address/account exists.
 const ABUSE_LIMIT_COPY = "Too many attempts. Please try again in a little while.";
@@ -132,7 +139,7 @@ export async function proxy(request: NextRequest) {
         environment: environment(),
         reasonCode: "paused"
       });
-      return pause503(RATE_LIMIT_COPY);
+      return pause503(CHECK_UNAVAILABLE_COPY);
     }
     return abuse503(60);
   }
