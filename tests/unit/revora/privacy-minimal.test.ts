@@ -109,13 +109,17 @@ describe("privacy-minimal audit", () => {
       // P1.3 §8: the route also passes the one-clarification-cap signal (false
       // here — no x-revora-clarified header). Task 13 §P3.1: plus the snapshot
       // sink postprocess writes the conservative-floor metadata into.
+      // AUD-025: the model is now a LAZY factory, so deterministic routes can
+      // return before any provider client is constructed.
       {
-        model,
+        model: expect.any(Function),
         clarified: false,
         snapshot: { floorApplied: null, usedFallback: false },
         onModelError: expect.any(Function)
       }
     );
+    const lazyModel = checkFoodImpl.mock.calls[0][1].model as () => unknown;
+    expect(lazyModel()).toBe(model);
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
       kind: "result",

@@ -439,8 +439,8 @@ export default function OnboardingPage() {
               <p className="hero-eyebrow">Your first check</p>
               <h1 className="page-title">Try one of the classics</h1>
               <p className="page-copy">
-                These three surprise almost everyone. Tap one and we&apos;ll
-                set it up on the check page — one tap more to run it.
+                Three everyday breakfast staples to start with. Tap one and
+                we&apos;ll set it up on the check page — one tap more to run it.
               </p>
               <div
                 className="chip-row"

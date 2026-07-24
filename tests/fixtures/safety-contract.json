@@ -89,6 +89,30 @@
       {
         "label": "exact spike phrasing",
         "pattern": "\\bspike(?:s|d)?\\b.{0,20}\\b\\d+(?:\\.\\d+)?\\s*mg\\/dL\\b"
+      },
+      {
+        "label": "exact carb grams",
+        "pattern": "\\b\\d+(?:\\.\\d+)?\\s*(?:grams?|g)\\b"
+      },
+      {
+        "label": "timed recheck instruction",
+        "pattern": "\\b(?:recheck|check\\s+again|retest|test\\s+again|wait)\\b[^.?!]{0,40}\\b\\d+\\s*min|\\b(?:in|within|after|every)\\s+\\d+\\s*minutes?\\b"
+      },
+      {
+        "label": "first-aid treatment instruction",
+        "pattern": "\\bfast[-\\s]acting\\s+carb|\\bglucose\\s+tablets?\\b|\\bfirst[-\\s]aid\\b"
+      },
+      {
+        "label": "personal safety assurance",
+        "pattern": "\\bsafe\\s+for\\s+you\\b|\\bwon'?t\\s+spike\\s+you\\b|\\bnot\\s+spike\\s+you\\b|\\bsafe\\s+for\\s+your\\s+(?:body|levels?|range)\\b"
+      },
+      {
+        "label": "personal suitability",
+        "pattern": "\\bfits?\\s+your\\s+range\\b|\\bwork(?:s)?\\s+better\\s+for\\s+you\\b|\\bright\\s+for\\s+your\\s+(?:range|levels?|body)\\b"
+      },
+      {
+        "label": "individual outcome prediction",
+        "pattern": "\\bbring(?:s|ing)?\\b[^.?!]{0,30}\\blevels?\\s+down\\b|\\blower(?:s|ing)?\\s+your\\s+(?:levels?|blood\\s+sugar|glucose|a1c)\\b|\\bkeep(?:s)?\\s+your\\s+(?:blood\\s+sugar|glucose|levels?)\\s+(?:stable|steady|low|down)\\b"
       }
     ]
   },

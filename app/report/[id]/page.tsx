@@ -107,7 +107,7 @@ export default async function ReportPage({
           <section className="surface-card">
             <h2>Enjoy freely</h2>
             <p className="page-copy">
-              These fit your range as they are — no changes needed.
+              These look like steady picks as they are — no changes suggested.
             </p>
             {report.sections.safe.map((item, index) => (
               <ItemRow key={`safe-${index}`} item={item} tone="safe" />
@@ -119,8 +119,8 @@ export default async function ReportPage({
           <section className="surface-card">
             <h2>Worth a tweak</h2>
             <p className="page-copy">
-              Small upgrades — a portion, a pairing, or a timing change makes
-              each of these work better for you.
+              Small upgrades — a portion, a pairing, or a timing change can
+              make each of these easier to handle.
             </p>
             {report.sections.moderate.map((item, index) => (
               <ItemRow key={`moderate-${index}`} item={item} tone="moderate" />

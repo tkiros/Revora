@@ -116,7 +116,7 @@ const COPY_IDS: CopyRowId[] = [
  * it to a hash of the fixture + ledger, so changing the contract without
  * bumping the version turns the suite red.
  */
-export const CONTRACT_VERSION = "2026-07-11.1";
+export const CONTRACT_VERSION = "2026-07-24.1";
 
 export function loadSafetyContract(options?: {
   rootDir?: string;

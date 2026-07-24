@@ -91,7 +91,7 @@ test("a new user walks welcome→segment→attribution→a1c→expectations→fi
     "first_check"
   );
   await expect(
-    page.getByText(/These three surprise almost everyone/)
+    page.getByText(/Three everyday breakfast staples/)
   ).toBeVisible();
   await expect(page.getByText(/photo|snap|camera/i)).toHaveCount(0);
   await expectNoSeriousViolations(page);
