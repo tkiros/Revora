@@ -40,6 +40,17 @@ export async function resolvePantryPrice(
 ): Promise<PantryPrice | null> {
   const env = deps.env ?? process.env;
   const now = deps.now ?? Date.now;
+
+  // Test/E2E seam — never active in production (same posture as
+  // PANTRY_EXTRACT_STUB): the isolated E2E servers blank every Stripe
+  // credential, and the pantry funnel specs still need a rendered price.
+  if (
+    env.PANTRY_PRICE_STUB === "1" &&
+    process.env.VERCEL_ENV !== "production"
+  ) {
+    return { priceId: env.STRIPE_PRICE_PANTRY || "price_stub_pantry", display: "$49" };
+  }
+
   const priceId = env.STRIPE_PRICE_PANTRY;
   if (!priceId) {
     return null;

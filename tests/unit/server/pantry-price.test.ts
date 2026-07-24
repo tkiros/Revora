@@ -104,6 +104,31 @@ describe("resolvePantryPrice", () => {
     });
   });
 
+  it("PANTRY_PRICE_STUB is a test seam only — never active in production", async () => {
+    const retrieve = vi.fn().mockResolvedValue(GOOD);
+    const stripe = { prices: { retrieve } } as never;
+    const stubEnv = {
+      PANTRY_PRICE_STUB: "1"
+    } as unknown as NodeJS.ProcessEnv;
+
+    // Stubbed: fixed $49 with no Stripe call, even with no price configured.
+    expect(
+      await resolvePantryPrice({ stripeClient: () => stripe, env: stubEnv })
+    ).toEqual({ priceId: "price_stub_pantry", display: "$49" });
+    expect(retrieve).not.toHaveBeenCalled();
+
+    // Production posture: the stub is ignored and the resolver fails closed.
+    vi.stubEnv("VERCEL_ENV", "production");
+    try {
+      clearPantryPriceCache();
+      expect(
+        await resolvePantryPrice({ stripeClient: () => stripe, env: stubEnv })
+      ).toBeNull();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("re-resolves immediately when the configured price id changes", async () => {
     const retrieve = vi
       .fn()
