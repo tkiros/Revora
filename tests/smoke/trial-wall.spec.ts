@@ -142,6 +142,76 @@ test("exhaustion: a spent taster is walled on the next submit", async ({ page })
   await expect(page.getByTestId("trial-wall")).toBeVisible();
 });
 
+// AUD-009: the device meter stands down for an entitled session. Same spent
+// store as the exhaustion test above, but /api/paywall reports entitled:true —
+// the submit must reach /api/check (server-authoritative) instead of bouncing
+// to /subscribe, nothing is metered, and no free-checks counter renders.
+test("entitled: a Premium session with a spent device store is never walled", async ({
+  page
+}) => {
+  await page.addInitScript(
+    (firstDay) => {
+      window.localStorage.setItem(
+        "revora.taster.v1",
+        JSON.stringify({ firstDay, used: 10 })
+      );
+    },
+    todayLocal()
+  );
+
+  await page.route("**/api/paywall", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        mode: "trial",
+        variant: "1299",
+        priceDisplay: "$12.99",
+        annualDisplay: null,
+        annualMonthlyEquivalent: null,
+        entitled: true
+      })
+    })
+  );
+  let checkCalls = 0;
+  await page.route("**/api/check", (route) => {
+    checkCalls += 1;
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        kind: "result",
+        risk: "MODERATE",
+        reason: "Plain oatmeal leans carb-heavy on its own.",
+        adjustment: null,
+        swap: null,
+        disclaimer: "Not medical advice."
+      })
+    });
+  });
+
+  await gotoWithPaywallMode(page, `${TRIAL}/check`);
+  await expect(page).toHaveURL(/\/check$/);
+  // Unlimited Premium shows no "free checks left" meter.
+  await expect(page.getByTestId("taster-counter")).not.toBeVisible();
+
+  await page.getByLabel("What are you thinking about eating?").fill("plain oatmeal");
+  await page.getByLabel("Latest A1C").fill("6.1");
+  await page.getByRole("button", { name: "Check this meal" }).click();
+
+  // The server was consulted; the wall was not.
+  await expect(page).toHaveURL(/\/check$/);
+  await expect(page.getByText("Plain oatmeal leans carb-heavy on its own.")).toBeVisible();
+  expect(checkCalls).toBe(1);
+
+  // And the entitled result was not metered against the device store.
+  const used = await page.evaluate(
+    () =>
+      JSON.parse(window.localStorage.getItem("revora.taster.v1") ?? "{}").used
+  );
+  expect(used).toBe(10);
+});
+
 test("day 2: an aged-out taster is walled on the next submit", async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem(
