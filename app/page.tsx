@@ -301,7 +301,7 @@ export default function LandingPage() {
             <p className="landing-section-lede">
               The Pantry Review sorts everything you own into enjoy freely,
               worth a tweak, and handle with care — one calm, printable
-              report. $49, one payment.{" "}
+              report. One payment.{" "}
               <strong>Nothing renews.</strong>{" "}
               <Link className="inline-link" href="/pantry">
                 See a sample report

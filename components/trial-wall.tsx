@@ -29,6 +29,13 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // AUD-011: server-authoritative ineligible-trial disclosure. When set, the
+  // free-week promise is replaced with the real charge (amount due today,
+  // cadence) and checkout only proceeds on an explicit acknowledged resubmit.
+  const [immediateBilling, setImmediateBilling] = useState<{
+    priceDisplay: string;
+    cadence: "month" | "year";
+  } | null>(null);
   // Endowment nudge for the declined state: name what's already theirs. Local
   // history only — the declined visitor is a guest; read in an effect so the
   // server render (0) never mismatches hydration.
@@ -60,12 +67,29 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
           email,
           plan,
           termsAccepted,
-          termsVersion: TERMS_VERSION
+          termsVersion: TERMS_VERSION,
+          // Only ever true after the disclosure below has rendered.
+          ...(immediateBilling ? { acknowledgeImmediate: true } : {})
         })
       });
-      const body = (await response.json()) as { url?: string; error?: string };
+      const body = (await response.json()) as {
+        url?: string;
+        error?: string;
+        ineligibleTrial?: boolean;
+        priceDisplay?: string;
+        cadence?: "month" | "year";
+      };
       if (body.url) {
         window.location.assign(body.url);
+      } else if (
+        body.ineligibleTrial === true &&
+        typeof body.priceDisplay === "string" &&
+        (body.cadence === "month" || body.cadence === "year")
+      ) {
+        setImmediateBilling({
+          priceDisplay: body.priceDisplay,
+          cadence: body.cadence
+        });
       } else {
         setError(body.error ?? "Something went wrong — you have not been charged.");
       }
@@ -276,12 +300,30 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
         </>
       ) : (
         <form onSubmit={startTrial} className="field-stack">
-          <p className="hero-eyebrow">Start your free week</p>
-          <h1 className="page-title">{chosenPriceLine} after 7 free days</h1>
-          <p className="page-copy">
-            Card required to start. We email you before it is ever charged, and
-            cancel is one tap.
-          </p>
+          {immediateBilling ? (
+            <>
+              <p className="hero-eyebrow">Restart your subscription</p>
+              <h1 className="page-title">
+                {immediateBilling.priceDisplay}/{immediateBilling.cadence},
+                charged today
+              </h1>
+              <p className="page-copy" data-testid="immediate-billing-disclosure">
+                This account already used its free week, so there&apos;s no
+                second trial. If you continue, your card is charged{" "}
+                {immediateBilling.priceDisplay} today and renews every{" "}
+                {immediateBilling.cadence} until you cancel.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="hero-eyebrow">Start your free week</p>
+              <h1 className="page-title">{chosenPriceLine} after 7 free days</h1>
+              <p className="page-copy">
+                Card required to start. We email you before it is ever charged,
+                and cancel is one tap.
+              </p>
+            </>
+          )}
           <label className="field-label" htmlFor="trial-email">Your email</label>
           <input
             id="trial-email"
@@ -290,7 +332,12 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
             required
             autoComplete="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              // A different email may be trial-eligible — drop the disclosure
+              // (and the acknowledgment it authorizes) the moment it changes.
+              setImmediateBilling(null);
+            }}
           />
           <label className="consent-row">
             <input
@@ -311,7 +358,11 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
             className="primary-button"
             disabled={busy || !termsAccepted}
           >
-            {busy ? "Opening…" : "Continue to checkout — $0 due today"}
+            {busy
+              ? "Opening…"
+              : immediateBilling
+                ? `Continue to checkout — ${immediateBilling.priceDisplay} due today`
+                : "Continue to checkout — $0 due today"}
           </button>
           {error ? <p className="field-error">{error}</p> : null}
         </form>

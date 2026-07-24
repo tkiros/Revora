@@ -252,16 +252,36 @@ describe("repeat-trial guard (W-16)", () => {
   }
 
   // Every terminal state a churned subscriber can be in. Each one already
-  // consumed the free week, so none of them may be handed another.
+  // consumed the free week, so none of them may be handed another. AUD-011:
+  // the first request now answers with the authoritative disclosure (amount
+  // due today + cadence) and NO checkout; only the acknowledged resubmit opens
+  // the immediate-billing session — still without a trial period.
   for (const status of ["canceled", "expired", "refunded", "active"]) {
-    it(`grants NO trial period to a user with a prior '${status}' subscription`, async () => {
+    it(`discloses first, then grants NO trial period, to a user with a prior '${status}' subscription`, async () => {
       await seedUserWithSubscription(`${status}@example.com`, status);
       const stripe = stripeStub();
+      const handler = handlerFor(stripe);
 
-      const res = await handlerFor(stripe)(
+      const first = await handler(
         jsonRequest({ email: `${status}@example.com` })
       );
+      expect(first.status).toBe(200);
+      expect(await first.json()).toEqual({
+        ineligibleTrial: true,
+        priceDisplay: "$12.99",
+        cadence: "month"
+      });
+      // Disclosure bounce: no checkout session was opened.
+      expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
+
+      const res = await handler(
+        jsonRequest({
+          email: `${status}@example.com`,
+          acknowledgeImmediate: true
+        })
+      );
       expect(res.status).toBe(200); // they can still subscribe — just not free
+      expect((await res.json()).url).toBe("https://stripe/x");
 
       const call = stripe.checkout.sessions.create.mock.calls[0][0];
       expect(call.subscription_data.trial_period_days).toBeUndefined();
@@ -271,6 +291,39 @@ describe("repeat-trial guard (W-16)", () => {
       });
     });
   }
+
+  it("sends no magic link on the disclosure bounce (AUD-011)", async () => {
+    await seedUserWithSubscription("bounce@example.com", "canceled");
+    const stripe = stripeStub();
+    const sendMagicLink = vi.fn().mockResolvedValue(undefined);
+    const handler = createTrialCheckoutHandler({
+      db: () => ctx.db,
+      stripeClient: () => stripe as never,
+      sendMagicLink,
+      env: trialEnv
+    });
+
+    await handler(jsonRequest({ email: "bounce@example.com" }));
+    expect(sendMagicLink).not.toHaveBeenCalled();
+
+    await handler(
+      jsonRequest({ email: "bounce@example.com", acknowledgeImmediate: true })
+    );
+    expect(sendMagicLink).toHaveBeenCalledWith("bounce@example.com");
+  });
+
+  it("still grants the full free week to an ELIGIBLE user who sent the acknowledgment", async () => {
+    // The flag is permission for immediate billing, never a forfeit: an
+    // eligible account keeps its trial even if the client over-sends it.
+    const stripe = stripeStub();
+    const res = await handlerFor(stripe)(
+      jsonRequest({ email: "eager@example.com", acknowledgeImmediate: true })
+    );
+    expect(res.status).toBe(200);
+    expect((await res.json()).url).toBe("https://stripe/x");
+    const call = stripe.checkout.sessions.create.mock.calls[0][0];
+    expect(call.subscription_data.trial_period_days).toBe(7);
+  });
 
   it("still grants the trial to a user who merely ABANDONED checkout (row exists, no subscription)", async () => {
     // The trial handler creates the users row before Stripe, so an abandoned
