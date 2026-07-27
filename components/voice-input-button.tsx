@@ -13,22 +13,27 @@ import { IconMic } from "./icons";
 type VoiceInputButtonProps = {
   onTranscript(transcript: string): void;
   disabled?: boolean;
+  /** Focuses the food field so the OS keyboard (and its mic key) comes up. */
+  onDictateFallback?(): void;
 };
 
 /**
- * "Say your meal." — a mic toggle for the food field. Rendered only when the
- * browser supports the Web Speech API; unsupported browsers (iOS Safari) get
- * hint copy pointing at the keyboard's own dictation, which uses the same
- * text path with zero extra build.
+ * "Say your meal." — a mic toggle for the food field. Where the Web Speech
+ * API is missing (iOS Safari — the most common device for the 55–65 audience,
+ * forensic 2026-07-27 J6) the button still renders: tapping it focuses the
+ * food field so the keyboard and its own mic key come up, and the live region
+ * says to use that. Same text path, audio still never reaches Revora servers.
  */
 export function VoiceInputButton({
   onTranscript,
-  disabled
+  disabled,
+  onDictateFallback
 }: VoiceInputButtonProps) {
   const hydrated = useHydrated();
   const supported = hydrated ? isSpeechRecognitionSupported() : null;
   const [listening, setListening] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [fallbackPrompted, setFallbackPrompted] = useState(false);
   const handleRef = useRef<DictationHandle | null>(null);
 
   useEffect(() => {
@@ -43,9 +48,30 @@ export function VoiceInputButton({
 
   if (!supported) {
     return (
-      <p className="field-hint" data-testid="voice-dictation-hint">
-        You can also use your keyboard&apos;s mic to dictate.
-      </p>
+      <div className="voice-input">
+        <button
+          type="button"
+          className="voice-input-button method-chip"
+          data-testid="voice-dictation-fallback-button"
+          disabled={disabled}
+          onClick={() => {
+            setFallbackPrompted(true);
+            onDictateFallback?.();
+          }}
+        >
+          <IconMic size={20} />
+          Say your meal
+        </button>
+        <span
+          aria-live="polite"
+          className="voice-input-status"
+          data-testid="voice-input-status"
+        >
+          {fallbackPrompted
+            ? "Tap the mic on your keyboard to dictate, then review the text before you submit."
+            : ""}
+        </span>
+      </div>
     );
   }
 

@@ -412,6 +412,7 @@ export function FoodCheckForm() {
           <VoiceInputButton
             onTranscript={handleVoiceTranscript}
             disabled={isSubmitting}
+            onDictateFallback={() => foodInputRef.current?.focus()}
           />
           {photoInputEnabled() ? (
             <PhotoInputButton

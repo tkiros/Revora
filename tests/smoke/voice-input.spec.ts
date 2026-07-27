@@ -4,8 +4,8 @@ import { expect, test, type Page } from "@playwright/test";
 /**
  * Voice input smoke (plan P2): inject a fake SpeechRecognition, assert
  * transcript → textarea → submit through the unchanged /api/check, the
- * listening state passes axe, and unsupported browsers get the
- * keyboard-dictation hint with the mic hidden.
+ * listening state passes axe, and unsupported browsers (iOS Safari) get a
+ * working fallback button that hands off to the keyboard's own dictation.
  */
 
 async function injectFakeSpeechRecognition(page: Page) {
@@ -129,16 +129,33 @@ test("listening state is announced and passes axe", async ({ page }) => {
   expect(serious).toEqual([]);
 });
 
-test("unsupported browsers hide the mic and show the keyboard-dictation hint", async ({
+test("unsupported browsers get a working mic button that hands off to keyboard dictation", async ({
   page
 }) => {
   await removeSpeechRecognition(page);
   await page.goto("/check?stay=1");
 
-  await expect(page.getByTestId("voice-dictation-hint")).toContainText(
-    /keyboard.+mic to dictate/i
-  );
+  // No hint-only copy (forensic J6): a real button, which focuses the food
+  // field so the OS keyboard — and its mic key — comes up, and says so.
+  const fallbackButton = page.getByTestId("voice-dictation-fallback-button");
+  await expect(fallbackButton).toBeVisible();
   await expect(page.getByTestId("voice-input-button")).toHaveCount(0);
+
+  await fallbackButton.click();
+  await expect(
+    page.getByLabel(/what are you thinking about eating/i)
+  ).toBeFocused();
+  await expect(page.getByTestId("voice-input-status")).toContainText(
+    /mic on your keyboard to dictate/i
+  );
+
+  const axeResults = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa"])
+    .analyze();
+  const seriousViolations = axeResults.violations.filter((violation) =>
+    ["critical", "serious"].includes(violation.impact ?? "")
+  );
+  expect(seriousViolations).toEqual([]);
 
   // Nothing is lost: the plain text path still works.
   await page.route("**/api/check", async (route) => {
