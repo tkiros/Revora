@@ -63,6 +63,7 @@ describe("deriveCoachOutputs", () => {
 
   it("every slot offers at least 5 audited variants", () => {
     expect(COACH_PHRASE_BANK.sequencingTip.length).toBeGreaterThanOrEqual(5);
+    expect(COACH_PHRASE_BANK.mealSequencingTip.length).toBeGreaterThanOrEqual(5);
     expect(COACH_PHRASE_BANK.postMealAction.length).toBeGreaterThanOrEqual(5);
     expect(COACH_PHRASE_BANK.keepMost.length).toBeGreaterThanOrEqual(5);
     // The daypart banks are slots too — a thin one would silently repeat.
@@ -187,6 +188,143 @@ describe("deriveCoachOutputs", () => {
     });
 
     expect(outputs.sequencingTip).not.toBeNull();
+  });
+
+  it("names the meal's own carb when the plate has something to eat first", () => {
+    // The meal-conditional row (forensic §5.2): "chicken curry with rice" must
+    // hear about ITS rice, not "the carb-heavy part" in the abstract — and the
+    // sentence must be the audited template with only the {carb} slot filled.
+    for (let rotation = 0; rotation < 5; rotation += 1) {
+      const tip = deriveCoachOutputs(resultResponse("HIGH"), {
+        food: "chicken curry with rice",
+        rotation
+      }).sequencingTip as string;
+
+      expect(tip).toMatch(/\brice\b/);
+      expect(
+        COACH_PHRASE_BANK.mealSequencingTip.map((template) =>
+          template.replaceAll("{carb}", "rice")
+        )
+      ).toContain(tip);
+    }
+  });
+
+  it("a lone carb gets the hedged general bank, never an absurd anchor", () => {
+    // "Save the oatmeal for last" on a bowl of oatmeal would be the milkshake
+    // bug again. No protein/vegetable in the text → nothing to eat first →
+    // general bank.
+    for (const food of ["a bowl of rice", "toast", "pasta"]) {
+      const tip = deriveCoachOutputs(resultResponse("HIGH"), {
+        food,
+        rotation: 1
+      }).sequencingTip;
+
+      expect(COACH_PHRASE_BANK.sequencingTip).toContain(tip);
+    }
+  });
+
+  it("fused and compound dishes stay general — the starch is not separable", () => {
+    // Adversarial-review reproductions: each of these once produced "save the
+    // potato for last" on potato salad, or worse. The starch word appears in
+    // the text but is not a side you could eat last.
+    for (const food of [
+      "potato salad with chicken",
+      "egg fried rice",
+      "pasta salad with tuna",
+      "chicken noodle soup",
+      "spaghetti bolognese with beef"
+    ]) {
+      const tip = deriveCoachOutputs(resultResponse("HIGH"), {
+        food,
+        rotation: 2
+      }).sequencingTip;
+
+      expect(COACH_PHRASE_BANK.sequencingTip).toContain(tip);
+    }
+  });
+
+  it("low-carb substitutes are never echoed back as the carb", () => {
+    // "Save the cauliflower rice for last" would tell a prediabetic user to
+    // defer the deliberately low-carb part of their plate.
+    for (const food of [
+      "cauliflower rice with chicken",
+      "chicken salad with rice vinegar"
+    ]) {
+      const tip = deriveCoachOutputs(resultResponse("HIGH"), {
+        food,
+        rotation: 0
+      }).sequencingTip;
+
+      expect(COACH_PHRASE_BANK.sequencingTip).toContain(tip);
+    }
+  });
+
+  it("a negated carb is not echoed back — but a clean one later still anchors", () => {
+    const negated = deriveCoachOutputs(resultResponse("HIGH"), {
+      food: "grilled chicken sandwich, no bread",
+      rotation: 1
+    }).sequencingTip;
+    expect(COACH_PHRASE_BANK.sequencingTip).toContain(negated);
+
+    const mixed = deriveCoachOutputs(resultResponse("HIGH"), {
+      food: "no rice, extra chicken and bread",
+      rotation: 1
+    }).sequencingTip as string;
+    expect(mixed).toMatch(/\bbread\b/);
+    expect(mixed).not.toMatch(/\brice\b/);
+  });
+
+  it("scooping breads are not on the anchor list — they are the utensil", () => {
+    // "Save the injera for last" would misread how the meal is eaten (J3:
+    // wrong cultural advice is worse than general advice).
+    for (const food of [
+      "injera with lentils",
+      "chicken curry with naan",
+      "beef tortilla wrap"
+    ]) {
+      const tip = deriveCoachOutputs(resultResponse("MODERATE"), {
+        food,
+        rotation: 0
+      }).sequencingTip;
+
+      expect(COACH_PHRASE_BANK.sequencingTip).toContain(tip);
+    }
+  });
+
+  it("never repeats an anchored tip on consecutive checks either", () => {
+    let previous = deriveCoachOutputs(resultResponse("HIGH"), {
+      food: "salmon with rice",
+      rotation: 0
+    });
+
+    for (let rotation = 1; rotation <= 12; rotation += 1) {
+      const current = deriveCoachOutputs(resultResponse("HIGH"), {
+        food: "salmon with rice",
+        rotation
+      });
+
+      expect(current.sequencingTip).not.toBe(previous.sequencingTip);
+      previous = current;
+    }
+  });
+
+  it("anchored templates obey the tone policy for every carb on the closed list", () => {
+    for (const carb of COACH_PHRASE_BANK.carbAnchors) {
+      for (const template of COACH_PHRASE_BANK.mealSequencingTip) {
+        const text = template.replaceAll("{carb}", carb);
+
+        // fully interpolated — no slot left over
+        expect(text).not.toContain("{");
+        // one sentence
+        expect(text.match(/[.!?](?=\s|$)/g) ?? []).toHaveLength(1);
+        // permission-first hedges, never commands framed as musts
+        expect(text).not.toMatch(/\bmust\b|\bnever\b|\bdon't\b|\bavoid\b/i);
+        // no backward judgment
+        expect(text).not.toMatch(/should have|you failed|too much/i);
+        // no glycemic numbers
+        expect(text).not.toMatch(/\bGI\b|\bGL\b|\bgrams?\b|mg\/?dl/i);
+      }
+    }
   });
 
   it("falls back to a stable hash when the client sends no rotation counter", () => {
