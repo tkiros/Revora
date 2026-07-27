@@ -58,17 +58,20 @@ export type CapabilityFlagEnv = {
 };
 
 /**
- * The capabilities that actually differ between free and premium TODAY (flags
- * off) — i.e. the only things the paywall may truthfully sell. mealMemory and
- * weeklyLearning are premium features but currently false for premium too, so
- * they are deliberately NOT here until their flags ship. The paywall bullet pin
- * test (tests/unit/revora/paywall-capability-truth.test.ts) keys off this list.
+ * The capabilities that actually differ between free and premium under the
+ * SHIPPED flags — i.e. the only things the paywall may truthfully sell.
+ * mealMemory and weeklyLearning joined 2026-07-27: both server flags are on in
+ * production (401-vs-404 probe) and both NEXT_PUBLIC_* UI flags are set, so
+ * premium genuinely receives them. The paywall bullet pin test
+ * (tests/unit/revora/paywall-capability-truth.test.ts) keys off this list.
  */
 export const PREMIUM_CAPABILITY_KEYS = [
   "dailyChecks",
   "historyDays",
   "progress",
-  "nudges"
+  "nudges",
+  "mealMemory",
+  "weeklyLearning"
 ] as const satisfies readonly (keyof Capabilities)[];
 
 export function capabilitiesFor(

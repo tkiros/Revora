@@ -39,6 +39,16 @@ const PREMIUM: Entitlement = {
   currentPeriodEnd: new Date("2026-08-01T00:00:00.000Z")
 };
 
+// 2026-07-27: both flag pairs went live in production (server flags proven by
+// the 401-vs-404 probe; NEXT_PUBLIC_* UI flags set the same day), so
+// mealMemory and weeklyLearning became legitimately sellable. This is the
+// binding matrix for the bullet audit; the flags-off dark path must still
+// fail closed (first test below).
+const SHIPPED_FLAGS = {
+  MEAL_MEMORY_ENABLED: "1",
+  LEARNING_JOURNEY_ENABLED: "1"
+} as const;
+
 // Each paywall bullet, mapped to the capability it sells. A bullet with no
 // mapping here is an unaudited promise — the test fails until it is mapped and
 // the capability is proven premium-true.
@@ -46,7 +56,9 @@ const BULLET_CAPABILITY: { match: RegExp; key: keyof Capabilities }[] = [
   { match: /unlimited daily checks/i, key: "dailyChecks" },
   { match: /full history/i, key: "historyDays" },
   { match: /progress view/i, key: "progress" },
-  { match: /daily reminder/i, key: "nudges" }
+  { match: /daily reminder/i, key: "nudges" },
+  { match: /meal memory/i, key: "mealMemory" },
+  { match: /weekly learning summary/i, key: "weeklyLearning" }
 ];
 
 function paywallBullets(): string[] {
@@ -61,18 +73,21 @@ function paywallBullets(): string[] {
 }
 
 describe("paywall bullets only promise premium-true capabilities", () => {
-  it("with flags off, the flag-gated features are NOT premium-true", () => {
-    // The guard: if a future flag flip made weeklyLearning true for premium,
-    // it would become a legitimate bullet — but today it must be off, which is
-    // exactly why the wall may not promise it.
-    const premium = capabilitiesFor(PREMIUM, {});
-    expect(premium.weeklyLearning).toBe(false);
-    expect(premium.mealMemory).toBe(false);
+  it("flag-gated features are premium-true only under the shipped flags", () => {
+    // Fail-closed guard: wherever the flags are absent the capabilities go
+    // dark — and under the flags production actually runs, premium genuinely
+    // gets both, which is what makes their bullets legitimate.
+    const dark = capabilitiesFor(PREMIUM, {});
+    expect(dark.weeklyLearning).toBe(false);
+    expect(dark.mealMemory).toBe(false);
+    const shipped = capabilitiesFor(PREMIUM, SHIPPED_FLAGS);
+    expect(shipped.weeklyLearning).toBe(true);
+    expect(shipped.mealMemory).toBe(true);
   });
 
   it("every rendered bullet maps to a capability free lacks and premium has", () => {
-    const free = capabilitiesFor(FREE, {});
-    const premium = capabilitiesFor(PREMIUM, {});
+    const free = capabilitiesFor(FREE, SHIPPED_FLAGS);
+    const premium = capabilitiesFor(PREMIUM, SHIPPED_FLAGS);
     const bullets = paywallBullets();
     expect(bullets.length).toBeGreaterThan(0);
 

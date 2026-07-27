@@ -184,16 +184,19 @@ export function PaywallCard() {
   return (
     <div className="paywall-card" data-testid="paywall-card">
       {/* T10 paywall truth: every bullet is a capability the matrix marks
-          premium-true TODAY (PREMIUM_CAPABILITY_KEYS): dailyChecks, historyDays,
-          progress, nudges. The bullet that used to sell a longitudinal-insight
-          summary was removed — the thin insight is FREE onboarding value, and
-          the genuinely Premium learning artifact (capabilities.weeklyLearning)
-          ships flagged-off in T18, so the wall may not promise it yet. Pinned by
+          premium-true under the shipped flags (PREMIUM_CAPABILITY_KEYS):
+          dailyChecks, historyDays, progress, nudges, mealMemory,
+          weeklyLearning — the last two joined 2026-07-27 when both flag pairs
+          went live in production. The bullet that used to sell a
+          longitudinal-insight summary stays removed — the thin insight is FREE
+          onboarding value. Pinned by
           tests/unit/revora/paywall-capability-truth.test.ts. */}
       <ul className="page-copy expectation-list">
         <li>Unlimited daily checks</li>
         <li>Your full history, on every device</li>
         <li>The progress view</li>
+        <li>Meal memory for the meals you repeat</li>
+        <li>A weekly learning summary</li>
         <li>One gentle daily reminder (optional)</li>
       </ul>
       {/* F-24: this card used to carry a popularity flag claiming it was the
