@@ -147,7 +147,7 @@ const DRINK_TOKENS = [
   "drink"
 ] as const;
 
-const PLATE_TOKENS = [
+const PROTEIN_VEG_TOKENS = [
   "chicken",
   "salmon",
   "fish",
@@ -164,7 +164,11 @@ const PLATE_TOKENS = [
   "broccoli",
   "spinach",
   "greens",
-  "vegetables",
+  "vegetables"
+] as const;
+
+const PLATE_TOKENS = [
+  ...PROTEIN_VEG_TOKENS,
   "rice",
   "pasta",
   "bread",
@@ -174,6 +178,53 @@ const PLATE_TOKENS = [
   "pizza",
   "plate",
   "bowl"
+] as const;
+
+/**
+ * Meal-conditional sequencing tips (forensic 2026-07-27, §5.2: "2 of 4 'Try'
+ * rows are explicitly generic"). Same design as the daypart banks: condition
+ * on a signal already in hand — the food text the route already passes for
+ * drink suppression — and fall back to the general bank, so this only ever
+ * ADDS specificity. The carb noun echoed back is always a word the user
+ * themselves typed, drawn from this closed audited list, so the sentence can
+ * never be wrong about the plate it lands on.
+ *
+ * The anchor fires only when the text also names a protein or vegetable:
+ * "save the oatmeal for last" on a bowl of plain oatmeal would be the
+ * milkshake bug again. A carb with nothing to eat before it keeps the hedged
+ * general bank.
+ */
+const CARB_ANCHOR_TOKENS = [
+  "rice",
+  "pasta",
+  "spaghetti",
+  "noodles",
+  "noodle",
+  "bread",
+  "toast",
+  "naan",
+  "roti",
+  "chapati",
+  "injera",
+  "tortilla",
+  "tortillas",
+  "couscous",
+  "quinoa",
+  "potato",
+  "potatoes",
+  "fries",
+  "chips"
+] as const;
+
+// {carb} is replaced with the matched CARB_ANCHOR_TOKENS word. Every template
+// works with each noun on the closed list (no is/are agreement), and the whole
+// interpolated surface stays a bounded artifact a dietitian can review.
+const MEAL_SEQUENCING_TIPS = [
+  "If practical, start with the vegetables or protein and save the {carb} for last.",
+  "Where you can, eat the protein and vegetables first and leave the {carb} until the end.",
+  "Saving the {carb} until after the rest of the plate is one small change that costs nothing.",
+  "If the plate allows it, front-load the vegetables and protein and finish with the {carb}.",
+  "Eating the salad or protein before the {carb} is a habit many people find easy to keep."
 ] as const;
 
 function hasWord(text: string, term: string): boolean {
@@ -191,6 +242,19 @@ export function isDrinkOnly(food: string): boolean {
   }
 
   return !PLATE_TOKENS.some((token) => hasWord(food, token));
+}
+
+/**
+ * The carb noun the sequencing tip may name back — or null when naming one
+ * would be unearned (no carb on the closed list, or nothing non-carb to eat
+ * first). First list match wins so the choice is deterministic.
+ */
+export function mealCarbAnchor(food: string): string | null {
+  if (!PROTEIN_VEG_TOKENS.some((token) => hasWord(food, token))) {
+    return null;
+  }
+
+  return CARB_ANCHOR_TOKENS.find((token) => hasWord(food, token)) ?? null;
 }
 
 /**
@@ -252,10 +316,17 @@ export function deriveCoachOutputs(
     ? POST_MEAL_ACTIONS_BY_DAYPART[daypart]
     : POST_MEAL_ACTIONS;
 
+  const carb = mealCarbAnchor(food);
+
   return {
     sequencingTip: isDrinkOnly(food)
       ? null
-      : pick(SEQUENCING_TIPS, rotation, `seq:${seed}`),
+      : carb
+        ? pick(MEAL_SEQUENCING_TIPS, rotation, `seq:${seed}`).replaceAll(
+            "{carb}",
+            carb
+          )
+        : pick(SEQUENCING_TIPS, rotation, `seq:${seed}`),
     postMealAction: pick(postMealBank, rotation, `act:${seed}`),
     keepMost: pick(KEEP_MOST_LINES, rotation, `keep:${seed}`)
   };
@@ -264,6 +335,8 @@ export function deriveCoachOutputs(
 /** Exposed so the copy-audit and ledger tests can enumerate the whole bank. */
 export const COACH_PHRASE_BANK = {
   sequencingTip: SEQUENCING_TIPS,
+  mealSequencingTip: MEAL_SEQUENCING_TIPS,
+  carbAnchors: CARB_ANCHOR_TOKENS,
   postMealAction: POST_MEAL_ACTIONS,
   postMealActionBreakfast: POST_MEAL_ACTIONS_BY_DAYPART.breakfast,
   postMealActionLunch: POST_MEAL_ACTIONS_BY_DAYPART.lunch,
