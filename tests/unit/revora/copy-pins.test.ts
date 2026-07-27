@@ -1,11 +1,27 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { describe, expect, it } from "vitest";
+import type { ReactNode } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { TASTER_LIMIT } from "../../../lib/client/taster-store";
 import { FREE_DAILY_CHECKS } from "../../../lib/free-tier";
 import { RISK_LABELS } from "../../../lib/revora/labels";
+
+// next/link needs the app router context the node test env does not have; the
+// rendered-output guard below only needs the anchor text.
+vi.mock("next/link", async () => {
+  const { createElement } = await import("react");
+  return {
+    default: ({ href, children }: { href?: unknown; children?: ReactNode }) =>
+      createElement(
+        "a",
+        { href: typeof href === "string" ? href : undefined },
+        children
+      )
+  };
+});
 
 const ROOT = process.cwd();
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
@@ -70,12 +86,13 @@ describe("free-tier copy is derived from TASTER_LIMIT", () => {
     expect(src).toContain("Your first {TASTER_LIMIT} checks, on your first day");
   });
 
-  // G5 (the F-07 residual): FREE_DAILY_CHECKS = 5 is not legacy-dead — a
-  // signed-in account with no trial/subscription lives on it every day
-  // (app/api/check/route.ts, plan-box). A live entitlement no marketing
-  // surface mentions is an undisclosed wall; the landing must now disclose
-  // BOTH numbers, each interpolated from its constant.
-  it("the landing page discloses the signed-in daily allowance, derived from FREE_DAILY_CHECKS", () => {
+  // G5 (the F-07 residual), re-scoped 2026-07-27 (C-1): FREE_DAILY_CHECKS = 5
+  // is real only under PAYWALL_MODE=legacy — the trial funnel hard-walls
+  // signed-in free accounts at zero checks (app/api/check/route.ts "Hard
+  // wall"). The LEGACY landing branch must keep disclosing it, interpolated
+  // from the constant; the trial branch must never mention it — enforced on
+  // rendered output in the paywall-mode describe below.
+  it("the legacy landing branch discloses the signed-in daily allowance, derived from FREE_DAILY_CHECKS", () => {
     expect(FREE_DAILY_CHECKS).toBeGreaterThan(1);
     expect(Number.isInteger(FREE_DAILY_CHECKS)).toBe(true);
 
@@ -133,6 +150,41 @@ describe("free-tier copy is derived from TASTER_LIMIT", () => {
         /\b(?:five|5)\s+(?:free\s+)?checks?\s+(?:a|per|each)\s+day\b/i
       );
     }
+  });
+});
+
+describe("the rendered landing page tells the truth per paywall mode", () => {
+  // C-1 (2026-07-27 forensic audit): the source-text ban above stayed green
+  // while production lied, because JSX interpolation means the digit exists
+  // only in RENDERED output — "{FREE_DAILY_CHECKS}" in source, "5" on the
+  // page. So this guard renders the real page component per mode and applies
+  // the ban to what a user actually reads. Deliberately no leading \b: a
+  // missing JSX space renders "includes5 free checks a day", which a
+  // word-boundary regex would silently skip.
+  const RENDERED_DAILY_FREE_CLAIM =
+    /(?:five|5)\s*(?:free\s+)?checks?\s+(?:a|per|each)\s+day\b/i;
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  async function renderLandingText(mode: "trial" | "legacy"): Promise<string> {
+    vi.stubEnv("PAYWALL_MODE", mode);
+    const page = await import("../../../app/page");
+    const html = renderToStaticMarkup(page.default());
+    return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ");
+  }
+
+  it("trial mode never claims a daily free-check allowance — free accounts get zero (route.ts hard wall)", async () => {
+    expect(await renderLandingText("trial")).not.toMatch(
+      RENDERED_DAILY_FREE_CLAIM
+    );
+  });
+
+  it("legacy mode still discloses the 5-a-day allowance — proves this guard can see the phrase", async () => {
+    expect(await renderLandingText("legacy")).toMatch(
+      RENDERED_DAILY_FREE_CLAIM
+    );
   });
 });
 

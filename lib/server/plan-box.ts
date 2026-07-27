@@ -7,6 +7,7 @@ import {
   getEntitlement
 } from "./entitlement";
 import { getDb, schema } from "./db";
+import { paywallMode } from "./pricing";
 import { getSessionInfo } from "./session";
 
 /**
@@ -59,6 +60,20 @@ const GUEST_BOX: PlanBoxData = {
   attention: false
 };
 
+/**
+ * C-1 (2026-07-27): under the trial funnel a signed-in free account gets zero
+ * checks (app/api/check/route.ts "Hard wall") — the legacy "N of 5 left
+ * today" meter would be a false promise here. plan-box-attention.test.ts pins
+ * this copy against the daily-free-claim ban.
+ */
+export const TRIAL_FREE_BOX: PlanBoxData = {
+  planName: "Free plan",
+  meta: "Checks are part of Premium. Your recent history is still here.",
+  isFree: true,
+  signedIn: true,
+  attention: false
+};
+
 function formatDate(date: Date, timezone: string): string {
   return date.toLocaleDateString("en-US", {
     month: "long",
@@ -106,6 +121,10 @@ export const getPlanBox = cache(async (): Promise<PlanBoxData> => {
         signedIn: true,
         attention: planBoxAttention(entitlement)
       };
+    }
+
+    if (paywallMode() === "trial") {
+      return TRIAL_FREE_BOX;
     }
 
     const used = await countChecksToday(db, session.userId, timezone);

@@ -365,8 +365,6 @@ export default function LandingPage() {
                   <p>
                     Unlimited checks, your history on every device, progress
                     you can see, and one gentle reminder. Cancel in one tap.
-                    Not ready? A free account still includes
-                    {FREE_DAILY_CHECKS} free checks a day.
                   </p>
                 </div>
               </>
@@ -376,9 +374,9 @@ export default function LandingPage() {
                   <p className="landing-price-day">Every day</p>
                   <p className="landing-price-what">A free account</p>
                   <p>
-                    No card. A free account still includes
-                    {FREE_DAILY_CHECKS} free checks a day, with your
-                    history saved to your account.
+                    No card. A free account still
+                    includes {FREE_DAILY_CHECKS} free checks a day, with
+                    your history saved to your account.
                   </p>
                 </div>
                 <div className="landing-price-tile">
@@ -426,8 +424,7 @@ export default function LandingPage() {
                   No. Your first {TASTER_LIMIT} checks, on your first day, need
                   no login and no card — they live on this device only. The
                   7-day free trial needs a card but charges nothing for a week
-                  — and we email you before any charge. Without Premium, a free
-                  account includes {FREE_DAILY_CHECKS} free checks a day.
+                  — and we email you before any charge.
                 </p>
               ) : (
                 <p>
