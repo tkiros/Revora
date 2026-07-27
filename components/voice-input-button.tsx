@@ -18,11 +18,21 @@ type VoiceInputButtonProps = {
 };
 
 /**
- * "Say your meal." — a mic toggle for the food field. Where the Web Speech
- * API is missing (iOS Safari — the most common device for the 55–65 audience,
- * forensic 2026-07-27 J6) the button still renders: tapping it focuses the
- * food field so the keyboard and its own mic key come up, and the live region
- * says to use that. Same text path, audio still never reaches Revora servers.
+ * "Say your meal." — a mic toggle for the food field. Two fallback paths land
+ * on the same keyboard-dictation affordance (forensic 2026-07-27 J6 — iOS
+ * Safari is the most common device for the 55–65 audience):
+ *
+ *  1. API absent: the ctor is missing, so render the fallback button
+ *     directly.
+ *  2. API present but failing: real iOS Safari 14.5+ EXPOSES
+ *     webkitSpeechRecognition, so on the device this gap is about, the
+ *     miss is usually a runtime error (dictation disabled, permission
+ *     declined) — the failed state routes to the same fallback button
+ *     instead of a dead-end error line.
+ *
+ * The fallback button focuses the food field so the OS keyboard (and its mic
+ * key, when the user has one) comes up. Same text path, audio still never
+ * reaches Revora servers.
  */
 export function VoiceInputButton({
   onTranscript,
@@ -46,7 +56,7 @@ export function VoiceInputButton({
     return null;
   }
 
-  if (!supported) {
+  if ((!supported || failed) && onDictateFallback) {
     return (
       <div className="voice-input">
         <button
@@ -56,22 +66,34 @@ export function VoiceInputButton({
           disabled={disabled}
           onClick={() => {
             setFallbackPrompted(true);
-            onDictateFallback?.();
+            onDictateFallback();
           }}
         >
           <IconMic size={20} />
-          Say your meal
+          Dictate
         </button>
         <span
           aria-live="polite"
           className="voice-input-status"
           data-testid="voice-input-status"
         >
-          {fallbackPrompted
-            ? "Tap the mic on your keyboard to dictate, then review the text before you submit."
-            : ""}
+          {failed
+            ? "Voice input didn't start. If your keyboard shows a mic key, you can dictate with it — or just type your meal."
+            : fallbackPrompted
+              ? "If your keyboard shows a mic key, tap it to dictate, then review the text before you submit."
+              : ""}
         </span>
       </div>
+    );
+  }
+
+  if (!supported) {
+    // ponytail: no fallback callback wired — a button that focuses nothing
+    // would be a false affordance, so keep the passive hint.
+    return (
+      <p className="field-hint" data-testid="voice-dictation-hint">
+        You can also use your keyboard&apos;s mic to dictate.
+      </p>
     );
   }
 

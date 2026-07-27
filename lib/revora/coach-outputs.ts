@@ -185,36 +185,55 @@ const PLATE_TOKENS = [
  * rows are explicitly generic"). Same design as the daypart banks: condition
  * on a signal already in hand — the food text the route already passes for
  * drink suppression — and fall back to the general bank, so this only ever
- * ADDS specificity. The carb noun echoed back is always a word the user
- * themselves typed, drawn from this closed audited list, so the sentence can
- * never be wrong about the plate it lands on.
+ * ADDS specificity. The carb noun echoed back is always a token from this
+ * closed audited list, never a slice of the user's own text.
  *
- * The anchor fires only when the text also names a protein or vegetable:
- * "save the oatmeal for last" on a bowl of plain oatmeal would be the
- * milkshake bug again. A carb with nothing to eat before it keeps the hedged
- * general bank.
+ * The list is deliberately narrow: only starches that are near-always a
+ * SEPARABLE side when a protein or vegetable is also on the plate. Pasta,
+ * noodle and spaghetti dishes are usually mixed ("chicken noodle soup"),
+ * and scooping breads (naan, roti, injera, tortillas) are the utensil —
+ * "save the injera for last" would misread how the meal is eaten. Those all
+ * keep the hedged general bank.
+ *
+ * Two guards, both required before a token anchors:
+ *  1. A protein/vegetable is also named — "save the oatmeal for last" on a
+ *     bowl of plain oatmeal would be the milkshake bug again.
+ *  2. The specific occurrence is clean: not negated ("no bread"), not a
+ *     substitute ("cauliflower rice"), not fused into a dish whose name
+ *     merely contains the starch ("potato salad", "egg fried rice").
  */
 const CARB_ANCHOR_TOKENS = [
   "rice",
-  "pasta",
-  "spaghetti",
-  "noodles",
-  "noodle",
   "bread",
-  "toast",
-  "naan",
-  "roti",
-  "chapati",
-  "injera",
-  "tortilla",
-  "tortillas",
-  "couscous",
-  "quinoa",
-  "potato",
   "potatoes",
+  "potato",
   "fries",
-  "chips"
+  "couscous",
+  "quinoa"
 ] as const;
+
+// Within two words before the token: the user is excluding it.
+const NEGATION_WORDS = ["no", "without", "minus", "skip", "skipping", "hold"];
+// Immediately before: a low-carb substitute or a fused preparation.
+const SUBSTITUTE_BEFORE = ["cauliflower", "broccoli", "konjac", "fried"];
+// Immediately after: the token is a modifier, not the dish's starch side.
+const FUSED_AFTER = [
+  "vinegar",
+  "flour",
+  "milk",
+  "paper",
+  "cake",
+  "cakes",
+  "salad",
+  "soup",
+  "bake",
+  "casserole",
+  "pudding",
+  "crumbs",
+  "water",
+  "noodle",
+  "noodles"
+];
 
 // {carb} is replaced with the matched CARB_ANCHOR_TOKENS word. Every template
 // works with each noun on the closed list (no is/are agreement), and the whole
@@ -245,16 +264,57 @@ export function isDrinkOnly(food: string): boolean {
 }
 
 /**
+ * True when at least one occurrence of the token reads as a standalone
+ * starch side: not negated, not a substitute's modifier target, not fused
+ * into a compound dish name. "no rice, extra chicken and bread" anchors
+ * bread, not rice.
+ */
+function hasCleanCarbOccurrence(food: string, token: string): boolean {
+  const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const occurrences = food.matchAll(
+    new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, "giu")
+  );
+
+  for (const occurrence of occurrences) {
+    const before =
+      food
+        .slice(0, occurrence.index)
+        .toLowerCase()
+        .match(/[\p{L}\p{N}']+/gu) ?? [];
+    const after =
+      food
+        .slice((occurrence.index ?? 0) + token.length)
+        .toLowerCase()
+        .match(/[\p{L}\p{N}']+/gu) ?? [];
+
+    const negated =
+      NEGATION_WORDS.includes(before.at(-1) ?? "") ||
+      NEGATION_WORDS.includes(before.at(-2) ?? "");
+    const substituted = SUBSTITUTE_BEFORE.includes(before.at(-1) ?? "");
+    const fused = FUSED_AFTER.includes(after[0] ?? "");
+
+    if (!negated && !substituted && !fused) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * The carb noun the sequencing tip may name back — or null when naming one
- * would be unearned (no carb on the closed list, or nothing non-carb to eat
- * first). First list match wins so the choice is deterministic.
+ * would be unearned (no clean carb on the closed list, or nothing non-carb
+ * to eat first). First list match wins so the choice is deterministic.
  */
 export function mealCarbAnchor(food: string): string | null {
   if (!PROTEIN_VEG_TOKENS.some((token) => hasWord(food, token))) {
     return null;
   }
 
-  return CARB_ANCHOR_TOKENS.find((token) => hasWord(food, token)) ?? null;
+  return (
+    CARB_ANCHOR_TOKENS.find((token) => hasCleanCarbOccurrence(food, token)) ??
+    null
+  );
 }
 
 /**
@@ -289,7 +349,11 @@ function pick<T>(
 }
 
 export type CoachOptions = {
-  /** The food text — used only to decide suppression, never stored or logged. */
+  /**
+   * The food text — decides suppression and the carb anchor. Never stored or
+   * logged by the coach layer itself; the anchored noun that reaches the
+   * rendered tip is always a closed-list token, not the user's own words.
+   */
   food?: string;
   /** Monotonic per-client counter; absent for older clients → hash fallback. */
   rotation?: number;

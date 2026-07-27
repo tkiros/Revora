@@ -141,12 +141,16 @@ test("unsupported browsers get a working mic button that hands off to keyboard d
   await expect(fallbackButton).toBeVisible();
   await expect(page.getByTestId("voice-input-button")).toHaveCount(0);
 
+  // Guidance appears on interaction, not unconditionally — otherwise the
+  // aria-live announcement never fires.
+  await expect(page.getByTestId("voice-input-status")).toHaveText("");
+
   await fallbackButton.click();
   await expect(
     page.getByLabel(/what are you thinking about eating/i)
   ).toBeFocused();
   await expect(page.getByTestId("voice-input-status")).toContainText(
-    /mic on your keyboard to dictate/i
+    /mic key.+dictate/i
   );
 
   const axeResults = await new AxeBuilder({ page })
@@ -181,4 +185,49 @@ test("unsupported browsers get a working mic button that hands off to keyboard d
   await page.getByRole("button", { name: "Check this meal" }).click();
 
   await expect(page.getByTestId("result-card")).toBeVisible();
+});
+
+test("a failing recognizer routes to the keyboard-dictation fallback", async ({
+  page
+}) => {
+  // Real iOS Safari 14.5+ EXPOSES webkitSpeechRecognition, so on the device
+  // the fallback exists for, the common miss is a runtime error (dictation
+  // off, permission declined) — not a missing constructor. The failed state
+  // must land on the same fallback button, never a dead-end error line.
+  await page.addInitScript(() => {
+    class FailingSpeechRecognition {
+      lang = "";
+      interimResults = false;
+      continuous = false;
+      onresult: ((event: unknown) => void) | null = null;
+      onend: (() => void) | null = null;
+      onerror: ((event: unknown) => void) | null = null;
+
+      start() {
+        setTimeout(() => {
+          this.onerror?.({ error: "not-allowed" });
+          this.onend?.();
+        }, 30);
+      }
+
+      stop() {}
+    }
+
+    (window as unknown as Record<string, unknown>).SpeechRecognition =
+      FailingSpeechRecognition;
+  });
+  await page.goto("/check?stay=1");
+
+  await page.getByTestId("voice-input-button").click();
+
+  const fallbackButton = page.getByTestId("voice-dictation-fallback-button");
+  await expect(fallbackButton).toBeVisible();
+  await expect(page.getByTestId("voice-input-status")).toContainText(
+    /didn't start/i
+  );
+
+  await fallbackButton.click();
+  await expect(
+    page.getByLabel(/what are you thinking about eating/i)
+  ).toBeFocused();
 });
