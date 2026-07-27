@@ -188,7 +188,8 @@ export function TrialWall({ declined = false }: { declined?: boolean }) {
             Yesterday you checked a meal and got a cautious educational read
             instead of a pile of numbers. Your free week keeps that
             going at every meal: unlimited checks, your history on every
-            device, progress you can see, and one gentle daily reminder.
+            device, progress you can see, meal memory for the meals you
+            repeat, a weekly learning summary, and one gentle daily reminder.
           </p>
           {/* The same three facts as the old trust bullets, told as the
               timeline the week actually follows (Today → Day 5 → Day 7). */}

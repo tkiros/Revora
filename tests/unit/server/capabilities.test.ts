@@ -42,8 +42,15 @@ const TRIALING: Entitlement = {
   currentPeriodEnd: new Date("2026-08-01T00:00:00.000Z")
 };
 
-// Features T14 / T17-18 have not shipped; their flags are absent by default.
+// The dark path: both flag pairs shipped to production on 2026-07-27, but the
+// capabilities must still fail closed wherever the flags are absent.
 const NO_FLAGS = {} as const;
+
+// The state production actually runs (T14 mealMemory, T17-18 weeklyLearning).
+const SHIPPED_FLAGS = {
+  MEAL_MEMORY_ENABLED: "1",
+  LEARNING_JOURNEY_ENABLED: "1"
+} as const;
 
 describe("capabilitiesFor", () => {
   it("free: metered checks + 7-day window, no premium capabilities", () => {
@@ -129,9 +136,9 @@ describe("capabilitiesFor", () => {
   });
 
   describe("PREMIUM_CAPABILITY_KEYS", () => {
-    it("lists exactly the capabilities that differ between free and premium today", () => {
-      const free = capabilitiesFor(FREE, NO_FLAGS);
-      const premium = capabilitiesFor(PREMIUM, NO_FLAGS);
+    it("lists exactly the capabilities that differ between free and premium under the shipped flags", () => {
+      const free = capabilitiesFor(FREE, SHIPPED_FLAGS);
+      const premium = capabilitiesFor(PREMIUM, SHIPPED_FLAGS);
       const differing = (
         Object.keys(premium) as (keyof Capabilities)[]
       ).filter((key) => free[key] !== premium[key]);
