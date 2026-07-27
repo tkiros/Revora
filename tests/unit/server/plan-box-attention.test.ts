@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { planBoxAttention } from "../../../lib/server/plan-box";
+import { planBoxAttention, TRIAL_FREE_BOX } from "../../../lib/server/plan-box";
 
 /**
  * C7 eng-review D2: Home renders the plan box ONLY when it carries actionable
@@ -31,5 +31,18 @@ describe("planBoxAttention", () => {
     expect(
       planBoxAttention({ tier: "free", status: "trialing", cancelAtPeriodEnd: true })
     ).toBe(false);
+  });
+});
+
+describe("TRIAL_FREE_BOX", () => {
+  // C-1 (2026-07-27): trial-mode free accounts get zero checks, so the box
+  // shown in the app shell must never quote the legacy daily allowance.
+  it("never claims a daily free-check allowance", () => {
+    expect(TRIAL_FREE_BOX.meta).not.toMatch(
+      /(?:five|5)\s*(?:free\s+)?checks?\s+(?:a|per|each)\s+day\b/i
+    );
+    expect(TRIAL_FREE_BOX.meta.length).toBeGreaterThan(0);
+    expect(TRIAL_FREE_BOX.isFree).toBe(true);
+    expect(TRIAL_FREE_BOX.attention).toBe(false);
   });
 });
