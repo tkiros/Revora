@@ -82,7 +82,9 @@ export default function LandingPage() {
               <a href="#pricing">Pricing</a>
               <Link href="/pantry">Pantry Review</Link>
             </div>
-            <Link className="landing-cta landing-cta--sm" href="/check">
+            {/* Ghost, not filled: one filled pill per viewport (DESIGN.md
+                §Marketing landing) — the hero CTA is the filled one. */}
+            <Link className="landing-cta landing-cta--sm landing-cta--ghost" href="/check">
               Check a meal
             </Link>
           </nav>
