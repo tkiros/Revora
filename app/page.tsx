@@ -402,7 +402,35 @@ export default function LandingPage() {
               soon, in beta, or behind a waitlist.
             </p>
           </div>
+          {/* Order is ranked, not chronological: the three items no other
+              meal app can claim (clarifying questions, the doctor-visit
+              record, one-tap delete) lead — by this point the page has
+              already explained describe→answer twice. */}
           <div className="landing-features">
+            <div className="landing-feature">
+              <h3>It asks before it guesses</h3>
+              <p>
+                Type “oatmeal” and Revora asks whether it is plain or
+                sweetened, because the honest answer depends on it. Most apps
+                would just pick one and sound confident.
+              </p>
+            </div>
+            <div className="landing-feature">
+              <h3>A record you can actually show someone</h3>
+              <p>
+                Every check is saved to your account and visible on every
+                device. Six months from now you can open it at your appointment
+                instead of trying to remember.
+              </p>
+            </div>
+            <div className="landing-feature">
+              <h3>Your data, deleted on demand</h3>
+              <p>
+                Your A1C and meal text are encrypted at rest and stored only
+                with your say-so. One tap deletes all of it, account included,
+                with no retention screen in the way.
+              </p>
+            </div>
             <div className="landing-feature">
               <h3>Describe a meal in your own words</h3>
               <p>
@@ -423,27 +451,11 @@ export default function LandingPage() {
               </p>
             </div>
             <div className="landing-feature">
-              <h3>It asks before it guesses</h3>
-              <p>
-                Type “oatmeal” and Revora asks whether it is plain or
-                sweetened, because the honest answer depends on it. Most apps
-                would just pick one and sound confident.
-              </p>
-            </div>
-            <div className="landing-feature">
               <h3>Answers in the aisle and at the table</h3>
               <p>
                 It runs in the browser on your phone, so it is there in the
                 supermarket and at the restaurant. Add it to your home screen
                 if you want; there is nothing to install.
-              </p>
-            </div>
-            <div className="landing-feature">
-              <h3>A record you can actually show someone</h3>
-              <p>
-                Every check is saved to your account and visible on every
-                device. Six months from now you can open it at your appointment
-                instead of trying to remember.
               </p>
             </div>
             <div className="landing-feature">
@@ -460,14 +472,6 @@ export default function LandingPage() {
                 A single nudge a day, off by default. Skip a day and nothing
                 breaks, nothing turns red, nothing guilt-trips you. Blank days
                 are just blank.
-              </p>
-            </div>
-            <div className="landing-feature">
-              <h3>Your data, deleted on demand</h3>
-              <p>
-                Your A1C and meal text are encrypted at rest and stored only
-                with your say-so. One tap deletes all of it, account included,
-                with no retention screen in the way.
               </p>
             </div>
             <div className="landing-feature">
