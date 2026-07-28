@@ -7,7 +7,13 @@ export default defineConfig({
     alias: {
       // next-auth imports "next/server" bare; Node ESM resolution in vitest
       // needs the explicit .js form.
-      "next/server": "next/server.js"
+      "next/server": "next/server.js",
+      // next/font/google only works under the Next build transform; tests
+      // that render app/page.tsx (copy pins) need callable stand-ins.
+      "next/font/google": new URL(
+        "./tests/support/next-font-google-stub.ts",
+        import.meta.url
+      ).pathname
     }
   },
   test: {
