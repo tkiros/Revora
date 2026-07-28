@@ -178,7 +178,7 @@ export default function LandingPage() {
             <li>
               <span className="landing-glance-fact">5.7–6.4%</span>
               <span className="landing-glance-label">
-                the only A1C range Revora is built for
+                if your A1C is here, this was built for you
               </span>
             </li>
             <li>
@@ -226,7 +226,7 @@ export default function LandingPage() {
                 in front of you tonight.
               </li>
               <li>
-                <strong>The apps want you to become an accountant.</strong>
+                <strong>The apps want you to become an accountant.</strong>{" "}
                 Weigh it, log it, scan the barcode, hit your macros. You did
                 not ask for a second job. You asked what to do about dinner.
               </li>
@@ -261,7 +261,12 @@ export default function LandingPage() {
         {/* ── How it works ────────────────────────────────────── */}
         <section className="landing-section" id="how-it-works">
           <div className="landing-section-head">
-            <h2 className="landing-h2">Three ways in. One calm answer out.</h2>
+            {/* The way-count must match Step 1's input list, which is gated
+                on the photo flag — a careful reader counts. */}
+            <h2 className="landing-h2">
+              {photoEnabled ? "Three ways in." : "Two ways in."} One calm
+              answer out.
+            </h2>
             <p className="landing-section-lede">
               Revora is built for the moment of the meal — when you&apos;re
               standing in the kitchen or staring at a menu and want a clearer
@@ -642,7 +647,7 @@ export default function LandingPage() {
                   </p>
                 </div>
                 <div className="landing-price-tile">
-                  <p className="landing-price-day">After</p>
+                  <p className="landing-price-day">After your free week</p>
                   <p className="landing-price-what">{monthlyPrice}/month</p>
                   <p>
                     Unlimited checks, your history on every device, progress
@@ -688,8 +693,8 @@ export default function LandingPage() {
               <h2 className="landing-h2">Or check the whole kitchen, once</h2>
               <p className="landing-section-lede">
                 The Pantry Review sorts everything you already own into enjoy
-                freely, worth a tweak, and handle with care. One calm,
-                printable report, built from photos of your own shelves.
+                freely, worth a tweak, and handle with care. One printable
+                report, built from photos of your own shelves.
               </p>
               <p className="landing-pantry-terms">
                 One payment. <strong>Nothing renews.</strong>
