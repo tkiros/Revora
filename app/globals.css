@@ -31,7 +31,6 @@
   --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
   --icon-sm: 16px;
   --icon: 20px;
-  --landing-band: #0c332e;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1511,12 +1510,39 @@ button.inline-link {
 
 /* ============================================================
    Marketing landing (/) — DESIGN.md §Marketing landing.
-   Tokens only; wider frame + dark bands are landing-exclusive.
+   Tokens only; the wider frame is landing-exclusive.
+
+   Surface rhythm (2026-07-27): the page is LIGHT throughout. The former
+   deep-green `.landing-dark` bands were removed on owner instruction. Depth
+   now comes from three light planes over the page background:
+
+     .landing-sheet  white  (--surface)      hero, the three-answers row
+     .landing-band   tint   (--accent-tint)  who-it's-for, pantry, closing CTA
+     (default)       page   (--page-bg)      everything else
+
+   Alternating those three is what carries the eye down the page now that
+   inverted colour is gone. Risk colours remain semantic-only.
    ============================================================ */
 
 .landing {
   background: var(--page-bg);
   color: var(--text-strong);
+}
+
+.landing-sheet {
+  background: var(--surface);
+}
+
+.landing-band {
+  background: var(--accent-tint);
+}
+
+/* Hairlines keep the planes from muddying where two light surfaces meet. */
+.landing-sheet + .landing-band,
+.landing-band + .landing-sheet,
+.landing-sheet:not(:first-child),
+.landing-band {
+  border-top: 1px solid var(--border-soft);
 }
 
 .landing-frame {
@@ -1546,16 +1572,26 @@ button.inline-link {
 }
 
 .landing-wordmark:focus-visible {
-  outline: 3px solid rgba(248, 250, 252, 0.45);
+  outline: 3px solid rgba(13, 95, 87, 0.45);
   outline-offset: 2px;
   border-radius: 6px;
 }
 
+/* ponytail: below 640px the link row is hidden rather than wrapped. Wrapping
+   produced a 136px two-row nav with the wordmark floating between the rows;
+   every link here is repeated in the footer and reachable by scrolling, so
+   hiding costs no navigation. Add a menu only if the link count grows. */
 .landing-nav-links {
-  display: flex;
+  display: none;
   align-items: center;
   gap: 8px 22px;
-  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+@media (min-width: 640px) {
+  .landing-nav-links {
+    display: flex;
+  }
 }
 
 .landing-nav-links a {
@@ -1568,7 +1604,7 @@ button.inline-link {
 
 /* Tap targets >= 44px tall without changing the nav's height — the ghost
    pill already sets the row height, so the plain links just centre within it. */
-.landing-nav-links a:not(.landing-cta-ghost) {
+.landing-nav-links a {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
@@ -1582,77 +1618,86 @@ button.inline-link {
 }
 
 .landing-nav-links a:focus-visible {
-  outline: 3px solid rgba(248, 250, 252, 0.45);
+  outline: 3px solid rgba(13, 95, 87, 0.45);
   outline-offset: 2px;
   border-radius: 6px;
 }
 
-.landing-dark {
-  background: var(--landing-band);
-  color: var(--accent-contrast);
-}
-
-/* Inverse pill CTA for dark bands (DESIGN.md §Marketing landing). */
+/* The one Committed colour moment on the page: an accent-filled pill. Measured
+   7.2:1 for --accent-contrast on --accent. */
 .landing-cta {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-height: 52px;
-  border: 2px solid var(--surface);
+  border: 2px solid var(--accent);
   border-radius: 999px;
   padding: 14px 26px;
-  background: var(--surface);
-  color: var(--text-strong);
+  background: var(--accent);
+  color: var(--accent-contrast);
   font-size: 16px;
   font-weight: 700;
   text-decoration: none;
   cursor: pointer;
   transition:
     background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
     transform var(--dur-fast) var(--ease);
 }
 
 .landing-cta:hover {
-  background: var(--accent-tint);
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
 }
 
 .landing-cta:active {
   transform: translateY(1px);
 }
 
-.landing-cta-ghost {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 48px;
-  border: 2px solid rgba(248, 250, 252, 0.4);
-  border-radius: 999px;
-  padding: 10px 20px;
-  background: transparent;
-  color: var(--accent-contrast);
+/* Nav-sized: same identity, less weight, so it never outranks the hero CTA. */
+.landing-cta--sm {
+  min-height: 44px;
+  padding: 8px 18px;
   font-size: 15px;
-  font-weight: 600;
-  text-decoration: none;
-  cursor: pointer;
+  margin-left: 16px;
 }
 
-.landing-cta:focus-visible,
-.landing-cta-ghost:focus-visible {
-  outline: 3px solid rgba(248, 250, 252, 0.45);
-  outline-offset: 2px;
+/* Secondary action (the Pantry Review). Outline, not fill — one filled pill
+   per viewport keeps the primary action unambiguous. */
+.landing-cta--ghost {
+  background: transparent;
+  color: var(--accent-strong);
+}
+
+.landing-cta--ghost:hover {
+  background: var(--accent-tint);
+  border-color: var(--accent-strong);
+}
+
+.landing-cta:focus-visible {
+  outline: 3px solid rgba(13, 95, 87, 0.45);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-cta {
+    transition: none;
+  }
+  .landing-cta:active {
+    transform: none;
+  }
 }
 
 .landing-hero {
   display: grid;
-  gap: 36px;
-  padding: 40px 0 56px;
+  gap: clamp(32px, 5vw, 56px);
+  padding: clamp(36px, 5vw, 64px) 0 clamp(52px, 7vw, 88px);
   align-items: center;
 }
 
 @media (min-width: 880px) {
   .landing-hero {
-    grid-template-columns: 1.15fr 0.85fr;
-    padding: 56px 0 72px;
+    grid-template-columns: 1.05fr 0.95fr;
   }
 }
 
@@ -1662,13 +1707,15 @@ button.inline-link {
   justify-items: start;
 }
 
+/* The audience line. Accent-coloured rather than muted: naming who this is for
+   is load-bearing copy on this page, not a decorative kicker. */
 .landing-eyebrow {
   margin: 0;
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  opacity: 0.75;
+  color: var(--accent-strong);
 }
 
 .landing-h1 {
@@ -1696,37 +1743,49 @@ button.inline-link {
 .landing-cta-hint {
   margin: 0;
   font-size: 14px;
-  opacity: 0.75;
+  color: var(--text-muted);
 }
 
-.landing-store-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+/* `home-trust-strip` — the three de-risking facts, directly under the CTA. */
+.landing-trust-strip {
+  display: grid;
+  gap: 8px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
 }
 
-/* Phone mockup: bezel = accent-on-accent via border; screen = the app bg. */
+.landing-trust-strip li {
+  position: relative;
+  padding-left: 24px;
+  color: var(--text-body);
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+
+.landing-trust-strip li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0.32em;
+  width: 11px;
+  height: 6px;
+  border-left: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
+  transform: rotate(-45deg);
+}
+
+/* Hero product visual. DemoCheckCard is already a `.surface-card`, so this is a
+   positioning wrapper only — the old phone bezel wrapped a card in a card, and
+   nested cards are banned (DESIGN.md §App-UI guardrails). */
 .landing-phone {
   justify-self: center;
-  width: min(320px, 88vw);
-  border: 10px solid rgba(248, 250, 252, 0.14);
-  border-radius: 40px;
-  background: var(--page-bg);
-  color: var(--text-strong);
-  overflow: hidden;
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+  width: 100%;
+  max-width: 420px;
 }
 
 .landing-phone-inner {
   display: grid;
-  gap: 12px;
-  padding: 18px 14px 22px;
-  background: linear-gradient(180deg, #ecf4f1 0%, #f8fafc 42%, #f2f7f6 100%);
-}
-
-/* Landing live-example: the real demo card at app width. */
-.landing-example {
-  max-width: 520px;
 }
 
 /* Research proof band: honest stats pulled forward on the landing page. */
@@ -1748,12 +1807,19 @@ button.inline-link {
   }
 }
 
-.landing-proof-stat {
+/* Was styled at clamp(2.6rem, 7vw, 3.6rem)/800 — a big-number slot left over
+   from a hero-metric layout — but `.landing-proof-band p` below is more
+   specific and silently overrode it to 15px, leaving the word "Sources"
+   orphaned in its own grid column. There is no number here and there must not
+   be one: a statistic in this band would read as Revora's own result. It is a
+   label, so it is styled as one. */
+.landing-proof-band .landing-proof-stat {
   margin: 0;
-  font-size: clamp(2.6rem, 7vw, 3.6rem);
-  font-weight: 800;
-  line-height: 1;
-  letter-spacing: -0.03em;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.4;
   color: var(--accent-strong);
 }
 
@@ -1766,12 +1832,23 @@ button.inline-link {
 
 .landing-proof-band .landing-proof-note {
   margin-top: 6px;
-  font-size: 13.5px;
+  /* 16px floor: this links out to the evidence and limitations, which is a
+     transparency affordance, not decoration. De-emphasis here is carried by
+     colour, not by dropping under the landing's minimum reading size. */
+  font-size: 16px;
   color: var(--text-muted);
 }
 
+/* Rhythm. Every section used to be a flat `padding: 56px 0`, six in a row, and
+   a page with one spacing value reads as having no flow at all. Fluid now, so
+   the page breathes on wide viewports, with a tighter step for the short
+   supporting sections. */
 .landing-section {
-  padding: 56px 0;
+  padding: clamp(52px, 7vw, 104px) 0;
+}
+
+.landing-section--tight {
+  padding: clamp(40px, 4.5vw, 68px) 0;
 }
 
 .landing-section-head {
@@ -1928,12 +2005,51 @@ button.inline-link {
   padding: 0;
 }
 
+/* The default browser disclosure triangle read as unstyled on a marketing
+   surface. Replaced with a chevron built from a rotated border, so it needs no
+   icon import and inherits the text colour. */
 .landing-faq summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   padding: 16px 20px;
   font-size: 16px;
   font-weight: 700;
   cursor: pointer;
-  list-style-position: inside;
+  list-style: none;
+}
+
+.landing-faq summary::-webkit-details-marker {
+  display: none;
+}
+
+.landing-faq summary::after {
+  content: "";
+  flex: none;
+  width: 9px;
+  height: 9px;
+  margin-right: 4px;
+  border-right: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
+  transform: rotate(45deg) translate(-2px, -2px);
+  transition: transform var(--dur-fast) var(--ease);
+}
+
+.landing-faq details[open] summary::after {
+  transform: rotate(-135deg) translate(-2px, -2px);
+}
+
+.landing-faq summary:focus-visible {
+  outline: 3px solid rgba(13, 95, 87, 0.45);
+  outline-offset: -3px;
+  border-radius: 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-faq summary::after {
+    transition: none;
+  }
 }
 
 .landing-faq details > p {
@@ -1948,7 +2064,242 @@ button.inline-link {
   display: grid;
   gap: 18px;
   justify-items: start;
-  padding: 56px 0;
+  padding: clamp(52px, 6vw, 88px) 0;
+}
+
+/* ── Who this is for ─────────────────────────────────────────
+   Typography, not cards. These are three sentences about the reader's last six
+   months; boxing them would make them look like features. */
+.landing-pains {
+  display: grid;
+  gap: 14px;
+  max-width: 68ch;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.landing-pains li {
+  position: relative;
+  padding-left: 30px;
+  color: var(--text-body);
+  font-size: clamp(1rem, 1.6vw, 1.08rem);
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+.landing-pains li::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 0.62em;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.landing-pains-note {
+  max-width: 68ch;
+  margin: 22px 0 0;
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+/* ── The three answers ───────────────────────────────────────
+   Deliberately NOT `.result-card`: these are illustrations on a marketing
+   surface, so they borrow the semantic verdict colours without impersonating a
+   real result. The Clear card has no adjustment row, because the engine cannot
+   produce one for a SAFE verdict (F-04) — the layout has to survive that. */
+.landing-verdicts {
+  display: grid;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (min-width: 860px) {
+  .landing-verdicts {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.landing-verdict {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  border: 2px solid var(--border-soft);
+  border-radius: 24px;
+  padding: 22px;
+  background: var(--surface);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
+}
+
+.landing-verdict[data-risk="SAFE"] {
+  border-color: var(--safe-border);
+  background: var(--safe-bg);
+}
+
+.landing-verdict[data-risk="MODERATE"] {
+  border-color: var(--moderate-border);
+  background: var(--moderate-bg);
+}
+
+.landing-verdict[data-risk="HIGH"] {
+  border-color: var(--high-border);
+  background: var(--high-bg);
+}
+
+.landing-verdict-meal {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.landing-verdict-reason {
+  margin: 0;
+  color: var(--text-body);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.landing-verdict-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 0;
+  color: var(--text-body);
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+
+.landing-verdict-row svg {
+  flex: none;
+  margin-top: 3px;
+}
+
+/* `.result-disclaimer` sits in the shared 14px hints/meta group, which is the
+   right size inside the app (DESIGN.md §Type: "14–15px hints/meta"). The
+   landing runs the larger scale — nothing below 16px except tracked uppercase
+   labels — and both landing instances (the demo result card and the footer)
+   carry the informational-only disclaimer. Scoped to `.landing` so the app
+   keeps its own scale. */
+.landing .result-disclaimer {
+  font-size: 16px;
+}
+
+.landing-verdict-note {
+  max-width: 68ch;
+  margin: 22px 0 0;
+  color: var(--text-muted);
+  /* 16px floor: this carries the informational-only disclaimer and the AUD-008
+     "illustrated examples" label. Setting the compliance line in the page's
+     smallest type is the fine-print pattern FTC-HEALTH-COMPLIANCE is about —
+     the disclaimer stays quiet via colour, never via size. */
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+/* ── What you get ────────────────────────────────────────────
+   The feature inventory the page never had. Typography in a grid; a border-top
+   per item groups them without six more boxes. */
+.landing-features {
+  display: grid;
+  gap: 4px 40px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.landing-feature {
+  padding: 20px 0;
+  border-top: 1px solid var(--border-strong);
+}
+
+.landing-feature h3 {
+  margin: 0 0 6px;
+  font-size: 17px;
+  line-height: 1.3;
+}
+
+.landing-feature p {
+  margin: 0;
+  color: var(--text-body);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* ── Pantry Review ───────────────────────────────────────── */
+.landing-pantry {
+  display: grid;
+  gap: 28px;
+  align-items: center;
+}
+
+@media (min-width: 820px) {
+  .landing-pantry {
+    grid-template-columns: 1.3fr 0.7fr;
+  }
+}
+
+.landing-pantry-copy {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+}
+
+.landing-pantry-terms {
+  margin: 0;
+  color: var(--text-body);
+  font-size: 15px;
+}
+
+.landing-pantry-buckets {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.landing-pantry-buckets li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 2px solid var(--border-soft);
+  border-radius: 14px;
+  padding: 12px 16px;
+  background: var(--surface);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.landing-pantry-buckets li[data-risk="SAFE"] {
+  border-color: var(--safe-border);
+  color: var(--safe-text);
+}
+
+.landing-pantry-buckets li[data-risk="MODERATE"] {
+  border-color: var(--moderate-border);
+  color: var(--moderate-text);
+}
+
+.landing-pantry-buckets li[data-risk="HIGH"] {
+  border-color: var(--high-border);
+  color: var(--high-text);
+}
+
+.landing-cta-row--centered {
+  margin-top: 32px;
+}
+
+.landing-footer-muted {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--text-muted);
+  font-size: 14.5px;
+  font-weight: 600;
 }
 
 .landing-footer {
@@ -1962,9 +2313,15 @@ button.inline-link {
   margin-bottom: 24px;
 }
 
-@media (min-width: 720px) {
+@media (min-width: 560px) {
   .landing-footer-cols {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 900px) {
+  .landing-footer-cols {
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 
@@ -2004,6 +2361,247 @@ button.inline-link {
   outline: 3px solid rgba(13, 95, 87, 0.35);
   outline-offset: 2px;
   border-radius: 6px;
+}
+
+/* ============================================================
+   Landing legibility pass (2026-07-27)
+
+   Two problems, one block. (1) Plus Jakarta Sans was setting headlines AND
+   body copy; a geometric sans at 14–15px is the wrong tool for paragraphs read
+   by 40–60-year-olds on a phone. Body copy moves to Source Sans 3
+   (`--font-body`) — bigger x-height, open apertures — while headlines, the
+   wordmark, buttons and labels keep Plus Jakarta Sans, so the contrast is
+   display-vs-text rather than two fonts doing the same job. (2) The whole body
+   scale was 14.5–16px. It is 16–22px here. Nothing on this page is below 16px
+   except the uppercase labels, which are tracked and short.
+
+   Placed after the landing rules so it overrides them on equal specificity;
+   keeping it in one block makes the pass reviewable and revertible.
+   ============================================================ */
+
+.landing {
+  font-family: var(--font-body), var(--font-sans), system-ui, sans-serif;
+}
+
+.landing-wordmark,
+.landing-h1,
+.landing-h2,
+.landing-eyebrow,
+.landing-cta,
+.landing-step h3,
+.landing-step-num,
+.landing-feature h3,
+.landing-proof-item h3,
+.landing-price-day,
+.landing-price-what,
+.landing-glance-fact,
+.landing-verdict-meal,
+.landing-faq summary,
+.landing-footer-col h3 {
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+.landing-eyebrow {
+  font-size: 14px;
+}
+
+.landing-sub {
+  max-width: 60ch;
+  font-size: clamp(1.15rem, 2.1vw, 1.4rem);
+  line-height: 1.6;
+  color: var(--text-body);
+  opacity: 1;
+}
+
+.landing-sub strong {
+  color: var(--text-strong);
+}
+
+.landing-cta {
+  font-size: 17px;
+}
+
+.landing-cta-hint,
+.landing-nav-links a {
+  font-size: 16px;
+}
+
+.landing-trust-strip li {
+  font-size: 16.5px;
+  line-height: 1.55;
+}
+
+.landing-section-lede {
+  max-width: 62ch;
+  font-size: 18.5px;
+  line-height: 1.6;
+}
+
+.landing-pains li {
+  font-size: clamp(1.05rem, 1.9vw, 1.25rem);
+  line-height: 1.6;
+}
+
+.landing-pains li strong {
+  color: var(--text-strong);
+}
+
+.landing-pains-note,
+.landing-verdict-note,
+.landing-pantry-terms {
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+.landing-step p,
+.landing-feature p,
+.landing-verdict-reason,
+.landing-proof-band p,
+.landing-faq details > p {
+  font-size: 17px;
+  line-height: 1.62;
+}
+
+.landing-proof-item p,
+.landing-price-tile p,
+.landing-verdict-row,
+.landing-verdict-meal,
+.landing-footer-col a,
+.landing-footer-muted {
+  font-size: 16.5px;
+  line-height: 1.55;
+}
+
+.landing-step h3 {
+  font-size: 20px;
+}
+
+.landing-feature h3 {
+  font-size: 19px;
+}
+
+.landing-proof-item h3 {
+  font-size: 18px;
+}
+
+.landing-price-what {
+  font-size: 22px;
+}
+
+.landing-faq summary {
+  font-size: 18px;
+}
+
+/* ── At a glance ─────────────────────────────────────────────
+   Four facts under the fold. Not cards: a rule-separated row, so it reads as
+   one statement of the offer rather than four competing boxes. */
+.landing-glance {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  grid-template-columns: repeat(auto-fit, minmax(215px, 1fr));
+}
+
+.landing-glance li {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  padding: clamp(24px, 3vw, 34px) 24px;
+  border-top: 1px solid var(--border-soft);
+}
+
+@media (min-width: 880px) {
+  .landing-glance li {
+    border-top: none;
+    border-left: 1px solid var(--border-soft);
+  }
+  .landing-glance li:first-child {
+    border-left: none;
+    padding-left: 0;
+  }
+}
+
+.landing-glance-fact {
+  font-size: clamp(1.35rem, 2.4vw, 1.6rem);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--accent-strong);
+  text-wrap: balance;
+}
+
+.landing-glance-label {
+  color: var(--text-body);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* ── What actually changes ───────────────────────────────────
+   Before/after pairs. The "before" is muted and struck through in spirit, not
+   literally — strikethrough on a health surface reads as judgment. */
+/* Four pairs, so 2x2 — auto-fit put three up and orphaned the fourth. */
+.landing-outcomes {
+  display: grid;
+  gap: 18px;
+}
+
+@media (min-width: 760px) {
+  .landing-outcomes {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.landing-outcome {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 22px 24px;
+  border: 2px solid var(--border-soft);
+  border-radius: 24px;
+  background: var(--surface);
+}
+
+.landing-outcome-before {
+  margin: 0;
+  padding-left: 26px;
+  position: relative;
+  color: var(--text-muted);
+  font-size: 16.5px;
+  line-height: 1.5;
+}
+
+.landing-outcome-before::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 0.55em;
+  width: 12px;
+  height: 2px;
+  background: var(--text-soft);
+}
+
+.landing-outcome-after {
+  margin: 0;
+  padding-left: 26px;
+  position: relative;
+  color: var(--text-strong);
+  font-size: 17.5px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.landing-outcome-after::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 0.3em;
+  width: 11px;
+  height: 6px;
+  border-left: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
+  transform: rotate(-45deg);
 }
 
 @media print {

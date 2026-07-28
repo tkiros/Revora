@@ -2,14 +2,19 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { DemoCheckCard } from "../components/demo-check-card";
-import { IconAlert, IconArrowRight, IconLeaf } from "../components/icons";
+import {
+  IconAlert,
+  IconArrowRight,
+  IconCheck,
+  IconHeart,
+  IconPause
+} from "../components/icons";
 import { TASTER_LIMIT } from "../lib/client/taster-store";
 import { FREE_DAILY_CHECKS } from "../lib/free-tier";
 import { longitudinalInsightsEnabled } from "../lib/longitudinal-insights-flag";
 import { photoInputEnabled } from "../lib/photo-input-flag";
 import { BOUNDARY_DISCLAIMER } from "../lib/revora/boundary-copy";
 import { RISK_LABELS } from "../lib/revora/labels";
-import { OATMEAL_EXAMPLE } from "../lib/revora/promise-registry";
 import { paywallMode, resolvePriceVariant } from "../lib/server/pricing";
 import { storeWaitlistUrl } from "../lib/waitlist";
 
@@ -29,7 +34,9 @@ export const metadata: Metadata = {
 //  - The adjustment and the swap are CONDITIONAL. A SAFE ("Clear") result is
 //    structurally forbidden either one (lib/revora/postprocess.ts
 //    assertNoUnsafeSafeFields throws), so no surface may promise them
-//    unconditionally. Always hedge: "when there's one".
+//    unconditionally. Always hedge: "when there's one". The verdict row below
+//    demonstrates this rather than asserting it — the Clear card carries no
+//    adjustment and no swap, because the engine cannot produce them there.
 //  - The free tier is TASTER_LIMIT checks on day one only, device-local. The
 //    number is interpolated from lib/client/taster-store.ts — never retyped —
 //    so the store listing, the landing page, and the meter can't drift apart.
@@ -37,6 +44,12 @@ export const metadata: Metadata = {
 //    touches `window` only inside function bodies.)
 //
 // Verdict words come from lib/revora/labels.ts (RISK_LABELS) — never retyped.
+//
+// Surface treatment (2026-07-27): this page is light throughout. The former
+// deep-green `.landing-dark` bands on the hero and closing CTA were removed on
+// owner instruction — rhythm now comes from white sheets and `--accent-tint`
+// bands over the page background, not from inverted colour. DESIGN.md
+// §Marketing landing is the binding record of that change.
 export default function LandingPage() {
   const androidWaitlist = storeWaitlistUrl("android");
   const iosWaitlist = storeWaitlistUrl("ios");
@@ -50,40 +63,48 @@ export default function LandingPage() {
   const monthlyPrice = resolvePriceVariant().display;
   return (
     <main className="landing">
-      {/* ── Dark band: nav + hero ─────────────────────────────── */}
-      <div className="landing-dark">
+      {/* ── Nav + hero (white sheet) ──────────────────────────── */}
+      <div className="landing-sheet">
         <div className="landing-frame">
           <nav className="landing-nav" aria-label="Main">
             <Link className="landing-wordmark" href="/">
               Revora
             </Link>
+            {/* ponytail: below 640px the link row collapses to the wordmark +
+                the one CTA. It used to wrap to a 136px two-row block with the
+                wordmark floating between the rows. Every hidden link is still
+                reachable by scrolling and is repeated in the footer, so this
+                costs no navigation. */}
             <div className="landing-nav-links">
               <a href="#how-it-works">How it works</a>
               <a href="#pricing">Pricing</a>
               <Link href="/pantry">Pantry Review</Link>
-              <Link className="landing-cta-ghost" href="/check">
-                Try it free
-              </Link>
             </div>
+            <Link className="landing-cta landing-cta--sm" href="/check">
+              Check a meal
+            </Link>
           </nav>
 
           <section className="landing-hero">
             <div className="landing-hero-copy">
+              {/* The "what is this" answer, before the headline. A visitor
+                  should not have to read a paragraph to learn the category. */}
               <p className="landing-eyebrow">
-                Built for the prediabetes A1C range (5.7%–6.4%)
+                A meal checker built only for prediabetes
               </p>
-              <h1 className="landing-h1">
-                Check a meal. Understand its balance in seconds.
-              </h1>
+              <h1 className="landing-h1">Stop guessing at dinner.</h1>
               <p className="landing-sub">
+                You got an A1C between <strong>5.7% and 6.4%</strong> and one
+                line of advice: eat better. Revora is the part nobody
+                explained.
                 {photoEnabled
-                  ? "Snap a photo of the meal, say it, or type it. "
-                  : "Say what is in the meal or type it. "}
-                Revora gives you one cautious educational label —{" "}
-                {RISK_LABELS.SAFE}, {RISK_LABELS.MODERATE}, or {RISK_LABELS.HIGH}
-                — with one reason and, when appropriate, an adjustment and one
-                practical alternative. The labels describe general meal
-                patterns, not your individual glucose response.
+                  ? " Snap the meal, say it, or type it"
+                  : " Say the meal out loud, or type it"}{" "}
+                — you get one clear answer in about ten seconds:{" "}
+                <strong>{RISK_LABELS.SAFE}</strong>,{" "}
+                <strong>{RISK_LABELS.MODERATE}</strong>, or{" "}
+                <strong>{RISK_LABELS.HIGH}</strong>, the reason behind it, and
+                what to change.
               </p>
               <div className="landing-cta-row">
                 <Link className="landing-cta" href="/check">
@@ -91,86 +112,139 @@ export default function LandingPage() {
                 </Link>
               </div>
               <p className="landing-cta-hint">
-                No login. No card. {TASTER_LIMIT} free checks on your first
-                day.
+                {TASTER_LIMIT} free checks on your first day, then you decide.
               </p>
-              <div className="landing-store-row">
-                {androidWaitlist ? (
-                  <a className="landing-cta-ghost" href={androidWaitlist}>
-                    Google Play — coming soon
-                  </a>
-                ) : (
-                  <span className="landing-cta-ghost">
-                    Google Play — coming soon
-                  </span>
-                )}
-                {iosWaitlist ? (
-                  <a className="landing-cta-ghost" href={iosWaitlist}>
-                    App Store — coming soon
-                  </a>
-                ) : (
-                  <span className="landing-cta-ghost">
-                    App Store — coming soon
-                  </span>
-                )}
-              </div>
+              {/* `home-trust-strip` (copy-ledger.md, Approved + Active). The
+                  ledger has recorded this row as living on app/page.tsx since
+                  launch, but no version of the page rendered it — found during
+                  the 2026-07-27 landing audit. Restored verbatim. */}
+              <ul className="landing-trust-strip">
+                <li>No login for your first checks.</li>
+                <li>When we&apos;re unsure, we say so.</li>
+                <li>
+                  If you ever subscribe, cancel is one tap — not an email.
+                </li>
+              </ul>
             </div>
 
             {/* Phone mockup: the HONEST two-step oatmeal flow (§P1.1 / K1),
                 real result-card markup, pixel-true. Typing "oatmeal" is
                 genuinely ambiguous, so Revora asks one question before it
                 answers — the demo shows that sequence rather than manufacturing
-                an immediate card. The three flow strings (input, question,
-                answer) come from the promise registry, so promise-registry.test
-                pins them to the real precheck output. */}
-            <div className="landing-phone" aria-hidden="true">
+                an immediate card. The strings come from the promise registry
+                via DemoCheckCard, so promise-registry.test pins them to the
+                real precheck output.
+
+                Until 2026-07-27 this bezel held a hand-copied duplicate of the
+                DemoCheckCard markup, and the "kind of answer you get" section
+                below rendered the SAME oatmeal verdict a second time. The
+                duplicate is gone; the component is the single source. */}
+            <div className="landing-phone">
               <div className="landing-phone-inner">
-                <p className="status-eyebrow">You enter: {OATMEAL_EXAMPLE.input}</p>
-                <div className="result-card" data-kind="clarify">
-                  <p className="result-eyebrow">Need one more detail</p>
-                  <p className="result-copy">
-                    {OATMEAL_EXAMPLE.expectedClarifyQuestion}
-                  </p>
-                </div>
-                <p className="status-eyebrow">
-                  You answer: {OATMEAL_EXAMPLE.followUp}
-                </p>
-                <div className="result-card" data-risk="MODERATE">
-                  <p className="result-eyebrow">Revora result</p>
-                  <p className="result-title verdict-title" data-risk="MODERATE">
-                    <IconAlert size={26} />
-                    {RISK_LABELS.MODERATE}
-                  </p>
-                  <p className="result-copy">
-                    Plain oatmeal on its own leans heavily on carbohydrates and
-                    has less protein or nonstarchy-vegetable balance than a
-                    mixed meal.
-                  </p>
-                  <div className="result-list">
-                    <p className="result-row">
-                      <IconLeaf size={16} />
-                      <span>
-                        <strong>Adjustment:</strong> add protein — Greek
-                        yogurt, nuts, or eggs on the side.
-                      </span>
-                    </p>
-                    <p className="result-row">
-                      <IconArrowRight size={16} />
-                      <span>
-                        <strong>Swap:</strong> steel-cut oats hold up steadier
-                        than instant packets.
-                      </span>
-                    </p>
-                  </div>
-                </div>
+                <DemoCheckCard />
               </div>
             </div>
           </section>
         </div>
       </div>
 
-      {/* ── How it works ──────────────────────────────────────── */}
+      {/* ── At a glance ───────────────────────────────────────
+          The offer in four facts, directly under the fold. A visitor who reads
+          nothing else on the page should still be able to answer "what is it,
+          who is it for, how fast, what does it cost me to try". */}
+      <div className="landing-sheet">
+        <div className="landing-frame">
+          <ul className="landing-glance">
+            <li>
+              <span className="landing-glance-fact">10 seconds</span>
+              <span className="landing-glance-label">
+                from describing the meal to the answer
+              </span>
+            </li>
+            <li>
+              <span className="landing-glance-fact">5.7–6.4%</span>
+              <span className="landing-glance-label">
+                the only A1C range Revora is built for
+              </span>
+            </li>
+            <li>
+              <span className="landing-glance-fact">
+                {TASTER_LIMIT} free checks
+              </span>
+              <span className="landing-glance-label">
+                on day one, no login and no card
+              </span>
+            </li>
+            <li>
+              <span className="landing-glance-fact">Nothing to log</span>
+              <span className="landing-glance-label">
+                no weighing, no calories, no macros, ever
+              </span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      {/* ── The problem (tint band) ───────────────────────────── */}
+      <div className="landing-band">
+        <div className="landing-frame">
+          <section className="landing-section landing-section--tight">
+            <div className="landing-section-head">
+              <h2 className="landing-h2">
+                The six-month wait is the problem
+              </h2>
+              <p className="landing-section-lede">
+                Nobody handed you a plan. You were handed a number, two words
+                of advice, and an appointment half a year away. Everything in
+                between is supposed to be your job to figure out.
+              </p>
+            </div>
+            <ul className="landing-pains">
+              <li>
+                <strong>The advice was two words long.</strong> “Eat better.”
+                Better than what? Is oatmeal fine? Is the sandwich at lunch a
+                problem? Nobody said, and the appointment is in six months.
+              </li>
+              <li>
+                <strong>Every article contradicts the last one.</strong> Fruit
+                is fine, fruit is sugar. Rice is out, brown rice is in. You
+                have read all of it and you still do not know about the plate
+                in front of you tonight.
+              </li>
+              <li>
+                <strong>The apps want you to become an accountant.</strong>
+                Weigh it, log it, scan the barcode, hit your macros. You did
+                not ask for a second job. You asked what to do about dinner.
+              </li>
+              <li>
+                <strong>So you guess, and then you worry.</strong> You eat the
+                thing, and spend the next hour wondering whether it was a
+                mistake. That loop is the actual cost of being told nothing.
+              </li>
+            </ul>
+            <p className="landing-pains-note">
+              Revora exists for that gap and nothing else. It is not a general
+              nutrition app, not a calorie counter, and not built for everyone
+              — if your A1C sits outside 5.7% to 6.4%, it says so plainly and
+              points you to a clinician instead of pretending.
+            </p>
+            {/* The recognition moment — "that is my last six months" — is the
+                highest-intent point on the page before pricing. It used to be
+                3,800px of mobile scroll from the nearest way to act. */}
+            <div className="landing-cta-row landing-cta-row--centered">
+              <Link className="landing-cta" href="/check">
+                Check your first meal — free
+              </Link>
+              <p className="landing-cta-hint">
+                No login, no card, nothing to install.
+              </p>
+            </div>
+          </section>
+        </div>
+      </div>
+
       <div className="landing-frame">
+        {/* ── How it works ────────────────────────────────────── */}
         <section className="landing-section" id="how-it-works">
           <div className="landing-section-head">
             <h2 className="landing-h2">Three ways in. One calm answer out.</h2>
@@ -214,19 +288,228 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
+      </div>
 
-        {/* ── Live example ────────────────────────────────────── */}
-        <section className="landing-section" id="live-example">
+      {/* ── The three answers (white sheet) ───────────────────── */}
+      <div className="landing-sheet">
+        <div className="landing-frame">
+          <section className="landing-section" id="live-example">
+            <div className="landing-section-head">
+              {/* AUD-008: "the kind of answer", not "the actual answer" — the
+                  cards below are illustrations until a live capture exists. */}
+              <h2 className="landing-h2">
+                Three meals. Three different answers.
+              </h2>
+              <p className="landing-section-lede">
+                No dashboard, no numbers to decode. Notice that the{" "}
+                {RISK_LABELS.SAFE} card carries no change to make: when a meal
+                already looks balanced, Revora says so and stops. It does not
+                invent a correction to look useful.
+              </p>
+            </div>
+            <div className="landing-verdicts">
+              <article className="landing-verdict" data-risk="SAFE">
+                <p className="landing-verdict-meal">
+                  Grilled chicken, brown rice, and a side salad
+                </p>
+                <p className="result-title verdict-title" data-risk="SAFE">
+                  <IconCheck size={22} />
+                  {RISK_LABELS.SAFE}
+                </p>
+                <p className="landing-verdict-reason">
+                  This looks like a reasonable fit. The meal already has protein
+                  and vegetables, so it looks more balanced than a
+                  fast-carb-heavy option.
+                </p>
+              </article>
+
+              <article className="landing-verdict" data-risk="MODERATE">
+                <p className="landing-verdict-meal">
+                  A bagel with jam and a glass of orange juice
+                </p>
+                <p className="result-title verdict-title" data-risk="MODERATE">
+                  <IconAlert size={22} />
+                  {RISK_LABELS.MODERATE}
+                </p>
+                <p className="landing-verdict-reason">
+                  This may have a higher blood-sugar impact than a more balanced
+                  meal because it leans heavily on refined carbs.
+                </p>
+                <p className="landing-verdict-row">
+                  <IconHeart size={16} />
+                  <span>
+                    <strong>Adjustment:</strong> If practical, add protein or
+                    nonstarchy vegetables to make it easier to handle.
+                  </span>
+                </p>
+              </article>
+
+              <article className="landing-verdict" data-risk="HIGH">
+                <p className="landing-verdict-meal">
+                  A large soda with fries on the side
+                </p>
+                <p className="result-title verdict-title" data-risk="HIGH">
+                  <IconPause size={22} />
+                  {RISK_LABELS.HIGH}
+                </p>
+                <p className="landing-verdict-reason">
+                  This is likely a higher-impact choice in its current form
+                  because it is mostly sugary or refined carbs.
+                </p>
+                <p className="landing-verdict-row">
+                  <IconArrowRight size={16} />
+                  <span>
+                    <strong>Swap:</strong> A smaller portion with protein or
+                    nonstarchy vegetables would be a steadier fit here.
+                  </span>
+                </p>
+              </article>
+            </div>
+            <p className="landing-verdict-note">
+              Illustrated examples. Every card ends with the same line: Revora
+              is informational only and is not medical advice.
+            </p>
+            <div className="landing-cta-row landing-cta-row--centered">
+              <Link className="landing-cta" href="/check">
+                Check your first meal — free
+              </Link>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <div className="landing-frame">
+        {/* ── What you get ────────────────────────────────────── */}
+        <section className="landing-section">
           <div className="landing-section-head">
-            {/* AUD-008: "the kind of answer", not "the actual answer" — the
-                card below is an illustration until a live capture exists. */}
-            <h2 className="landing-h2">This is the kind of answer you get</h2>
+            <h2 className="landing-h2">Everything you get</h2>
             <p className="landing-section-lede">
-              No dashboard, no numbers to decode — one card, in plain words.
+              The whole product, listed plainly. Nothing on this list is coming
+              soon, in beta, or behind a waitlist.
             </p>
           </div>
-          <div className="landing-example">
-            <DemoCheckCard />
+          <div className="landing-features">
+            <div className="landing-feature">
+              <h3>Describe a meal in your own words</h3>
+              <p>
+                {photoEnabled
+                  ? "Snap it, say it, or type it. "
+                  : "Say it out loud or type it. "}
+                “Leftover lasagna and a glass of red” is a valid input. No
+                database to search, no barcode to scan, no portion to weigh.
+              </p>
+            </div>
+            <div className="landing-feature">
+              <h3>One answer, not a dashboard</h3>
+              <p>
+                {RISK_LABELS.SAFE}, {RISK_LABELS.MODERATE}, or{" "}
+                {RISK_LABELS.HIGH} — plus the reason in one sentence, and, when
+                there is one, a change worth making and a swap. That is the
+                whole screen.
+              </p>
+            </div>
+            <div className="landing-feature">
+              <h3>It asks before it guesses</h3>
+              <p>
+                Type “oatmeal” and Revora asks whether it is plain or
+                sweetened, because the honest answer depends on it. Most apps
+                would just pick one and sound confident.
+              </p>
+            </div>
+            <div className="landing-feature">
+              <h3>Answers in the aisle and at the table</h3>
+              <p>
+                It runs in the browser on your phone, so it is there in the
+                supermarket and at the restaurant. Add it to your home screen
+                if you want; there is nothing to install.
+              </p>
+            </div>
+            <div className="landing-feature">
+              <h3>A record you can actually show someone</h3>
+              <p>
+                Every check is saved to your account and visible on every
+                device. Six months from now you can open it at your appointment
+                instead of trying to remember.
+              </p>
+            </div>
+            <div className="landing-feature">
+              <h3>A weekly recap in sentences</h3>
+              <p>
+                Plain lines about what you did, like days checked in and steps
+                followed through. Never a grade, never a streak to break,
+                never a lab prediction.
+              </p>
+            </div>
+            <div className="landing-feature">
+              <h3>One reminder, if you want it</h3>
+              <p>
+                A single nudge a day, off by default. Skip a day and nothing
+                breaks, nothing turns red, nothing guilt-trips you. Blank days
+                are just blank.
+              </p>
+            </div>
+            <div className="landing-feature">
+              <h3>Your data, deleted on demand</h3>
+              <p>
+                Your A1C and meal text are encrypted at rest and stored only
+                with your say-so. One tap deletes all of it, account included,
+                with no retention screen in the way.
+              </p>
+            </div>
+            <div className="landing-feature">
+              <h3>The Pantry Review, separately</h3>
+              <p>
+                A one-time report that sorts the food already in your kitchen
+                into three groups. One payment, nothing renews, no
+                subscription attached.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* ── What changes ────────────────────────────────────── */}
+        <section className="landing-section">
+          <div className="landing-section-head">
+            <h2 className="landing-h2">What actually changes</h2>
+            <p className="landing-section-lede">
+              Not a transformation. Four specific moments in your week that
+              stop being hard.
+            </p>
+          </div>
+          <div className="landing-outcomes">
+            <div className="landing-outcome">
+              <p className="landing-outcome-before">
+                Tonight you stand at the counter and guess.
+              </p>
+              <p className="landing-outcome-after">
+                You describe the plate and know where it lands before you sit
+                down.
+              </p>
+            </div>
+            <div className="landing-outcome">
+              <p className="landing-outcome-before">
+                You read three articles at 11pm and they disagree.
+              </p>
+              <p className="landing-outcome-after">
+                You ask about the one meal in front of you and stop reading.
+              </p>
+            </div>
+            <div className="landing-outcome">
+              <p className="landing-outcome-before">
+                Eating out means ordering and then quietly worrying.
+              </p>
+              <p className="landing-outcome-after">
+                You check the menu item at the table and order on purpose.
+              </p>
+            </div>
+            <div className="landing-outcome">
+              <p className="landing-outcome-before">
+                Six months of meals, and nothing to show your doctor.
+              </p>
+              <p className="landing-outcome-after">
+                A saved history of what you actually ate, in your own words.
+              </p>
+            </div>
           </div>
         </section>
 
@@ -273,7 +556,7 @@ export default function LandingPage() {
                     — a non-scored weekly recap — never a score it doesn't. */}
                 Your weekly recap is behavioral — plain sentences about what
                 you did, like days checked in and steps followed through.
-                Never a score, a grade, or a lab prediction.{" "}
+                Never a grade, or a lab prediction.{" "}
                 <Link className="inline-link" href="/how-it-works">
                   Read exactly what it measures and its honest limits
                 </Link>
@@ -294,25 +577,6 @@ export default function LandingPage() {
                 dietitian for guidance that is specific to you.
               </p>
             </div>
-          </div>
-        </section>
-
-        {/* ── Pantry Review ───────────────────────────────────── */}
-        <section className="landing-section">
-          <div className="landing-section-head">
-            <h2 className="landing-h2">
-              Or check the whole kitchen, once
-            </h2>
-            <p className="landing-section-lede">
-              The Pantry Review sorts everything you own into enjoy freely,
-              worth a tweak, and handle with care — one calm, printable
-              report. One payment.{" "}
-              <strong>Nothing renews.</strong>{" "}
-              <Link className="inline-link" href="/pantry">
-                See a sample report
-              </Link>
-              .
-            </p>
           </div>
         </section>
 
@@ -390,8 +654,53 @@ export default function LandingPage() {
               </>
             )}
           </div>
+          <div className="landing-cta-row landing-cta-row--centered">
+            <Link className="landing-cta" href="/check">
+              Check your first meal — free
+            </Link>
+          </div>
         </section>
+      </div>
 
+      {/* ── Pantry Review (tint band) ─────────────────────────── */}
+      <div className="landing-band">
+        <div className="landing-frame">
+          <section className="landing-section landing-section--tight landing-pantry">
+            <div className="landing-pantry-copy">
+              <h2 className="landing-h2">Or check the whole kitchen, once</h2>
+              <p className="landing-section-lede">
+                The Pantry Review sorts everything you already own into enjoy
+                freely, worth a tweak, and handle with care. One calm,
+                printable report, built from photos of your own shelves.
+              </p>
+              <p className="landing-pantry-terms">
+                One payment. <strong>Nothing renews.</strong>
+              </p>
+              <div className="landing-cta-row">
+                <Link className="landing-cta landing-cta--ghost" href="/pantry">
+                  See a sample report
+                </Link>
+              </div>
+            </div>
+            <ul className="landing-pantry-buckets">
+              <li data-risk="SAFE">
+                <IconCheck size={18} />
+                <span>Enjoy freely</span>
+              </li>
+              <li data-risk="MODERATE">
+                <IconAlert size={18} />
+                <span>Worth a tweak</span>
+              </li>
+              <li data-risk="HIGH">
+                <IconPause size={18} />
+                <span>Handle with care</span>
+              </li>
+            </ul>
+          </section>
+        </div>
+      </div>
+
+      <div className="landing-frame">
         {/* ── FAQ ─────────────────────────────────────────────── */}
         <section className="landing-section" id="faq">
           <div className="landing-section-head">
@@ -458,8 +767,8 @@ export default function LandingPage() {
         </section>
       </div>
 
-      {/* ── Final CTA (dark) ──────────────────────────────────── */}
-      <div className="landing-dark">
+      {/* ── Final CTA (tint band) ─────────────────────────────── */}
+      <div className="landing-band">
         <div className="landing-frame">
           <section className="landing-final">
             <h2 className="landing-h2">Your next meal is the start.</h2>
@@ -470,6 +779,9 @@ export default function LandingPage() {
             <Link className="landing-cta" href="/check">
               Check your first meal — free
             </Link>
+            <p className="landing-cta-hint">
+              No login. No card. {TASTER_LIMIT} free checks on your first day.
+            </p>
           </section>
         </div>
       </div>
@@ -494,6 +806,28 @@ export default function LandingPage() {
               <h3>Legal</h3>
               <Link href="/privacy">Privacy</Link>
               <Link href="/terms">Terms</Link>
+            </div>
+            <div className="landing-footer-col">
+              <h3>Apps</h3>
+              {/* Waitlist entries, not store listings — they render as plain
+                  text when no waitlist URL is configured, so nothing on this
+                  page ever looks tappable without being tappable. They sat
+                  directly under the hero CTA until 2026-07-27, where two inert
+                  pills split attention with the one real action. */}
+              {androidWaitlist ? (
+                <a href={androidWaitlist}>Google Play — join the waitlist</a>
+              ) : (
+                <span className="landing-footer-muted">
+                  Google Play — coming soon
+                </span>
+              )}
+              {iosWaitlist ? (
+                <a href={iosWaitlist}>App Store — join the waitlist</a>
+              ) : (
+                <span className="landing-footer-muted">
+                  App Store — coming soon
+                </span>
+              )}
             </div>
           </div>
           <p className="result-disclaimer">{BOUNDARY_DISCLAIMER}</p>

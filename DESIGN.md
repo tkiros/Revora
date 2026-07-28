@@ -36,7 +36,9 @@ calm permission or gives one clear next action. Rules:
 | `--safe-border` / `--safe-bg` / `--safe-text` / `--safe-badge` | `#0f766e` / `#ecfdf5` / `#065f46` / `#d1fae5` | SAFE verdict: border, card tint, text, badge fill |
 | `--moderate-border` / `--moderate-bg` / `--moderate-text` / `--moderate-badge` | `#b45309` / `#fffbeb` / `#92400e` / `#fef3c7` | MODERATE verdict set |
 | `--high-border` / `--high-bg` / `--high-text` / `--high-badge` | `#b91c1c` / `#fef2f2` / `#991b1b` / `#fee2e2` | HIGH verdict set |
-| `--landing-band` | `#0c332e` | landing dark bands (deep green-slate) |
+
+(`--landing-band` `#0c332e` was removed 2026-07-27 with the landing dark bands.
+See §Marketing landing.)
 
 One brand accent (deep green, 2026-07-07 revamp — replaces the slate-only rule).
 Risk colors are STILL semantic-only, but graduate from border-only to the full
@@ -53,8 +55,21 @@ colors decoratively.
   alone — that variable failed to cascade in production Chromium and dropped the
   whole app to Times New Roman (fixed 2026-07-21 design-review, FINDING-030). Keep
   the className on `<body>`; the CSS var stack stays as the declared fallback.
+- **Reading face, LANDING ONLY (added 2026-07-27):** `var(--font-body)` — Source
+  Sans 3 (400/600/700) via `next/font`. Plus Jakarta Sans was setting headlines
+  and paragraphs both; a geometric sans at 14–15px is the wrong tool for body
+  copy read by 40–60-year-olds on a phone, and the owner flagged the small text
+  as hard to read. Source Sans 3 has a larger x-height and open apertures.
+  **The app UI is unchanged and stays single-family** — this pairing applies
+  under `.landing` only. Headlines, the wordmark, buttons, and uppercase labels
+  keep Plus Jakarta Sans there too, so the contrast is display-vs-text, never
+  two faces doing one job. Both `variable`s are declared on `<html>` and both
+  classNames on `<body>`, for the cascade reason above.
 - Base 16px / 1.5. Body copy 1.65 line-height.
 - Scale: 13px uppercase eyebrow (700, 0.08em tracking) · 14–15px hints/meta · 16px body + inputs · 18px subheads (700) · titles `clamp(2rem, 7vw, 2.6rem)` (tight -0.03em).
+- **Landing scale is larger** (§Marketing landing): nothing below 16px except
+  tracked uppercase labels; body 16.5–17px, ledes 18.5px, hero sub
+  `clamp(1.15rem, 2.1vw, 1.4rem)`.
 - Weights: 400 body, 600 secondary emphasis, 700 headings/CTAs. Nothing lighter or heavier.
 
 ## Shape & space
@@ -97,18 +112,44 @@ shadow, the type stack) but relaxes two app rules, on this surface ONLY:
 
 - Width: `.landing-frame` is `max-width: 1080px` with responsive two-column
   grids — the 480px `.page-frame` rule stays app-only.
-- Dark bands: `.landing-dark` sections use `--landing-band` (#0c332e,
-  deep green-slate) as a BACKGROUND with `--accent-contrast` text — the
-  hero, and the closing CTA. Inside dark bands the primary CTA inverts
-  (`.landing-cta` — white pill, dark text). Risk colors remain
-  semantic-only, even here.
+
+### Surface rhythm (amended 2026-07-27 — the dark bands are gone)
+
+The landing was built with two deep-green `.landing-dark` bands (hero, closing
+CTA) on the `--landing-band` token. **Both were removed on owner instruction:
+the surface must read light, simple, and easy to navigate.** `.landing-dark`
+and `--landing-band` no longer exist; do not reintroduce them.
+
+Depth now comes from three LIGHT planes, alternated down the page, separated by
+a 1px `--border-soft` hairline:
+
+| Class | Background | Used by |
+| --- | --- | --- |
+| `.landing-sheet` | `--surface` (white) | nav + hero, the three-answers row |
+| `.landing-band` | `--accent-tint` | who-it's-for, Pantry Review, closing CTA |
+| *(default)* | `--page-bg` | how-it-works, what-you-get, trust, pricing, FAQ, footer |
+
+The primary CTA is now an **accent-filled pill** (`--accent` fill,
+`--accent-contrast` text, measured 7.2:1), not the inverted white pill the dark
+bands required. `.landing-cta--sm` is the nav size; `.landing-cta--ghost` is the
+outline variant, used once, for the Pantry Review's secondary action. One filled
+pill per viewport. Risk colors remain semantic-only.
+
+Section padding is fluid (`clamp(52px, 7vw, 104px)`, with a `--tight` step) —
+the previous flat `56px` on every section is what made the page read as having
+no flow.
 
 Credibility is honesty, not decoration: no fabricated ratings, user counts,
 or testimonials. The proof points are the disclaimer, the research
-disclosure (/how-it-works), the `.landing-proof-band` (CDC DPP citation,
-hedged and attributed — never a promise about the user's numbers),
+disclosure (/how-it-works), the `.landing-proof-band` (hedged and attributed —
+never a promise about the user's numbers; the trial citation itself lives only
+on /how-it-works, pinned by claims-boundary-copy.test.ts),
 encrypted-at-rest + one-tap delete, and the pre-charge email promise. All
 landing copy is claims-audited like app copy.
+
+The `.landing-proof-band` left column is a LABEL, not a statistic. It was
+styled as a 3.6rem number slot that CSS specificity silently overrode to 15px;
+a real number there would read as Revora's own result and is out of bounds.
 
 ## Input-method row (added 2026-07-07, three-way meal input)
 
