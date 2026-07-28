@@ -1683,6 +1683,13 @@ button.inline-link {
    work for 40+ thumbs: expand the tap box to ~44px without moving the text
    (padding grows the hit area, negative margin cancels the layout shift), and
    give them the same themed ring every other landing focusable has. */
+/* .result-title asks for 800, but the landing reading face (Source Sans 3)
+   loads 400/600/700 only — without this the three verdict titles render
+   synthetic faux-bold. The app keeps 800: Plus Jakarta Sans ships it. */
+.landing .result-title {
+  font-weight: 700;
+}
+
 .landing .inline-link,
 .landing .result-disclaimer-link {
   display: inline-block;
