@@ -17,6 +17,7 @@ import { BOUNDARY_DISCLAIMER } from "../lib/revora/boundary-copy";
 import { RISK_LABELS } from "../lib/revora/labels";
 import { paywallMode, resolvePriceVariant } from "../lib/server/pricing";
 import { storeWaitlistUrl } from "../lib/waitlist";
+import { reading } from "./fonts";
 
 export const metadata: Metadata = {
   title: "Revora — A cautious educational read on your meal",
@@ -62,7 +63,8 @@ export default function LandingPage() {
   const trialFunnel = paywallMode() === "trial";
   const monthlyPrice = resolvePriceVariant().display;
   return (
-    <main className="landing">
+    // reading.className: var-free source of the landing body family (app/fonts.ts, FINDING-030)
+    <main className={`landing ${reading.className}`}>
       {/* ── Nav + hero (white sheet) ──────────────────────────── */}
       <div className="landing-sheet">
         <div className="landing-frame">

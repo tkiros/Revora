@@ -2379,9 +2379,11 @@ button.inline-link {
    keeping it in one block makes the pass reviewable and revertible.
    ============================================================ */
 
-.landing {
-  font-family: var(--font-body), var(--font-sans), system-ui, sans-serif;
-}
+/* The landing body family (Source Sans 3) comes from reading.className on the
+   landing root (app/page.tsx) — a literal, var-free declaration, so a failed
+   var cascade can't drop this page to a fallback face (FINDING-030). Display
+   elements below re-take Plus Jakarta Sans via var(--font-sans); if that var
+   ever fails they inherit the real reading face instead of a system font. */
 
 .landing-wordmark,
 .landing-h1,
