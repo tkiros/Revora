@@ -100,7 +100,9 @@ export default function LandingPage() {
             </Link>
           </nav>
 
-          <section className="landing-hero" id="landing-hero">
+          {/* tabIndex={-1}: the skip link must MOVE FOCUS here, not just
+              scroll — same as the app shell's #app-content target. */}
+          <section className="landing-hero" id="landing-hero" tabIndex={-1}>
             <div className="landing-hero-copy">
               {/* The "what is this" answer, before the headline. A visitor
                   should not have to read a paragraph to learn the category. */}
