@@ -2317,15 +2317,6 @@ button.inline-link {
   margin-top: 32px;
 }
 
-.landing-footer-muted {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  color: var(--text-muted);
-  font-size: 14.5px;
-  font-weight: 600;
-}
-
 .landing-footer {
   border-top: 1px solid var(--border-soft);
   padding: 36px 0 48px;
@@ -2492,8 +2483,7 @@ button.inline-link {
 .landing-price-tile p,
 .landing-verdict-row,
 .landing-verdict-meal,
-.landing-footer-col a,
-.landing-footer-muted {
+.landing-footer-col a {
   font-size: 16.5px;
   line-height: 1.55;
 }
