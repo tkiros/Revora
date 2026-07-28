@@ -65,6 +65,12 @@ export default function LandingPage() {
   return (
     // reading.className: var-free source of the landing body family (app/fonts.ts, FINDING-030)
     <main className={`landing ${reading.className}`}>
+      {/* Same skip affordance the app shell has (DESIGN.md §App shell) —
+          keyboard users shouldn't re-tab the nav on the marketing surface
+          either. */}
+      <a href="#landing-hero" className="app-skip">
+        Skip to content
+      </a>
       {/* ── Nav + hero (white sheet) ──────────────────────────── */}
       <div className="landing-sheet">
         <div className="landing-frame">
@@ -89,7 +95,7 @@ export default function LandingPage() {
             </Link>
           </nav>
 
-          <section className="landing-hero">
+          <section className="landing-hero" id="landing-hero">
             <div className="landing-hero-copy">
               {/* The "what is this" answer, before the headline. A visitor
                   should not have to read a paragraph to learn the category. */}
@@ -122,7 +128,7 @@ export default function LandingPage() {
                   ledger has recorded this row as living on app/page.tsx since
                   launch, but no version of the page rendered it — found during
                   the 2026-07-27 landing audit. Restored verbatim. */}
-              <ul className="landing-trust-strip">
+              <ul className="landing-trust-strip" role="list">
                 <li>No login for your first checks.</li>
                 <li>When we&apos;re unsure, we say so.</li>
                 <li>
@@ -158,7 +164,11 @@ export default function LandingPage() {
           who is it for, how fast, what does it cost me to try". */}
       <div className="landing-sheet">
         <div className="landing-frame">
-          <ul className="landing-glance">
+          {/* sr-only heading + explicit list role: these four facts were
+              unreachable by heading/list navigation (list-style:none strips
+              list semantics in Safari/VoiceOver). */}
+          <h2 className="sr-only">Revora at a glance</h2>
+          <ul className="landing-glance" role="list">
             <li>
               <span className="landing-glance-fact">10 seconds</span>
               <span className="landing-glance-label">
@@ -203,7 +213,7 @@ export default function LandingPage() {
                 between is supposed to be your job to figure out.
               </p>
             </div>
-            <ul className="landing-pains">
+            <ul className="landing-pains" role="list">
               <li>
                 <strong>The advice was two words long.</strong> “Eat better.”
                 Better than what? Is oatmeal fine? Is the sandwich at lunch a
@@ -686,7 +696,7 @@ export default function LandingPage() {
                 </Link>
               </div>
             </div>
-            <ul className="landing-pantry-buckets">
+            <ul className="landing-pantry-buckets" role="list">
               <li data-risk="SAFE">
                 <IconCheck size={18} />
                 <span>Enjoy freely</span>
@@ -793,7 +803,10 @@ export default function LandingPage() {
       {/* ── Footer ────────────────────────────────────────────── */}
       <div className="landing-frame">
         <footer className="landing-footer">
-          <div className="landing-footer-cols">
+          {/* The nav collapses to wordmark+CTA below 640px and relies on the
+              footer as the fallback — so the footer must BE navigation to
+              assistive tech, not four bare divs. */}
+          <nav className="landing-footer-cols" aria-label="Footer">
             <div className="landing-footer-col">
               <h3>Product</h3>
               <Link href="/check">Check a meal</Link>
@@ -825,7 +838,7 @@ export default function LandingPage() {
                 <a href={iosWaitlist}>App Store — join the waitlist</a>
               ) : null}
             </div>
-          </div>
+          </nav>
           <p className="result-disclaimer">{BOUNDARY_DISCLAIMER}</p>
         </footer>
       </div>
