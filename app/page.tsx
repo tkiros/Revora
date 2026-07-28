@@ -813,25 +813,17 @@ export default function LandingPage() {
             </div>
             <div className="landing-footer-col">
               <h3>Apps</h3>
-              {/* Waitlist entries, not store listings — they render as plain
-                  text when no waitlist URL is configured, so nothing on this
-                  page ever looks tappable without being tappable. They sat
-                  directly under the hero CTA until 2026-07-27, where two inert
-                  pills split attention with the one real action. */}
+              {/* The true today-story leads; store waitlists render only when
+                  configured. No "coming soon" placeholders — this page promises
+                  "nothing on this list is coming soon", and the footer is the
+                  last thing a scanner reads. */}
+              <Link href="/get-the-app">Add to home screen — works today</Link>
               {androidWaitlist ? (
                 <a href={androidWaitlist}>Google Play — join the waitlist</a>
-              ) : (
-                <span className="landing-footer-muted">
-                  Google Play — coming soon
-                </span>
-              )}
+              ) : null}
               {iosWaitlist ? (
                 <a href={iosWaitlist}>App Store — join the waitlist</a>
-              ) : (
-                <span className="landing-footer-muted">
-                  App Store — coming soon
-                </span>
-              )}
+              ) : null}
             </div>
           </div>
           <p className="result-disclaimer">{BOUNDARY_DISCLAIMER}</p>
