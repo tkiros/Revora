@@ -196,7 +196,7 @@ export function PaywallCard() {
         <li>Your full history, on every device</li>
         <li>The progress view</li>
         <li>Meal memory for the meals you repeat</li>
-        <li>A weekly learning summary</li>
+        <li>The 90-day learning journey, with its weekly recap</li>
         <li>One gentle daily reminder (optional)</li>
       </ul>
       {/* F-24: this card used to carry a popularity flag claiming it was the

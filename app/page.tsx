@@ -11,6 +11,7 @@ import {
 } from "../components/icons";
 import { TASTER_LIMIT } from "../lib/client/taster-store";
 import { FREE_DAILY_CHECKS } from "../lib/free-tier";
+import { learningJourneyUiEnabled } from "../lib/learning-journey-flag";
 import { longitudinalInsightsEnabled } from "../lib/longitudinal-insights-flag";
 import { photoInputEnabled } from "../lib/photo-input-flag";
 import { BOUNDARY_DISCLAIMER } from "../lib/revora/boundary-copy";
@@ -55,6 +56,10 @@ export default function LandingPage() {
   const iosWaitlist = storeWaitlistUrl("ios");
   const photoEnabled = photoInputEnabled();
   const insightsEnabled = longitudinalInsightsEnabled();
+  // The journey card is flag-gated like every other flag-dependent claim on
+  // this page: env-reference.md §rollback — "the landing must not advertise
+  // an artifact the journey doesn't render." Flag off → the recap card.
+  const journeyEnabled = learningJourneyUiEnabled();
   // §0.2 #4 — the pricing section renders from the SAME server flags checkout
   // enforces (paywallMode + resolvePriceVariant), so the landing can never
   // promise a funnel or a price the live config doesn't run. Mismatch here is
@@ -433,12 +438,33 @@ export default function LandingPage() {
               </p>
             </div>
             <div className="landing-feature">
-              <h3>A weekly recap in sentences</h3>
-              <p>
-                Plain lines about what you did, like days checked in and steps
-                followed through. Never a grade, never a streak to break,
-                never a lab prediction.
-              </p>
+              {journeyEnabled ? (
+                <>
+                  <h3>A 90-day journey, recapped weekly</h3>
+                  <p>
+                    {/* Every claim here is pinned to the journey the code
+                        ships: fields from lib/journey/weekly-learning.ts,
+                        graduation at day 90 (journey-card.tsx isComplete),
+                        pause = frozen day count (lib/journey/state.ts), and
+                        the CANCEL_INDEPENDENCE_COPY billing promise. */}
+                    A staged 90-day learning journey, recapped each week in
+                    plain lines — the meals you explored, the choices you
+                    saved, and one thing worth trying next. Never a grade,
+                    never a streak to break, never a lab prediction. Pause any
+                    time (your day count freezes), graduate at day 90 — and
+                    graduating doesn&apos;t change your billing.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h3>A weekly recap in sentences</h3>
+                  <p>
+                    Plain lines about what you did, like days checked in and
+                    steps followed through. Never a grade, never a streak to
+                    break, never a lab prediction.
+                  </p>
+                </>
+              )}
             </div>
             <div className="landing-feature">
               <h3>One reminder, if you want it</h3>
