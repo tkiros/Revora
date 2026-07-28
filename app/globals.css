@@ -1679,6 +1679,23 @@ button.inline-link {
   outline-offset: 3px;
 }
 
+/* Trust links ("Privacy", "Read the evidence…") do the page's heaviest trust
+   work for 40+ thumbs: expand the tap box to ~44px without moving the text
+   (padding grows the hit area, negative margin cancels the layout shift), and
+   give them the same themed ring every other landing focusable has. */
+.landing .inline-link,
+.landing .result-disclaimer-link {
+  display: inline-block;
+  padding: 11px 2px;
+  margin: -11px -2px;
+}
+
+.landing .inline-link:focus-visible,
+.landing .result-disclaimer-link:focus-visible {
+  outline: 3px solid rgba(13, 95, 87, 0.45);
+  outline-offset: 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .landing-cta {
     transition: none;
