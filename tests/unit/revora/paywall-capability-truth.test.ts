@@ -58,7 +58,9 @@ const BULLET_CAPABILITY: { match: RegExp; key: keyof Capabilities }[] = [
   { match: /progress view/i, key: "progress" },
   { match: /daily reminder/i, key: "nudges" },
   { match: /meal memory/i, key: "mealMemory" },
-  { match: /weekly learning summary/i, key: "weeklyLearning" }
+  // The 90-day journey and its weekly summary are one capability: both sit
+  // behind LEARNING_JOURNEY_ENABLED + premium (app/api/journey/handlers.ts).
+  { match: /90-day learning journey.*weekly recap/i, key: "weeklyLearning" }
 ];
 
 function paywallBullets(): string[] {
