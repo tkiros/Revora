@@ -1,9 +1,10 @@
 // §0.2 #6 — acquisition attribution. Closed enum end to end: the raw
 // utm_source string is mapped onto CHANNELS at capture time and ONLY the
 // mapped value is ever stored or sent, so the analytics no-free-text contract
-// (lib/client/analytics.ts) holds by construction. Campaign-level granularity
-// stays in Umami's native pageview query capture; this module only answers
-// "which channel" for funnel events.
+// (lib/client/analytics.ts) holds by construction. NOTE: this event is the
+// ONLY channel read — PR-6's data-exclude-search (app/layout.tsx) strips
+// query strings client-side before they reach Umami, so the dashboard has no
+// native UTM/query capture at all.
 
 export const CHANNELS = [
   "reddit",
