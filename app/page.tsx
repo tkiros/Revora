@@ -68,14 +68,18 @@ export default function LandingPage() {
   const trialFunnel = paywallMode() === "trial";
   const monthlyPrice = resolvePriceVariant().display;
   return (
-    // reading.className: var-free source of the landing body family (app/fonts.ts, FINDING-030)
-    <main className={`landing ${reading.className}`}>
-      {/* Same skip affordance the app shell has (DESIGN.md §App shell) —
-          keyboard users shouldn't re-tab the nav on the marketing surface
-          either. */}
+    <>
+      {/* Same skip affordance the app shell has (DESIGN.md §App shell), and
+          like the shell it lives OUTSIDE <main> — a skip link inside the
+          landmark it skips within is announced as main content. Being outside
+          also keeps the first .landing-sheet a :first-child, which the
+          hairline-seam selector depends on. */}
       <a href="#landing-hero" className="app-skip">
         Skip to content
       </a>
+      {/* reading.className: the load-bearing source of the landing body
+          family (app/fonts.ts). */}
+      <main className={`landing ${reading.className}`}>
       {/* ── Nav + hero (white sheet) ──────────────────────────── */}
       <div className="landing-sheet">
         <div className="landing-frame">
@@ -882,6 +886,7 @@ export default function LandingPage() {
           <p className="result-disclaimer">{BOUNDARY_DISCLAIMER}</p>
         </footer>
       </div>
-    </main>
+      </main>
+    </>
   );
 }
