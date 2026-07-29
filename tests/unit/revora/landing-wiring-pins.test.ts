@@ -81,9 +81,50 @@ describe("landing font wiring (FINDING-030)", () => {
     const fonts = read("app/fonts.ts");
     const readingBlock = fonts.slice(fonts.indexOf("Source_Sans_3"));
     expect(readingBlock).toContain('"700"');
-    expect(read("app/globals.css")).toMatch(
-      /\.landing \.result-title \{\s*font-weight: 700;/
+
+    // Match the rule's whole body rather than its first declaration: the
+    // property order inside the block is not the contract, the weight is.
+    const rule = read("app/globals.css").match(
+      /\.landing \.result-title \{([^}]*)\}/
     );
+    expect(rule?.[1]).toContain("font-weight: 700;");
+
+    // Hierarchy cap: the app's 28px .result-title outranked the .landing-h2
+    // above it at narrow widths (25.6px at 375px). Keep the landing card title
+    // subordinate to the section heading that introduces it.
+    expect(rule?.[1]).toContain("font-size: 22px;");
+  });
+
+  it("no landing selector declares font-size twice", () => {
+    // The 2026-07-27 legibility pass originally shipped as a block APPENDED
+    // after the landing rules, so ~26 selectors carried two competing
+    // font-size declarations and only source order decided which won. That is
+    // invisible until someone reorders the file, and it had already silently
+    // defeated .landing-cta--sm (the nav pill rendered 17px, not 15px). The
+    // values now live in the base rules; this fails if a second declaration
+    // for the same landing selector creeps back in.
+    const css = read("app/globals.css");
+    const seen = new Map<string, number>();
+
+    for (const [, selector, body] of css.matchAll(
+      /(^|\n)([^@{}\n][^{}]*)\{([^}]*)\}/g
+    )) {
+      const sel = selector.trim();
+      // Landing element rules only. Media-query and pseudo-state blocks are
+      // legitimate overrides of a base value, not accidental duplicates.
+      if (!sel.startsWith(".landing")) continue;
+      if (sel.includes(":") || sel.includes("@")) continue;
+      if (!/font-size:/.test(body)) continue;
+      for (const one of sel.split(",").map((s) => s.trim())) {
+        seen.set(one, (seen.get(one) ?? 0) + 1);
+      }
+    }
+
+    const duplicated = [...seen.entries()]
+      .filter(([, n]) => n > 1)
+      .map(([sel, n]) => `${sel} (${n}x)`);
+
+    expect(duplicated).toEqual([]);
   });
 });
 
