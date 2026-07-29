@@ -49,12 +49,16 @@ colors decoratively.
 ## Type
 
 - Stack: `var(--font-sans), Arial, Helvetica, sans-serif` — Plus Jakarta Sans
-  (variable 400–800) via `next/font` in `app/layout.tsx`, `display: swap`, Arial
-  fallback so offline test runs never flash unstyled. One family, nothing else.
-  Applied via `sans.className` on `<body>`, not the `var(--font-sans)` indirection
-  alone — that variable failed to cascade in production Chromium and dropped the
-  whole app to Times New Roman (fixed 2026-07-21 design-review, FINDING-030). Keep
-  the className on `<body>`; the CSS var stack stays as the declared fallback.
+  (variable 400–800) via `next/font` in `app/fonts.ts` (wired in
+  `app/layout.tsx`), `display: swap`, Arial fallback so offline test runs never
+  flash unstyled. One family, nothing else. Applied via `sans.className` on
+  `<body>`, and that class is LOAD-BEARING: `body { font: inherit }` in
+  globals.css kills the elemental `body` font rules at equal specificity, so
+  the className is the only thing between the app and the UA default face —
+  the FINDING-030 Times New Roman incident (2026-07-21). Root cause corrected
+  2026-07-28: the original diagnosis blamed the var() cascade; the reset is
+  the actual mechanism (see TODOS, "body font reset"). Keep the className on
+  `<body>`; the CSS var stack stays as the declared fallback.
 - **Reading face, LANDING ONLY (added 2026-07-27):** `var(--font-body)` — Source
   Sans 3 (400/600/700) via `next/font`. Plus Jakarta Sans was setting headlines
   and paragraphs both; a geometric sans at 14–15px is the wrong tool for body
@@ -63,8 +67,14 @@ colors decoratively.
   **The app UI is unchanged and stays single-family** — this pairing applies
   under `.landing` only. Headlines, the wordmark, buttons, and uppercase labels
   keep Plus Jakarta Sans there too, so the contrast is display-vs-text, never
-  two faces doing one job. Both `variable`s are declared on `<html>` and both
-  classNames on `<body>`, for the cascade reason above.
+  two faces doing one job. (Amended 2026-07-28:) `reading.className` goes on
+  the landing ROOT in `app/page.tsx`, NOT `<body>` — two font classNames on
+  `<body>` would race by stylesheet injection order. The reading face is
+  imported only by `app/page.tsx`, so Source Sans 3's @font-face + preloads
+  ship with the landing route, not with every app route. Nothing reads
+  `var(--font-body)`; the variable stays declared only so a future consumer
+  doesn't get an undefined var. Loaded weights are 400/600/700 — landing
+  titles use 700, never a heavier faux-bold.
 - Base 16px / 1.5. Body copy 1.65 line-height.
 - Scale: 13px uppercase eyebrow (700, 0.08em tracking) · 14–15px hints/meta · 16px body + inputs · 18px subheads (700) · titles `clamp(2rem, 7vw, 2.6rem)` (tight -0.03em).
 - **Landing scale is larger** (§Marketing landing): nothing below 16px except
@@ -132,8 +142,10 @@ a 1px `--border-soft` hairline:
 The primary CTA is now an **accent-filled pill** (`--accent` fill,
 `--accent-contrast` text, measured 7.2:1), not the inverted white pill the dark
 bands required. `.landing-cta--sm` is the nav size; `.landing-cta--ghost` is the
-outline variant, used once, for the Pantry Review's secondary action. One filled
-pill per viewport. Risk colors remain semantic-only.
+outline variant, used twice: the nav CTA (amended 2026-07-28 — the nav pill went
+ghost so the hero owns the only filled pill above the fold) and the Pantry
+Review's secondary action. **One filled pill per viewport** — now enforced in
+code, not just prose. Risk colors remain semantic-only.
 
 Section padding is fluid (`clamp(52px, 7vw, 104px)`, with a `--tight` step) —
 the previous flat `56px` on every section is what made the page read as having

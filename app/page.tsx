@@ -18,6 +18,7 @@ import { BOUNDARY_DISCLAIMER } from "../lib/revora/boundary-copy";
 import { RISK_LABELS } from "../lib/revora/labels";
 import { paywallMode, resolvePriceVariant } from "../lib/server/pricing";
 import { storeWaitlistUrl } from "../lib/waitlist";
+import { reading } from "./fonts";
 
 export const metadata: Metadata = {
   title: "Revora — A cautious educational read on your meal",
@@ -67,7 +68,18 @@ export default function LandingPage() {
   const trialFunnel = paywallMode() === "trial";
   const monthlyPrice = resolvePriceVariant().display;
   return (
-    <main className="landing">
+    <>
+      {/* Same skip affordance the app shell has (DESIGN.md §App shell), and
+          like the shell it lives OUTSIDE <main> — a skip link inside the
+          landmark it skips within is announced as main content. Being outside
+          also keeps the first .landing-sheet a :first-child, which the
+          hairline-seam selector depends on. */}
+      <a href="#landing-hero" className="app-skip">
+        Skip to content
+      </a>
+      {/* reading.className: the load-bearing source of the landing body
+          family (app/fonts.ts). */}
+      <main className={`landing ${reading.className}`}>
       {/* ── Nav + hero (white sheet) ──────────────────────────── */}
       <div className="landing-sheet">
         <div className="landing-frame">
@@ -85,12 +97,16 @@ export default function LandingPage() {
               <a href="#pricing">Pricing</a>
               <Link href="/pantry">Pantry Review</Link>
             </div>
-            <Link className="landing-cta landing-cta--sm" href="/check">
+            {/* Ghost, not filled: one filled pill per viewport (DESIGN.md
+                §Marketing landing) — the hero CTA is the filled one. */}
+            <Link className="landing-cta landing-cta--sm landing-cta--ghost" href="/check">
               Check a meal
             </Link>
           </nav>
 
-          <section className="landing-hero">
+          {/* tabIndex={-1}: the skip link must MOVE FOCUS here, not just
+              scroll — same as the app shell's #app-content target. */}
+          <section className="landing-hero" id="landing-hero" tabIndex={-1}>
             <div className="landing-hero-copy">
               {/* The "what is this" answer, before the headline. A visitor
                   should not have to read a paragraph to learn the category. */}
@@ -123,7 +139,7 @@ export default function LandingPage() {
                   ledger has recorded this row as living on app/page.tsx since
                   launch, but no version of the page rendered it — found during
                   the 2026-07-27 landing audit. Restored verbatim. */}
-              <ul className="landing-trust-strip">
+              <ul className="landing-trust-strip" role="list">
                 <li>No login for your first checks.</li>
                 <li>When we&apos;re unsure, we say so.</li>
                 <li>
@@ -159,7 +175,11 @@ export default function LandingPage() {
           who is it for, how fast, what does it cost me to try". */}
       <div className="landing-sheet">
         <div className="landing-frame">
-          <ul className="landing-glance">
+          {/* sr-only heading + explicit list role: these four facts were
+              unreachable by heading/list navigation (list-style:none strips
+              list semantics in Safari/VoiceOver). */}
+          <h2 className="sr-only">Revora at a glance</h2>
+          <ul className="landing-glance" role="list">
             <li>
               <span className="landing-glance-fact">10 seconds</span>
               <span className="landing-glance-label">
@@ -169,7 +189,7 @@ export default function LandingPage() {
             <li>
               <span className="landing-glance-fact">5.7–6.4%</span>
               <span className="landing-glance-label">
-                the only A1C range Revora is built for
+                if your A1C is here, this was built for you
               </span>
             </li>
             <li>
@@ -204,7 +224,7 @@ export default function LandingPage() {
                 between is supposed to be your job to figure out.
               </p>
             </div>
-            <ul className="landing-pains">
+            <ul className="landing-pains" role="list">
               <li>
                 <strong>The advice was two words long.</strong> “Eat better.”
                 Better than what? Is oatmeal fine? Is the sandwich at lunch a
@@ -217,7 +237,7 @@ export default function LandingPage() {
                 in front of you tonight.
               </li>
               <li>
-                <strong>The apps want you to become an accountant.</strong>
+                <strong>The apps want you to become an accountant.</strong>{" "}
                 Weigh it, log it, scan the barcode, hit your macros. You did
                 not ask for a second job. You asked what to do about dinner.
               </li>
@@ -252,7 +272,12 @@ export default function LandingPage() {
         {/* ── How it works ────────────────────────────────────── */}
         <section className="landing-section" id="how-it-works">
           <div className="landing-section-head">
-            <h2 className="landing-h2">Three ways in. One calm answer out.</h2>
+            {/* The way-count must match Step 1's input list, which is gated
+                on the photo flag — a careful reader counts. */}
+            <h2 className="landing-h2">
+              {photoEnabled ? "Three ways in." : "Two ways in."} One calm
+              answer out.
+            </h2>
             <p className="landing-section-lede">
               Revora is built for the moment of the meal — when you&apos;re
               standing in the kitchen or staring at a menu and want a clearer
@@ -393,7 +418,35 @@ export default function LandingPage() {
               soon, in beta, or behind a waitlist.
             </p>
           </div>
+          {/* Order is ranked, not chronological: the three items no other
+              meal app can claim (clarifying questions, the doctor-visit
+              record, one-tap delete) lead — by this point the page has
+              already explained describe→answer twice. */}
           <div className="landing-features">
+            <div className="landing-feature">
+              <h3>It asks before it guesses</h3>
+              <p>
+                Type “oatmeal” and Revora asks whether it is plain or
+                sweetened, because the honest answer depends on it. Most apps
+                would just pick one and sound confident.
+              </p>
+            </div>
+            <div className="landing-feature">
+              <h3>A record you can actually show someone</h3>
+              <p>
+                Every check is saved to your account and visible on every
+                device. Six months from now you can open it at your appointment
+                instead of trying to remember.
+              </p>
+            </div>
+            <div className="landing-feature">
+              <h3>Your data, deleted on demand</h3>
+              <p>
+                Your A1C and meal text are encrypted at rest and stored only
+                with your say-so. One tap deletes all of it, account included,
+                with no retention screen in the way.
+              </p>
+            </div>
             <div className="landing-feature">
               <h3>Describe a meal in your own words</h3>
               <p>
@@ -414,14 +467,6 @@ export default function LandingPage() {
               </p>
             </div>
             <div className="landing-feature">
-              <h3>It asks before it guesses</h3>
-              <p>
-                Type “oatmeal” and Revora asks whether it is plain or
-                sweetened, because the honest answer depends on it. Most apps
-                would just pick one and sound confident.
-              </p>
-            </div>
-            <div className="landing-feature">
               <h3>Answers in the aisle and at the table</h3>
               <p>
                 It runs in the browser on your phone, so it is there in the
@@ -430,14 +475,9 @@ export default function LandingPage() {
               </p>
             </div>
             <div className="landing-feature">
-              <h3>A record you can actually show someone</h3>
-              <p>
-                Every check is saved to your account and visible on every
-                device. Six months from now you can open it at your appointment
-                instead of trying to remember.
-              </p>
-            </div>
-            <div className="landing-feature">
+              {/* Merge note: "A record you can actually show someone" now
+                  leads the grid (F-03 ranked order), so origin/main's copy of
+                  it here was dropped; its flag-gated journey card is kept. */}
               {journeyEnabled ? (
                 <>
                   <h3>A 90-day journey, recapped weekly</h3>
@@ -472,14 +512,6 @@ export default function LandingPage() {
                 A single nudge a day, off by default. Skip a day and nothing
                 breaks, nothing turns red, nothing guilt-trips you. Blank days
                 are just blank.
-              </p>
-            </div>
-            <div className="landing-feature">
-              <h3>Your data, deleted on demand</h3>
-              <p>
-                Your A1C and meal text are encrypted at rest and stored only
-                with your say-so. One tap deletes all of it, account included,
-                with no retention screen in the way.
               </p>
             </div>
             <div className="landing-feature">
@@ -650,7 +682,7 @@ export default function LandingPage() {
                   </p>
                 </div>
                 <div className="landing-price-tile">
-                  <p className="landing-price-day">After</p>
+                  <p className="landing-price-day">After your free week</p>
                   <p className="landing-price-what">{monthlyPrice}/month</p>
                   <p>
                     Unlimited checks, your history on every device, progress
@@ -696,8 +728,8 @@ export default function LandingPage() {
               <h2 className="landing-h2">Or check the whole kitchen, once</h2>
               <p className="landing-section-lede">
                 The Pantry Review sorts everything you already own into enjoy
-                freely, worth a tweak, and handle with care. One calm,
-                printable report, built from photos of your own shelves.
+                freely, worth a tweak, and handle with care. One printable
+                report, built from photos of your own shelves.
               </p>
               <p className="landing-pantry-terms">
                 One payment. <strong>Nothing renews.</strong>
@@ -708,7 +740,7 @@ export default function LandingPage() {
                 </Link>
               </div>
             </div>
-            <ul className="landing-pantry-buckets">
+            <ul className="landing-pantry-buckets" role="list">
               <li data-risk="SAFE">
                 <IconCheck size={18} />
                 <span>Enjoy freely</span>
@@ -815,7 +847,10 @@ export default function LandingPage() {
       {/* ── Footer ────────────────────────────────────────────── */}
       <div className="landing-frame">
         <footer className="landing-footer">
-          <div className="landing-footer-cols">
+          {/* The nav collapses to wordmark+CTA below 640px and relies on the
+              footer as the fallback — so the footer must BE navigation to
+              assistive tech, not four bare divs. */}
+          <nav className="landing-footer-cols" aria-label="Footer">
             <div className="landing-footer-col">
               <h3>Product</h3>
               <Link href="/check">Check a meal</Link>
@@ -835,30 +870,23 @@ export default function LandingPage() {
             </div>
             <div className="landing-footer-col">
               <h3>Apps</h3>
-              {/* Waitlist entries, not store listings — they render as plain
-                  text when no waitlist URL is configured, so nothing on this
-                  page ever looks tappable without being tappable. They sat
-                  directly under the hero CTA until 2026-07-27, where two inert
-                  pills split attention with the one real action. */}
+              {/* The true today-story leads; store waitlists render only when
+                  configured. No "coming soon" placeholders — this page promises
+                  "nothing on this list is coming soon", and the footer is the
+                  last thing a scanner reads. */}
+              <Link href="/get-the-app">Add to home screen — works today</Link>
               {androidWaitlist ? (
                 <a href={androidWaitlist}>Google Play — join the waitlist</a>
-              ) : (
-                <span className="landing-footer-muted">
-                  Google Play — coming soon
-                </span>
-              )}
+              ) : null}
               {iosWaitlist ? (
                 <a href={iosWaitlist}>App Store — join the waitlist</a>
-              ) : (
-                <span className="landing-footer-muted">
-                  App Store — coming soon
-                </span>
-              )}
+              ) : null}
             </div>
-          </div>
+          </nav>
           <p className="result-disclaimer">{BOUNDARY_DISCLAIMER}</p>
         </footer>
       </div>
-    </main>
+      </main>
+    </>
   );
 }
