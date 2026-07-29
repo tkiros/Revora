@@ -1679,10 +1679,6 @@ button.inline-link {
   outline-offset: 3px;
 }
 
-/* Trust links ("Privacy", "Read the evidence…") do the page's heaviest trust
-   work for 40+ thumbs: expand the tap box to ~44px without moving the text
-   (padding grows the hit area, negative margin cancels the layout shift), and
-   give them the same themed ring every other landing focusable has. */
 /* .result-title asks for 800, but the landing reading face (Source Sans 3)
    loads 400/600/700 only — without this the three verdict titles render
    synthetic faux-bold. The app keeps 800: Plus Jakarta Sans ships it. */
@@ -1690,13 +1686,12 @@ button.inline-link {
   font-weight: 700;
 }
 
-.landing .inline-link,
-.landing .result-disclaimer-link {
-  display: inline-block;
-  padding: 11px 2px;
-  margin: -11px -2px;
-}
-
+/* Trust links ("Read the evidence…", the demo card's "Privacy") get the same
+   themed ring every other landing focusable has. Deliberately NO tap-box
+   expansion: these are inline links in flowing prose (WCAG 2.5.8's inline
+   exception), an inline-block stops them wrapping inside the 420px demo card,
+   and the repo already rejected invisible hit areas once — "negative margins
+   made adjacent targets overlap" (footer 44px note, further down). */
 .landing .inline-link:focus-visible,
 .landing .result-disclaimer-link:focus-visible {
   outline: 3px solid rgba(13, 95, 87, 0.45);
