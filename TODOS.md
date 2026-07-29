@@ -15,12 +15,80 @@
 - **Why:** CONFIRMED against source 2026-07-21; deferred because each either re-litigates a shipped C7 decision or needs DESIGN.md amended first. The mechanical siblings (44px targets ×2, dead --text token, skip-link motion, heading order, Home h1, footer Home target, /meals + /journey tab titles, dead .app-topbar-account CSS) were fixed on `fix/design-review-post-c7`. Refuted from the audit: the tab bar's accent Check puck is NOT an icon-in-circle violation — §App shell explicitly sanctions "Check (the one accent-filled action)".
 - **Depends on / blocked by:** a DESIGN.md decision per item; pair with the next /design-review round.
 
-## Body font reset makes the elemental typography rules dead site-wide
+## ~~Body font reset makes the elemental typography rules dead site-wide~~ — DONE 2026-07-29
+- **Shipped on `fix/landing-followups`.** `body` dropped from the `font: inherit`
+  reset list, so the elemental `body` block (family / 16px / `line-height: 1.5`)
+  is live for the first time. Measured blast radius before merging: 513 of 782
+  elements across `/`, `/check`, `/privacy`, `/how-it-works`, `/onboarding`
+  changed computed line-height (all `normal` → 1.5×), **zero** font-size or
+  font-family changes — so the `sans.className` protection is untouched. Page
+  height grew 0.7–3.8% with no horizontal overflow at 375px or 1280px. The
+  original analysis is preserved below for the record.
+
+### Original entry (for the record)
 - **What:** `app/globals.css:75-80` declares `body, button, input, textarea { font: inherit }` immediately after the `body { font-family: var(--font-sans)…; font-size: 16px; line-height: 1.5 }` block (L66-73). Same specificity, later in source — `font: inherit` resets every font sub-property, so the whole elemental block is dead: body inherits font from `<html>` (which carries only next/font *variable* classes, no family), and body-level `16px` / `line-height: 1.5` have NEVER applied (body computes `line-height: normal`; surfaces that look right set their own). `sans.className` on `<body>` (class > element specificity) is the only thing between the app and the UA default face — which reframes FINDING-030: the Times New Roman incident's operative mechanism was this reset, not a failed `var()` cascade. Fix candidate is one token: drop `body` from the reset's selector list (the reset exists for form controls; `body { font: inherit }` is a no-op *except* for killing its sibling rule).
 - **Why:** Found by the 2026-07-28 ship adversarial review (cross-checked against source; confirmed). Deferred from `feat/landing-conversion-rebuild` because restoring `line-height: 1.5` at body level changes computed line-height for every element currently inheriting `normal` — that is a site-wide visual diff needing its own regression pass, not a landing-branch rider. The wrong-diagnosis comments in the diff's own files were corrected in-branch.
 - **Depends on / blocked by:** none — pair with the next /design-review or visual-regression round.
 
-## Landing CSS consolidation residuals (post-landing /design-review, 2026-07-28)
+## Landing CSS consolidation residuals — items 1-5 DONE 2026-07-29, 6-7 open
+- **Shipped on `fix/landing-followups`:**
+  (1) the appended legibility block is merged into the base rules — 26 selectors
+  (not ~20) carried two competing `font-size` declarations; verified
+  behaviour-preserving by diffing computed styles across 5 routes, the only
+  change being the **live regression it had been hiding**: `.landing-cta--sm`'s
+  15px was defeated by the appended `.landing-cta { font-size: 17px }`, so the
+  nav pill had been rendering 17px. `landing-wiring-pins.test.ts` now fails if
+  any landing selector declares `font-size` twice.
+  (2) 8 breakpoints → **3** (640 / 720 / 880); each old value moved to its
+  nearest cluster (560→640, 760→720, 820/860/900→880). Swept 16 widths from 375
+  to 1280: no horizontal overflow, column counts step cleanly 1 → 2 → 3/4.
+  (3) one `LandingPrimaryCta` component replaces five hand-built instances.
+  `.landing-cta-row--centered` was **renamed**, not restyled, to
+  `.landing-cta-stack--spaced` — it only ever set `margin-top`, and whether the
+  primary CTA should actually centre is a conversion decision, not a side
+  effect of fixing a class name. **That centring question is still open for the
+  owner.**
+  (4) consistency debt: off-spec `0.06` card shadow → `0.08`; the lone `0.35`
+  focus ring → `0.45`; the FAQ's off-scale 16px focus radius → 18px (matching
+  its own `<details>` box); `.landing-proof-item` moved onto the shared card
+  recipe (2px `--border-soft`, 24px) — it was the only bordered card on 1px
+  `--border-strong` + 14px, sitting in the trust section.
+  (5) mobile hierarchy inversion fixed: `.landing .result-title` capped at 22px
+  so an illustrative card title no longer outranks the `.landing-h2` above it.
+- **Still open:** item 6 (see the entry below — it is bigger than a naming
+  cleanup) and item 7 (owner decisions: Pantry band placement, and the 4
+  consecutive `--page-bg` sections mid-page).
+- The remaining paddings/gaps counts (7 card paddings, 11 gap values) were left
+  alone deliberately: collapsing them changes spacing on surfaces that passed a
+  design review at grade A, which is a design call rather than a defect.
+
+## `/how-it-works` is named six different things, and two of them promise the wrong page
+- **What:** the evidence page has no stable name, and the mismatch is worse than
+  the 2026-07-28 audit recorded. Current inbound labels: "Read the evidence and
+  limitations" (`app/page.tsx:607`), "Read exactly what it measures and its
+  honest limits" (`:630`), "How the weekly recap works" (`:867`), "How Revora
+  chooses a signal" (`components/result-card.tsx:250`, and DESIGN.md §Result
+  card sanctions that wording), "How this works"
+  (`app/(app)/journey/page.tsx:284`), "see how Revora works"
+  (`components/trial-wall.tsx:297`). Separately the landing nav's "How it works"
+  points at the on-page `#how-it-works` anchor, not this page at all.
+- **The real defect:** the page itself is scoped to the weekly progress view —
+  `metadata.title` "How this works · Revora", `<h1>` "What the progress view
+  measures", and its three sections cover what the recap measures, the research
+  behind it, and its limits. So the result card's "How Revora chooses a signal"
+  sends a user who just received a verdict to a page that never explains how the
+  verdict was chosen. That is a promise the destination does not keep, on the
+  surface where trust is most load-bearing.
+- **Why not fixed in the consolidation pass:** every one of these strings is
+  claims-audited copy (`tests/unit/revora/claims-boundary-copy.test.ts`), the
+  result-card label is written into DESIGN.md, and the fix is a content/IA
+  decision — either the page grows a signal-methodology section, or the result
+  card's trust link points somewhere that answers its own promise. Renaming
+  labels to match would paper over it.
+- **Depends on / blocked by:** owner call on which way to resolve it; touches
+  claims-audited copy either way.
+
+### Original entry (for the record)
 - **What:** Structural findings deferred from the landing conversion-rebuild fix round (12 mechanical fixes shipped on `feat/landing-conversion-rebuild`; full report in `~/.gstack/projects/revora/designs/design-audit-20260728/`): (1) the 2026-07-27 legibility pass was APPENDED to globals.css (L2366+) instead of merged — ~20 elements carry two competing font-size declarations resolved only by source order; any reorder silently reverts the readability work; merge the block into the base rules; (2) 8 landing-only breakpoints (560/640/720/760/820/860/880/900) with no shared set — collapse to 2-3; (3) the primary CTA is hand-assembled four different ways across five instances and `.landing-cta-row--centered` sets only margin-top (centers nothing) — extract one CTA component; (4) consistency debt cluster: card shadow on 1 of 8 card families + an off-spec 0.06 alpha variant, off-scale 6px/16px radii, 7 card paddings, 11 gap values, focus-ring alpha 0.45 vs 0.35, three border recipes (the outlier `.landing-proof-item` sits in the TRUST section); (5) mobile hierarchy inversion: `.result-title` 28px outranks `.landing-h2` 25.6px at 375px; (6) /how-it-works has three different link labels while the nav's "How it works" goes to the #how-it-works anchor — the evidence page has no stable name; (7) product decisions: Pantry band placement before the FAQ splits the primary conversion; mid-page runs 4 consecutive --page-bg sections.
 - **Why:** CONFIRMED against source 2026-07-28 (three-voice audit: live Playwright pass + Codex + consistency subagent, converging). Deferred because each is structural (CSS consolidation, component extraction, breakpoint policy) or needs an owner decision, not a mechanical fix. The mechanical siblings (body-font var-cascade protection, one filled pill, coming-soon footer, 44px trust links + focus rings, skip link + footer nav semantics, grid ranking, faux-bold verdict titles, copy pass) shipped on `feat/landing-conversion-rebuild`.
 - **Depends on / blocked by:** none for 1-6 (pure consolidation); 7 needs an owner call.
