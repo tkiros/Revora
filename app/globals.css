@@ -72,7 +72,14 @@ body {
   line-height: 1.5;
 }
 
-body,
+/* Form controls only. `body` used to be in this list, where `font: inherit`
+   reset every font sub-property of the block above at equal specificity and
+   later source order — so the elemental `body` font-family/16px/1.5 was dead,
+   and `sans.className` on <body> was the only thing between the app and the UA
+   default face. That is the real mechanism behind FINDING-030 (the Times New
+   Roman incident), not a failed var() cascade. Dropping `body` here restores
+   16px/1.5 as the inherited baseline; the className still wins the family by
+   class-vs-element specificity, so the font protection is unchanged. */
 button,
 input,
 textarea {
@@ -1529,6 +1536,36 @@ button.inline-link {
   color: var(--text-strong);
 }
 
+/* Display-vs-text pairing (2026-07-27 legibility pass, merged into the base
+   rules 2026-07-29). Body copy on this page is Source Sans 3, which arrives as
+   reading.className on the landing root (app/page.tsx) — a literal, var-free
+   declaration, so a failed var cascade can't drop the page to a fallback face
+   (FINDING-030). These display elements re-take Plus Jakarta Sans; if that var
+   ever fails they inherit the real reading face, never a system font.
+
+   The rest of that pass (the 14.5–16px scale moving to 16–22px) used to live in
+   an appended block at the end of this file, where ~26 selectors carried two
+   competing font-size declarations resolved only by source order — any reorder
+   silently reverted the readability work, and it had already defeated
+   `.landing-cta--sm`. Those values now live in the base rules themselves. */
+.landing-wordmark,
+.landing-h1,
+.landing-h2,
+.landing-eyebrow,
+.landing-cta,
+.landing-step h3,
+.landing-step-num,
+.landing-feature h3,
+.landing-proof-item h3,
+.landing-price-day,
+.landing-price-what,
+.landing-glance-fact,
+.landing-verdict-meal,
+.landing-faq summary,
+.landing-footer-col h3 {
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
 .landing-sheet {
   background: var(--surface);
 }
@@ -1596,7 +1633,7 @@ button.inline-link {
 
 .landing-nav-links a {
   color: inherit;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   text-decoration: none;
   opacity: 0.85;
@@ -1635,7 +1672,7 @@ button.inline-link {
   padding: 14px 26px;
   background: var(--accent);
   color: var(--accent-contrast);
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
   text-decoration: none;
   cursor: pointer;
@@ -1681,8 +1718,15 @@ button.inline-link {
 
 /* .result-title asks for 800, but the landing reading face (Source Sans 3)
    loads 400/600/700 only — without this the three verdict titles render
-   synthetic faux-bold. The app keeps 800: Plus Jakarta Sans ships it. */
+   synthetic faux-bold. The app keeps 800: Plus Jakarta Sans ships it.
+
+   The size is capped for hierarchy: the app's 28px .result-title outranked the
+   .landing-h2 section heading above it at narrow widths (25.6px at 375px,
+   where the h2's 4vw term is below its 1.6rem floor), so an illustrative card
+   title read as more important than the section it illustrates. 22px stays
+   subordinate at every width. */
 .landing .result-title {
+  font-size: 22px;
   font-weight: 700;
 }
 
@@ -1730,7 +1774,7 @@ button.inline-link {
    is load-bearing copy on this page, not a decorative kicker. */
 .landing-eyebrow {
   margin: 0;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1746,12 +1790,19 @@ button.inline-link {
 
 .landing-sub {
   margin: 0;
-  max-width: 54ch;
-  font-size: clamp(1.02rem, 2vw, 1.15rem);
-  line-height: 1.65;
-  opacity: 0.92;
+  max-width: 60ch;
+  font-size: clamp(1.15rem, 2.1vw, 1.4rem);
+  line-height: 1.6;
+  color: var(--text-body);
+  opacity: 1;
 }
 
+.landing-sub strong {
+  color: var(--text-strong);
+}
+
+/* Pairs a CTA with a sibling action side by side (the Pantry Review's ghost
+   button). The PRIMARY CTA does not use this — see .landing-cta-stack. */
 .landing-cta-row {
   display: flex;
   flex-wrap: wrap;
@@ -1759,9 +1810,19 @@ button.inline-link {
   gap: 12px;
 }
 
+/* The one assembly for the primary CTA. It was hand-built four different ways
+   across five instances (hint inside the row, hint outside the row, no hint,
+   and once with no row at all), so the button/caption relationship drifted per
+   section. One shape: button, optional caption beneath it. */
+.landing-cta-stack {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+}
+
 .landing-cta-hint {
   margin: 0;
-  font-size: 14px;
+  font-size: 16px;
   color: var(--text-muted);
 }
 
@@ -1778,8 +1839,8 @@ button.inline-link {
   position: relative;
   padding-left: 24px;
   color: var(--text-body);
-  font-size: 14.5px;
-  line-height: 1.5;
+  font-size: 16.5px;
+  line-height: 1.55;
 }
 
 .landing-trust-strip li::before {
@@ -1845,8 +1906,8 @@ button.inline-link {
 .landing-proof-band p {
   margin: 0;
   color: var(--text-body);
-  font-size: 15px;
-  line-height: 1.65;
+  font-size: 17px;
+  line-height: 1.62;
 }
 
 .landing-proof-band .landing-proof-note {
@@ -1886,9 +1947,10 @@ button.inline-link {
 
 .landing-section-lede {
   margin: 0;
+  max-width: 62ch;
   color: var(--text-body);
-  font-size: 16px;
-  line-height: 1.65;
+  font-size: 18.5px;
+  line-height: 1.6;
 }
 
 .landing-grid-3 {
@@ -1924,15 +1986,15 @@ button.inline-link {
 
 .landing-step h3 {
   margin: 0;
-  font-size: 19px;
+  font-size: 20px;
   line-height: 1.25;
 }
 
 .landing-step p {
   margin: 0;
   color: var(--text-body);
-  font-size: 15px;
-  line-height: 1.6;
+  font-size: 17px;
+  line-height: 1.62;
 }
 
 .landing-proof {
@@ -1946,25 +2008,29 @@ button.inline-link {
   }
 }
 
+/* Same card recipe as its seven siblings (2px --border-soft, 24px). It used to
+   be the one bordered card on 1px --border-strong + 14px — a heavier, tighter
+   box than everything around it, sitting in the section that argues Revora is
+   trustworthy. Inconsistency reads loudest exactly there. */
 .landing-proof-item {
   display: grid;
   gap: 6px;
-  border: 1px solid var(--border-strong);
-  border-radius: 14px;
+  border: 2px solid var(--border-soft);
+  border-radius: 24px;
   padding: 16px 18px;
   background: var(--surface);
 }
 
 .landing-proof-item h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .landing-proof-item p {
   margin: 0;
   color: var(--text-body);
-  font-size: 14.5px;
-  line-height: 1.6;
+  font-size: 16.5px;
+  line-height: 1.55;
 }
 
 .landing-price-tiles {
@@ -1999,7 +2065,7 @@ button.inline-link {
 
 .landing-price-what {
   margin: 0;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
   line-height: 1.2;
 }
@@ -2007,8 +2073,8 @@ button.inline-link {
 .landing-price-tile p {
   margin: 0;
   color: var(--text-body);
-  font-size: 14.5px;
-  line-height: 1.6;
+  font-size: 16.5px;
+  line-height: 1.55;
 }
 
 .landing-faq {
@@ -2033,7 +2099,7 @@ button.inline-link {
   justify-content: space-between;
   gap: 16px;
   padding: 16px 20px;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
   cursor: pointer;
   list-style: none;
@@ -2062,7 +2128,9 @@ button.inline-link {
 .landing-faq summary:focus-visible {
   outline: 3px solid rgba(13, 95, 87, 0.45);
   outline-offset: -3px;
-  border-radius: 16px;
+  /* Matches the 18px radius of the <details> box it sits inside (was 16px,
+     off the 24/18/14/999 scale). */
+  border-radius: 18px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2075,8 +2143,8 @@ button.inline-link {
   margin: 0;
   padding: 0 20px 18px;
   color: var(--text-body);
-  font-size: 15px;
-  line-height: 1.65;
+  font-size: 17px;
+  line-height: 1.62;
 }
 
 .landing-final {
@@ -2102,9 +2170,13 @@ button.inline-link {
   position: relative;
   padding-left: 30px;
   color: var(--text-body);
-  font-size: clamp(1rem, 1.6vw, 1.08rem);
+  font-size: clamp(1.05rem, 1.9vw, 1.25rem);
   line-height: 1.6;
   text-wrap: pretty;
+}
+
+.landing-pains li strong {
+  color: var(--text-strong);
 }
 
 .landing-pains li::before {
@@ -2122,8 +2194,8 @@ button.inline-link {
   max-width: 68ch;
   margin: 22px 0 0;
   color: var(--text-muted);
-  font-size: 15px;
-  line-height: 1.65;
+  font-size: 17px;
+  line-height: 1.6;
 }
 
 /* ── The three answers ───────────────────────────────────────
@@ -2137,7 +2209,7 @@ button.inline-link {
   align-items: start;
 }
 
-@media (min-width: 860px) {
+@media (min-width: 880px) {
   .landing-verdicts {
     grid-template-columns: repeat(3, 1fr);
   }
@@ -2151,7 +2223,8 @@ button.inline-link {
   border-radius: 24px;
   padding: 22px;
   background: var(--surface);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
+  /* DESIGN.md §Shape: one card shadow, one alpha. This was 0.06. */
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
 }
 
 .landing-verdict[data-risk="SAFE"] {
@@ -2172,16 +2245,16 @@ button.inline-link {
 .landing-verdict-meal {
   margin: 0;
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: 16.5px;
   font-weight: 600;
-  line-height: 1.45;
+  line-height: 1.55;
 }
 
 .landing-verdict-reason {
   margin: 0;
   color: var(--text-body);
-  font-size: 15px;
-  line-height: 1.6;
+  font-size: 17px;
+  line-height: 1.62;
 }
 
 .landing-verdict-row {
@@ -2190,7 +2263,7 @@ button.inline-link {
   align-items: flex-start;
   margin: 0;
   color: var(--text-body);
-  font-size: 14.5px;
+  font-size: 16.5px;
   line-height: 1.55;
 }
 
@@ -2216,8 +2289,10 @@ button.inline-link {
   /* 16px floor: this carries the informational-only disclaimer and the AUD-008
      "illustrated examples" label. Setting the compliance line in the page's
      smallest type is the fine-print pattern FTC-HEALTH-COMPLIANCE is about —
-     the disclaimer stays quiet via colour, never via size. */
-  font-size: 16px;
+     the disclaimer stays quiet via colour, never via size. The 2026-07-27
+     legibility pass raised it to 17px; the floor is a minimum, so anything
+     >= 16px honours it. Never lower this below 16px. */
+  font-size: 17px;
   line-height: 1.6;
 }
 
@@ -2237,15 +2312,15 @@ button.inline-link {
 
 .landing-feature h3 {
   margin: 0 0 6px;
-  font-size: 17px;
+  font-size: 19px;
   line-height: 1.3;
 }
 
 .landing-feature p {
   margin: 0;
   color: var(--text-body);
-  font-size: 15px;
-  line-height: 1.6;
+  font-size: 17px;
+  line-height: 1.62;
 }
 
 /* ── Pantry Review ───────────────────────────────────────── */
@@ -2255,7 +2330,7 @@ button.inline-link {
   align-items: center;
 }
 
-@media (min-width: 820px) {
+@media (min-width: 880px) {
   .landing-pantry {
     grid-template-columns: 1.3fr 0.7fr;
   }
@@ -2270,7 +2345,8 @@ button.inline-link {
 .landing-pantry-terms {
   margin: 0;
   color: var(--text-body);
-  font-size: 15px;
+  font-size: 17px;
+  line-height: 1.6;
 }
 
 .landing-pantry-buckets {
@@ -2308,7 +2384,12 @@ button.inline-link {
   color: var(--high-text);
 }
 
-.landing-cta-row--centered {
+/* Was `.landing-cta-row--centered`, which set only margin-top and centered
+   nothing (its parent is a flex row with no justify-content, so items stayed
+   at flex-start). Renamed to what it does rather than restyled: whether the
+   primary CTA should actually centre is a conversion decision for the owner,
+   not a side effect of fixing a class name. */
+.landing-cta-stack--spaced {
   margin-top: 32px;
 }
 
@@ -2323,13 +2404,13 @@ button.inline-link {
   margin-bottom: 24px;
 }
 
-@media (min-width: 560px) {
+@media (min-width: 640px) {
   .landing-footer-cols {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
-@media (min-width: 900px) {
+@media (min-width: 880px) {
   .landing-footer-cols {
     grid-template-columns: repeat(4, 1fr);
   }
@@ -2357,7 +2438,8 @@ button.inline-link {
      (negative margins made adjacent targets overlap by 8px). */
   min-height: 44px;
   color: var(--text-strong);
-  font-size: 14.5px;
+  font-size: 16.5px;
+  line-height: 1.55;
   font-weight: 600;
   text-decoration: none;
 }
@@ -2368,139 +2450,10 @@ button.inline-link {
 }
 
 .landing-footer-col a:focus-visible {
-  outline: 3px solid rgba(13, 95, 87, 0.35);
+  /* 0.45 like every other landing focus ring; this was the lone 0.35. */
+  outline: 3px solid rgba(13, 95, 87, 0.45);
   outline-offset: 2px;
   border-radius: 6px;
-}
-
-/* ============================================================
-   Landing legibility pass (2026-07-27)
-
-   Two problems, one block. (1) Plus Jakarta Sans was setting headlines AND
-   body copy; a geometric sans at 14–15px is the wrong tool for paragraphs read
-   by 40–60-year-olds on a phone. Body copy moves to Source Sans 3
-   (`--font-body`) — bigger x-height, open apertures — while headlines, the
-   wordmark, buttons and labels keep Plus Jakarta Sans, so the contrast is
-   display-vs-text rather than two fonts doing the same job. (2) The whole body
-   scale was 14.5–16px. It is 16–22px here. Nothing on this page is below 16px
-   except the uppercase labels, which are tracked and short.
-
-   Placed after the landing rules so it overrides them on equal specificity;
-   keeping it in one block makes the pass reviewable and revertible.
-   ============================================================ */
-
-/* The landing body family (Source Sans 3) comes from reading.className on the
-   landing root (app/page.tsx) — a literal, var-free declaration, so a failed
-   var cascade can't drop this page to a fallback face (FINDING-030). Display
-   elements below re-take Plus Jakarta Sans via var(--font-sans); if that var
-   ever fails they inherit the real reading face instead of a system font. */
-
-.landing-wordmark,
-.landing-h1,
-.landing-h2,
-.landing-eyebrow,
-.landing-cta,
-.landing-step h3,
-.landing-step-num,
-.landing-feature h3,
-.landing-proof-item h3,
-.landing-price-day,
-.landing-price-what,
-.landing-glance-fact,
-.landing-verdict-meal,
-.landing-faq summary,
-.landing-footer-col h3 {
-  font-family: var(--font-sans), system-ui, sans-serif;
-}
-
-.landing-eyebrow {
-  font-size: 14px;
-}
-
-.landing-sub {
-  max-width: 60ch;
-  font-size: clamp(1.15rem, 2.1vw, 1.4rem);
-  line-height: 1.6;
-  color: var(--text-body);
-  opacity: 1;
-}
-
-.landing-sub strong {
-  color: var(--text-strong);
-}
-
-.landing-cta {
-  font-size: 17px;
-}
-
-.landing-cta-hint,
-.landing-nav-links a {
-  font-size: 16px;
-}
-
-.landing-trust-strip li {
-  font-size: 16.5px;
-  line-height: 1.55;
-}
-
-.landing-section-lede {
-  max-width: 62ch;
-  font-size: 18.5px;
-  line-height: 1.6;
-}
-
-.landing-pains li {
-  font-size: clamp(1.05rem, 1.9vw, 1.25rem);
-  line-height: 1.6;
-}
-
-.landing-pains li strong {
-  color: var(--text-strong);
-}
-
-.landing-pains-note,
-.landing-verdict-note,
-.landing-pantry-terms {
-  font-size: 17px;
-  line-height: 1.6;
-}
-
-.landing-step p,
-.landing-feature p,
-.landing-verdict-reason,
-.landing-proof-band p,
-.landing-faq details > p {
-  font-size: 17px;
-  line-height: 1.62;
-}
-
-.landing-proof-item p,
-.landing-price-tile p,
-.landing-verdict-row,
-.landing-verdict-meal,
-.landing-footer-col a {
-  font-size: 16.5px;
-  line-height: 1.55;
-}
-
-.landing-step h3 {
-  font-size: 20px;
-}
-
-.landing-feature h3 {
-  font-size: 19px;
-}
-
-.landing-proof-item h3 {
-  font-size: 18px;
-}
-
-.landing-price-what {
-  font-size: 22px;
-}
-
-.landing-faq summary {
-  font-size: 18px;
 }
 
 /* ── At a glance ─────────────────────────────────────────────
@@ -2558,7 +2511,7 @@ button.inline-link {
   gap: 18px;
 }
 
-@media (min-width: 760px) {
+@media (min-width: 720px) {
   .landing-outcomes {
     grid-template-columns: repeat(2, 1fr);
   }
