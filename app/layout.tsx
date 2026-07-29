@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 
 import { AttributionCapture } from "../components/attribution-capture";
 import { SwRegister } from "../components/sw-register";
-import { reading, sans } from "./fonts";
+import { sans } from "./fonts";
 
 import "./globals.css";
 
@@ -15,8 +15,11 @@ import "./globals.css";
 const UMAMI_SRC = process.env.NEXT_PUBLIC_UMAMI_SRC;
 const UMAMI_WEBSITE_ID = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID;
 
-// Fonts live in app/fonts.ts so the landing page can put reading.className on
-// its own root (FINDING-030 cascade protection without racing <body> classes).
+// Fonts live in app/fonts.ts. Only the brand face is wired here; the reading
+// face (Source Sans 3) is imported by app/page.tsx alone, so its @font-face +
+// preloads ship on the landing route instead of every app route. No route
+// reads var(--font-body) anymore, so the reading font's variable class has no
+// consumer and deliberately does not appear in this file.
 
 // Absolute base for OG/Twitter URLs and sitemap/robots (strategy §0.2 #7 —
 // every launch channel is link-sharing). Same validated origin the billing
@@ -53,8 +56,8 @@ export default function RootLayout({
   children: ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${sans.variable} ${reading.variable}`}>
-      <body className={`${sans.className} ${reading.variable}`}>
+    <html lang="en" className={sans.variable}>
+      <body className={sans.className}>
         {children}
         <SwRegister />
         <AttributionCapture />

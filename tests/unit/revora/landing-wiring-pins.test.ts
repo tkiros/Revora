@@ -62,12 +62,17 @@ describe("landing font wiring (FINDING-030)", () => {
     expect(html).toMatch(/<main[^>]*class="[^"]*__stub_source_sans_3[^"]*"/);
   });
 
-  it("layout puts the brand className on <body> and both variables on <html>", () => {
+  it("layout puts the brand className on <body> and its variable on <html>", () => {
     // RootLayout drags in next/script + client components, so it is pinned at
-    // source level: the wiring lines the fix(fonts) commit mandates.
+    // source level. sans.className on <body> is LOAD-BEARING: globals.css's
+    // `body { font: inherit }` reset kills the elemental body font rule, so
+    // deleting this class drops the app to the UA default face (FINDING-030).
+    // reading is deliberately ABSENT here — it ships with the landing route
+    // only (app/page.tsx), not with every app route.
     const src = read("app/layout.tsx");
-    expect(src).toMatch(/<html[^>]*className=\{`\$\{sans\.variable\} \$\{reading\.variable\}`\}/);
-    expect(src).toMatch(/<body className=\{`\$\{sans\.className\} \$\{reading\.variable\}`\}/);
+    expect(src).toMatch(/<html[^>]*className=\{sans\.variable\}/);
+    expect(src).toMatch(/<body className=\{sans\.className\}/);
+    expect(src).not.toMatch(/reading\.(className|variable)/);
   });
 
   it("the reading face loads 700 — globals.css caps .landing .result-title at it", () => {
