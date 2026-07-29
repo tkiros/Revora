@@ -75,11 +75,20 @@ colors decoratively.
   `var(--font-body)`; the variable stays declared only so a future consumer
   doesn't get an undefined var. Loaded weights are 400/600/700 — landing
   titles use 700, never a heavier faux-bold.
-- Base 16px / 1.5. Body copy 1.65 line-height.
+- Base 16px / 1.5. Body copy 1.65 line-height. (Amended 2026-07-29:) this is
+  now actually in force. `body` was inside the `font: inherit` form-control
+  reset, which killed the elemental `body` block at equal specificity, so
+  `line-height: 1.5` had never applied anywhere and every element inheriting it
+  computed `normal`. `body` is out of that reset list; keep it out.
 - Scale: 13px uppercase eyebrow (700, 0.08em tracking) · 14–15px hints/meta · 16px body + inputs · 18px subheads (700) · titles `clamp(2rem, 7vw, 2.6rem)` (tight -0.03em).
 - **Landing scale is larger** (§Marketing landing): nothing below 16px except
   tracked uppercase labels; body 16.5–17px, ledes 18.5px, hero sub
-  `clamp(1.15rem, 2.1vw, 1.4rem)`.
+  `clamp(1.15rem, 2.1vw, 1.4rem)`. (Amended 2026-07-29:) these values live in
+  the base landing rules. They used to sit in a block appended after them, so
+  26 selectors carried two competing `font-size` declarations and only source
+  order picked the winner — which had already silently defeated
+  `.landing-cta--sm`. One declaration per selector; a test enforces it
+  (`landing-wiring-pins.test.ts`). Never re-append an override block.
 - Weights: 400 body, 600 secondary emphasis, 700 headings/CTAs. Nothing lighter or heavier.
 
 ## Shape & space
@@ -146,6 +155,30 @@ outline variant, used twice: the nav CTA (amended 2026-07-28 — the nav pill we
 ghost so the hero owns the only filled pill above the fold) and the Pantry
 Review's secondary action. **One filled pill per viewport** — now enforced in
 code, not just prose. Risk colors remain semantic-only.
+
+The primary CTA is assembled **once**, by the `LandingPrimaryCta` component in
+`app/page.tsx`: the button, plus an optional caption beneath it, in a
+`.landing-cta-stack`. Do not hand-build it per section — five hand-built copies
+had drifted into four different shapes (caption inside the row, outside the row,
+absent, and once with no row at all). `.landing-cta-stack--spaced` adds the top
+margin sections need when the CTA follows a content block; it is the honest name
+for what was `.landing-cta-row--centered`, which set only `margin-top` and
+centered nothing. `.landing-cta-row` is now only for a CTA sitting beside a
+sibling action (the Pantry Review's ghost button).
+
+**Landing breakpoints are 640 / 720 / 880px** (amended 2026-07-29, collapsed
+from eight ad-hoc values: 560/640/720/760/820/860/880/900). 640 turns the footer
+two-column, 720 opens the three-up grids and the outcomes pair, 880 is the full
+desktop step (verdicts three-up, pantry two-up, footer four-column). Pick from
+these three; a new landing breakpoint needs a reason recorded here. The app
+shell keeps its own separate set (§App shell, 1024px being the load-bearing one).
+
+Landing card recipe: **2px `--border-soft`, 24px radius**, on `--surface`. All
+eight landing card families use it (amended 2026-07-29 — `.landing-proof-item`
+was the lone exception on 1px `--border-strong` + 14px, in the trust section of
+all places). Focus rings on this surface are `rgba(13, 95, 87, 0.45)`; the 6px
+radius used on inline-link focus rings is deliberate and stays off the card
+radius scale, because a card radius on a one-line text link looks bulbous.
 
 Section padding is fluid (`clamp(52px, 7vw, 104px)`, with a `--tight` step) —
 the previous flat `56px` on every section is what made the page read as having

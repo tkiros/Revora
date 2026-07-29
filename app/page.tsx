@@ -52,6 +52,30 @@ export const metadata: Metadata = {
 // owner instruction — rhythm now comes from white sheets and `--accent-tint`
 // bands over the page background, not from inverted colour. DESIGN.md
 // §Marketing landing is the binding record of that change.
+// The primary CTA, assembled once. Every instance on this page is the same
+// button with the same destination and the same optional caption underneath;
+// hand-building it per section is how the five copies drifted into four
+// different shapes. `spaced` adds the top margin sections need when the CTA
+// follows a block of content rather than sitting in a gap-managed grid.
+function LandingPrimaryCta({
+  hint,
+  spaced = false
+}: {
+  hint?: string;
+  spaced?: boolean;
+}) {
+  return (
+    <div
+      className={`landing-cta-stack${spaced ? " landing-cta-stack--spaced" : ""}`}
+    >
+      <Link className="landing-cta" href="/check">
+        Check your first meal — free
+      </Link>
+      {hint ? <p className="landing-cta-hint">{hint}</p> : null}
+    </div>
+  );
+}
+
 export default function LandingPage() {
   const androidWaitlist = storeWaitlistUrl("android");
   const iosWaitlist = storeWaitlistUrl("ios");
@@ -127,14 +151,9 @@ export default function LandingPage() {
                 <strong>{RISK_LABELS.HIGH}</strong>, the reason behind it, and
                 what to change.
               </p>
-              <div className="landing-cta-row">
-                <Link className="landing-cta" href="/check">
-                  Check your first meal — free
-                </Link>
-              </div>
-              <p className="landing-cta-hint">
-                {TASTER_LIMIT} free checks on your first day, then you decide.
-              </p>
+              <LandingPrimaryCta
+                hint={`${TASTER_LIMIT} free checks on your first day, then you decide.`}
+              />
               {/* `home-trust-strip` (copy-ledger.md, Approved + Active). The
                   ledger has recorded this row as living on app/page.tsx since
                   launch, but no version of the page rendered it — found during
@@ -256,14 +275,10 @@ export default function LandingPage() {
             {/* The recognition moment — "that is my last six months" — is the
                 highest-intent point on the page before pricing. It used to be
                 3,800px of mobile scroll from the nearest way to act. */}
-            <div className="landing-cta-row landing-cta-row--centered">
-              <Link className="landing-cta" href="/check">
-                Check your first meal — free
-              </Link>
-              <p className="landing-cta-hint">
-                No login, no card, nothing to install.
-              </p>
-            </div>
+            <LandingPrimaryCta
+              hint="No login, no card, nothing to install."
+              spaced
+            />
           </section>
         </div>
       </div>
@@ -399,11 +414,7 @@ export default function LandingPage() {
               Illustrated examples. Every card ends with the same line: Revora
               is informational only and is not medical advice.
             </p>
-            <div className="landing-cta-row landing-cta-row--centered">
-              <Link className="landing-cta" href="/check">
-                Check your first meal — free
-              </Link>
-            </div>
+            <LandingPrimaryCta spaced />
           </section>
         </div>
       </div>
@@ -712,11 +723,7 @@ export default function LandingPage() {
               </>
             )}
           </div>
-          <div className="landing-cta-row landing-cta-row--centered">
-            <Link className="landing-cta" href="/check">
-              Check your first meal — free
-            </Link>
-          </div>
+          <LandingPrimaryCta spaced />
         </section>
       </div>
 
@@ -834,12 +841,9 @@ export default function LandingPage() {
               Describe the meal and see the general pattern Revora notices. It
               takes about ten seconds.
             </p>
-            <Link className="landing-cta" href="/check">
-              Check your first meal — free
-            </Link>
-            <p className="landing-cta-hint">
-              No login. No card. {TASTER_LIMIT} free checks on your first day.
-            </p>
+            <LandingPrimaryCta
+              hint={`No login. No card. ${TASTER_LIMIT} free checks on your first day.`}
+            />
           </section>
         </div>
       </div>
