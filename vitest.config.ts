@@ -1,4 +1,5 @@
 import os from "node:os";
+import { fileURLToPath } from "node:url";
 
 import { defineConfig } from "vitest/config";
 
@@ -10,10 +11,11 @@ export default defineConfig({
       "next/server": "next/server.js",
       // next/font/google only works under the Next build transform; tests
       // that render app/page.tsx (copy pins) need callable stand-ins.
-      "next/font/google": new URL(
-        "./tests/support/next-font-google-stub.ts",
-        import.meta.url
-      ).pathname
+      // fileURLToPath, not .pathname — .pathname yields /C:/… on Windows and
+      // percent-encoded segments on paths with spaces.
+      "next/font/google": fileURLToPath(
+        new URL("./tests/support/next-font-google-stub.ts", import.meta.url)
+      )
     }
   },
   test: {
