@@ -73,7 +73,8 @@
   (`components/trial-wall.tsx:297`). Separately the landing nav's "How it works"
   points at the on-page `#how-it-works` anchor, not this page at all.
 - **The real defect:** the page itself is scoped to the weekly progress view —
-  `metadata.title` "How this works · Revora", `<h1>` "What the progress view
+  `metadata.title` "How Revora Works — the Weekly Prediabetes Recap" (retitled
+  in the 2026-08-01 SEO pass; same scope), `<h1>` "What the progress view
   measures", and its three sections cover what the recap measures, the research
   behind it, and its limits. So the result card's "How Revora chooses a signal"
   sends a user who just received a verdict to a page that never explains how the
