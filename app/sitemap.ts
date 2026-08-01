@@ -14,7 +14,13 @@ export const PUBLIC_MARKETING_PATHS = [
   "/get-the-app",
   "/signin",
   "/privacy",
-  "/terms"
+  "/terms",
+  "/guides",
+  "/guides/prediabetes-meal-plan",
+  "/guides/prediabetes-snacks",
+  "/guides/what-to-eat-with-prediabetes",
+  "/guides/prediabetes-now-what",
+  "/guides/a1c-5-7-to-6-4"
 ] as const;
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";

@@ -41,6 +41,23 @@ describe("sitemap", () => {
     }
   });
 
+  it("every sitemap path resolves to a real page route", () => {
+    // Route-group segments like (app) vanish from the URL; dynamic segments
+    // never appear in the static marketing list, so a plain walk suffices.
+    const collectRoutes = (dir: string, prefix: string): string[] =>
+      fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+        if (entry.isDirectory()) {
+          const seg = entry.name.startsWith("(") ? "" : `/${entry.name}`;
+          return collectRoutes(path.join(dir, entry.name), prefix + seg);
+        }
+        return entry.name === "page.tsx" ? [prefix === "" ? "/" : prefix] : [];
+      });
+    const routes = collectRoutes(path.join(ROOT, "app"), "");
+    for (const pub of PUBLIC_MARKETING_PATHS) {
+      expect(routes, `${pub} has no page.tsx`).toContain(pub);
+    }
+  });
+
   it("keeps private and functional surfaces out", () => {
     for (const priv of [
       "/account",
