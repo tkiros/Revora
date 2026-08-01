@@ -83,7 +83,9 @@ describe("free-tier copy is derived from TASTER_LIMIT", () => {
     expect(src).toContain("{TASTER_LIMIT} free checks on your first");
     expect(src).toContain("{TASTER_LIMIT} free checks on day one");
     expect(src).toContain("Check up to {TASTER_LIMIT} meals on your first day");
-    expect(src).toContain("Your first {TASTER_LIMIT} checks, on your first day");
+    // FAQ copy lives in the faqs data array (template literal, not JSX) so the
+    // FAQPage JSON-LD shares the same string — still interpolated, never retyped.
+    expect(src).toContain("Your first ${TASTER_LIMIT} checks, on your first day");
   });
 
   // G5 (the F-07 residual), re-scoped 2026-07-27 (C-1): FREE_DAILY_CHECKS = 5
@@ -103,8 +105,10 @@ describe("free-tier copy is derived from TASTER_LIMIT", () => {
     expect(flat).toContain(
       "A free account still includes {FREE_DAILY_CHECKS} free checks a day"
     );
+    // FAQ branch is a template literal in the faqs data array (shared with the
+    // FAQPage JSON-LD) — same interpolated constant, different delimiter.
     expect(flat).toContain(
-      "a free account includes {FREE_DAILY_CHECKS} free checks a day"
+      "a free account includes ${FREE_DAILY_CHECKS} free checks a day"
     );
   });
 

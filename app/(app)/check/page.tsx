@@ -13,7 +13,11 @@ import {
 import { NudgeOpenTracker } from "../../../components/nudge-open-tracker";
 import { photoInputEnabled } from "../../../lib/photo-input-flag";
 
-export const metadata = { title: "Check a meal — Revora" };
+export const metadata = {
+  title: "Check a Meal for Prediabetes — Revora",
+  description:
+    "Describe a meal and get a cautious educational read for the prediabetes range: the pattern, the reason, and a practical alternative when there is one."
+};
 
 // The app's daily surface (moved here from `/` when the marketing landing
 // took over the root, 2026-07-07; into the (app) shell for M2). Stays a
