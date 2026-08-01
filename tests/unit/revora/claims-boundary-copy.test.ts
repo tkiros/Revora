@@ -317,7 +317,9 @@ const EXTRA_SOURCES = [
   "lib/coach/next-action.ts",
   "lib/server/pantry/emails.ts",
   "lib/server/billing/emails.ts",
-  "docs/runbooks/marketing-assets.md"
+  "docs/runbooks/marketing-assets.md",
+  // The AI-crawler summary is user-facing copy served verbatim — scan it raw.
+  "public/llms.txt"
 ];
 
 /**
