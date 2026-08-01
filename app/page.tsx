@@ -20,10 +20,17 @@ import { paywallMode, resolvePriceVariant } from "../lib/server/pricing";
 import { storeWaitlistUrl } from "../lib/waitlist";
 import { reading } from "./fonts";
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+
+// One description string for the <meta> tag and the SoftwareApplication
+// JSON-LD below, so the two can't drift apart. (Kept under ~160 chars so
+// search snippets don't truncate it.)
+const LANDING_DESCRIPTION =
+  "A meal checker built only for prediabetes. Describe a meal and get cautious labels, reasons, and practical alternatives for the 5.7% to 6.4% A1C range.";
+
 export const metadata: Metadata = {
-  title: "Revora — A cautious educational read on your meal",
-  description:
-    "For adults using a prediabetes-range A1C. Describe a meal and get general meal-composition information, cautious labels, and practical alternatives."
+  title: "Prediabetes Meal Checker — What You Can Eat | Revora",
+  description: LANDING_DESCRIPTION
 };
 
 // Marketing landing (DESIGN.md §Marketing landing). The app lives at /check;
@@ -91,8 +98,83 @@ export default function LandingPage() {
   // the one unforced error this audience never forgives.
   const trialFunnel = paywallMode() === "trial";
   const monthlyPrice = resolvePriceVariant().display;
+  // FAQ copy as data: the visible <details> list and the FAQPage JSON-LD
+  // render from these same strings, so the schema can never drift from the
+  // page. Scanned by the claims-boundary audit like every string here.
+  const faqs: Array<{ q: string; a: string }> = [
+    {
+      q: "Is Revora medical advice?",
+      a: "No. Revora is informational only and is not medical advice. Its labels describe general meal patterns. Broad A1C-range context only makes the presentation more cautious; it does not predict your response or decide whether a meal is medically appropriate. Talk with a doctor or registered dietitian for guidance specific to you."
+    },
+    {
+      q: "Who is Revora for?",
+      a: "People in the prediabetes A1C range of 5.7% to 6.4%. If your number falls outside that range, Revora says so plainly and points you to a clinician instead of pretending."
+    },
+    {
+      q: "Do I need an account or a card to try it?",
+      a: trialFunnel
+        ? `No. Your first ${TASTER_LIMIT} checks, on your first day, need no login and no card — they live on this device only. The 7-day free trial needs a card but charges nothing for a week — and we email you before any charge.`
+        : `No. Your first ${TASTER_LIMIT} checks, on your first day, need no login and no card — they live on this device only. After that, a free account includes ${FREE_DAILY_CHECKS} free checks a day — still no card. Premium is optional, and cancels in one tap.`
+    },
+    ...(photoEnabled
+      ? [
+          {
+            q: "How does the photo check work?",
+            a: "Your photo becomes a draft list of what's on the plate. You review and confirm the words before anything is checked — the photo never skips your judgment. Photos are not kept."
+          }
+        ]
+      : []),
+    {
+      q: "How do I cancel?",
+      a: "One tap, on your account page — effective at the end of the paid period. No retention screens, no email hoops. Deleting your account removes your data with it."
+    }
+  ];
+  // Machine-readable summary for Google rich results and AI answer engines.
+  // Every string is either shared with the visible page (LANDING_DESCRIPTION,
+  // faqs) or an interpolated constant — nothing is claimed here that the page
+  // doesn't already say.
+  // No `offers` node on purpose: pricing on this page renders only from the
+  // live server flags (§0.2 #4), and schema.org pricing would be a hardcoded
+  // claim outside that guarantee.
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "@id": `${APP_URL}/#app`,
+        name: "Revora",
+        url: APP_URL,
+        description: LANDING_DESCRIPTION,
+        applicationCategory: "HealthApplication",
+        operatingSystem: "Web",
+        publisher: {
+          "@type": "Organization",
+          name: "Revora",
+          url: APP_URL,
+          logo: `${APP_URL}/icon-512.png`
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "@id": `${APP_URL}/#faq`,
+        url: APP_URL,
+        mainEntity: faqs.map(({ q, a }) => ({
+          "@type": "Question",
+          name: q,
+          acceptedAnswer: { "@type": "Answer", text: a }
+        }))
+      }
+    ]
+  };
   return (
     <>
+      <script
+        type="application/ld+json"
+        // <-escape so no string could ever terminate the script block.
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c")
+        }}
+      />
       {/* Same skip affordance the app shell has (DESIGN.md §App shell), and
           like the shell it lives OUTSIDE <main> — a skip link inside the
           landmark it skips within is announced as main content. Being outside
@@ -772,62 +854,12 @@ export default function LandingPage() {
             <h2 className="landing-h2">Fair questions</h2>
           </div>
           <div className="landing-faq">
-            <details>
-              <summary>Is Revora medical advice?</summary>
-              <p>
-                No. Revora is informational only and is not medical advice.
-                Its labels describe general meal patterns. Broad A1C-range
-                context only makes the presentation more cautious; it does not
-                predict your response or decide whether a meal is medically
-                appropriate. Talk with a doctor or registered dietitian for
-                guidance specific to you.
-              </p>
-            </details>
-            <details>
-              <summary>Who is Revora for?</summary>
-              <p>
-                People in the prediabetes A1C range of 5.7% to 6.4%. If your
-                number falls outside that range, Revora says so plainly and
-                points you to a clinician instead of pretending.
-              </p>
-            </details>
-            <details>
-              <summary>Do I need an account or a card to try it?</summary>
-              {trialFunnel ? (
-                <p>
-                  No. Your first {TASTER_LIMIT} checks, on your first day, need
-                  no login and no card — they live on this device only. The
-                  7-day free trial needs a card but charges nothing for a week
-                  — and we email you before any charge.
-                </p>
-              ) : (
-                <p>
-                  No. Your first {TASTER_LIMIT} checks, on your first day, need
-                  no login and no card — they live on this device only. After
-                  that, a free account includes {FREE_DAILY_CHECKS} free checks
-                  a day — still no card. Premium is optional, and cancels in
-                  one tap.
-                </p>
-              )}
-            </details>
-            {photoEnabled ? (
-              <details>
-                <summary>How does the photo check work?</summary>
-                <p>
-                  Your photo becomes a draft list of what&apos;s on the plate.
-                  You review and confirm the words before anything is checked —
-                  the photo never skips your judgment. Photos are not kept.
-                </p>
+            {faqs.map(({ q, a }) => (
+              <details key={q}>
+                <summary>{q}</summary>
+                <p>{a}</p>
               </details>
-            ) : null}
-            <details>
-              <summary>How do I cancel?</summary>
-              <p>
-                One tap, on your account page — effective at the end of the
-                paid period. No retention screens, no email hoops. Deleting
-                your account removes your data with it.
-              </p>
-            </details>
+            ))}
           </div>
         </section>
       </div>
@@ -865,6 +897,7 @@ export default function LandingPage() {
             <div className="landing-footer-col">
               <h3>Learn</h3>
               <Link href="/how-it-works">How the weekly recap works</Link>
+              <Link href="/guides">Prediabetes guides</Link>
               <a href="#live-example">See a live example</a>
             </div>
             <div className="landing-footer-col">
