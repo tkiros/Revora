@@ -2,13 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { DemoCheckCard } from "../components/demo-check-card";
-import {
-  IconAlert,
-  IconArrowRight,
-  IconCheck,
-  IconHeart,
-  IconPause
-} from "../components/icons";
+import { ExampleResultCard } from "../components/example-result-card";
+import { IconAlert, IconCheck, IconPause } from "../components/icons";
 import { TASTER_LIMIT } from "../lib/client/taster-store";
 import { FREE_DAILY_CHECKS } from "../lib/free-tier";
 import { learningJourneyUiEnabled } from "../lib/learning-journey-flag";
@@ -432,63 +427,13 @@ export default function LandingPage() {
                 invent a correction to look useful.
               </p>
             </div>
+            {/* Three instances of the product's card, not three lookalikes.
+                The fixtures live in the component so the hero's card and the
+                first card here cannot drift apart. */}
             <div className="landing-verdicts">
-              <article className="landing-verdict" data-risk="SAFE">
-                <p className="landing-verdict-meal">
-                  Grilled chicken, brown rice, and a side salad
-                </p>
-                <p className="result-title verdict-title" data-risk="SAFE">
-                  <IconCheck size={22} />
-                  {RISK_LABELS.SAFE}
-                </p>
-                <p className="landing-verdict-reason">
-                  This looks like a reasonable fit. The meal already has protein
-                  and vegetables, so it looks more balanced than a
-                  fast-carb-heavy option.
-                </p>
-              </article>
-
-              <article className="landing-verdict" data-risk="MODERATE">
-                <p className="landing-verdict-meal">
-                  A bagel with jam and a glass of orange juice
-                </p>
-                <p className="result-title verdict-title" data-risk="MODERATE">
-                  <IconAlert size={22} />
-                  {RISK_LABELS.MODERATE}
-                </p>
-                <p className="landing-verdict-reason">
-                  This may have a higher blood-sugar impact than a more balanced
-                  meal because it leans heavily on refined carbs.
-                </p>
-                <p className="landing-verdict-row">
-                  <IconHeart size={16} />
-                  <span>
-                    <strong>Adjustment:</strong> If practical, add protein or
-                    nonstarchy vegetables to make it easier to handle.
-                  </span>
-                </p>
-              </article>
-
-              <article className="landing-verdict" data-risk="HIGH">
-                <p className="landing-verdict-meal">
-                  A large soda with fries on the side
-                </p>
-                <p className="result-title verdict-title" data-risk="HIGH">
-                  <IconPause size={22} />
-                  {RISK_LABELS.HIGH}
-                </p>
-                <p className="landing-verdict-reason">
-                  This is likely a higher-impact choice in its current form
-                  because it is mostly sugary or refined carbs.
-                </p>
-                <p className="landing-verdict-row">
-                  <IconArrowRight size={16} />
-                  <span>
-                    <strong>Swap:</strong> A smaller portion with protein or
-                    nonstarchy vegetables would be a steadier fit here.
-                  </span>
-                </p>
-              </article>
+              <ExampleResultCard risk="SAFE" />
+              <ExampleResultCard risk="MODERATE" />
+              <ExampleResultCard risk="HIGH" />
             </div>
             <p className="landing-verdict-note">
               Illustrated examples. Every card ends with the same line: Revora
