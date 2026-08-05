@@ -26,9 +26,12 @@
   --high-bg: #fef2f2;
   --high-text: #991b1b;
   --high-badge: #fee2e2;
+  /* Motion. DESIGN.md §6: one ease for the whole system. --dur-press is
+     pointer-down feedback, --dur-fast is hover/colour, --dur is entrance. */
+  --dur-press: 120ms;
   --dur-fast: 150ms;
   --dur: 200ms;
-  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease: cubic-bezier(0.23, 1, 0.32, 1);
   --icon-sm: 16px;
   --icon: 20px;
 }
