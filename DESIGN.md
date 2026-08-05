@@ -248,10 +248,15 @@ whose thesis is that **the page's unit of composition is the product's own artif
 - **Zero eyebrows**, because the hero's eyebrow words became the H1 — **de-duplication, not deletion on principle**. The
   contender that deleted the eyebrow on principle left a headline about a competitor as the only thing above the fold and
   took the tournament's worst score.
-- **Type: one body size.** `17px / 1.65` for everything except H1 `clamp(1.9rem, 5.6vw, 2.9rem)` / `1.05` / `-0.02em` ·
-  H2 `clamp(1.6rem, 4vw, 2.2rem)` / `1.1` / `-0.025em` · card title `22px / 700` · lede `18.5px / 1.6` · FAQ summary
-  `18px / 700` · fineprint floor `16px`. Measure `62ch`. This replaces the old "16.5–17px" range, which needed a reason
-  per value and had none; the lede step stays, because a scale without one loses the ≥1.25 hierarchy ratio.
+- **Type: one body size.** `18px / 1.65` for everything except H1 `clamp(1.9rem, 5.6vw, 2.9rem)` / `1.05` / `-0.02em` ·
+  H2 `clamp(1.6rem, 4vw, 2.2rem)` / `1.1` / `-0.025em` · card title `22px / 700` · lede `20px / 1.6` · FAQ summary
+  `19px / 700` · nav link `17px` · fineprint floor `16px`. Measure `62ch`. This replaces the old "16.5–17px" range,
+  which needed a reason per value and had none; the lede step stays, because a scale without one loses the hierarchy
+  ratio. ⚖️ **The body was `17px` until 2026-08-05, when the owner previewed the built page and read it as too small.**
+  The tournament spec's figure was never read at size; one step up is the whole change, and H1/H2 are clamped so the
+  display scale is untouched. **The fineprint floor stays `16px`, and the result card's own copy stays app-layer `16px`**
+  — the card is the unit of composition, and it does not get a `.landing`-layer type override for reading smaller than
+  the prose wrapped around it.
   ⛔ **`--text-soft` is banned here entirely** (§3.1) — the plane is `--page-bg`, where it fails AA. No per-block exemption.
 - **Breakpoints 640 / 720 / 880:** footer two-column, three-up grids, full desktop step. Collapsed from eight ad-hoc
   values 2026-07-29; **a new one needs a reason recorded here.** The shell keeps its own set (§8).
