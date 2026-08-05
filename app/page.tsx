@@ -261,10 +261,8 @@ export default function LandingPage() {
                 DemoCheckCard markup, and the "kind of answer you get" section
                 below rendered the SAME oatmeal verdict a second time. The
                 duplicate is gone; the component is the single source. */}
-            <div className="landing-phone">
-              <div className="landing-phone-inner">
-                <DemoCheckCard />
-              </div>
+            <div className="landing-hero-proof">
+              <DemoCheckCard />
             </div>
           </section>
         </div>

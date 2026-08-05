@@ -1859,16 +1859,14 @@ button.inline-link {
 }
 
 /* Hero product visual. DemoCheckCard is already a `.surface-card`, so this is a
-   positioning wrapper only — the old phone bezel wrapped a card in a card, and
-   nested cards are banned (DESIGN.md §App-UI guardrails). */
-.landing-phone {
+   positioning wrapper only — the old phone bezel wrapped a card in a card.
+   Renamed from `.landing-phone` 2026-08-05: the bezel was removed 2026-07-27
+   and the name had been describing a thing that no longer existed. */
+.landing-hero-proof {
+  display: grid;
   justify-self: center;
   width: 100%;
   max-width: 420px;
-}
-
-.landing-phone-inner {
-  display: grid;
 }
 
 /* Research proof band: honest stats pulled forward on the landing page. */
