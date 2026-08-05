@@ -2276,9 +2276,17 @@ button.inline-link {
 /* `.result-disclaimer` sits in the shared 14px hints/meta group, which is the
    right size inside the app (DESIGN.md §Type: "14–15px hints/meta"). The
    landing runs the larger scale — nothing below 16px except tracked uppercase
-   labels — and both landing instances (the demo result card and the footer)
-   carry the informational-only disclaimer. Scoped to `.landing` so the app
-   keeps its own scale. */
+   labels — and every landing instance carries the informational-only
+   disclaimer. Scoped to `.landing` so the app keeps its own scale.
+
+   ⚠️ SOURCE-ORDER DEPENDENCY — READ BEFORE MOVING THIS BLOCK.
+   This rule and `.result-fineprint .result-disclaimer` (L781, 13px) have
+   IDENTICAL specificity (0,2,0). This one wins ONLY because it is LATER IN
+   THIS FILE. Moving either block, or reordering the file, silently drops the
+   landing's compliance line to 13px and breaks the 16px marketing floor
+   (DESIGN.md rail 10) with no test going red: the duplicate-font-size pin
+   counts declarations per selector and sees exactly one on each.
+   DO NOT MOVE THIS BLOCK ABOVE L781. */
 .landing .result-disclaimer {
   font-size: 16px;
 }
