@@ -300,6 +300,22 @@ export default function LandingPage() {
               mistake. That loop is the actual cost of being told nothing.
             </li>
           </ul>
+          {/* The recognition moment — "that is my last six months" — is the
+              highest-intent point on the page before pricing, so the exit sits
+              directly on it.
+
+              ⚠️ MEASURED POSITION (DESIGN.md §11.1). With the CTA below the
+              scope note, the hero-to-here stretch measures 2,053px — 52px past
+              the three-screenful budget, and the only over-budget desert left
+              on the page. Above the note it measures 1,913px and the whole
+              page is inside the rule. Moving a button 140px is the cheapest
+              thing on the page that buys that, and it costs no copy: the note
+              is a qualifier, not a lead-in. Re-measure before moving it back:
+              node scripts/measure-landing.mjs */}
+          <LandingPrimaryCta
+            hint="No login, no card, nothing to install."
+            spaced
+          />
           {/* The three-negation sentence ("not a general nutrition app, not a
               calorie counter, not built for everyone") is deleted: it is in
               the Brief's own "what only sounds like it does" table — every
@@ -311,13 +327,6 @@ export default function LandingPage() {
             outside 5.7% to 6.4%, it says so plainly and points you to a
             clinician instead of pretending.
           </p>
-          {/* The recognition moment — "that is my last six months" — is the
-              highest-intent point on the page before pricing. It used to be
-              3,800px of mobile scroll from the nearest way to act. */}
-          <LandingPrimaryCta
-            hint="No login, no card, nothing to install."
-            spaced
-          />
         </section>
 
         {/* ── The pause ─────────────────────────────────────────── */}
@@ -507,6 +516,13 @@ export default function LandingPage() {
             email you have to write. We know why you are reading this
             paragraph carefully.
           </p>
+          {/* DESIGN.md §11.1's related ruling, measured. The reorder that buys
+              the reachability budget wants a button between the price tiles
+              and this paragraph, but the paragraph's power IS its adjacency to
+              the price, and a pixel win does not outrank a scored copy graft.
+              So the CTA takes the first position that keeps the adjacency:
+              immediately after the cancel paragraph, before the claims. */}
+          <LandingPrimaryCta spaced />
           {/* What the subscription is, most-asked first, no numerals — these
               four lines are what the nine-card feature grid compressed to
               (ledger `landing-what-you-get`). Claim 1 leads with the pinned
@@ -543,7 +559,6 @@ export default function LandingPage() {
             </Link>
             .
           </p>
-          <LandingPrimaryCta spaced />
         </section>
 
         {/* ── FAQ ─────────────────────────────────────────────── */}
