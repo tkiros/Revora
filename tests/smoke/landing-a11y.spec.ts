@@ -65,12 +65,11 @@ test("landing landmarks and list semantics stay intact", async ({ page }) => {
   await expect(page.getByRole("navigation", { name: "Main" })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Footer" })).toBeVisible();
 
-  // The four glance facts are a list to AT even with list-style stripped, and
-  // the sr-only heading gives that list a name.
-  await expect(
-    page.getByRole("heading", { name: "Revora at a glance" })
-  ).toBeAttached();
-  await expect(page.locator("ul.landing-glance")).toHaveAttribute(
+  // The hero trust strip is still a list to AT with list-style stripped. This
+  // assertion targeted `ul.landing-glance` until 2026-08-05, when the glance
+  // strip was deleted; the invariant it proves is about the CSS flattening, not
+  // about that one list, so it was retargeted rather than dropped.
+  await expect(page.locator("ul.landing-trust-strip")).toHaveAttribute(
     "role",
     "list"
   );

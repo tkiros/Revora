@@ -3,11 +3,8 @@ import Link from "next/link";
 
 import { DemoCheckCard } from "../components/demo-check-card";
 import { ExampleResultCard } from "../components/example-result-card";
-import { IconAlert, IconCheck, IconPause } from "../components/icons";
 import { TASTER_LIMIT } from "../lib/client/taster-store";
 import { FREE_DAILY_CHECKS } from "../lib/free-tier";
-import { learningJourneyUiEnabled } from "../lib/learning-journey-flag";
-import { longitudinalInsightsEnabled } from "../lib/longitudinal-insights-flag";
 import { photoInputEnabled } from "../lib/photo-input-flag";
 import { BOUNDARY_DISCLAIMER } from "../lib/revora/boundary-copy";
 import { RISK_LABELS } from "../lib/revora/labels";
@@ -30,16 +27,16 @@ export const metadata: Metadata = {
 
 // Marketing landing (DESIGN.md §Marketing landing). The app lives at /check;
 // this page's one job is credibility + the first check. No fabricated social
-// proof — the trust section carries the honest proof points instead. All copy
-// here is scanned by the claims-boundary audit.
+// proof — the page shows the product's own card instead. All copy here is
+// scanned by the claims-boundary audit.
 //
 // Two hard rules this file must keep (F-04 / F-07, 2026-07-11 claims
 // reconciliation):
 //  - The adjustment and the swap are CONDITIONAL. A SAFE ("Clear") result is
 //    structurally forbidden either one (lib/revora/postprocess.ts
 //    assertNoUnsafeSafeFields throws), so no surface may promise them
-//    unconditionally. Always hedge: "when there's one". The verdict row below
-//    demonstrates this rather than asserting it — the Clear card carries no
+//    unconditionally. Always hedge: "when there's one". The Clear example
+//    card below demonstrates this rather than asserting it — it carries no
 //    adjustment and no swap, because the engine cannot produce them there.
 //  - The free tier is TASTER_LIMIT checks on day one only, device-local. The
 //    number is interpolated from lib/client/taster-store.ts — never retyped —
@@ -82,11 +79,6 @@ export default function LandingPage() {
   const androidWaitlist = storeWaitlistUrl("android");
   const iosWaitlist = storeWaitlistUrl("ios");
   const photoEnabled = photoInputEnabled();
-  const insightsEnabled = longitudinalInsightsEnabled();
-  // The journey card is flag-gated like every other flag-dependent claim on
-  // this page: env-reference.md §rollback — "the landing must not advertise
-  // an artifact the journey doesn't render." Flag off → the recap card.
-  const journeyEnabled = learningJourneyUiEnabled();
   // §0.2 #4 — the pricing section renders from the SAME server flags checkout
   // enforces (paywallMode + resolvePriceVariant), so the landing can never
   // promise a funnel or a price the live config doesn't run. Mismatch here is
@@ -192,7 +184,9 @@ export default function LandingPage() {
               reachable by scrolling and is repeated in the footer, so this
               costs no navigation. */}
           <div className="landing-nav-links">
-            <a href="#how-it-works">How it works</a>
+            {/* The route, not an in-page anchor: the how-it-works block is
+                gone, and /how-it-works is where the footer already points. */}
+            <Link href="/how-it-works">How it works</Link>
             <a href="#pricing">Pricing</a>
             <Link href="/pantry">Pantry Review</Link>
           </div>
@@ -207,11 +201,6 @@ export default function LandingPage() {
             scroll — same as the app shell's #app-content target. */}
         <section className="landing-hero" id="landing-hero" tabIndex={-1}>
           <div className="landing-hero-copy">
-            {/* The "what is this" answer, before the headline. A visitor
-                should not have to read a paragraph to learn the category. */}
-            <p className="landing-eyebrow">
-              A meal checker built only for prediabetes
-            </p>
             <h1 className="landing-h1">Stop guessing at dinner.</h1>
             <p className="landing-sub">
               You got an A1C between <strong>5.7% and 6.4%</strong> and one
@@ -258,43 +247,6 @@ export default function LandingPage() {
             <DemoCheckCard />
           </div>
         </section>
-
-        {/* ── At a glance ───────────────────────────────────────
-          The offer in four facts, directly under the fold. A visitor who reads
-          nothing else on the page should still be able to answer "what is it,
-          who is it for, how fast, what does it cost me to try". */}
-        {/* sr-only heading + explicit list role: these four facts were
-            unreachable by heading/list navigation (list-style:none strips
-            list semantics in Safari/VoiceOver). */}
-        <h2 className="sr-only">Revora at a glance</h2>
-        <ul className="landing-glance" role="list">
-          <li>
-            <span className="landing-glance-fact">10 seconds</span>
-            <span className="landing-glance-label">
-              from describing the meal to the answer
-            </span>
-          </li>
-          <li>
-            <span className="landing-glance-fact">5.7–6.4%</span>
-            <span className="landing-glance-label">
-              if your A1C is here, this was built for you
-            </span>
-          </li>
-          <li>
-            <span className="landing-glance-fact">
-              {TASTER_LIMIT} free checks
-            </span>
-            <span className="landing-glance-label">
-              on day one, no login and no card
-            </span>
-          </li>
-          <li>
-            <span className="landing-glance-fact">Nothing to log</span>
-            <span className="landing-glance-label">
-              no weighing, no calories, no macros, ever
-            </span>
-          </li>
-        </ul>
 
         {/* ── The problem ───────────────────────────────────────── */}
         <section className="landing-section">
@@ -346,56 +298,6 @@ export default function LandingPage() {
           />
         </section>
 
-        {/* ── How it works ────────────────────────────────────── */}
-        <section className="landing-section" id="how-it-works">
-          <div className="landing-section-head">
-            {/* The way-count must match Step 1's input list, which is gated
-                on the photo flag — a careful reader counts. */}
-            <h2 className="landing-h2">
-              {photoEnabled ? "Three ways in." : "Two ways in."} One calm
-              answer out.
-            </h2>
-            <p className="landing-section-lede">
-              Revora is built for the moment of the meal — when you&apos;re
-              standing in the kitchen or staring at a menu and want a clearer
-              description of its overall balance.
-            </p>
-          </div>
-          <div className="landing-grid-3">
-            <div className="landing-step">
-              <p className="landing-step-num">Step 1</p>
-              <h3>Show Revora the meal</h3>
-              <p>
-                {photoEnabled
-                  ? "Snap a photo, dictate it, or type it. "
-                  : "Dictate it or type it. "}
-                You review the text before anything is checked — you stay in
-                control.
-              </p>
-            </div>
-            <div className="landing-step">
-              <p className="landing-step-num">Step 2</p>
-              <h3>Get one cautious label</h3>
-              <p>
-                {RISK_LABELS.SAFE}, {RISK_LABELS.MODERATE}, or{" "}
-                {RISK_LABELS.HIGH} — using broad A1C-range context only to
-                avoid over-reassurance, with one reason and, when appropriate,
-                an adjustment and one practical alternative. It is not an
-                individual-response prediction.
-              </p>
-            </div>
-            <div className="landing-step">
-              <p className="landing-step-num">Step 3</p>
-              <h3>Keep the habit</h3>
-              <p>
-                Your checks become a saved history and week view
-                {insightsEnabled ? ", with a weekly pattern when one stands out" : ""}.
-                One optional daily reminder keeps the habit going.
-              </p>
-            </div>
-          </div>
-        </section>
-
         {/* ── The three answers ─────────────────────────────────── */}
         <section className="landing-section" id="live-example">
           <div className="landing-section-head">
@@ -424,235 +326,6 @@ export default function LandingPage() {
             is informational only and is not medical advice.
           </p>
           <LandingPrimaryCta spaced />
-        </section>
-
-        {/* ── What you get ────────────────────────────────────── */}
-        <section className="landing-section">
-          <div className="landing-section-head">
-            <h2 className="landing-h2">Everything you get</h2>
-            <p className="landing-section-lede">
-              The whole product, listed plainly. Nothing on this list is coming
-              soon, in beta, or behind a waitlist.
-            </p>
-          </div>
-          {/* Order is ranked, not chronological: the three items no other
-              meal app can claim (clarifying questions, the doctor-visit
-              record, one-tap delete) lead — by this point the page has
-              already explained describe→answer twice. */}
-          <div className="landing-features">
-            <div className="landing-feature">
-              <h3>It asks before it guesses</h3>
-              <p>
-                Type “oatmeal” and Revora asks whether it is plain or
-                sweetened, because the honest answer depends on it. Most apps
-                would just pick one and sound confident.
-              </p>
-            </div>
-            <div className="landing-feature">
-              <h3>A record you can actually show someone</h3>
-              <p>
-                Every check is saved to your account and visible on every
-                device. Six months from now you can open it at your appointment
-                instead of trying to remember.
-              </p>
-            </div>
-            <div className="landing-feature">
-              <h3>Your data, deleted on demand</h3>
-              <p>
-                Your A1C and meal text are encrypted at rest and stored only
-                with your say-so. One tap deletes all of it, account included,
-                with no retention screen in the way.
-              </p>
-            </div>
-            <div className="landing-feature">
-              <h3>Describe a meal in your own words</h3>
-              <p>
-                {photoEnabled
-                  ? "Snap it, say it, or type it. "
-                  : "Say it out loud or type it. "}
-                “Leftover lasagna and a glass of red” is a valid input. No
-                database to search, no barcode to scan, no portion to weigh.
-              </p>
-            </div>
-            <div className="landing-feature">
-              <h3>One answer, not a dashboard</h3>
-              <p>
-                {RISK_LABELS.SAFE}, {RISK_LABELS.MODERATE}, or{" "}
-                {RISK_LABELS.HIGH} — plus the reason in one sentence, and, when
-                there is one, a change worth making and a swap. That is the
-                whole screen.
-              </p>
-            </div>
-            <div className="landing-feature">
-              <h3>Answers in the aisle and at the table</h3>
-              <p>
-                It runs in the browser on your phone, so it is there in the
-                supermarket and at the restaurant. Add it to your home screen
-                if you want; there is nothing to install.
-              </p>
-            </div>
-            <div className="landing-feature">
-              {/* Merge note: "A record you can actually show someone" now
-                  leads the grid (F-03 ranked order), so origin/main's copy of
-                  it here was dropped; its flag-gated journey card is kept. */}
-              {journeyEnabled ? (
-                <>
-                  <h3>A 90-day journey, recapped weekly</h3>
-                  <p>
-                    {/* Every claim here is pinned to the journey the code
-                        ships: fields from lib/journey/weekly-learning.ts,
-                        graduation at day 90 (journey-card.tsx isComplete),
-                        pause = frozen day count (lib/journey/state.ts), and
-                        the CANCEL_INDEPENDENCE_COPY billing promise. */}
-                    A staged 90-day learning journey, recapped each week in
-                    plain lines — the meals you explored, the choices you
-                    saved, and one thing worth trying next. Never a grade,
-                    never a streak to break, never a lab prediction. Pause any
-                    time (your day count freezes), graduate at day 90 — and
-                    graduating doesn&apos;t change your billing.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <h3>A weekly recap in sentences</h3>
-                  <p>
-                    Plain lines about what you did, like days checked in and
-                    steps followed through. Never a grade, never a streak to
-                    break, never a lab prediction.
-                  </p>
-                </>
-              )}
-            </div>
-            <div className="landing-feature">
-              <h3>One reminder, if you want it</h3>
-              <p>
-                A single nudge a day, off by default. Skip a day and nothing
-                breaks, nothing turns red, nothing guilt-trips you. Blank days
-                are just blank.
-              </p>
-            </div>
-            <div className="landing-feature">
-              <h3>The Pantry Review, separately</h3>
-              <p>
-                A one-time report that sorts the food already in your kitchen
-                into three groups. One payment, nothing renews, no
-                subscription attached.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* ── What changes ────────────────────────────────────── */}
-        <section className="landing-section">
-          <div className="landing-section-head">
-            <h2 className="landing-h2">What actually changes</h2>
-            <p className="landing-section-lede">
-              Not a transformation. Four specific moments in your week that
-              stop being hard.
-            </p>
-          </div>
-          <div className="landing-outcomes">
-            <div className="landing-outcome">
-              <p className="landing-outcome-before">
-                Tonight you stand at the counter and guess.
-              </p>
-              <p className="landing-outcome-after">
-                You describe the plate and know where it lands before you sit
-                down.
-              </p>
-            </div>
-            <div className="landing-outcome">
-              <p className="landing-outcome-before">
-                You read three articles at 11pm and they disagree.
-              </p>
-              <p className="landing-outcome-after">
-                You ask about the one meal in front of you and stop reading.
-              </p>
-            </div>
-            <div className="landing-outcome">
-              <p className="landing-outcome-before">
-                Eating out means ordering and then quietly worrying.
-              </p>
-              <p className="landing-outcome-after">
-                You check the menu item at the table and order on purpose.
-              </p>
-            </div>
-            <div className="landing-outcome">
-              <p className="landing-outcome-before">
-                Six months of meals, and nothing to show your doctor.
-              </p>
-              <p className="landing-outcome-after">
-                A saved history of what you actually ate, in your own words.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* ── Why trust it ────────────────────────────────────── */}
-        <section className="landing-section">
-          <div className="landing-section-head">
-            <h2 className="landing-h2">Calm, and honest about its limits</h2>
-            <p className="landing-section-lede">
-              No miracle promises. Revora earns trust the slow way — by
-              telling you exactly what it measures and where it stops.
-            </p>
-          </div>
-          {/* Evidence boundary: sources support educational statements, not a
-              product outcome claim. */}
-          <div className="landing-proof-band">
-            <p className="landing-proof-stat">Sources</p>
-            <div>
-              <p>
-                Revora&apos;s general meal-planning principles are mapped to
-                public-health guidance and cited nutrition research. Those
-                sources support narrow educational statements; they are not
-                evidence that Revora produces a particular health result.
-              </p>
-              <p className="landing-proof-note">
-                <Link className="inline-link" href="/how-it-works">
-                  Read the evidence and limitations
-                </Link>
-                .
-              </p>
-            </div>
-          </div>
-          <div className="landing-proof">
-            <div className="landing-proof-item">
-              <h3>When we&apos;re unsure, we say so</h3>
-              <p>
-                If a food is ambiguous, Revora asks one clarifying question
-                instead of guessing — and errs on the careful side.
-              </p>
-            </div>
-            <div className="landing-proof-item">
-              <h3>Grounded in published research</h3>
-              <p>
-                {/* AUD-007: describe the artifact the journey actually renders
-                    — a non-scored weekly recap — never a score it doesn't. */}
-                Your weekly recap is behavioral — plain sentences about what
-                you did, like days checked in and steps followed through.
-                Never a grade, or a lab prediction.{" "}
-                <Link className="inline-link" href="/how-it-works">
-                  Read exactly what it measures and its honest limits
-                </Link>
-                .
-              </p>
-            </div>
-            <div className="landing-proof-item">
-              <h3>Your health data stays yours</h3>
-              <p>
-                Your A1C and meal text are encrypted at rest, stored only with
-                your explicit consent, and deleted — all of it — in one tap.
-              </p>
-            </div>
-            <div className="landing-proof-item">
-              <h3>Not medical advice</h3>
-              <p>
-                Revora is informational only. Talk with a doctor or registered
-                dietitian for guidance that is specific to you.
-              </p>
-            </div>
-          </div>
         </section>
 
         {/* ── Pricing ─────────────────────────────────────────── */}
@@ -730,40 +403,6 @@ export default function LandingPage() {
             )}
           </div>
           <LandingPrimaryCta spaced />
-        </section>
-
-        {/* ── Pantry Review ─────────────────────────────────────── */}
-        <section className="landing-section landing-pantry">
-          <div className="landing-pantry-copy">
-            <h2 className="landing-h2">Or check the whole kitchen, once</h2>
-            <p className="landing-section-lede">
-              The Pantry Review sorts everything you already own into enjoy
-              freely, worth a tweak, and handle with care. One printable
-              report, built from photos of your own shelves.
-            </p>
-            <p className="landing-pantry-terms">
-              One payment. <strong>Nothing renews.</strong>
-            </p>
-            <div className="landing-cta-row">
-              <Link className="landing-cta landing-cta--ghost" href="/pantry">
-                See a sample report
-              </Link>
-            </div>
-          </div>
-          <ul className="landing-pantry-buckets" role="list">
-            <li data-risk="SAFE">
-              <IconCheck size={18} />
-              <span>Enjoy freely</span>
-            </li>
-            <li data-risk="MODERATE">
-              <IconAlert size={18} />
-              <span>Worth a tweak</span>
-            </li>
-            <li data-risk="HIGH">
-              <IconPause size={18} />
-              <span>Handle with care</span>
-            </li>
-          </ul>
         </section>
 
         {/* ── FAQ ─────────────────────────────────────────────── */}

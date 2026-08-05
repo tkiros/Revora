@@ -1559,16 +1559,9 @@ button.inline-link {
 .landing-wordmark,
 .landing-h1,
 .landing-h2,
-.landing-eyebrow,
 .landing-cta,
-.landing-step h3,
-.landing-step-num,
-.landing-feature h3,
-.landing-proof-item h3,
 .landing-price-day,
 .landing-price-what,
-.landing-glance-fact,
-.landing-verdict-meal,
 .landing-faq summary,
 .landing-footer-col h3 {
   font-family: var(--font-sans), system-ui, sans-serif;
@@ -1781,17 +1774,6 @@ button.inline-link {
   justify-items: start;
 }
 
-/* The audience line. Accent-coloured rather than muted: naming who this is for
-   is load-bearing copy on this page, not a decorative kicker. */
-.landing-eyebrow {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--accent-strong);
-}
-
 /* Tracking is size-specific, so shrinking the H1 retunes it. -0.03em was cut
    for the old 60.8px ceiling; the new ceiling is 46.4px and the floor is
    30.4px, which is not display size at all. At 30.4px, -0.03em also squeezes
@@ -1883,57 +1865,6 @@ button.inline-link {
   max-width: 420px;
 }
 
-/* Research proof band: honest stats pulled forward on the landing page. */
-.landing-proof-band {
-  display: grid;
-  gap: 16px;
-  border: 2px solid var(--border-soft);
-  border-radius: 24px;
-  padding: 26px 24px;
-  margin-bottom: 24px;
-  background: var(--accent-tint);
-}
-
-@media (min-width: 720px) {
-  .landing-proof-band {
-    grid-template-columns: auto 1fr;
-    align-items: center;
-    gap: 28px;
-  }
-}
-
-/* Was styled at clamp(2.6rem, 7vw, 3.6rem)/800 — a big-number slot left over
-   from a hero-metric layout — but `.landing-proof-band p` below is more
-   specific and silently overrode it to 15px, leaving the word "Sources"
-   orphaned in its own grid column. There is no number here and there must not
-   be one: a statistic in this band would read as Revora's own result. It is a
-   label, so it is styled as one. */
-.landing-proof-band .landing-proof-stat {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  line-height: 1.4;
-  color: var(--accent-strong);
-}
-
-.landing-proof-band p {
-  margin: 0;
-  color: var(--text-body);
-  font-size: 17px;
-  line-height: 1.62;
-}
-
-.landing-proof-band .landing-proof-note {
-  margin-top: 6px;
-  /* 16px floor: this links out to the evidence and limitations, which is a
-     transparency affordance, not decoration. De-emphasis here is carried by
-     colour, not by dropping under the landing's minimum reading size. */
-  font-size: 16px;
-  color: var(--text-muted);
-}
-
 /* Rhythm. Air does the sectioning, and the hairline sits ON the block rather
    than on an <hr>. Computes 72px at 375px (10vw is below the floor there),
    holds 72px through 720px, and reaches 128px at 1280px.
@@ -1971,86 +1902,6 @@ button.inline-link {
   font-size: 18.5px;
   line-height: 1.6;
   text-wrap: pretty;
-}
-
-.landing-grid-3 {
-  display: grid;
-  gap: 16px;
-}
-
-@media (min-width: 720px) {
-  .landing-grid-3 {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-.landing-step {
-  display: grid;
-  gap: 10px;
-  align-content: start;
-  background: var(--surface);
-  border: 2px solid var(--border-soft);
-  border-radius: 24px;
-  padding: 22px;
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
-}
-
-.landing-step-num {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.landing-step h3 {
-  margin: 0;
-  font-size: 20px;
-  line-height: 1.25;
-}
-
-.landing-step p {
-  margin: 0;
-  color: var(--text-body);
-  font-size: 17px;
-  line-height: 1.62;
-}
-
-.landing-proof {
-  display: grid;
-  gap: 14px;
-}
-
-@media (min-width: 720px) {
-  .landing-proof {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-/* Same card recipe as its seven siblings (2px --border-soft, 24px). It used to
-   be the one bordered card on 1px --border-strong + 14px — a heavier, tighter
-   box than everything around it, sitting in the section that argues Revora is
-   trustworthy. Inconsistency reads loudest exactly there. */
-.landing-proof-item {
-  display: grid;
-  gap: 6px;
-  border: 2px solid var(--border-soft);
-  border-radius: 24px;
-  padding: 16px 18px;
-  background: var(--surface);
-}
-
-.landing-proof-item h3 {
-  margin: 0;
-  font-size: 18px;
-}
-
-.landing-proof-item p {
-  margin: 0;
-  color: var(--text-body);
-  font-size: 16.5px;
-  line-height: 1.55;
 }
 
 .landing-price-tiles {
@@ -2226,10 +2077,13 @@ button.inline-link {
 }
 
 /* ── The three answers ───────────────────────────────────────
-   Deliberately NOT `.result-card`: these are illustrations on a marketing
-   surface, so they borrow the semantic verdict colours without impersonating a
-   real result. The Clear card has no adjustment row, because the engine cannot
-   produce one for a SAFE verdict (F-04) — the layout has to survive that. */
+   A grid of the product's own `.result-card`s (`<ExampleResultCard>`), not
+   marketing lookalikes — the seven `.landing-verdict*` selectors that used to
+   impersonate one are gone. This rule owns layout only: shape, border and
+   shadow belong to the card recipe, and `.landing*` may not override them
+   (DESIGN.md §11, pinned by landing-design-guards Guard 1). The Clear card has
+   no adjustment row, because the engine cannot produce one for a SAFE verdict
+   (F-04) — the layout has to survive that. */
 .landing-verdicts {
   display: grid;
   gap: 16px;
@@ -2240,63 +2094,6 @@ button.inline-link {
   .landing-verdicts {
     grid-template-columns: repeat(3, 1fr);
   }
-}
-
-.landing-verdict {
-  display: grid;
-  gap: 10px;
-  align-content: start;
-  border: 2px solid var(--border-soft);
-  border-radius: 24px;
-  padding: 22px;
-  background: var(--surface);
-  /* DESIGN.md §Shape: one card shadow, one alpha. This was 0.06. */
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
-}
-
-.landing-verdict[data-risk="SAFE"] {
-  border-color: var(--safe-border);
-  background: var(--safe-bg);
-}
-
-.landing-verdict[data-risk="MODERATE"] {
-  border-color: var(--moderate-border);
-  background: var(--moderate-bg);
-}
-
-.landing-verdict[data-risk="HIGH"] {
-  border-color: var(--high-border);
-  background: var(--high-bg);
-}
-
-.landing-verdict-meal {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 16.5px;
-  font-weight: 600;
-  line-height: 1.55;
-}
-
-.landing-verdict-reason {
-  margin: 0;
-  color: var(--text-body);
-  font-size: 17px;
-  line-height: 1.62;
-}
-
-.landing-verdict-row {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-  margin: 0;
-  color: var(--text-body);
-  font-size: 16.5px;
-  line-height: 1.55;
-}
-
-.landing-verdict-row svg {
-  flex: none;
-  margin-top: 3px;
 }
 
 /* `.result-disclaimer` sits in the shared 14px hints/meta group, which is the
@@ -2329,94 +2126,6 @@ button.inline-link {
      >= 16px honours it. Never lower this below 16px. */
   font-size: 17px;
   line-height: 1.65;
-}
-
-/* ── What you get ────────────────────────────────────────────
-   The feature inventory the page never had. Typography in a grid; a border-top
-   per item groups them without six more boxes. */
-.landing-features {
-  display: grid;
-  gap: 4px 40px;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-}
-
-.landing-feature {
-  padding: 20px 0;
-  border-top: 1px solid var(--border-strong);
-}
-
-.landing-feature h3 {
-  margin: 0 0 6px;
-  font-size: 19px;
-  line-height: 1.3;
-}
-
-.landing-feature p {
-  margin: 0;
-  color: var(--text-body);
-  font-size: 17px;
-  line-height: 1.62;
-}
-
-/* ── Pantry Review ───────────────────────────────────────── */
-.landing-pantry {
-  display: grid;
-  gap: 28px;
-  align-items: center;
-}
-
-@media (min-width: 880px) {
-  .landing-pantry {
-    grid-template-columns: 1.3fr 0.7fr;
-  }
-}
-
-.landing-pantry-copy {
-  display: grid;
-  gap: 12px;
-  justify-items: start;
-}
-
-.landing-pantry-terms {
-  margin: 0;
-  color: var(--text-body);
-  font-size: 17px;
-  line-height: 1.6;
-}
-
-.landing-pantry-buckets {
-  display: grid;
-  gap: 10px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.landing-pantry-buckets li {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border: 2px solid var(--border-soft);
-  border-radius: 14px;
-  padding: 12px 16px;
-  background: var(--surface);
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.landing-pantry-buckets li[data-risk="SAFE"] {
-  border-color: var(--safe-border);
-  color: var(--safe-text);
-}
-
-.landing-pantry-buckets li[data-risk="MODERATE"] {
-  border-color: var(--moderate-border);
-  color: var(--moderate-text);
-}
-
-.landing-pantry-buckets li[data-risk="HIGH"] {
-  border-color: var(--high-border);
-  color: var(--high-text);
 }
 
 /* Was `.landing-cta-row--centered`, which set only margin-top and centered
@@ -2489,118 +2198,6 @@ button.inline-link {
   outline: 3px solid rgba(13, 95, 87, 0.45);
   outline-offset: 2px;
   border-radius: 6px;
-}
-
-/* ── At a glance ─────────────────────────────────────────────
-   Four facts under the fold. Not cards: a rule-separated row, so it reads as
-   one statement of the offer rather than four competing boxes. */
-.landing-glance {
-  display: grid;
-  gap: 0;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  grid-template-columns: repeat(auto-fit, minmax(215px, 1fr));
-}
-
-.landing-glance li {
-  display: grid;
-  gap: 6px;
-  align-content: start;
-  padding: clamp(24px, 3vw, 34px) 24px;
-  border-top: 1px solid var(--border-soft);
-}
-
-@media (min-width: 880px) {
-  .landing-glance li {
-    border-top: none;
-    border-left: 1px solid var(--border-soft);
-  }
-  .landing-glance li:first-child {
-    border-left: none;
-    padding-left: 0;
-  }
-}
-
-.landing-glance-fact {
-  font-size: clamp(1.35rem, 2.4vw, 1.6rem);
-  font-weight: 800;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
-  color: var(--accent-strong);
-  text-wrap: balance;
-}
-
-.landing-glance-label {
-  color: var(--text-body);
-  font-size: 16px;
-  line-height: 1.5;
-}
-
-/* ── What actually changes ───────────────────────────────────
-   Before/after pairs. The "before" is muted and struck through in spirit, not
-   literally — strikethrough on a health surface reads as judgment. */
-/* Four pairs, so 2x2 — auto-fit put three up and orphaned the fourth. */
-.landing-outcomes {
-  display: grid;
-  gap: 18px;
-}
-
-@media (min-width: 720px) {
-  .landing-outcomes {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-.landing-outcome {
-  display: grid;
-  gap: 10px;
-  align-content: start;
-  padding: 22px 24px;
-  border: 2px solid var(--border-soft);
-  border-radius: 24px;
-  background: var(--surface);
-}
-
-.landing-outcome-before {
-  margin: 0;
-  padding-left: 26px;
-  position: relative;
-  color: var(--text-muted);
-  font-size: 16.5px;
-  line-height: 1.5;
-}
-
-.landing-outcome-before::before {
-  content: "";
-  position: absolute;
-  left: 4px;
-  top: 0.55em;
-  width: 12px;
-  height: 2px;
-  background: var(--text-soft);
-}
-
-.landing-outcome-after {
-  margin: 0;
-  padding-left: 26px;
-  position: relative;
-  color: var(--text-strong);
-  font-size: 17.5px;
-  font-weight: 600;
-  line-height: 1.5;
-}
-
-.landing-outcome-after::before {
-  content: "";
-  position: absolute;
-  left: 5px;
-  top: 0.3em;
-  width: 11px;
-  height: 6px;
-  border-left: 2px solid var(--accent);
-  border-bottom: 2px solid var(--accent);
-  transform: rotate(-45deg);
 }
 
 @media print {
