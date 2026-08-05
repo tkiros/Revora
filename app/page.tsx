@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { DemoCheckCard } from "../components/demo-check-card";
 import { ExampleResultCard } from "../components/example-result-card";
+import { LandingPause } from "../components/landing-pause";
 import { TASTER_LIMIT } from "../lib/client/taster-store";
 import { FREE_DAILY_CHECKS } from "../lib/free-tier";
 import { photoInputEnabled } from "../lib/photo-input-flag";
@@ -242,20 +243,25 @@ export default function LandingPage() {
             </ul>
           </div>
 
-          {/* Phone mockup: the HONEST two-step oatmeal flow (§P1.1 / K1),
-              real result-card markup, pixel-true. Typing "oatmeal" is
-              genuinely ambiguous, so Revora asks one question before it
-              answers — the demo shows that sequence rather than manufacturing
-              an immediate card. The strings come from the promise registry
-              via DemoCheckCard, so promise-registry.test pins them to the
-              real precheck output.
+          {/* The product's own card, above the fold, at Clear. It is the same
+              component block 4's first card renders and the same fixture, so
+              the two are byte-identical by construction — which is exactly
+              what block 4's lede tells the reader.
 
-              Until 2026-07-27 this bezel held a hand-copied duplicate of the
-              DemoCheckCard markup, and the "kind of answer you get" section
-              below rendered the SAME oatmeal verdict a second time. The
-              duplicate is gone; the component is the single source. */}
+              ⛔ The label renders from demoExampleEyebrow(null) inside the
+              component, never typed here: the day an authorised live capture
+              lands, that function returns "A real check, captured <date>" and
+              a hand-written "An illustrated example" becomes a false claim.
+
+              The oatmeal clarify flow that used to sit here moved to block 3,
+              where the pause it demonstrates is the argument. */}
           <div className="landing-hero-proof">
-            <DemoCheckCard />
+            <ExampleResultCard risk="SAFE" labelled withFineprint />
+            <p className="landing-card-caption">
+              This is the whole screen. No score, no dashboard, no change to
+              make: this meal already looks balanced, so that is the whole
+              answer.
+            </p>
           </div>
         </section>
 
@@ -312,6 +318,41 @@ export default function LandingPage() {
             hint="No login, no card, nothing to install."
             spaced
           />
+        </section>
+
+        {/* ── The pause ─────────────────────────────────────────── */}
+        <section className="landing-section landing-pause">
+          <div className="landing-section-head">
+            <h2 className="landing-h2">It asks before it guesses</h2>
+          </div>
+          {/* The HONEST two-step oatmeal flow (§P1.1 / K1) in real result-card
+              markup: "oatmeal" is genuinely ambiguous, so Revora asks one
+              question instead of guessing, and only then answers. The three
+              interaction strings come from the promise registry via
+              DemoCheckCard — promise-registry.test pins them to the precheck's
+              real output, so this scene cannot drift from the product.
+
+              ⛔ The card's first line — the one showing what the reader
+              entered — is STATIC TEXT. It looks like a form field and must
+              never become one: no input element, not focusable, no caret.
+              (Quoting that line here verbatim goes red, and should: the pin
+              at promise-registry.test.ts strips only comment-LEADING lines,
+              so a JSX comment is scanned like rendered markup.) */}
+          <LandingPause>
+            <DemoCheckCard />
+          </LandingPause>
+          <p className="landing-card-caption">
+            Without that one question, Revora would have been guessing.
+          </p>
+          {/* ⛔ A text link, not a pill, and no filled CTA anywhere in this
+              block — the absence is the argument. It is also the page's most
+              important non-primary CTA: four of the five cards on this page
+              are fixtures, and this is the one place a reader can make the
+              product do the thing. Instrument it separately from the primary
+              CTA from day one. */}
+          <Link className="landing-dare" href="/check">
+            Type “oatmeal” and see what it asks you.
+          </Link>
         </section>
 
         {/* ── The three answers ─────────────────────────────────── */}

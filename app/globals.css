@@ -1854,7 +1854,7 @@ button.inline-link {
   transform: rotate(-45deg);
 }
 
-/* Hero product visual. DemoCheckCard is already a `.surface-card`, so this is a
+/* Hero product visual. The card inside is already a card, so this is a
    positioning wrapper only — the old phone bezel wrapped a card in a card.
    Renamed from `.landing-phone` 2026-08-05: the bezel was removed 2026-07-27
    and the name had been describing a thing that no longer existed. */
@@ -1863,6 +1863,18 @@ button.inline-link {
   justify-self: center;
   width: 100%;
   max-width: 420px;
+}
+
+/* Says what the card above it means, in the hero and again under block 3's
+   demo. Body colour and body size: it is the sentence that converts a
+   screenshot into an argument, not a caption in the photo-credit sense. */
+.landing-card-caption {
+  margin: 16px 0 0;
+  max-width: 62ch;
+  color: var(--text-body);
+  font-size: 17px;
+  line-height: 1.65;
+  text-wrap: pretty;
 }
 
 /* Rhythm. Air does the sectioning, and the hairline sits ON the block rather
@@ -2108,6 +2120,66 @@ button.inline-link {
   color: var(--text-body);
   font-size: 17px;
   line-height: 1.65;
+}
+
+/* ── The pause ───────────────────────────────────────────────
+   Block 3's exit: a text link on its own line, never a pill. There is no
+   filled CTA in this block, and the absence is the argument. */
+.landing-dare {
+  display: inline-block;
+  margin: 16px 0 0;
+  color: var(--accent-strong);
+  font-size: 17px;
+  line-height: 1.65;
+}
+
+/* The page's ONE animation. Two beats: the clarify card at 220ms, then
+   everything after it — the "You answer:" line and the result card — at 240ms
+   on a 520ms delay, so the pause is legible as a pause.
+
+   ⛔ The default state declares NOTHING. The card ships opaque and in place;
+   components/landing-pause.tsx writes data-animate="armed" after mount, in a
+   browser, only when the reader has not asked for reduced motion. No JS, a
+   crawler, a headless render or a reduced-motion reader never matches these
+   selectors at all.
+
+   The transition lives on the `in` state, not on `armed` — arming must be
+   instant. Declaring it on both would animate the finished card OUT over
+   240ms the moment the component mounts, which is the flash this ordering
+   exists to prevent. transform and opacity only: nothing here can trigger
+   layout. */
+.landing-pause-stage[data-animate="armed"] [data-testid="demo-clarify"],
+.landing-pause-stage[data-animate="armed"] [data-testid="demo-clarify"] ~ * {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.landing-pause-stage[data-animate="in"] [data-testid="demo-clarify"] {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 220ms var(--ease),
+    transform 220ms var(--ease);
+}
+
+.landing-pause-stage[data-animate="in"] [data-testid="demo-clarify"] ~ * {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 240ms var(--ease) 520ms,
+    transform 240ms var(--ease) 520ms;
+}
+
+/* The second gate. The JS gate above already prevents arming, and this makes
+   the CSS safe on its own — either one is a single refactor away from being
+   the last one standing. */
+@media (prefers-reduced-motion: reduce) {
+  .landing-pause-stage[data-animate] [data-testid="demo-clarify"],
+  .landing-pause-stage[data-animate] [data-testid="demo-clarify"] ~ * {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
 }
 
 /* ── The three answers ───────────────────────────────────────
