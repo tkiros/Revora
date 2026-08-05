@@ -6,11 +6,20 @@ loaded. An unmeasured desert claim does not count."* This is W13 of
 `docs/plans/landing-implementation-plan.md`, and it is the first time that clause has been exercised
 on real code.
 
-> ⚠️ **The figures below are the W13 run and are no longer the page.** The owner previewed the built
-> page and read the body type as too small; raising it `17px → 18px` lengthened the page and moved
-> the desert map. **For the current numbers, jump to [Re-measured after the 18px body](#re-measured-after-the-18px-body-2026-08-05).**
-> The W13 run is kept in full because it is the harness-validation record and the evidence behind the
-> two rulings in §"The two rulings this measurement settles" — both of which still hold.
+> ⚠️ **This file has three runs in it, and only the last one is the page.**
+> **For the current numbers, jump to [Re-measured after the pricing section was deleted](#re-measured-after-the-pricing-section-was-deleted--2026-08-05).**
+>
+> | Run | Page length | Worst desert | Why it was re-measured |
+> |---|---|---|---|
+> | W13, below | 9,262px | 1,913px | the original harness-validation run |
+> | 18px body | 9,556px | 1,877px | owner read the body type as too small |
+> | **pricing deleted** | **7,811px** | **1,877px** | owner deleted the pricing section |
+>
+> The earlier runs are kept in full: W13 is the harness-validation record and the evidence behind the
+> two rulings in §"The two rulings this measurement settles". ⚠️ **Ruling 1 of those two is now
+> MOOT** — it arranged a CTA around the cancel paragraph, and both were deleted with the pricing
+> section. It is annotated in place rather than removed, because the reasoning is what a future offer
+> block would need. Ruling 2 (block 2's CTA above the scope note) still holds and is still load-bearing.
 
 **Reproduce it:**
 
@@ -91,7 +100,13 @@ All three reproduce to the pixel. The harness measures what the previous one mea
 
 ## The two rulings this measurement settles
 
-### 1. ⚖️ `DESIGN.md` §11.1's CTA ruling — **the copy wins, at no cost**
+### 1. ⚖️ `DESIGN.md` §11.1's CTA ruling — **the copy wins, at no cost** — ⚠️ NOW MOOT
+
+> ⚠️ **Superseded 2026-08-05.** The offer block, its CTA and the cancel paragraph this ruling
+> arranged were all deleted (see the third run below). The ruling cannot be violated because none of
+> its subjects exist. It is kept because the *method* is the reusable part: when a copy-grounded
+> ruling and the desert budget appear to conflict, measure both arrangements before assuming the copy
+> has to pay. Here it did not have to.
 
 The ruling put the offer block's CTA *"immediately after the cancel paragraph, before the claims
 list"* on copy grounds, and recorded that if that variant missed the budget, the measured
@@ -199,3 +214,76 @@ Reverting it is moving one element and puts the page 33px outside §11.1.
 
 **W13's two rulings are unaffected.** The offer-block CTA is still after the cancel paragraph and its
 desert is 1,608px, well inside budget; block 2's CTA is still above the scope note.
+
+---
+
+## Re-measured after the pricing section was deleted — 2026-08-05
+
+The owner ruled: *"the price should not be mentioned, only focus on free check."* Asked whether that
+meant deleting block 5 or rewriting it without amounts, they chose **delete**. The whole `#pricing`
+section went — three price tiles, the branch-aware H2, the cancel paragraph, one primary CTA, the
+four subscription claims and the Pantry Review line — along with the nav's `Pricing` link, ~70 lines
+of now-orphaned CSS, and the `resolvePriceVariant` / `resolveAnnualPrice` imports.
+
+**Deleting copy is a layout change**, so §11.1 applies and this is that measurement. Method is
+identical to the 18px run: production build, 375×667, fonts awaited, one scroll pass.
+
+| | 18px run | Now | Change |
+|---|---|---|---|
+| Page length | 9,556px | **7,811px** | **−1,745px (−18.3%)** |
+| Screenfuls | 14.3 | **11.7** | −2.6 |
+| Exits to `/check` | 8 | **7** | −1 (block 5's CTA) |
+| Exits to `/pantry` | 3 | **2** | −1 (the Pantry Review line) |
+| Worst desert | 1,877px | **1,877px** | — (unchanged, and still the hero → block 2 stretch) |
+| Over budget | 0 | **0** | ✅ |
+
+### Block map
+
+| Range | Height | Block |
+|---|---|---|
+| 0 → 82 | 82px | nav |
+| 82 → 1,330 | 1,248px | block 1, hero |
+| 1,330 → 2,753 | 1,423px | block 2, the gap |
+| 2,753 → 3,863 | 1,110px | block 3, the pause |
+| 3,863 → 6,122 | 2,259px | block 4, three answers |
+| 6,122 → 6,657 | 535px | Fair questions |
+| 6,657 → 6,934 | 277px | block 6, close |
+| 6,934 → 7,811 | 877px | footer |
+
+### Desert map
+
+| Gap | From → to | |
+|---|---|---|
+| 18px | top → nav `Check a meal` | |
+| 430px | nav → hero CTA | |
+| **1,877px** | hero CTA → block 2 CTA | worst, 2.8 screenfuls |
+| 1,267px | block 2 CTA → block 3 dare link | |
+| 1,759px | dare link → block 4 CTA | |
+| 1,118px | block 4 CTA → final CTA | spans the entire FAQ |
+| 212px | final CTA → footer `Check a meal` | |
+| 763px | footer link → bottom | |
+
+### ⭐ Removing an exit made the desert map *better*, which is not the obvious result
+
+The intuition is that deleting a CTA must lengthen some desert, because the reader now travels
+further between exits. It did the opposite. The two deserts that block 5's CTA used to sit between
+were **1,608px + 1,194px**; with the whole block gone — it accounts for the entire 1,745px the page
+lost — the single desert that replaced them is **1,118px**, shorter than either of the two it merged.
+
+The lesson generalises, and it is worth writing down before the "fill the sides" work starts: **an
+exit only earns its place if the content it interrupts has to be there.** Block 5's CTA was buying
+back reachability that block 5's own length was spending. Deleting the content is strictly better
+than adding a button to survive it, and the same test applies to anything added to the empty right
+columns — content added there costs page length, and page length is what the budget actually meters.
+
+### What this run does *not* settle
+
+⚠️ The worst desert did not move: **1,877px, hero CTA → block 2's CTA**, exactly as before. The
+deletion happened entirely below it, so every arrangement note in the two runs above still governs
+that stretch — the hero trust strip stays above the hero CTA, and block 2's CTA stays above the scope
+note. Neither has any new headroom.
+
+⚠️ **There is now 124px of headroom on the worst desert and 883px on the next-worst.** That is the
+budget available to the "fill the sides" work (handoff §3.3) and to any copy the owner adds back. It
+is not much: at 375px, a right-column image or a live product component becomes a *stacked* block,
+and 124px is roughly three lines of body copy. **Re-measure before assuming anything fits.**

@@ -1560,8 +1560,6 @@ button.inline-link {
 .landing-h1,
 .landing-h2,
 .landing-cta,
-.landing-price-day,
-.landing-price-what,
 .landing-faq summary,
 .landing-footer-col h3 {
   font-family: var(--font-sans), system-ui, sans-serif;
@@ -1740,8 +1738,7 @@ button.inline-link {
    border. The 6px radius on inline-link rings above is deliberately off the
    card scale — a card radius on a one-line text link looks bulbous. */
 .landing .result-card:focus-visible,
-.landing .surface-card:focus-visible,
-.landing-price-tile:focus-visible {
+.landing .surface-card:focus-visible {
   outline: 3px solid rgba(13, 95, 87, 0.45);
   outline-offset: 2px;
 }
@@ -1916,52 +1913,12 @@ button.inline-link {
   text-wrap: pretty;
 }
 
-.landing-price-tiles {
-  display: grid;
-  gap: 16px;
-}
-
-@media (min-width: 720px) {
-  .landing-price-tiles {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-/* The page's second and last card family (DESIGN.md §11), carrying the one
-   shadow in the system. */
-.landing-price-tile {
-  display: grid;
-  gap: 8px;
-  align-content: start;
-  border: 2px solid var(--border-soft);
-  border-radius: 24px;
-  padding: 22px;
-  background: var(--surface);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
-}
-
-/* Body size, not a tracked 13px label: nothing on this page renders below
-   16px, and "Days 2-8" is read as a phrase, not scanned as a kicker. */
-.landing-price-day {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--text-muted);
-}
-
-.landing-price-what {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.landing-price-tile p {
-  margin: 0;
-  color: var(--text-body);
-  font-size: 18px;
-  line-height: 1.65;
-}
+/* The `.landing-price-*` family stood here — tiles, day label, amount, tile
+   body. Deleted 2026-08-05 with the pricing section that was their only call
+   site. Note for whoever restores a section here: these tiles were the page's
+   SECOND card family and carried the one box-shadow in the system, which
+   DESIGN.md §11 counts against the one-plane rule. A replacement block should
+   earn that shadow again rather than inherit it. */
 
 .landing-faq {
   display: grid;
@@ -2080,17 +2037,19 @@ button.inline-link {
   background: var(--accent);
 }
 
-/* The page's supporting prose, grouped so it cannot drift into four slightly
-   different paragraphs: block 2's scope note, block 4's sources footnote, and
-   block 5's cancel promise and Pantry line. Body colour, not muted — the
-   cancel paragraph in particular is set at the same weight as the price on
-   purpose, and a de-emphasised legal grey is the opposite of that argument.
-   `.landing-scope-note` replaced `.landing-pains-note` (68ch/--text-muted)
-   when the three-negation sentence was cut. */
+/* The page's supporting prose, grouped so it cannot drift into slightly
+   different paragraphs: block 2's scope note and block 4's sources footnote.
+   Body colour, not muted — a de-emphasised legal grey reads as fine print,
+   and neither of these is fine print. `.landing-scope-note` replaced
+   `.landing-pains-note` (68ch/--text-muted) when the three-negation sentence
+   was cut.
+
+   `.landing-cancel` and `.landing-pantry-note` left this group 2026-08-05
+   with the pricing section they lived in. The cancel paragraph was grouped
+   here specifically so it would sit at the same weight as the price; there
+   is no price on this page now. */
 .landing-scope-note,
-.landing-sources,
-.landing-cancel,
-.landing-pantry-note {
+.landing-sources {
   max-width: 62ch;
   margin: 28px 0 0;
   color: var(--text-body);
@@ -2107,20 +2066,11 @@ button.inline-link {
   margin: 0;
 }
 
-/* What the subscription is, four plain lines. Not a card grid and not a
-   bulleted list: these are sentences, and the nine boxes they replaced were
-   the most template-shaped structure on the page. */
-.landing-claims {
-  display: grid;
-  gap: 14px;
-  max-width: 62ch;
-  margin: 28px 0 0;
-  padding: 0;
-  list-style: none;
-  color: var(--text-body);
-  font-size: 18px;
-  line-height: 1.65;
-}
+/* `.landing-claims` stood here — the four subscription lines, deleted
+   2026-08-05 with the pricing section. Worth knowing if a "what you get"
+   block ever returns: it was a grid of plain sentences, deliberately not a
+   card grid, because the nine-box feature grid it replaced was the most
+   template-shaped structure the page has ever carried. */
 
 /* ── The pause ───────────────────────────────────────────────
    Block 3's exit: a text link on its own line, never a pill. There is no

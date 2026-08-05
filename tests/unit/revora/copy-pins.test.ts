@@ -81,18 +81,24 @@ describe("free-tier copy is derived from TASTER_LIMIT", () => {
     expect(src).toMatch(/import\s*\{[^}]*TASTER_LIMIT[^}]*\}\s*from\s*["'].*taster-store["']/);
     // Every free-tier claim on the page interpolates it.
     expect(src).toContain("{TASTER_LIMIT} free checks on your first");
-    // Was "{TASTER_LIMIT} free checks on day one" — the pricing lede that
-    // carried it is deleted. The offer block's H2 is the replacement site and
-    // the one most likely to be retyped as the word "Ten".
-    expect(src).toContain("${TASTER_LIMIT} free checks, then a");
-    expect(src).toContain("Check up to {TASTER_LIMIT} meals on your first day");
+    // The two sites this pin used to name — the pricing H2 ("…free checks,
+    // then a…") and the Day 1 tile ("Check up to…") — went with the pricing
+    // section on 2026-08-05. Both CTA captions survive and carry the number,
+    // so the pin follows them rather than retiring: the risk it guards is
+    // someone retyping "Ten", and that risk lives wherever the count renders.
+    expect(src).toContain(
+      "${TASTER_LIMIT} free checks on your first day, then you decide."
+    );
+    expect(src).toContain(
+      "No login. No card. ${TASTER_LIMIT} free checks on your first day."
+    );
     // FAQ copy lives in the faqs data array (template literal, not JSX) so the
     // FAQPage JSON-LD shares the same string — still interpolated, never retyped.
     expect(src).toContain("Your first ${TASTER_LIMIT} checks, on your first day");
   });
 
   // G5 (the F-07 residual), re-scoped 2026-07-27 (C-1): FREE_DAILY_CHECKS = 5
-  // is real only under PAYWALL_MODE=legacy — the trial funnel hard-walls
+  // is real only under PAYWALL_MODE=legacy — the trial mode hard-walls
   // signed-in free accounts at zero checks (app/api/check/route.ts "Hard
   // wall"). The LEGACY landing branch must keep disclosing it, interpolated
   // from the constant; the trial branch must never mention it — enforced on
@@ -103,16 +109,19 @@ describe("free-tier copy is derived from TASTER_LIMIT", () => {
 
     const src = read("app/page.tsx");
     expect(src).toMatch(/import\s*\{[^}]*FREE_DAILY_CHECKS[^}]*\}\s*from\s*["'].*free-tier["']/);
-    // JSX wraps lines; compare with whitespace collapsed. Pricing tile + FAQ.
+    // JSX wraps lines; compare with whitespace collapsed.
     const flat = src.replace(/\s+/g, " ");
-    expect(flat).toContain(
-      "A free account still includes {FREE_DAILY_CHECKS} free checks a day"
-    );
-    // FAQ branch is a template literal in the faqs data array (shared with the
-    // FAQPage JSON-LD) — same interpolated constant, different delimiter.
+    // The legacy pricing tile ("A free account still includes…") went with
+    // the pricing section on 2026-08-05, so the FAQ answer is now the ONLY
+    // place the landing discloses the signed-in allowance. That makes this
+    // assertion more load-bearing than it was, not less: lose it and the
+    // legacy deploy stops disclosing the allowance anywhere.
     expect(flat).toContain(
       "a free account includes ${FREE_DAILY_CHECKS} free checks a day"
     );
+    // ...and the number itself is never retyped next to that phrase, which is
+    // the actual failure this pin exists to catch.
+    expect(flat).not.toContain(`${FREE_DAILY_CHECKS} free checks a day`);
   });
 
   it("the landing page no longer implies an unmetered free day", () => {

@@ -344,17 +344,38 @@ test("legacy guard: PAYWALL_MODE=legacy shows the paywall card, never the wall",
   await expect(page.getByTestId("onboarding-step")).toHaveCount(0);
 });
 
-// §0.2 #4 mirror of billing-pages.spec.ts's legacy landing check: this server
-// runs PAYWALL_MODE=trial, so the landing must describe the 7-day trial.
-test("landing pricing matches the trial funnel this server runs", async ({
+// §0.2 #4 mirror of billing-pages.spec.ts's legacy landing check.
+//
+// This used to assert the landing's price tiles matched the mode this server
+// runs. The pricing section was deleted on 2026-08-05 ("the price should not
+// be mentioned, only focus on free check"), so the assertion inverts: under
+// the trial mode too, the landing must show NO section and NO amount. Proving
+// the absence on a live server is the point — a build-time pin cannot see
+// what a server-flag branch actually rendered.
+test("the trial-mode landing renders no pricing section and no amount", async ({
   page
 }) => {
   await page.goto(`${TRIAL}/`);
-  const tiles = page.locator("#pricing .landing-price-what");
-  await expect(tiles).toHaveText([
-    /free checks$/,
-    "7 days free",
-    "$12.99/month"
-  ]);
-  await expect(page.locator("#pricing")).toContainText("Days 2–8");
+  await expect(page.locator("#pricing")).toHaveCount(0);
+  await expect(page.locator(".landing-price-what")).toHaveCount(0);
+  // The nav link went with the section: a live anchor to a deleted target is
+  // the exact defect W9 shipped with #how-it-works and nothing caught.
+  await expect(page.locator('a[href="#pricing"]')).toHaveCount(0);
+  // No amount anywhere in the rendered page, in any currency shape.
+  await expect(page.locator("main.landing")).not.toContainText(/\$\d/);
+});
+
+// The one §0.2 #4 mechanism that survived the deletion: "do I need a card?"
+// has a different true answer per mode, so the FAQ still branches on the live
+// flag. This server runs trial, so the trial answer must be the one rendered.
+test("the trial-mode landing FAQ describes the card the trial needs", async ({
+  page
+}) => {
+  await page.goto(`${TRIAL}/`);
+  const faq = page.locator("#faq");
+  await expect(faq).toContainText("The 7-day free trial needs a card");
+  await expect(faq).toContainText("we email you before any charge");
+  // ...and never the legacy answer, which would promise a free daily
+  // allowance this server does not grant.
+  await expect(faq).not.toContainText("a free account includes");
 });

@@ -9,11 +9,7 @@ import { FREE_DAILY_CHECKS } from "../lib/free-tier";
 import { photoInputEnabled } from "../lib/photo-input-flag";
 import { BOUNDARY_DISCLAIMER } from "../lib/revora/boundary-copy";
 import { RISK_LABELS } from "../lib/revora/labels";
-import {
-  paywallMode,
-  resolveAnnualPrice,
-  resolvePriceVariant
-} from "../lib/server/pricing";
+import { paywallMode } from "../lib/server/pricing";
 import { storeWaitlistUrl } from "../lib/waitlist";
 import { reading } from "./fonts";
 
@@ -84,17 +80,18 @@ export default function LandingPage() {
   const androidWaitlist = storeWaitlistUrl("android");
   const iosWaitlist = storeWaitlistUrl("ios");
   const photoEnabled = photoInputEnabled();
-  // §0.2 #4 — the pricing section renders from the SAME server flags checkout
-  // enforces (paywallMode + resolvePriceVariant), so the landing can never
-  // promise a funnel or a price the live config doesn't run. Mismatch here is
-  // the one unforced error this audience never forgives.
-  const trialFunnel = paywallMode() === "trial";
-  const monthlyPrice = resolvePriceVariant().display;
-  // Same rule for the annual figures: lib/server/pricing.ts is the ONE place
-  // the display values live, so no surface can show an amount checkout won't
-  // charge. Typing "$99.99 a year, which is $8.33 a month" would have been a
-  // second copy of a price.
-  const annualPrice = resolveAnnualPrice();
+  // §0.2 #4 — this page names NO amount, anywhere. The pricing section was
+  // deleted on owner instruction 2026-08-05 ("the price should not be
+  // mentioned, only focus on free check"), which satisfies the rule the
+  // strongest way available: a page with no price on it cannot show a price
+  // checkout won't charge.
+  //
+  // What survives is the one place the page still describes what happens
+  // after the free checks — the FAQ answer below. It stays branch-aware off
+  // the same server flag checkout enforces, because "do I need a card?" has a
+  // different true answer in each mode, and answering it wrong is the one
+  // unforced error this audience never forgives.
+  const trialMode = paywallMode() === "trial";
   // FAQ copy as data: the visible <details> list and the FAQPage JSON-LD
   // render from these same strings, so the schema can never drift from the
   // page. Scanned by the claims-boundary audit like every string here.
@@ -109,7 +106,7 @@ export default function LandingPage() {
     },
     {
       q: "Do I need an account or a card to try it?",
-      a: trialFunnel
+      a: trialMode
         ? `No. Your first ${TASTER_LIMIT} checks, on your first day, need no login and no card. They live on this device only. The 7-day free trial needs a card but charges nothing for a week, and we email you before any charge.`
         : `No. Your first ${TASTER_LIMIT} checks, on your first day, need no login and no card. They live on this device only. After that, a free account includes ${FREE_DAILY_CHECKS} free checks a day, still no card. Premium is optional, and cancels in one tap.`
     },
@@ -130,9 +127,9 @@ export default function LandingPage() {
   // Every string is either shared with the visible page (LANDING_DESCRIPTION,
   // faqs) or an interpolated constant — nothing is claimed here that the page
   // doesn't already say.
-  // No `offers` node on purpose: pricing on this page renders only from the
-  // live server flags (§0.2 #4), and schema.org pricing would be a hardcoded
-  // claim outside that guarantee.
+  // No `offers` node on purpose: this page names no amount at all (§0.2 #4),
+  // and a schema.org price would put one back — invisible to the reader, and
+  // still a hardcoded claim outside the live server flags.
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
@@ -194,10 +191,12 @@ export default function LandingPage() {
               reachable by scrolling and is repeated in the footer, so this
               costs no navigation. */}
           <div className="landing-nav-links">
-            {/* The route, not an in-page anchor: the how-it-works block is
-                gone, and /how-it-works is where the footer already points. */}
+            {/* Routes, not in-page anchors: the how-it-works block is gone,
+                and /how-it-works is where the footer already points. The
+                "Pricing" link went with the pricing section (owner, 2026-08-05)
+                — a nav link to a deleted #pricing is a dead fragment, and no
+                test on this repo catches one. */}
             <Link href="/how-it-works">How it works</Link>
-            <a href="#pricing">Pricing</a>
             <Link href="/pantry">Pantry Review</Link>
           </div>
           {/* Ghost, not filled: one filled pill per viewport (DESIGN.md
@@ -315,8 +314,10 @@ export default function LandingPage() {
             </li>
           </ul>
           {/* The recognition moment — "that is my last six months" — is the
-              highest-intent point on the page before pricing, so the exit sits
-              directly on it.
+              highest-intent point on the page, so the exit sits directly on
+              it. (It used to be qualified "before pricing"; there is no
+              pricing section any more, which makes it the highest-intent
+              point full stop.)
 
               ⚠️ MEASURED POSITION (DESIGN.md §11.1). With the CTA below the
               scope note, the hero-to-here stretch measures 2,053px — 52px past
@@ -444,136 +445,26 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ── Pricing ─────────────────────────────────────────── */}
-        <section className="landing-section" id="pricing">
-          <div className="landing-section-head">
-            {/* Branch-aware: the winner spec writes one H2 ("…then a week…"),
-                which is only true under the trial funnel. Under
-                PAYWALL_MODE=legacy there is no free week, and this page may
-                never promise a funnel the live config doesn't run (§0.2 #4).
-                The shape of the spec's line is kept; the middle step names
-                whichever step the deploy actually has. */}
-            <h2 className="landing-h2">
-              {trialFunnel
-                ? `${TASTER_LIMIT} free checks, then a week, then a decision.`
-                : `${TASTER_LIMIT} free checks, then a free account, then a decision.`}
-            </h2>
-          </div>
-          <div className="landing-price-tiles">
-            <div className="landing-price-tile">
-              <p className="landing-price-day">Day 1</p>
-              <p className="landing-price-what">
-                {TASTER_LIMIT} free checks
-              </p>
-              <p>
-                Check up to {TASTER_LIMIT} meals on your first day, no login
-                and no card. They live on this device.
-              </p>
-            </div>
-            {trialFunnel ? (
-              <>
-                <div className="landing-price-tile">
-                  <p className="landing-price-day">Days 2–8</p>
-                  <p className="landing-price-what">7 days free</p>
-                  {/* The least portable sentence on the page, and the whole
-                      reason these tiles survive as tiles. Every clause is the
-                      approved `precharge-email` row: it ends "in about 2
-                      days", it states {date} and {amount}, and it carries
-                      {cancel-link}. The winner spec wrote "Day 5" here — a
-                      more specific claim than the email schedule has ever
-                      been traced to support, so the timing stays as the
-                      ledger states it. */}
-                  <p>
-                    Card required, nothing charged. Two days before the trial
-                    ends, we email you the exact date and the exact amount,
-                    with a one-tap cancel link in it.
-                  </p>
-                </div>
-                <div className="landing-price-tile">
-                  <p className="landing-price-day">After your free week</p>
-                  <p className="landing-price-what">{monthlyPrice}/month</p>
-                  <p>
-                    Or {annualPrice.display} a year, which is{" "}
-                    {annualPrice.monthlyEquivalent} a month. Cancel in one
-                    tap, effective at the end of the period.
-                  </p>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="landing-price-tile">
-                  <p className="landing-price-day">Every day</p>
-                  <p className="landing-price-what">A free account</p>
-                  <p>
-                    No card. A free account still
-                    includes {FREE_DAILY_CHECKS} free checks a day, still no
-                    card, with your history saved to your account.
-                  </p>
-                </div>
-                <div className="landing-price-tile">
-                  <p className="landing-price-day">Premium</p>
-                  <p className="landing-price-what">{monthlyPrice}/month</p>
-                  <p>
-                    Or {annualPrice.display} a year, which is{" "}
-                    {annualPrice.monthlyEquivalent} a month. Cancel in one
-                    tap, effective at the end of the period.
-                  </p>
-                </div>
-              </>
-            )}
-          </div>
-          {/* At the same weight as the price, deliberately, and directly
-              under it (ledger `landing-cancel-promise`). */}
-          <p className="landing-cancel">
-            Stopping is one tap on your account page, effective at the end of
-            the period. No retention screen, no &ldquo;are you sure&rdquo;, no
-            email you have to write. We know why you are reading this
-            paragraph carefully.
-          </p>
-          {/* DESIGN.md §11.1's related ruling, measured. The reorder that buys
-              the reachability budget wants a button between the price tiles
-              and this paragraph, but the paragraph's power IS its adjacency to
-              the price, and a pixel win does not outrank a scored copy graft.
-              So the CTA takes the first position that keeps the adjacency:
-              immediately after the cancel paragraph, before the claims. */}
-          <LandingPrimaryCta spaced />
-          {/* What the subscription is, most-asked first, no numerals — these
-              four lines are what the nine-card feature grid compressed to
-              (ledger `landing-what-you-get`). Claim 1 leads with the pinned
-              phrase rather than burying it mid-clause, which is what forced a
-              capital A into the middle of a sentence in an earlier draft. */}
-          <ul className="landing-claims" role="list">
-            <li>
-              A record you can actually show someone: unlimited checks, every
-              one saved, on every device.
-            </li>
-            <li>
-              A weekly recap in sentences. Never a grade, never a lab
-              prediction.
-            </li>
-            <li>
-              One optional reminder a day, off by default. Skip a day and
-              nothing turns red. Blank days are just blank.
-            </li>
-            <li>
-              Your A1C and meal text encrypted at rest, deleted in one tap,
-              account included.
-            </li>
-          </ul>
-          {/* The Pantry Review as prose, not a section of its own. No price:
-              AUD-010 makes lib/server/pantry-price.ts the one authority and
-              requires the surfaces to fail closed rather than render a
-              guessed "$49". /pantry resolves and shows the real amount. */}
-          <p className="landing-pantry-note">
-            Or check the whole kitchen, once. The Pantry Review sorts what you
-            already own into one printable report. One payment, nothing
-            renews.{" "}
-            <Link className="inline-link" href="/pantry">
-              See a sample report
-            </Link>
-            .
-          </p>
-        </section>
+        {/* ── The pricing section stood here ────────────────────
+            Deleted 2026-08-05 on owner instruction: "the price should not be
+            mentioned, only focus on free check." Three price tiles, the
+            branch-aware "…then a decision." H2, the cancel promise, a CTA,
+            the four subscription claims and the Pantry Review paragraph all
+            went with it — every one of them described what happens after you
+            pay, which is the thing this page is no longer about.
+
+            Deleting the section is what discharges §0.2 #4 now, and it
+            discharges it harder than the old mechanism did: a page carrying
+            no amount cannot show an amount checkout won't charge. The pins
+            moved with it — landing-paywall-copy.test.ts now asserts the
+            ABSENCE, and both mode-pinned e2e servers assert no #pricing
+            section exists under either paywall mode. Restoring any of this
+            copy means restoring those pins in their presence-asserting form.
+
+            Ledger rows `landing-cancel-promise` and `landing-what-you-get`
+            are now unrendered. They stay Approved in copy-ledger.md — the
+            strings are still true and still ship in the app — but nothing on
+            this page renders them. */}
 
         {/* ── FAQ ─────────────────────────────────────────────── */}
         <section className="landing-section" id="faq">
