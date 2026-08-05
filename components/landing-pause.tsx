@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 /**
  * Block 3's entrance — the ONLY JS-driven motion on the landing page, and the
@@ -19,20 +19,24 @@ import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
  * either gate alone is one refactor away from being the last one.
  */
 
-// useLayoutEffect writes the armed state before the browser paints, so the
-// finished card never flashes and then hides. React logs a warning if it runs
-// during server rendering, and Next renders this component on the server, so
-// pick the effect the environment can actually run.
-const useArmingEffect =
-  typeof window === "undefined" ? useEffect : useLayoutEffect;
-
 export function LandingPause({ children }: { children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
 
-  useArmingEffect(() => {
+  useEffect(() => {
     const node = ref.current;
     if (!node || typeof IntersectionObserver === "undefined") return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    // ⛔ Never arm something the reader can already see. Hydration runs long
+    // after the server HTML has painted, so arming an on-screen card yanks a
+    // settled, opaque card to opacity 0 and fades it back in — the flicker the
+    // owner reported, and once per HMR remount in `next dev`. No effect can fix
+    // that by ordering (useLayoutEffect precedes the NEXT paint, not the
+    // FIRST): the fix is to arm only what is off-screen, which makes arming
+    // invisible by construction. Block 3 starts at ~2,600px, so the entrance
+    // still plays as designed on any normal load.
+    const box = node.getBoundingClientRect();
+    if (box.top < window.innerHeight && box.bottom > 0) return;
 
     node.dataset.animate = "armed";
 

@@ -2139,9 +2139,11 @@ button.inline-link {
 
    ⛔ The default state declares NOTHING. The card ships opaque and in place;
    components/landing-pause.tsx writes data-animate="armed" after mount, in a
-   browser, only when the reader has not asked for reduced motion. No JS, a
-   crawler, a headless render or a reduced-motion reader never matches these
-   selectors at all.
+   browser, only when the reader has not asked for reduced motion, and only
+   when the stage is OFF-SCREEN — arming something already painted is what
+   made this block flicker. No JS, a crawler, a headless render, a
+   reduced-motion reader or a load that starts on this block never matches
+   these selectors at all.
 
    The transition lives on the `in` state, not on `armed` — arming must be
    instant. Declaring it on both would animate the finished card OUT over
