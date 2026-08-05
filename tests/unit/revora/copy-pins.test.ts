@@ -81,7 +81,10 @@ describe("free-tier copy is derived from TASTER_LIMIT", () => {
     expect(src).toMatch(/import\s*\{[^}]*TASTER_LIMIT[^}]*\}\s*from\s*["'].*taster-store["']/);
     // Every free-tier claim on the page interpolates it.
     expect(src).toContain("{TASTER_LIMIT} free checks on your first");
-    expect(src).toContain("{TASTER_LIMIT} free checks on day one");
+    // Was "{TASTER_LIMIT} free checks on day one" — the pricing lede that
+    // carried it is deleted. The offer block's H2 is the replacement site and
+    // the one most likely to be retyped as the word "Ten".
+    expect(src).toContain("${TASTER_LIMIT} free checks, then a");
     expect(src).toContain("Check up to {TASTER_LIMIT} meals on your first day");
     // FAQ copy lives in the faqs data array (template literal, not JSX) so the
     // FAQPage JSON-LD shares the same string — still interpolated, never retyped.

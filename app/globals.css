@@ -2068,12 +2068,46 @@ button.inline-link {
   background: var(--accent);
 }
 
-.landing-pains-note {
-  max-width: 68ch;
-  margin: 22px 0 0;
-  color: var(--text-muted);
+/* The page's supporting prose, grouped so it cannot drift into four slightly
+   different paragraphs: block 2's scope note, block 4's sources footnote, and
+   block 5's cancel promise and Pantry line. Body colour, not muted — the
+   cancel paragraph in particular is set at the same weight as the price on
+   purpose, and a de-emphasised legal grey is the opposite of that argument.
+   `.landing-scope-note` replaced `.landing-pains-note` (68ch/--text-muted)
+   when the three-negation sentence was cut. */
+.landing-scope-note,
+.landing-sources,
+.landing-cancel,
+.landing-pantry-note {
+  max-width: 62ch;
+  margin: 28px 0 0;
+  color: var(--text-body);
   font-size: 17px;
-  line-height: 1.6;
+  line-height: 1.65;
+}
+
+.landing-sources {
+  display: grid;
+  gap: 12px;
+}
+
+.landing-sources p {
+  margin: 0;
+}
+
+/* What the subscription is, four plain lines. Not a card grid and not a
+   bulleted list: these are sentences, and the nine boxes they replaced were
+   the most template-shaped structure on the page. */
+.landing-claims {
+  display: grid;
+  gap: 14px;
+  max-width: 62ch;
+  margin: 28px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-body);
+  font-size: 17px;
+  line-height: 1.65;
 }
 
 /* ── The three answers ───────────────────────────────────────

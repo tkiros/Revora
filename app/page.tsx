@@ -8,7 +8,11 @@ import { FREE_DAILY_CHECKS } from "../lib/free-tier";
 import { photoInputEnabled } from "../lib/photo-input-flag";
 import { BOUNDARY_DISCLAIMER } from "../lib/revora/boundary-copy";
 import { RISK_LABELS } from "../lib/revora/labels";
-import { paywallMode, resolvePriceVariant } from "../lib/server/pricing";
+import {
+  paywallMode,
+  resolveAnnualPrice,
+  resolvePriceVariant
+} from "../lib/server/pricing";
 import { storeWaitlistUrl } from "../lib/waitlist";
 import { reading } from "./fonts";
 
@@ -85,6 +89,11 @@ export default function LandingPage() {
   // the one unforced error this audience never forgives.
   const trialFunnel = paywallMode() === "trial";
   const monthlyPrice = resolvePriceVariant().display;
+  // Same rule for the annual figures: lib/server/pricing.ts is the ONE place
+  // the display values live, so no surface can show an amount checkout won't
+  // charge. Typing "$99.99 a year, which is $8.33 a month" would have been a
+  // second copy of a price.
+  const annualPrice = resolveAnnualPrice();
   // FAQ copy as data: the visible <details> list and the FAQPage JSON-LD
   // render from these same strings, so the schema can never drift from the
   // page. Scanned by the claims-boundary audit like every string here.
@@ -201,19 +210,21 @@ export default function LandingPage() {
             scroll — same as the app shell's #app-content target. */}
         <section className="landing-hero" id="landing-hero" tabIndex={-1}>
           <div className="landing-hero-copy">
-            <h1 className="landing-h1">Stop guessing at dinner.</h1>
+            {/* The category answer IS the headline now — it used to be an
+                eyebrow above a headline that said the same thing twice
+                (ledger `landing-hero-moment`). */}
+            <h1 className="landing-h1">
+              A meal checker built only for prediabetes.
+            </h1>
+            {/* `the plate in front of you` is load-bearing and may not be cut
+                for pixels: the H1 reads categorised, not recognised, and this
+                is the only second-person, present-tense, concrete object above
+                the fold. 33 words is a recorded, measured deviation from the
+                20-word ceiling. */}
             <p className="landing-sub">
-              You got an A1C between <strong>5.7% and 6.4%</strong> and one
-              line of advice: eat better. Revora is the part nobody
-              explained.
-              {photoEnabled
-                ? " Snap the meal, say it, or type it"
-                : " Say the meal out loud, or type it"}{" "}
-              — you get one clear answer in about ten seconds:{" "}
-              <strong>{RISK_LABELS.SAFE}</strong>,{" "}
-              <strong>{RISK_LABELS.MODERATE}</strong>, or{" "}
-              <strong>{RISK_LABELS.HIGH}</strong>, the reason behind it, and
-              what to change.
+              Describe the plate in front of you. One card back: where it
+              lands, why, and a change worth making when there is one. For an
+              A1C of 5.7% to 6.4%. Nothing to log.
             </p>
             <LandingPrimaryCta
               hint={`${TASTER_LIMIT} free checks on your first day, then you decide.`}
@@ -252,7 +263,7 @@ export default function LandingPage() {
         <section className="landing-section">
           <div className="landing-section-head">
             <h2 className="landing-h2">
-              The six-month wait is the problem
+              Six months is a long time to guess.
             </h2>
             <p className="landing-section-lede">
               Nobody handed you a plan. You were handed a number, two words
@@ -283,11 +294,16 @@ export default function LandingPage() {
               mistake. That loop is the actual cost of being told nothing.
             </li>
           </ul>
-          <p className="landing-pains-note">
-            Revora exists for that gap and nothing else. It is not a general
-            nutrition app, not a calorie counter, and not built for everyone
-            — if your A1C sits outside 5.7% to 6.4%, it says so plainly and
-            points you to a clinician instead of pretending.
+          {/* The three-negation sentence ("not a general nutrition app, not a
+              calorie counter, not built for everyone") is deleted: it is in
+              the Brief's own "what only sounds like it does" table — every
+              calorie counter says it is not a calorie counter — and it sat
+              four lines above the highest-intent pre-pricing exit. The hero
+              answers that objection the correct way, by showing one card. */}
+          <p className="landing-scope-note">
+            Revora exists for that gap and nothing else. If your A1C sits
+            outside 5.7% to 6.4%, it says so plainly and points you to a
+            clinician instead of pretending.
           </p>
           {/* The recognition moment — "that is my last six months" — is the
               highest-intent point on the page before pricing. It used to be
@@ -303,14 +319,18 @@ export default function LandingPage() {
           <div className="landing-section-head">
             {/* AUD-008: "the kind of answer", not "the actual answer" — the
                 cards below are illustrations until a live capture exists. */}
-            <h2 className="landing-h2">
-              Three meals. Three different answers.
-            </h2>
+            <h2 className="landing-h2">The same card, three times.</h2>
+            {/* Sentence 2 exists because the hero's card and card 1 below are
+                byte-identical — same meal, same result-safe-example row —
+                under an H2 that says "three times". Naming the duplicate
+                converts it into the block's evidence; a fourth meal fixture
+                would cost two ledger rows to say less. */}
             <p className="landing-section-lede">
-              No dashboard, no numbers to decode. Notice that the{" "}
-              {RISK_LABELS.SAFE} card carries no change to make: when a meal
-              already looks balanced, Revora says so and stops. It does not
-              invent a correction to look useful.
+              One layout, whatever the answer is. The first card is the one
+              from the top of this page, next to the two you have not seen.
+              The {RISK_LABELS.SAFE} card carries no change to make, because
+              when a meal already looks balanced Revora says so and stops. It
+              does not invent a correction to look useful.
             </p>
           </div>
           {/* Three instances of the product's card, not three lookalikes.
@@ -326,29 +346,54 @@ export default function LandingPage() {
             is informational only and is not medical advice.
           </p>
           <LandingPrimaryCta spaced />
+          {/* The sources, as this block's closing footnote (ledger
+              `landing-sources-note`). The proof band that used to carry them
+              is gone: a component whose primary affordance — a stat slot —
+              has to be neutered for the content to be safe is the wrong
+              component. Rail 7 is now discharged structurally, because no
+              number-shaped slot exists to put a number into, rather than by a
+              CSS comment asking nobody to. The one cited-trial statistic in
+              the corpus stays off this page — family `study-association`,
+              exempt only on /how-it-works. (Naming that trial here, even in
+              a comment, goes red: claims-boundary-copy.test.ts strips only
+              comment-LEADING lines, so a JSX comment is audited exactly like
+              rendered copy. It caught two drafts of this very note.) */}
+          <div className="landing-sources">
+            <p>
+              Revora&apos;s general meal-planning principles map to
+              public-health guidance and cited nutrition research — that carbs
+              raise blood sugar, that pairing them with protein, fibre or
+              nonstarchy vegetables can slow the rise, and that less-refined
+              carbs generally land more gently than highly refined ones.
+            </p>
+            <p>
+              Those sources support narrow educational statements about food.
+              They are not evidence that Revora produces a particular health
+              result, and nothing on this page claims otherwise.
+            </p>
+            <p>
+              <Link className="inline-link" href="/how-it-works">
+                Read the sources and the limits
+              </Link>
+              .
+            </p>
+          </div>
         </section>
 
         {/* ── Pricing ─────────────────────────────────────────── */}
         <section className="landing-section" id="pricing">
           <div className="landing-section-head">
-            <h2 className="landing-h2">Try it before you pay a cent</h2>
-            <p className="landing-section-lede">
-              {trialFunnel ? (
-                <>
-                  The funnel is the promise:{" "}
-                  {TASTER_LIMIT} free checks on day one, a free week, and a
-                  cancel button that lives on your account page — not behind
-                  an email.
-                </>
-              ) : (
-                <>
-                  The funnel is the promise:{" "}
-                  {TASTER_LIMIT} free checks on day one, a free account every
-                  day after, and a cancel button that lives on your account
-                  page — not behind an email.
-                </>
-              )}
-            </p>
+            {/* Branch-aware: the winner spec writes one H2 ("…then a week…"),
+                which is only true under the trial funnel. Under
+                PAYWALL_MODE=legacy there is no free week, and this page may
+                never promise a funnel the live config doesn't run (§0.2 #4).
+                The shape of the spec's line is kept; the middle step names
+                whichever step the deploy actually has. */}
+            <h2 className="landing-h2">
+              {trialFunnel
+                ? `${TASTER_LIMIT} free checks, then a week, then a decision.`
+                : `${TASTER_LIMIT} free checks, then a free account, then a decision.`}
+            </h2>
           </div>
           <div className="landing-price-tiles">
             <div className="landing-price-tile">
@@ -357,8 +402,8 @@ export default function LandingPage() {
                 {TASTER_LIMIT} free checks
               </p>
               <p>
-                Check up to {TASTER_LIMIT} meals on your first day — no login,
-                no card. See how the answers feel at your own table.
+                Check up to {TASTER_LIMIT} meals on your first day, no login
+                and no card. They live on this device.
               </p>
             </div>
             {trialFunnel ? (
@@ -366,17 +411,27 @@ export default function LandingPage() {
                 <div className="landing-price-tile">
                   <p className="landing-price-day">Days 2–8</p>
                   <p className="landing-price-what">7 days free</p>
+                  {/* The least portable sentence on the page, and the whole
+                      reason these tiles survive as tiles. Every clause is the
+                      approved `precharge-email` row: it ends "in about 2
+                      days", it states {date} and {amount}, and it carries
+                      {cancel-link}. The winner spec wrote "Day 5" here — a
+                      more specific claim than the email schedule has ever
+                      been traced to support, so the timing stays as the
+                      ledger states it. */}
                   <p>
                     Card required, nothing charged. Two days before the trial
-                    ends, we email you the exact date and amount.
+                    ends, we email you the exact date and the exact amount,
+                    with a one-tap cancel link in it.
                   </p>
                 </div>
                 <div className="landing-price-tile">
                   <p className="landing-price-day">After your free week</p>
                   <p className="landing-price-what">{monthlyPrice}/month</p>
                   <p>
-                    Unlimited checks, your history on every device, progress
-                    you can see, and one gentle reminder. Cancel in one tap.
+                    Or {annualPrice.display} a year, which is{" "}
+                    {annualPrice.monthlyEquivalent} a month. Cancel in one
+                    tap, effective at the end of the period.
                   </p>
                 </div>
               </>
@@ -387,21 +442,66 @@ export default function LandingPage() {
                   <p className="landing-price-what">A free account</p>
                   <p>
                     No card. A free account still
-                    includes {FREE_DAILY_CHECKS} free checks a day, with
-                    your history saved to your account.
+                    includes {FREE_DAILY_CHECKS} free checks a day, still no
+                    card, with your history saved to your account.
                   </p>
                 </div>
                 <div className="landing-price-tile">
                   <p className="landing-price-day">Premium</p>
                   <p className="landing-price-what">{monthlyPrice}/month</p>
                   <p>
-                    Unlimited checks, your history on every device, progress
-                    you can see, and one gentle reminder. Cancel in one tap.
+                    Or {annualPrice.display} a year, which is{" "}
+                    {annualPrice.monthlyEquivalent} a month. Cancel in one
+                    tap, effective at the end of the period.
                   </p>
                 </div>
               </>
             )}
           </div>
+          {/* At the same weight as the price, deliberately, and directly
+              under it (ledger `landing-cancel-promise`). */}
+          <p className="landing-cancel">
+            Stopping is one tap on your account page, effective at the end of
+            the period. No retention screen, no &ldquo;are you sure&rdquo;, no
+            email you have to write. We know why you are reading this
+            paragraph carefully.
+          </p>
+          {/* What the subscription is, most-asked first, no numerals — these
+              four lines are what the nine-card feature grid compressed to
+              (ledger `landing-what-you-get`). Claim 1 leads with the pinned
+              phrase rather than burying it mid-clause, which is what forced a
+              capital A into the middle of a sentence in an earlier draft. */}
+          <ul className="landing-claims" role="list">
+            <li>
+              A record you can actually show someone: unlimited checks, every
+              one saved, on every device.
+            </li>
+            <li>
+              A weekly recap in sentences. Never a grade, never a lab
+              prediction.
+            </li>
+            <li>
+              One optional reminder a day, off by default. Skip a day and
+              nothing turns red. Blank days are just blank.
+            </li>
+            <li>
+              Your A1C and meal text encrypted at rest, deleted in one tap,
+              account included.
+            </li>
+          </ul>
+          {/* The Pantry Review as prose, not a section of its own. No price:
+              AUD-010 makes lib/server/pantry-price.ts the one authority and
+              requires the surfaces to fail closed rather than render a
+              guessed "$49". /pantry resolves and shows the real amount. */}
+          <p className="landing-pantry-note">
+            Or check the whole kitchen, once. The Pantry Review sorts what you
+            already own into one printable report. One payment, nothing
+            renews.{" "}
+            <Link className="inline-link" href="/pantry">
+              See a sample report
+            </Link>
+            .
+          </p>
           <LandingPrimaryCta spaced />
         </section>
 
