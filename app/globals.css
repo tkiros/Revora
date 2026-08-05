@@ -1540,7 +1540,7 @@ button.inline-link {
 .landing {
   background: var(--page-bg);
   color: var(--text-strong);
-  font-size: 17px;
+  font-size: 18px;
   line-height: 1.65;
 }
 
@@ -1623,7 +1623,7 @@ button.inline-link {
 
 .landing-nav-links a {
   color: inherit;
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
   text-decoration: none;
   opacity: 0.85;
@@ -1662,7 +1662,7 @@ button.inline-link {
   padding: 14px 26px;
   background: var(--accent);
   color: var(--accent-contrast);
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 700;
   text-decoration: none;
   cursor: pointer;
@@ -1689,7 +1689,7 @@ button.inline-link {
 .landing-cta--sm {
   min-height: 44px;
   padding: 8px 18px;
-  font-size: 15px;
+  font-size: 16px;
   margin-left: 16px;
 }
 
@@ -1789,7 +1789,7 @@ button.inline-link {
 .landing-sub {
   margin: 0;
   max-width: 62ch;
-  font-size: 17px;
+  font-size: 18px;
   line-height: 1.65;
   color: var(--text-body);
   text-wrap: pretty;
@@ -1820,7 +1820,7 @@ button.inline-link {
 
 .landing-cta-hint {
   margin: 0;
-  font-size: 17px;
+  font-size: 18px;
   line-height: 1.65;
   color: var(--text-muted);
 }
@@ -1838,7 +1838,7 @@ button.inline-link {
   position: relative;
   padding-left: 24px;
   color: var(--text-body);
-  font-size: 17px;
+  font-size: 18px;
   line-height: 1.65;
 }
 
@@ -1872,7 +1872,7 @@ button.inline-link {
   margin: 16px 0 0;
   max-width: 62ch;
   color: var(--text-body);
-  font-size: 17px;
+  font-size: 18px;
   line-height: 1.65;
   text-wrap: pretty;
 }
@@ -1911,7 +1911,7 @@ button.inline-link {
   margin: 0;
   max-width: 62ch;
   color: var(--text-body);
-  font-size: 18.5px;
+  font-size: 20px;
   line-height: 1.6;
   text-wrap: pretty;
 }
@@ -1944,7 +1944,7 @@ button.inline-link {
    16px, and "Days 2-8" is read as a phrase, not scanned as a kicker. */
 .landing-price-day {
   margin: 0;
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 700;
   color: var(--text-muted);
 }
@@ -1959,7 +1959,7 @@ button.inline-link {
 .landing-price-tile p {
   margin: 0;
   color: var(--text-body);
-  font-size: 17px;
+  font-size: 18px;
   line-height: 1.65;
 }
 
@@ -1985,7 +1985,7 @@ button.inline-link {
   justify-content: space-between;
   gap: 16px;
   padding: 16px 20px;
-  font-size: 18px;
+  font-size: 19px;
   font-weight: 700;
   cursor: pointer;
   list-style: none;
@@ -2029,7 +2029,7 @@ button.inline-link {
   margin: 0;
   padding: 0 20px 18px;
   color: var(--text-body);
-  font-size: 17px;
+  font-size: 18px;
   line-height: 1.65;
 }
 
@@ -2057,7 +2057,7 @@ button.inline-link {
   position: relative;
   padding-left: 30px;
   color: var(--text-body);
-  font-size: 17px;
+  font-size: 18px;
   line-height: 1.65;
   text-wrap: pretty;
 }
@@ -2094,7 +2094,7 @@ button.inline-link {
   max-width: 62ch;
   margin: 28px 0 0;
   color: var(--text-body);
-  font-size: 17px;
+  font-size: 18px;
   line-height: 1.65;
 }
 
@@ -2118,7 +2118,7 @@ button.inline-link {
   padding: 0;
   list-style: none;
   color: var(--text-body);
-  font-size: 17px;
+  font-size: 18px;
   line-height: 1.65;
 }
 
@@ -2129,7 +2129,7 @@ button.inline-link {
   display: inline-block;
   margin: 16px 0 0;
   color: var(--accent-strong);
-  font-size: 17px;
+  font-size: 18px;
   line-height: 1.65;
 }
 
@@ -2232,7 +2232,7 @@ button.inline-link {
      the disclaimer stays quiet via colour, never via size. The 2026-07-27
      legibility pass raised it to 17px; the floor is a minimum, so anything
      >= 16px honours it. Never lower this below 16px. */
-  font-size: 17px;
+  font-size: 18px;
   line-height: 1.65;
 }
 

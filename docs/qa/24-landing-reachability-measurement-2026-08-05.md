@@ -6,6 +6,12 @@ loaded. An unmeasured desert claim does not count."* This is W13 of
 `docs/plans/landing-implementation-plan.md`, and it is the first time that clause has been exercised
 on real code.
 
+> ⚠️ **The figures below are the W13 run and are no longer the page.** The owner previewed the built
+> page and read the body type as too small; raising it `17px → 18px` lengthened the page and moved
+> the desert map. **For the current numbers, jump to [Re-measured after the 18px body](#re-measured-after-the-18px-body-2026-08-05).**
+> The W13 run is kept in full because it is the harness-validation record and the evidence behind the
+> two rulings in §"The two rulings this measurement settles" — both of which still hold.
+
 **Reproduce it:**
 
 ```bash
@@ -130,3 +136,66 @@ buried: reverting it is moving one JSX element, and it puts the page back 52px o
    ~80px over.
 3. **Eight exits, not six.** The spec's arrangements were computed over six; block 3's dare link and
    the footer's `Check a meal` are both real exits by the definition above.
+
+---
+
+## Re-measured after the 18px body — 2026-08-05
+
+The owner previewed the built page and reported the body type as too small. The tournament spec's
+`17px` had never been read at size, so it became **`18px / 1.65`**, with the scale neighbours moved
+to keep their steps (lede `18.5 → 20px`, FAQ summary `18 → 19px`, nav link `16 → 17px`, ghost pill
+`15 → 16px`; H1/H2 are clamped and did not move; the `16px` fineprint floor did not move).
+`DESIGN.md` §11 was amended in the same commit.
+
+**Type is a layout change**, so §11.1 applies and this is that measurement. Neither `npm test` nor
+`npm run e2e` can see a desert going over budget — this is the only gate that can.
+
+**Method delta from the W13 run:** measured against a **production build** (`npm run build && npm run
+start`), not `next dev`, because defect 1 also had to be verified against production. Everything else
+— viewport, font wait, scroll pass, exit and desert definitions — is unchanged.
+
+| | W13 (17px) | Now (18px) | Change |
+|---|---|---|---|
+| Page length | 9,262px | **9,556px** | +294px (+3.2%) |
+| Screenfuls | 13.9 | **14.3** | +0.4 |
+| Exits to `/check` | 8 | **8** | — |
+| Worst desert | 1,913px | **1,877px** | −36px |
+| Over budget | 0 | **0** | ✅ |
+
+### Desert map
+
+| Gap | From → to | |
+|---|---|---|
+| 18px | top → nav `Check a meal` | |
+| 430px | nav → hero CTA | was 266px; the trust strip moved above the button |
+| **1,877px** | hero CTA → block 2 CTA | worst, 2.8 screenfuls |
+| 1,267px | block 2 CTA → block 3 dare link | |
+| 1,759px | dare link → block 4 CTA | |
+| 1,608px | block 4 CTA → block 5 CTA | |
+| 1,194px | block 5 CTA → final CTA | |
+| 212px | final CTA → footer `Check a meal` | |
+| 762px | footer link → bottom | |
+
+### ⚠️ The arrangement call the type change forced
+
+At 18px the page came back at **2,034px on the hero → block 2 stretch, 33px past budget**, and it was
+the only desert over. Three candidates were measured in the browser before one was chosen:
+
+| Candidate | Worst desert | |
+|---|---|---|
+| 18px body, no reorder | 2,034px | ⛔ over by 33px |
+| Block 2's CTA above the pains list | ~2,040px | ⛔ relocates the overage: its next desert goes 1,267 → ~2,040px |
+| Block 2's CTA drops its 32px `--spaced` margin | 2,002px | ⛔ over by 1px |
+| **Hero trust strip above the hero CTA** | **1,877px** | ✅ 124px of headroom |
+
+**The trust strip moved above the button.** It costs no copy, and it does not change the page length
+by a single pixel — the three lines are inside `.landing-hero-copy`, so reordering within that block
+leaves its height, and therefore the proof card's position, exactly as it was. The primary CTA moves
+from y=337 to y=494 and its hint to y=625, both still inside the 667px first screenful.
+
+This is the second arrangement decision on this branch that no plan or ruling named — W13's block-2
+CTA move was the first — so it is flagged here rather than buried, and the JSX carries the same note.
+Reverting it is moving one element and puts the page 33px outside §11.1.
+
+**W13's two rulings are unaffected.** The offer-block CTA is still after the cancel paragraph and its
+desert is 1,608px, well inside budget; block 2's CTA is still above the scope note.

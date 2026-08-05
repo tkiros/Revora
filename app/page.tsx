@@ -227,13 +227,24 @@ export default function LandingPage() {
               lands, why, and a change worth making when there is one. For an
               A1C of 5.7% to 6.4%. Nothing to log.
             </p>
-            <LandingPrimaryCta
-              hint={`${TASTER_LIMIT} free checks on your first day, then you decide.`}
-            />
             {/* `home-trust-strip` (copy-ledger.md, Approved + Active). The
                 ledger has recorded this row as living on app/page.tsx since
                 launch, but no version of the page rendered it — found during
-                the 2026-07-27 landing audit. Restored verbatim. */}
+                the 2026-07-27 landing audit. Restored verbatim.
+
+                ⚠️ MEASURED POSITION (DESIGN.md §11.1), above the CTA rather
+                than below it. Raising the body to 18px lengthened the page by
+                294px and pushed the hero→block-2 stretch to 2,034px, 33px past
+                the three-screenful budget. Every other lever measured worse:
+                block 2's CTA is already at its ruled position and moving it
+                above the pains list just relocates the overage downstream
+                (1,267px → ~2,040px), and dropping that CTA's 32px `--spaced`
+                margin lands on 2,002px — one pixel over. Moving these three
+                lines above the button costs no copy, does not change the page
+                length at all, and measures 1,877px. `.landing-hero-copy` keeps
+                its exact height, so the proof card does not move and the
+                button stays above the fold (top 493px of 667). Re-measure
+                before moving it back: node scripts/measure-landing.mjs */}
             <ul className="landing-trust-strip" role="list">
               <li>No login for your first checks.</li>
               <li>When we&apos;re unsure, we say so.</li>
@@ -241,6 +252,9 @@ export default function LandingPage() {
                 If you ever subscribe, cancel is one tap — not an email.
               </li>
             </ul>
+            <LandingPrimaryCta
+              hint={`${TASTER_LIMIT} free checks on your first day, then you decide.`}
+            />
           </div>
 
           {/* The product's own card, above the fold, at Clear. It is the same
