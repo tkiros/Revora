@@ -110,20 +110,20 @@ export default function LandingPage() {
     {
       q: "Do I need an account or a card to try it?",
       a: trialFunnel
-        ? `No. Your first ${TASTER_LIMIT} checks, on your first day, need no login and no card — they live on this device only. The 7-day free trial needs a card but charges nothing for a week — and we email you before any charge.`
-        : `No. Your first ${TASTER_LIMIT} checks, on your first day, need no login and no card — they live on this device only. After that, a free account includes ${FREE_DAILY_CHECKS} free checks a day — still no card. Premium is optional, and cancels in one tap.`
+        ? `No. Your first ${TASTER_LIMIT} checks, on your first day, need no login and no card. They live on this device only. The 7-day free trial needs a card but charges nothing for a week, and we email you before any charge.`
+        : `No. Your first ${TASTER_LIMIT} checks, on your first day, need no login and no card. They live on this device only. After that, a free account includes ${FREE_DAILY_CHECKS} free checks a day, still no card. Premium is optional, and cancels in one tap.`
     },
     ...(photoEnabled
       ? [
           {
             q: "How does the photo check work?",
-            a: "Your photo becomes a draft list of what's on the plate. You review and confirm the words before anything is checked — the photo never skips your judgment. Photos are not kept."
+            a: "Your photo becomes a draft list of what's on the plate. You review and confirm the words before anything is checked. The photo never skips your judgment. Photos are not kept."
           }
         ]
       : []),
     {
       q: "How do I cancel?",
-      a: "One tap, on your account page — effective at the end of the paid period. No retention screens, no email hoops. Deleting your account removes your data with it."
+      a: "One tap, on your account page, effective at the end of the paid period. No retention screens, no email hoops. Deleting your account removes your data with it."
     }
   ];
   // Machine-readable summary for Google rich results and AI answer engines.
@@ -563,11 +563,10 @@ export default function LandingPage() {
 
         {/* ── Final CTA ─────────────────────────────────────────── */}
         <section className="landing-final">
-          <h2 className="landing-h2">Your next meal is the start.</h2>
-          <p className="landing-sub">
-            Describe the meal and see the general pattern Revora notices. It
-            takes about ten seconds.
-          </p>
+          {/* H2 and sub deleted: four elements, every one of them a
+              restatement of the hero, with no object on screen to make the
+              restatement mean anything. The CTA and its caption are the whole
+              block. */}
           <LandingPrimaryCta
             hint={`No login. No card. ${TASTER_LIMIT} free checks on your first day.`}
           />
