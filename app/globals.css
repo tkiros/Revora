@@ -1534,9 +1534,14 @@ button.inline-link {
    inverted colour is gone. Risk colours remain semantic-only.
    ============================================================ */
 
+/* One body size for the whole page. The old 16.5–17px range needed a reason
+   per value and had none; the lede and heading steps survive because a scale
+   with no lede step loses the >=1.25 hierarchy ratio. */
 .landing {
   background: var(--page-bg);
   color: var(--text-strong);
+  font-size: 17px;
+  line-height: 1.65;
 }
 
 /* Display-vs-text pairing (2026-07-27 legibility pass, merged into the base
@@ -1569,22 +1574,11 @@ button.inline-link {
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
-.landing-sheet {
-  background: var(--surface);
-}
-
-.landing-band {
-  background: var(--accent-tint);
-}
-
-/* Hairlines keep the planes from muddying where two light surfaces meet. */
-.landing-sheet + .landing-band,
-.landing-band + .landing-sheet,
-.landing-sheet:not(:first-child),
-.landing-band {
-  border-top: 1px solid var(--border-soft);
-}
-
+/* One plane. `.landing-sheet` (white), `.landing-band` (accent tint) and the
+   four-selector hairline-seam rule that kept them from muddying are all gone:
+   white is CARD material on this page, never a section background, so a white
+   region that is not a card was a bug wearing a class name. Sectioning is now
+   air plus a hairline on the block itself — see `.landing-section`. */
 .landing-frame {
   width: 100%;
   max-width: 1080px;
@@ -1679,10 +1673,13 @@ button.inline-link {
   font-weight: 700;
   text-decoration: none;
   cursor: pointer;
-  transition:
-    background var(--dur-fast) var(--ease),
-    border-color var(--dur-fast) var(--ease),
-    transform var(--dur-fast) var(--ease);
+  /* Named properties, never `all`. The press runs at --dur-press (120ms), not
+     --dur-fast (150ms): 120ms sits inside the 100-160ms press window and the
+     press is the moment the user watches most closely. Both tokens, not
+     literals — W1 made --ease the system's only curve. */
+  transition-property: transform, background-color, border-color;
+  transition-duration: var(--dur-press);
+  transition-timing-function: var(--ease);
 }
 
 .landing-cta:hover {
@@ -1690,8 +1687,9 @@ button.inline-link {
   border-color: var(--accent-strong);
 }
 
+/* Pointer-DOWN, never release. */
 .landing-cta:active {
-  transform: translateY(1px);
+  transform: translateY(1px) scale(0.98);
 }
 
 /* Nav-sized: same identity, less weight, so it never outranks the hero CTA. */
@@ -1745,6 +1743,16 @@ button.inline-link {
   outline-offset: 2px;
 }
 
+/* 2px on cards, so the ring clears a 22/24px radius without colliding with the
+   border. The 6px radius on inline-link rings above is deliberately off the
+   card scale — a card radius on a one-line text link looks bulbous. */
+.landing .result-card:focus-visible,
+.landing .surface-card:focus-visible,
+.landing-price-tile:focus-visible {
+  outline: 3px solid rgba(13, 95, 87, 0.45);
+  outline-offset: 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .landing-cta {
     transition: none;
@@ -1784,20 +1792,25 @@ button.inline-link {
   color: var(--accent-strong);
 }
 
+/* Tracking is size-specific, so shrinking the H1 retunes it. -0.03em was cut
+   for the old 60.8px ceiling; the new ceiling is 46.4px and the floor is
+   30.4px, which is not display size at all. At 30.4px, -0.03em also squeezes
+   the word spaces ~11% and the line visibly crowds. */
 .landing-h1 {
   margin: 0;
-  font-size: clamp(2.4rem, 6vw, 3.8rem);
-  line-height: 1.03;
-  letter-spacing: -0.03em;
+  font-size: clamp(1.9rem, 5.6vw, 2.9rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
 }
 
 .landing-sub {
   margin: 0;
-  max-width: 60ch;
-  font-size: clamp(1.15rem, 2.1vw, 1.4rem);
-  line-height: 1.6;
+  max-width: 62ch;
+  font-size: 17px;
+  line-height: 1.65;
   color: var(--text-body);
-  opacity: 1;
+  text-wrap: pretty;
 }
 
 .landing-sub strong {
@@ -1825,7 +1838,8 @@ button.inline-link {
 
 .landing-cta-hint {
   margin: 0;
-  font-size: 16px;
+  font-size: 17px;
+  line-height: 1.65;
   color: var(--text-muted);
 }
 
@@ -1842,8 +1856,8 @@ button.inline-link {
   position: relative;
   padding-left: 24px;
   color: var(--text-body);
-  font-size: 16.5px;
-  line-height: 1.55;
+  font-size: 17px;
+  line-height: 1.65;
 }
 
 .landing-trust-strip li::before {
@@ -1920,21 +1934,24 @@ button.inline-link {
   color: var(--text-muted);
 }
 
-/* Rhythm. Every section used to be a flat `padding: 56px 0`, six in a row, and
-   a page with one spacing value reads as having no flow at all. Fluid now, so
-   the page breathes on wide viewports, with a tighter step for the short
-   supporting sections. */
+/* Rhythm. Air does the sectioning, and the hairline sits ON the block rather
+   than on an <hr>. Computes 72px at 375px (10vw is below the floor there),
+   holds 72px through 720px, and reaches 128px at 1280px.
+
+   The `--tight` step is gone with the three planes: it existed for short
+   supporting sections, and the winner has none left. */
 .landing-section {
-  padding: clamp(52px, 7vw, 104px) 0;
+  padding: clamp(72px, 10vw, 128px) 0;
+  border-top: 1px solid var(--border-soft);
 }
 
-.landing-section--tight {
-  padding: clamp(40px, 4.5vw, 68px) 0;
+.landing-section:first-of-type {
+  border-top: 0;
 }
 
 .landing-section-head {
   display: grid;
-  gap: 10px;
+  gap: 12px;
   max-width: 640px;
   margin-bottom: 32px;
 }
@@ -1944,6 +1961,7 @@ button.inline-link {
   font-size: clamp(1.6rem, 4vw, 2.2rem);
   line-height: 1.1;
   letter-spacing: -0.025em;
+  text-wrap: balance;
 }
 
 .landing-section-lede {
@@ -1952,6 +1970,7 @@ button.inline-link {
   color: var(--text-body);
   font-size: 18.5px;
   line-height: 1.6;
+  text-wrap: pretty;
 }
 
 .landing-grid-3 {
@@ -2045,6 +2064,8 @@ button.inline-link {
   }
 }
 
+/* The page's second and last card family (DESIGN.md §11), carrying the one
+   shadow in the system. */
 .landing-price-tile {
   display: grid;
   gap: 8px;
@@ -2053,14 +2074,15 @@ button.inline-link {
   border-radius: 24px;
   padding: 22px;
   background: var(--surface);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
 }
 
+/* Body size, not a tracked 13px label: nothing on this page renders below
+   16px, and "Days 2-8" is read as a phrase, not scanned as a kicker. */
 .landing-price-day {
   margin: 0;
-  font-size: 13px;
+  font-size: 17px;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--text-muted);
 }
 
@@ -2074,8 +2096,8 @@ button.inline-link {
 .landing-price-tile p {
   margin: 0;
   color: var(--text-body);
-  font-size: 16.5px;
-  line-height: 1.55;
+  font-size: 17px;
+  line-height: 1.65;
 }
 
 .landing-faq {
@@ -2145,14 +2167,15 @@ button.inline-link {
   padding: 0 20px 18px;
   color: var(--text-body);
   font-size: 17px;
-  line-height: 1.62;
+  line-height: 1.65;
 }
 
 .landing-final {
   display: grid;
   gap: 18px;
   justify-items: start;
-  padding: clamp(52px, 6vw, 88px) 0;
+  padding: clamp(72px, 10vw, 128px) 0;
+  border-top: 1px solid var(--border-soft);
 }
 
 /* ── Who this is for ─────────────────────────────────────────
@@ -2160,8 +2183,8 @@ button.inline-link {
    months; boxing them would make them look like features. */
 .landing-pains {
   display: grid;
-  gap: 14px;
-  max-width: 68ch;
+  gap: 28px;
+  max-width: 62ch;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -2171,12 +2194,15 @@ button.inline-link {
   position: relative;
   padding-left: 30px;
   color: var(--text-body);
-  font-size: clamp(1.05rem, 1.9vw, 1.25rem);
-  line-height: 1.6;
+  font-size: 17px;
+  line-height: 1.65;
   text-wrap: pretty;
 }
 
+/* The lead-in becomes its own line: at one body size the bold run no longer
+   separates itself from the sentence by weight alone. */
 .landing-pains li strong {
+  display: block;
   color: var(--text-strong);
 }
 
@@ -2292,7 +2318,7 @@ button.inline-link {
 }
 
 .landing-verdict-note {
-  max-width: 68ch;
+  max-width: 62ch;
   margin: 22px 0 0;
   color: var(--text-muted);
   /* 16px floor: this carries the informational-only disclaimer and the AUD-008
@@ -2302,7 +2328,7 @@ button.inline-link {
      legibility pass raised it to 17px; the floor is a minimum, so anything
      >= 16px honours it. Never lower this below 16px. */
   font-size: 17px;
-  line-height: 1.6;
+  line-height: 1.65;
 }
 
 /* ── What you get ────────────────────────────────────────────
