@@ -1771,13 +1771,19 @@ button.inline-link {
   justify-items: start;
 }
 
-/* Tracking is size-specific, so shrinking the H1 retunes it. -0.03em was cut
-   for the old 60.8px ceiling; the new ceiling is 46.4px and the floor is
-   30.4px, which is not display size at all. At 30.4px, -0.03em also squeezes
-   the word spaces ~11% and the line visibly crowds. */
+/* ⚖️ Ceiling restored to 3.8rem/60.8px 2026-08-05 by owner ruling: at 2.9rem
+   the H1/body ratio was 2.6x against the deployed page's 3.8x and the page
+   read flat. Free at the 375px the reachability budget (§11.1) is measured
+   at — 5.6vw is 21px there, so the H1 sits on its 1.9rem floor either way and
+   the page length does not move. Only >=828px viewports change.
+
+   Tracking stays -0.02em, one value across a 30.4 -> 60.8px range. -0.03em
+   suits the ceiling but squeezes the word spaces ~11% at the floor, where the
+   line visibly crowds; a second size-conditional value is not worth a media
+   query for the difference it buys at the top end. */
 .landing-h1 {
   margin: 0;
-  font-size: clamp(1.9rem, 5.6vw, 2.9rem);
+  font-size: clamp(1.9rem, 5.6vw, 3.8rem);
   line-height: 1.05;
   letter-spacing: -0.02em;
   text-wrap: balance;
