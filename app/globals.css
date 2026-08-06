@@ -1542,6 +1542,13 @@ button.inline-link {
   color: var(--text-strong);
   font-size: 18px;
   line-height: 1.65;
+  /* `.landing-changes` breaks out of the 1080px frame to full width with a
+     negative inline margin. 50vw counts the scrollbar, so it overshoots the
+     viewport by half a scrollbar on each side; clip absorbs that without
+     creating a scroll container the way `hidden` would. Nothing on this page
+     is position: sticky — add a sticky column here and this line is what
+     silently kills it. */
+  overflow-x: clip;
 }
 
 /* Display-vs-text pairing (2026-07-27 legibility pass, merged into the base
@@ -1561,7 +1568,10 @@ button.inline-link {
 .landing-h2,
 .landing-cta,
 .landing-faq summary,
-.landing-footer-col h3 {
+.landing-footer-col h3,
+.landing-glance-fact,
+.landing-offer-what,
+.landing-limits-trio h3 {
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
@@ -1881,13 +1891,29 @@ button.inline-link {
 }
 
 /* Rhythm. Air does the sectioning, and the hairline sits ON the block rather
-   than on an <hr>. Computes 72px at 375px (10vw is below the floor there),
-   holds 72px through 720px, and reaches 128px at 1280px.
+   than on an <hr>.
+
+   ⚠️ TIGHTENED 2026-08-06, from clamp(72px, 10vw, 128px). This is a DESIGN.md
+   §11 amendment, made on the owner's ruling that the v2 design file governs
+   layout, and it is not cosmetic — it is what pays for the three sections that
+   pass adds.
+
+   The old value pinned at its 128px ceiling from 1280px up, and adjacent
+   sections stack their padding, so every block boundary measured 257px of
+   dead vertical space at 1280px. Worse, at 375px it computed to its 72px
+   FLOOR on both sides, and the reachability budget (§11.1) is measured at
+   375px with only 124px of headroom on the worst desert — so the at-a-glance
+   strip, "What actually changes" and the offer block could not have been
+   added at the old rhythm without blowing it.
+
+   New: 56px at 375px, 7vw from 800px, 92px from 1314px up. Boundaries land at
+   112px narrow and 184px wide. Re-measure before touching either end:
+   node scripts/measure-landing.mjs
 
    The `--tight` step is gone with the three planes: it existed for short
    supporting sections, and the winner has none left. */
 .landing-section {
-  padding: clamp(72px, 10vw, 128px) 0;
+  padding: clamp(56px, 7vw, 92px) 0;
   border-top: 1px solid var(--border-soft);
 }
 
@@ -1996,11 +2022,13 @@ button.inline-link {
   line-height: 1.65;
 }
 
+/* Tracks `.landing-section`'s rhythm exactly — the two were 128px together and
+   must stay together, or the last boundary on the page reads as a mistake. */
 .landing-final {
   display: grid;
   gap: 18px;
   justify-items: start;
-  padding: clamp(72px, 10vw, 128px) 0;
+  padding: clamp(56px, 7vw, 92px) 0;
   border-top: 1px solid var(--border-soft);
 }
 
@@ -2316,6 +2344,264 @@ button.inline-link {
   outline: 3px solid rgba(13, 95, 87, 0.45);
   outline-offset: 2px;
   border-radius: 6px;
+}
+
+/* ── The v2 sections (2026-08-06) ─────────────────────────────
+   Four blocks the design file adds. All four are RULE-TOPPED, never carded:
+   §11 keeps this page on one plane, so a run of facts gets a hairline and
+   air, not a box with a shadow. The `.landing-price-*` family that stood
+   where the offer block now stands was the page's second card family and
+   carried the system's one box-shadow — the note left behind when it was
+   deleted said a replacement should earn that shadow again rather than
+   inherit it. None of these four earn it, so none of them take it.
+
+   Type here is DESIGN.md §11's scale, not the design file's: the owner ruled
+   §11 wins on type and the design wins on layout. That means 18px body
+   throughout, the 22px/700 card-title step for the one display line in each
+   block, and no eyebrows — the design's 12–13px uppercase micro-labels would
+   have broken both the zero-eyebrow rule and the 16px fineprint floor. */
+
+/* Roughly half the section rhythm. Four short facts do not need a full
+   block's air on either side, and this sits between the hero and the first
+   real section — at full rhythm it reads as a section in its own right,
+   which it is not. It is the hero's footnote.
+
+   ⛔ NOT RENDERED BELOW 640px, and this is arithmetic rather than taste.
+   The strip lands in the page's worst desert — hero CTA to the problem
+   block's CTA — which had 124px of headroom against the §11.1 budget before
+   the strip existed. The strip is ~300px tall at 375px even as a 2×2 with
+   every gap tightened, so ANY version of it busts that stretch on a phone;
+   there is no arrangement of four facts that fits in 124px.
+
+   Nothing is lost, which is why this is the right lever rather than moving
+   the problem block's exit (a MEASURED, deliberate conversion position). All
+   four facts are already stated in the hero on every viewport: the range and
+   "nothing to log" are in the sub, the free-check count is the CTA caption,
+   and "seconds, not sessions" is the argument the whole hero makes. On a
+   phone the hero fills the screen and the strip is a restatement; on a wide
+   screen it is the scan-line for a reader who did not read the sub.
+
+   Same lever, same reason, as `.landing-nav-links` (640px) and
+   `.landing-split-art` (900px). Re-measure before changing the breakpoint:
+   node scripts/measure-landing.mjs */
+.landing-glance-section {
+  display: none;
+  padding: clamp(20px, 3vw, 44px) 0;
+}
+
+@media (min-width: 640px) {
+  .landing-glance-section {
+    display: block;
+  }
+}
+
+/* §2. Four facts under the hero. The strip does not render below 640px (see
+   above), so the track floor only ever has to serve 640px and up.
+
+   230px is the design file's own figure and it lands 4-up at the frame's
+   1040px of content (4×230 + 3×32 = 1016). It relaxes to 3-up around 900px
+   and 2-up at 640px. The 3+1 row in the middle of that range is the design's
+   arrangement too, not a rounding accident. */
+.landing-glance {
+  display: grid;
+  gap: 8px 32px;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.landing-glance li {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  padding: 14px 0 2px;
+  border-top: 1px solid var(--border-strong);
+}
+
+.landing-glance-fact {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--accent);
+}
+
+.landing-glance-label {
+  font-size: 18px;
+  line-height: 1.45;
+  color: var(--text-body);
+}
+
+/* §7. The page's one dark band, full-bleed out of the 1080px frame.
+   `calc(50% - 50vw)` pulls each edge to the viewport and the matching inline
+   padding puts the content back on the frame's gutter — at every width, so
+   the band's text stays aligned with every other section's without a second
+   max-width container. Requires `overflow-x: clip` on `.landing`.
+
+   The top hairline is dropped: the colour change IS the boundary, and a
+   border-soft rule on a dark ground reads as a seam. */
+.landing-changes {
+  margin-inline: calc(50% - 50vw);
+  padding-inline: calc(50vw - 50%);
+  background: var(--accent-strong);
+  border-top: 0;
+}
+
+.landing-changes .landing-h2,
+.landing-changes .landing-changes-after {
+  color: var(--accent-contrast);
+}
+
+.landing-changes .landing-section-lede,
+.landing-changes .landing-changes-now {
+  /* 4.9:1 on --accent-strong. The "now" column is deliberately the quieter
+     of the pair — it is the state the reader is leaving. */
+  color: #a9cfc9;
+}
+
+.landing-changes-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.landing-changes-list li {
+  display: grid;
+  gap: 10px 48px;
+  align-items: baseline;
+  padding: 22px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+@media (min-width: 720px) {
+  .landing-changes-list li {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.landing-changes-now,
+.landing-changes-after {
+  font-size: 18px;
+  line-height: 1.5;
+}
+
+.landing-changes-after {
+  font-weight: 600;
+}
+
+/* The pill inverts on the accent ground: --accent-contrast on --accent-strong
+   measures 12.4:1, where the normal filled pill would have been accent on
+   accent and effectively invisible. Modifier on the WRAPPER so the pill's own
+   class list stays literal — see LandingPrimaryCta's comment. */
+.landing-cta-stack--on-dark .landing-cta {
+  background: var(--accent-contrast);
+  border-color: var(--accent-contrast);
+  color: var(--accent-strong);
+}
+
+.landing-cta-stack--on-dark .landing-cta:hover {
+  background: #ffffff;
+  border-color: #ffffff;
+}
+
+.landing-cta-stack--on-dark .landing-cta:focus-visible {
+  outline: 3px solid var(--accent-contrast);
+  outline-offset: 3px;
+}
+
+/* §8. The sources prose, promoted out of the three-answers block, beside the
+   two commitments it used to sit above. */
+.landing-limits {
+  display: grid;
+  gap: 40px;
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  .landing-limits {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.landing-limits-trio {
+  display: grid;
+  gap: 26px;
+  align-content: start;
+}
+
+.landing-limits-trio h3 {
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+}
+
+.landing-limits-trio p {
+  margin: 0;
+  max-width: 52ch;
+  font-size: 18px;
+  line-height: 1.6;
+  color: var(--text-body);
+  text-wrap: pretty;
+}
+
+/* §10. The three stages. An <ol> because the order is the argument — day one,
+   then the middle, then the decision — and a reader on a screen reader should
+   hear that it is a sequence of three. */
+.landing-offer {
+  display: grid;
+  gap: 8px 32px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.landing-offer li {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  padding: 20px 0 4px;
+  border-top: 1px solid var(--border-strong);
+}
+
+/* Not an uppercase micro-label. §11 bans eyebrows and floors fineprint at
+   16px, and the design file's 13px caps would have broken both. Weight and
+   colour carry the same "this is the stage name" job at body size. */
+.landing-offer-when {
+  font-size: 18px;
+  line-height: 1.45;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.landing-offer-what {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.landing-offer li p {
+  margin: 2px 0 0;
+  max-width: 40ch;
+  font-size: 18px;
+  line-height: 1.55;
+  color: var(--text-body);
+  text-wrap: pretty;
+}
+
+/* The close. Full weight, because "nothing renews without telling you first"
+   is the sentence the whole no-amount block is built to earn. */
+.landing-offer-note {
+  margin: 30px 0 0;
+  font-size: 18px;
+  line-height: 1.65;
+  font-weight: 600;
 }
 
 @media print {
