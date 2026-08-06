@@ -1998,6 +1998,60 @@ button.inline-link {
   border-top: 1px solid var(--border-soft);
 }
 
+/* ── Block 2's two columns ───────────────────────────────────
+   The owner marked this block's empty right half with a red X (2026-08-05):
+   the prose measures 62ch inside a 1080px frame, so half the block was dead
+   space at 1280px while the card blocks either side of it fill the width.
+
+   ⚠️ The 900px floor is LOAD-BEARING, not a convenience. The desert budget is
+   measured at 375px (§11.1) and the worst desert — hero CTA to this block's
+   CTA — has 124px of headroom. A stacked screenshot adds ~700px to exactly
+   that stretch and puts the page outside the rule on the spot. Below 900px
+   the art is not rendered at all, and nothing is lost: it is supporting
+   evidence for a claim the prose already makes in words.
+
+   `align-items: start` so the art tracks the top of the column rather than
+   stretching to the copy's height. */
+.landing-split {
+  display: grid;
+  gap: 40px;
+}
+
+@media (min-width: 900px) {
+  .landing-split {
+    grid-template-columns: minmax(0, 1fr) 390px;
+    align-items: start;
+  }
+}
+
+.landing-split-copy {
+  min-width: 0;
+}
+
+/* Not a card, deliberately: no shadow and no card radius. §11 allows the page
+   ONE card family and the result card is it — a second boxed thing next to it
+   would read as a competing surface. A hairline and a soft radius are enough
+   to say "this is a screen", which the capture's own chrome already says. */
+.landing-split-art {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .landing-split-art {
+    display: block;
+    position: sticky;
+    top: 32px;
+  }
+}
+
+.landing-split-art img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--border-soft);
+  border-radius: 20px;
+}
+
 /* ── Who this is for ─────────────────────────────────────────
    Typography, not cards. These are three sentences about the reader's last six
    months; boxing them would make them look like features. */

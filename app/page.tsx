@@ -290,6 +290,18 @@ export default function LandingPage() {
               between is supposed to be your job to figure out.
             </p>
           </div>
+          {/* Two columns at ≥900px: the reader's situation on the left, the
+              actual app on the right. The owner marked this empty right half
+              with a red X — the prose measures 62ch inside a 1080px frame, so
+              half the block was dead space at 1280px while the card blocks
+              either side of it fill the width.
+
+              The art answers the third pain directly. "The apps want you to
+              become an accountant" is the claim; a screenshot showing one text
+              box and one number is the evidence, and it is the product's real
+              screen rather than an illustration of one. */}
+          <div className="landing-split">
+            <div className="landing-split-copy">
           <ul className="landing-pains" role="list">
             <li>
               <strong>The advice was two words long.</strong> “Eat better.”
@@ -342,6 +354,32 @@ export default function LandingPage() {
             outside 5.7% to 6.4%, it says so plainly and points you to a
             clinician instead of pretending.
           </p>
+            </div>
+            {/* ⚠️ A REAL CAPTURE of /check, not a mockup — regenerate with
+                `node scripts/capture-landing-art.mjs` whenever that screen
+                changes, or this quietly starts advertising a screen that no
+                longer exists.
+
+                ⛔ The capture contains the free-check count as rendered pixels
+                ("10 free checks left today"). That is the one number this page
+                interpolates from TASTER_LIMIT everywhere else specifically so
+                it cannot drift — and a PNG is invisible to `copy-pins`. The
+                guard is in landing-art.test.ts: change TASTER_LIMIT and it
+                fails, pointing here.
+
+                Hidden below 900px in CSS, which is load-bearing: the desert
+                budget is measured at 375px and has 124px of headroom. */}
+            <div className="landing-split-art" aria-hidden="false">
+              <img
+                src="/landing/app-check.png"
+                alt="The Revora check screen on a phone: one box to describe the meal, one field for your latest A1C, and a button to check it."
+                width={390}
+                height={700}
+                loading="lazy"
+                decoding="async"
+              />
+            </div>
+          </div>
         </section>
 
         {/* ── The pause ─────────────────────────────────────────── */}
