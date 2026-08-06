@@ -1,361 +1,398 @@
 # Revora Design System
 
-Canonical reference, extracted from `app/globals.css` + the permission-first
-brand direction (`docs/revora-design-20260404-070350.md`, superseded but voice still applies,
-and `docs/product-marketing.md`). All new UI calibrates against this file.
-Created by /iplan-design-review 2026-07-04. Major revamp 2026-07-07: Plus
-Jakarta Sans, deep-green brand accent, verdict tint/badge sets, sanctioned
-motion + icon layers (see §Motion, §Icons).
+Canonical for every Revora surface. From `app/globals.css`, `docs/product-marketing.md`, and the landing design & copy
+tournament of 2026-08-04/05 (`docs/plans/landing-tournament-*.md`, which holds the evidence this file only cites).
+Rewritten 2026-08-05 (Phase 10B): every rule states its derivation in one clause or names its test. Rules that could do
+neither were accidents and were cut; §15 reports what went.
 
-## Voice — permission-first
+**How to read it.** §1 is the floor: sixteen rails, and breaking one is a defect, not a decision. Everything after is a
+system to pick from; adding a colour, shadow, radius, breakpoint or font size means editing this file in the same commit,
+with the reason. §13 is the banned list; §14 is scar tissue, each row naming its test. **"The guards pass" is not claim clearance (§1.1).**
 
-Revora answers "Can I eat this?" for anxious prediabetics. Every screen either grants
-calm permission or gives one clear next action. Rules:
+## 1. The rails
 
-- Lead with what the user CAN do/eat. "Enjoy freely" before "swap these". Never restriction-first.
-- Utility language on app surfaces: orientation, status, action. No mood copy, no hype.
-- Errors say what to do next, never what the user did wrong. Manual/slow paths are framed as service ("we'll review by hand"), not failure.
-- Health information never in `--text-soft`; hints only.
-- No emoji in headings. No exclamation marks near health verdicts.
+| # | Rail | Held by | Real? |
+|---|---|---|---|
+| 1 | Revora is never the agent of a health outcome | `claims-boundary-copy.test.ts` | **TEST** |
+| 2 | No fabricated ratings, user counts or testimonials | family `social-proof` | **TEST** |
+| 3 | `SAFE`/`MODERATE`/`HIGH` never render as copy; labels come from `lib/revora/labels.ts` | `copy-pins.test.ts` | **TEST** |
+| 4 | A Clear verdict carries no adjustment and no swap | `assertNoUnsafeSafeFields` (throws) + family `unconditional-swap` | **TEST + RUNTIME** |
+| 5 | The disclaimer is visible with the result, never behind a disclosure | `disclaimer-presence.test.ts` (engine responses only) | **TEST in-app · PROSE on marketing** |
+| 6 | Statistics trace to the evidence pack; the trial citation lives only on `/how-it-works` | family `study-association` + exemption guard | **TEST** |
+| 7 | **No statistic-shaped slot exists on a marketing surface** (§1.2) | structure | **STRUCTURAL** |
+| 8 | WCAG AA everywhere; health information never in `--text-soft` | `tests/smoke/landing-a11y.spec.ts` (axe) | **TEST (partial)** |
+| 9 | 44px touch targets, 52px on the marketing CTA | CSS only; axe does not test target size at AA | **NOT ASSERTED** |
+| 10 | Nothing below 16px on a marketing surface except tracked uppercase | two CSS comments | **PROSE** |
+| 11 | Verdict colour is never the sole channel; every verdict renders icon + word | icons ship, uncovered | **PROSE** |
+| 12 | `prefers-reduced-motion: reduce` zeroes all motion | `globals.css:36-44`, uncovered | **NOT ASSERTED** |
+| 13 | Focus visible everywhere; outlines never removed | `:focus-visible` + axe | **CSS + TEST (partial)** |
+| 14 | Marketing surfaces read light. No dark bands | owner instruction 2026-07-27 | **PROSE, immutable** |
+| 15 | The landing is marketing; the app lives at `/check` | nothing structural | **PROSE** |
+| 16 | **Every user-facing sentence must be fileable under a claim class** (§1.3) | nothing | **PROSE, new** |
 
-## Tokens (`:root` in app/globals.css)
+Ranked by how quietly a redesign breaks one: **10 → 7 → 12 → 9 → 8.** Until 9 and 12 have tests, a change touching
+motion or targets checks them by hand.
+
+### 1.1 Three fences, not one
+
+`claims-boundary-copy.test.ts` reads every `.tsx` under `app/` and `components/` and proves only that no **banned family**
+appears. `validate-safety-contract.mjs` reads **only `docs/safety/*.md` plus a fixture, never a source file**, and proves
+only that the ledger is self-consistent. The pin suites prove named strings. **Nothing connects the ledger to the source
+in either direction:** a new sentence is opted *into* the banned-word scan automatically and *out of* the ledger entirely,
+and nothing goes red. That is how an unledgered comparative claim survived four reviews at `app/page.tsx:523-524`.
+
+### 1.2 Rail 7, rewritten
+
+The old rail was a CSS comment asking nobody to put a number into a slot styled as a 3.6rem number well. **A component
+whose primary affordance must be disabled for its content to be safe is the wrong component.** The band is deleted, so
+no big-number affordance exists and the rail is discharged structurally. If a stat-shaped slot returns, so does the rail.
+
+### 1.3 Rail 16, new
+
+> **Every user-facing sentence must be fileable under a claim class in `docs/safety/claims-boundary.md`. A sentence that
+> is neither approved nor banned is not therefore permitted.**
+
+All nine classes are *about Revora*. **There is no class for a statement about another company's product**, so
+comparative copy is unavailable at any scale: outside the schema, not merely unapproved. Creating a class is a decision
+for counsel, not a copy decision.
+
+## 2. Voice: permission-first
+
+- **Lead with what the user CAN do or eat.** Never restriction-first: the rule the landing broke by opening on a loss.
+- **Utility language on app surfaces:** orientation, status, action. No mood copy, no hype, no emoji in headings, no
+  exclamation marks near a verdict.
+- **Errors say what to do next, never what the user did wrong.** Manual and slow paths are service, not failure.
+- **Never claim the page is calm** — a surface that has to say it is calm is not. **Marketing may name the reader's
+  situation in their own words;** that licence does not extend to making a claim.
+
+## 3. Tokens
+
+`:root` in `app/globals.css`. There are no others; a new one needs a row here in the same commit.
 
 | Token | Value | Use |
 |---|---|---|
-| `--page-bg` | `#f2f7f6` | body background (pages add a soft top gradient via `.page-shell`) |
-| `--surface` | `#ffffff` | cards |
-| `--surface-muted` | `#f8fafc` | inset areas, secondary surfaces |
+| `--page-bg` | `#f2f7f6` | body and marketing ground |
+| `--surface` / `--surface-muted` | `#ffffff` / `#f8fafc` | cards, and only cards / insets, chips |
 | `--border-strong` / `--border-soft` | `#cbd5e1` / `#e2e8f0` | inputs / card borders |
-| `--text-strong` | `#0f172a` | titles, verdicts |
-| `--text-body` | `#1e293b` | body copy |
-| `--text-muted` | `#475569` | eyebrows, labels |
-| `--text-soft` | `#64748b` | hints ONLY (AA at 16px on white; never health info) |
-| `--accent` / `--accent-strong` / `--accent-contrast` / `--accent-tint` | `#0d5f57` / `#0a4a44` / `#f8fafc` / `#e6f2ef` | the ONE brand color (deep spruce green): primary buttons, focus rings, streak, trust icons; `-strong` is hover/pressed; `-tint` is selected/soft-brand fills |
-| `--ink` | `#0f172a` | the old slate, kept for anything that must stay neutral-dark |
-| `--danger` | `#b91c1c` | destructive/error text |
-| `--safe-border` / `--safe-bg` / `--safe-text` / `--safe-badge` | `#0f766e` / `#ecfdf5` / `#065f46` / `#d1fae5` | SAFE verdict: border, card tint, text, badge fill |
-| `--moderate-border` / `--moderate-bg` / `--moderate-text` / `--moderate-badge` | `#b45309` / `#fffbeb` / `#92400e` / `#fef3c7` | MODERATE verdict set |
-| `--high-border` / `--high-bg` / `--high-text` / `--high-badge` | `#b91c1c` / `#fef2f2` / `#991b1b` / `#fee2e2` | HIGH verdict set |
+| `--text-strong` · `--text-body` · `--text-muted` | `#0f172a` · `#1e293b` · `#475569` | titles and verdicts · body · labels, captions, fine print |
+| `--text-soft` | `#64748b` | **plane-restricted, §3.1** |
+| `--accent` · `--accent-strong` · `--accent-contrast` · `--accent-tint` | `#0d5f57` · `#0a4a44` · `#f8fafc` · `#e6f2ef` | the one brand colour. `-strong` is hover/pressed and link text; `-tint` is a selected or soft-brand fill |
+| `--ink` / `--danger` | `#0f172a` / `#b91c1c` | anything that must stay neutral-dark / destructive text |
+| `--safe-*` · `--moderate-*` · `--high-*` | `globals.css:16-27` | the three verdict sets: border, tint, text, badge |
+| `--dur-press` · `--dur-fast` · `--dur` · `--ease` | §6 | motion |
+| `--icon-sm` / `--icon` | `16px` / `20px` | icon sizes |
 
-(`--landing-band` `#0c332e` was removed 2026-07-27 with the landing dark bands.
-See §Marketing landing.)
+`--landing-band` was removed 2026-07-27 with the dark bands; do not reintroduce it (rail 14). **One brand accent.** Risk
+colours are semantic-only, graduate from border to the full verdict treatment, and every `-text`-on-`-bg`/`-badge` pair
+clears AA. **Never use a risk colour decoratively.**
 
-One brand accent (deep green, 2026-07-07 revamp — replaces the slate-only rule).
-Risk colors are STILL semantic-only, but graduate from border-only to the full
-verdict treatment: card tint (`-bg`), badge fill (`-badge`), and verdict text
-(`-text`). All `-text`-on-`-bg`/-`badge` pairs clear WCAG AA. Never use risk
-colors decoratively.
+### 3.1 `--text-soft` is plane-restricted, and this is accessibility, not taste
 
-## Type
+| `--text-soft` `#64748b` on | `--surface` | `--surface-muted` | `--page-bg` | `--accent-tint` |
+|---|---|---|---|---|
+| Ratio | **4.76:1** pass | **4.55:1** pass, no margin | **4.40:1 FAIL** | **4.15:1 FAIL** |
 
-- Stack: `var(--font-sans), Arial, Helvetica, sans-serif` — Plus Jakarta Sans
-  (variable 400–800) via `next/font` in `app/fonts.ts` (wired in
-  `app/layout.tsx`), `display: swap`, Arial fallback so offline test runs never
-  flash unstyled. One family, nothing else. Applied via `sans.className` on
-  `<body>`, and that class is LOAD-BEARING: `body { font: inherit }` in
-  globals.css kills the elemental `body` font rules at equal specificity, so
-  the className is the only thing between the app and the UA default face —
-  the FINDING-030 Times New Roman incident (2026-07-21). Root cause corrected
-  2026-07-28: the original diagnosis blamed the var() cascade; the reset is
-  the actual mechanism (see TODOS, "body font reset"). Keep the className on
-  `<body>`; the CSS var stack stays as the declared fallback.
-- **Reading face, LANDING ONLY (added 2026-07-27):** `var(--font-body)` — Source
-  Sans 3 (400/600/700) via `next/font`. Plus Jakarta Sans was setting headlines
-  and paragraphs both; a geometric sans at 14–15px is the wrong tool for body
-  copy read by 40–60-year-olds on a phone, and the owner flagged the small text
-  as hard to read. Source Sans 3 has a larger x-height and open apertures.
-  **The app UI is unchanged and stays single-family** — this pairing applies
-  under `.landing` only. Headlines, the wordmark, buttons, and uppercase labels
-  keep Plus Jakarta Sans there too, so the contrast is display-vs-text, never
-  two faces doing one job. (Amended 2026-07-28:) `reading.className` goes on
-  the landing ROOT in `app/page.tsx`, NOT `<body>` — two font classNames on
-  `<body>` would race by stylesheet injection order. The reading face is
-  imported only by `app/page.tsx`, so Source Sans 3's @font-face + preloads
-  ship with the landing route, not with every app route. Nothing reads
-  `var(--font-body)`; the variable stays declared only so a future consumer
-  doesn't get an undefined var. Loaded weights are 400/600/700 — landing
-  titles use 700, never a heavier faux-bold.
-- Base 16px / 1.5. Body copy 1.65 line-height. (Amended 2026-07-29:) this is
-  now actually in force. `body` was inside the `font: inherit` form-control
-  reset, which killed the elemental `body` block at equal specificity, so
-  `line-height: 1.5` had never applied anywhere and every element inheriting it
-  computed `normal`. `body` is out of that reset list; keep it out.
-- Scale: 13px uppercase eyebrow (700, 0.08em tracking) · 14–15px hints/meta · 16px body + inputs · 18px subheads (700) · titles `clamp(2rem, 7vw, 2.6rem)` (tight -0.03em).
-- **Landing scale is larger** (§Marketing landing): nothing below 16px except
-  tracked uppercase labels; body 16.5–17px, ledes 18.5px, hero sub
-  `clamp(1.15rem, 2.1vw, 1.4rem)`. (Amended 2026-07-29:) these values live in
-  the base landing rules. They used to sit in a block appended after them, so
-  26 selectors carried two competing `font-size` declarations and only source
-  order picked the winner — which had already silently defeated
-  `.landing-cta--sm`. One declaration per selector; a test enforces it
-  (`landing-wiring-pins.test.ts`). Never re-append an override block.
-- Weights: 400 body, 600 secondary emphasis, 700 headings/CTAs. Nothing lighter or heavier.
+> **Text colour on `--surface` and `--surface-muted` only, for hints only, never health information. Banned on
+> `--page-bg` and `--accent-tint`.** The old annotation, "AA at 16px on white," was true on white and misleading
+> everywhere else the product renders.
 
-## Shape & space
+**All four in-repo uses audited 2026-08-05 and all pass, none with margin:** `:198` and `:3148`, both placeholders on an
+input's own `--surface`; `:2673` `.chip-remove` on `--surface-muted`; `:2546` a decorative `background`, not text.
+Separately `--text-muted` on `--page-bg` is **7.00:1**, AAA to the second decimal, and it carries captions and the footer
+disclaimer; axe tests AA and would not report a drop.
 
-- Radius scale: **24px** cards (`surface-card`) · **18px** inputs · **14px** nested cards · **999px** buttons/pills/chips. Pick from the scale, never invent.
-- Card shadow: `0 18px 40px rgba(15,23,42,0.08)` — the only shadow. Nothing else casts one.
-- Layout (amended 2026-07-10, dashboard plan): mobile-first at 375px, but the 480px frame is NO LONGER the desktop design. App pages live in the `(app)` shell (see §App shell) with real breakpoints; unmigrated pages keep the legacy single-column `max-width: 480px` `.page-frame` until they move. 16px grid gap, 20px card padding.
-- Touch: global `min-height: 44px` on button/input/textarea (already enforced in globals.css). Keep it.
+## 4. Type
 
-## Class vocabulary (reuse before writing CSS)
+- **Two faces on a contrast axis.** `var(--font-sans)` is **Plus Jakarta Sans** (variable 400–800, `app/fonts.ts`) for
+  display, wordmark, buttons and labels; `var(--font-body)` is **Source Sans 3** (400/600/700) for reading, on marketing
+  only, because a geometric sans at 14–15px is the wrong tool for body copy read by 40–60-year-olds on a phone. **The app
+  UI stays single-family.** Two proposals to collapse to one face were rejected: both audited clean without addressing
+  the pin they land on (§14 row 2). **Marketing titles use 700, never 800** — Source Sans 3 loads 400/600/700 and 800
+  renders faux-bold, so `globals.css:1728-1731` caps `.landing .result-title` at `22px / 700`.
+- **Base `16px / 1.5`, in force** (re-verified 2026-08-05: `body` is out of the `font: inherit` control reset,
+  `globals.css:83-87`). Body copy runs `1.65`. **Weights 400 / 600 / 700, nothing else.**
+- **App scale:** 13px tracked uppercase eyebrow (700, `0.08em`) · 14–15px hints and meta · 16px body and inputs · 18px
+  subheads (700) · titles `clamp(2rem, 7vw, 2.6rem)` at `-0.03em`.
+- **Tracking is size-specific; one `letter-spacing` across a clamp is wrong at one end of it.** Tighten as size grows
+  (`-0.02em` at display, `0` near body), and move line-height inversely.
+- **Measure caps at 62ch on prose.** `text-wrap: balance` on `h1`–`h3`, `pretty` on prose.
 
-- Structure (legacy pages): `page-shell` → `page-frame` → `surface-card`
-- Structure (app shell, 2026-07-10; C7 2026-07-21): `app-root` → `app-sidebar`/`app-topbar`/`app-tabbar` + `app-content` → `dash-card`; nav = `app-nav`/`app-navlink` (sidebar), `app-tab`/`app-tab-action` (tab bar); billing = `plan-box`; dashboard = `dash-cta-button`; journey = `journey-doc`/`dash-week` (see §App shell)
-- Headers: `hero-eyebrow`/`status-eyebrow`/`result-eyebrow` + `page-title` + `page-copy`
-- Forms: `form-card` · `form-grid` · `field-stack` · `field-label` · `text-input` · `field-hint` · `field-error` · `primary-button` · `voice-input-button`
-- Feedback: `request-status` · `status-card` · `result-card` (+ risk border tokens) · `result-disclaimer` · `placeholder-card`
-- Monetization: `paywall-card`
-- Components: `components/` — `food-check-form`, `result-card`, `paywall-card`, `request-status`, `streak-chip`, `insight-card`, `today-list`, `voice-input-button`
+## 5. Shape and space
 
-New screens are assembly jobs. If a screen needs a genuinely new class, it takes tokens + the radius scale + existing patterns; adding a new color or shadow requires editing THIS file first.
+> **Radius scale: outer surfaces 24px · inputs 18px · nested cards 14px · result cards 22px · pills, buttons and chips
+> 999px. Pick from the scale, never invent.**
 
-## Selectable chips (added 2026-07-05, launch-readiness plan)
+`22px` is a member, not an exception: `.result-card` is the product's most-seen surface, ships at 22px on three routes,
+and the scale predates it. **The one place the product violates the scale** is `DemoCheckCard`
+(`components/demo-check-card.tsx:38`), which wraps two `.result-card`s (22px) in a `.surface-card` (24px). A 2px delta is
+the worst available answer: too different to read as one surface, too similar to read as two.
 
-For one-tap choices: segmentation taps, meal-suggestion chips. Assembly:
-`.chip-row` (flex, 8px gap, wraps) containing `<button type="button" class="selectable-chip">`.
+> **Ruling: the wrapper is not a card.** It is a labeled sequence (`aria-label="Example check"`), and this file's own
+> rule is *cards earn existence*. The wrapper drops `surface-card` and becomes an unbordered labeled region carrying the
+> eyebrow and the two typed lines; the two `.result-card`s stay untouched at 22px. That removes the nesting, the delta
+> and the mosaic without editing the card the marketing page exists to show. **Product work item; three routes import it.**
 
-- Shape: 999px radius (existing pill scale), 1px `--border-strong` border,
-  `--surface` background, `--text-body` text, 16px, 44px min-height (touch rule).
-- Selected state: `aria-pressed="true"` + `--accent` background,
-  `--accent-contrast` text. Selection is a border/fill change ONLY — no icons,
-  no checkmarks, no color beyond the accent (risk colors stay semantic).
-- Chips are buttons, never divs. Focus ring inherits the global `:focus-visible`.
-- Max one chip-row per screen section; chips carry 1–3 word labels, never sentences.
+⛔ **Do not restate a nested-card ban. This file has never had one** — the previous version gave nested cards a radius
+and used it. `impeccable` bans them; this file does not. The rule above is about one 2px delta, not a category.
 
-## Marketing landing `/` (added 2026-07-07)
+- **Card shadow `0 18px 40px rgba(15,23,42,0.08)`, the only shadow in the system.** Nothing else casts one.
+- **Cards earn existence.** Not interactive and not semantically bounded means it is typography. Boxing three sentences
+  about the reader's situation makes them look like features.
+- **Touch:** global `min-height: 44px` on `button`/`input`/`textarea` (`globals.css:89-93`). ⛔ **No invisible hit-area
+  expansion on inline links** — WCAG 2.5.8's inline exception covers them, and negative margins overlapped adjacent
+  targets when this repo tried it.
+- **Layout:** mobile-first at 375px, app pages in the `(app)` shell (§8). 16px grid gap, 20px card padding.
 
-The root is a marketing surface (Cal AI-style structure), the app lives at
-`/check`. The landing keeps every token (colors, radius scale, the one card
-shadow, the type stack) but relaxes two app rules, on this surface ONLY:
+## 6. Motion
 
-- Width: `.landing-frame` is `max-width: 1080px` with responsive two-column
-  grids — the 480px `.page-frame` rule stays app-only.
+| Token | Value | Job |
+|---|---|---|
+| `--ease` | `cubic-bezier(0.23, 1, 0.32, 1)` | **the** ease. Strong ease-out |
+| `--dur-press` · `--dur-fast` · `--dur` | `120ms` · `150ms` · `200ms` | pointer-down feedback · hover, colour, small state change · entrance |
 
-### Surface rhythm (amended 2026-07-27 — the dark bands are gone)
+> **⚖️ Ruling (10B): the curve split is closed.** The app ran `cubic-bezier(0.22, 0.61, 0.36, 1)` (easeOutCubic) while
+> the marketing spec specified `cubic-bezier(0.23, 1, 0.32, 1)` (easeOutQuint) at 120ms for the press. Two curves this
+> close, in a system with one shadow and one accent, is unearned duplication. **The stronger curve wins and becomes the
+> system's only ease** — both `emil-design-eng` and `impeccable` prescribe it, and 120ms sits inside the 100–160ms press
+> window Apple and Emil give independently. **This is a one-line token change:** all 24 consumers read `var(--ease)` and
+> none hardcodes the curve. Ship it as its own revertible commit with a before/after on the result-card entrance.
 
-The landing was built with two deep-green `.landing-dark` bands (hero, closing
-CTA) on the `--landing-band` token. **Both were removed on owner instruction:
-the surface must read light, simple, and easy to navigate.** `.landing-dark`
-and `--landing-band` no longer exist; do not reintroduce them.
+- **Press feedback is on pointer-down (`:active`), never release** — the press is the moment the user watches most
+  closely. `translateY(1px) scale(0.98)` at `--dur-press`. **Name the properties; never `transition: all`.**
+- **Two sanctioned keyframes:** `revora-rise` (6px fade-up, once, result-card entrance) and `revora-skeleton` (shimmer,
+  loading placeholders only). No other looping animation anywhere.
+- **A reveal enhances an already-visible default.** Ship content at `opacity: 1` and let an `IntersectionObserver`
+  *replay* it; transitions pause on hidden tabs and never fire headless, so a visibility-gated reveal ships the section
+  blank, including to a crawler.
+- **`prefers-reduced-motion: reduce` zeroes all durations** (`globals.css:36-44`); never remove it. That block is a
+  safety net, so a JS-driven reveal must **also** gate the class in JS: the net only shortens what already ran.
+- **Animate `transform` and `opacity` only**, and use a spring library where a gesture must be interruptible rather than
+  fighting keyframes. ⛔ **No scroll reveals as section scaffolding** — a uniform entrance on every block is the tell,
+  not motion; stagger inside one list is legitimate.
 
-Depth now comes from three LIGHT planes, alternated down the page, separated by
-a 1px `--border-soft` hairline:
+## 7. Icons
 
-| Class | Background | Used by |
-| --- | --- | --- |
-| `.landing-sheet` | `--surface` (white) | nav + hero, the three-answers row |
-| `.landing-band` | `--accent-tint` | who-it's-for, Pantry Review, closing CTA |
-| *(default)* | `--page-bg` | how-it-works, what-you-get, trust, pricing, FAQ, footer |
+`components/icons.tsx` is the entire vocabulary: Check, Alert, Pause (verdicts) · Keyboard, Mic, Camera (input) · Lock,
+Leaf, Heart, EyeOff (trust) · ArrowRight · Home, Person, CheckCircle, Bookmark, Compass (shell nav). Hand-written
+24-viewbox strokes, `stroke: currentColor`, sized by `--icon-sm`/`--icon`, always `aria-hidden`. **No icon libraries;**
+adding a glyph edits that file and this list.
 
-The primary CTA is now an **accent-filled pill** (`--accent` fill,
-`--accent-contrast` text, measured 7.2:1), not the inverted white pill the dark
-bands required. `.landing-cta--sm` is the nav size; `.landing-cta--ghost` is the
-outline variant, used twice: the nav CTA (amended 2026-07-28 — the nav pill went
-ghost so the hero owns the only filled pill above the fold) and the Pantry
-Review's secondary action. **One filled pill per viewport** — now enforced in
-code, not just prose. Risk colors remain semantic-only.
+**Restated:** an icon never carries meaning alone **unless it is a redundant channel for text already in the accessible
+name.** The old absolute contradicted §9, where the verdict icon inside a week-strip mark is exactly that channel.
 
-The primary CTA is assembled **once**, by the `LandingPrimaryCta` component in
-`app/page.tsx`: the button, plus an optional caption beneath it, in a
-`.landing-cta-stack`. Do not hand-build it per section — five hand-built copies
-had drifted into four different shapes (caption inside the row, outside the row,
-absent, and once with no row at all). `.landing-cta-stack--spaced` adds the top
-margin sections need when the CTA follows a content block; it is the honest name
-for what was `.landing-cta-row--centered`, which set only `margin-top` and
-centered nothing. `.landing-cta-row` is now only for a CTA sitting beside a
-sibling action (the Pantry Review's ghost button).
+## 8. App shell
 
-**Landing breakpoints are 640 / 720 / 880px** (amended 2026-07-29, collapsed
-from eight ad-hoc values: 560/640/720/760/820/860/880/900). 640 turns the footer
-two-column, 720 opens the three-up grids and the outcomes pair, 880 is the full
-desktop step (verdicts three-up, pantry two-up, footer four-column). Pick from
-these three; a new landing breakpoint needs a reason recorded here. The app
-shell keeps its own separate set (§App shell, 1024px being the load-bearing one).
-
-Landing card recipe: **2px `--border-soft`, 24px radius**, on `--surface`. All
-eight landing card families use it (amended 2026-07-29 — `.landing-proof-item`
-was the lone exception on 1px `--border-strong` + 14px, in the trust section of
-all places). Focus rings on this surface are `rgba(13, 95, 87, 0.45)`; the 6px
-radius used on inline-link focus rings is deliberate and stays off the card
-radius scale, because a card radius on a one-line text link looks bulbous.
-
-Section padding is fluid (`clamp(52px, 7vw, 104px)`, with a `--tight` step) —
-the previous flat `56px` on every section is what made the page read as having
-no flow.
-
-Credibility is honesty, not decoration: no fabricated ratings, user counts,
-or testimonials. The proof points are the disclaimer, the research
-disclosure (/how-it-works), the `.landing-proof-band` (hedged and attributed —
-never a promise about the user's numbers; the trial citation itself lives only
-on /how-it-works, pinned by claims-boundary-copy.test.ts),
-encrypted-at-rest + one-tap delete, and the pre-charge email promise. All
-landing copy is claims-audited like app copy.
-
-The `.landing-proof-band` left column is a LABEL, not a statistic. It was
-styled as a 3.6rem number slot that CSS specificity silently overrode to 15px;
-a real number there would read as Revora's own result and is out of bounds.
-
-## Input-method row (added 2026-07-07, three-way meal input)
-
-The check form leads with the three input methods — Type it / Say your meal /
-Snap a photo — in one `.chip-row` ABOVE the food textarea, so users see all
-three ways before they start typing. Assembly reuses existing pieces: a
-`selectable-chip` for "Type it" (aria-pressed mirrors the active method,
-click focuses the textarea) plus the existing `voice-input-button` and
-`secondary-button` photo pill. No new classes, colors, or shadows. All three
-methods land in the same reviewed text path — voice and photo never bypass it.
-
-## Day-1 / first-win treatment (added 2026-07-05, launch-readiness plan)
-
-The calm acknowledgment after a user's first completed check. Rules:
-
-- It is typography, not a celebration: a `.first-win` block = one
-  `status-eyebrow` ("Day 1") + one `page-copy` sentence. No confetti, no
-  animation, no emoji, no exclamation marks (verdict-adjacent surface).
-- Uses `--surface-muted` inset (14px radius, nested-card scale) inside the
-  daily-loop card — it is part of the document flow, not a toast/modal.
-- Appears at most once per day, only when the streak is new (streak === 1).
-  On the dashboard it renders above the greeting; on `/check` it stays inside
-  the daily-loop card.
-- (Amended 2026-07-10, dashboard plan; re-amended 2026-07-21, C7.) The
-  verdict week strip and the weekly recap live on /journey, not the
-  dashboard. All progress UI obeys §Progress surfaces below.
-
-## Progress surfaces — reassurance, not gamification (added 2026-07-10)
-
-Revora's users are anxious by definition; progress UI manufactures
-reassurance, never streak pressure. Binding rules for ANY progress element:
-
-- Additive framing only: "N days this week", "N meals checked" — counts that
-  grow. Nothing that can visually "break", no loss-aversion mechanics, no
-  "streak at risk" states, ever.
-- Unchecked days render neutral (dashed `--border-strong` mark on
-  `--surface-muted`), never red, never "missed".
-- Verdict colors on the week strip are information, not decoration: each day
-  shows its most careful verdict (worst-of-day, `lib/coach/days.ts
-  verdictWeekView`) with the verdict ICON inside the mark — shape carries the
-  signal for colorblind users — plus a per-day `sr-only` sentence.
-- Illustrative data is always labeled: unlabeled example data on a health
-  surface is banned (credibility is honesty).
-- (Replaced 2026-07-21, RV-3.) The weekly view is the NON-SCORED recap
-  (`lib/coach/recap.ts`, rendered on /journey): facts that only grow, stated
-  as plain counts. No composite score, no band words ("Building", "On
-  track"), no percentages — a more-confident user who checks less must never
-  read "progress declined". The posture line is standing copy: "Checking
-  less as you get more confident is how this is meant to work." The
-  bai_weekly pipeline still computes internally (S2 measurement); its score
-  is never rendered.
-
-## Home meal-check hero (added 2026-07-19, approved A+D+C composite)
-
-The dashboard's Committed color moment is no longer a link card — it is the
-meal check itself (`components/home-check-hero.tsx`, `.meal-hero`). Rules:
-
-- Accent-filled card (24px radius, the one shadow), eyebrow "Meal check",
-  title "What are you eating?", one text input (18px radius, 52px tall) and
-  one pill submit ("Check meal", `data-testid="dash-check-cta"`).
-- It is a HAND-OFF, not a second check surface: the typed meal rides the
-  `revora.recheck` sessionStorage prefill into `/check`, which remains the one
-  place a check runs (taster gate, A1C, voice/photo, results). Never duplicate
-  the check flow on Home.
-- Stays the first interactive element above the fold at <768px (shell rule).
-
-## Result anatomy (added 2026-07-19, approved A+D+C composite)
-
-The verdict card (`.result-anatomy`, verdict branch of
-`components/result-card.tsx`) is a labeled document, not a poster:
-
-- Permission-first header on `--accent-tint`: kicker "A practical next step",
-  the most practical action as the lead line (adjustment → swap → keepMost;
-  SAFE leads with its own label), and the orientation line "A guide from your
-  entry." The load-bearing boundary copy stays in the fineprint, visible with
-  the result — never behind a disclosure.
-- Rows: Meal (echo + input method) · Signal (verdict icon + label, the ONLY
-  tinted row — verdict tokens, information not decoration) · Why (reason) ·
-  Try (remaining actions + "I did it").
-- Trust link "How Revora chooses a signal" → `/how-it-works`, 44px target.
-- Card surface stays white; verdict color appears only on the border and the
-  Signal row. Non-result kinds (upsell/clinical/clarify/retry) keep the flat
-  card.
-- The raw risk-class words (SAFE/MODERATE/HIGH) never render as user copy —
-  labels come from `lib/revora/labels.ts` only.
-
-## Motion (added 2026-07-07 revamp)
-
-A small sanctioned layer — CSS only, no animation libraries:
-
-- Tokens: `--dur-fast: 150ms`, `--dur: 200ms`, `--ease: cubic-bezier(0.22,0.61,0.36,1)`.
-- Buttons/chips/CTAs transition background/border/transform on hover/active
-  (`translateY(1px)` press, nothing bouncier).
-- Two sanctioned keyframes: `revora-rise` (6px fade-up, plays once on
-  result-card entrance) and `revora-skeleton` (background shimmer, loading
-  placeholders ONLY — e.g. the paywall price pending state). No other looping
-  animation anywhere. (Amended 2026-07-21 design-review: the skeleton shimmer
-  shipped with P2.1 and is deliberate; this list now matches the code.)
-- A global `prefers-reduced-motion: reduce` block zeroes ALL animation and
-  transition durations — mandatory, never remove it.
-
-## Icons (added 2026-07-07 revamp)
-
-`components/icons.tsx` is the entire icon vocabulary: Check, Alert, Pause
-(verdicts) · Keyboard, Mic, Camera (input methods) · Lock, Leaf, Heart, EyeOff
-(trust) · ArrowRight · Home, Person, CheckCircle (app-shell nav, added
-2026-07-10) · Bookmark (My meals), Compass (My journey) (C7 nav, added
-2026-07-21). Hand-written 24-viewbox strokes, `stroke: currentColor`,
-sized by `--icon-sm` (16px) / `--icon` (20px). Icons always sit next to text,
-never alone, never decorative-only, always `aria-hidden`. Adding a glyph means
-editing that file and this list — no icon libraries.
-
-## App shell (added 2026-07-10, dashboard plan — design ref Revora.dc.html)
-
-The responsive frame for `(app)` routes; the marketing landing keeps its own
-`.landing-*` system. One shell, three widths — the canonical breakpoint table:
-
-| Range | Content column | Navigation | Dashboard grid |
+| Range | Content column | Navigation | Grid |
 |---|---|---|---|
-| < 1024px (designed at 375) | `app-content` max 520px | bottom tab bar (`app-tabbar`), five slots: Home · My meals · Check (the one accent-filled action) · My journey · Account; top bar: brand only. Still no hamburger (C7 four jobs, 2026-07-21) | single column |
-| ≥ 1024px | max 1000px + 280px fixed sidebar | sidebar: Home · My meals · Check a meal · My journey · Account + plan box (`plan-box`) | single column |
-| ≥ 1440px | max 1120px | same sidebar | same |
+| < 1024px (designed at 375) | `app-content` max 520px | bottom tab bar, five slots: Home · My meals · Check (the one accent-filled action) · My journey · Account. Top bar is brand only, no hamburger | single column |
+| ≥ 1024px | max 1000px + 280px fixed sidebar | sidebar, same five + `plan-box` | single column |
+| ≥ 1440px | max 1120px | same | same |
 
-Rules:
+- **The nav flips at exactly 1024px** and the inactive wrapper is `display: none`, so exactly one `Main` landmark exists
+  at a time. `<nav aria-label="Main">`, `aria-current="page"` on the active link, 44px+ targets, `app-skip` first.
+- **The plan box shows the plan name AND the billing date.** Hiding the renewal date from an active subscriber is banned,
+  and that ban binds every rendered plan box. Home renders it only when it carries actionable billing truth; the sidebar
+  and `/account` always render it in full.
+- **The check CTA is the one Committed colour moment**, and at <768px the first interactive element above the fold: the
+  dashboard never adds friction before the core action. **Day-0 empty state is the default design, not a fallback:** one
+  CTA plus the Today card's warmth, no fake data, no guilt copy.
 
-- The nav flips tab-bar → sidebar at exactly **1024px**; the inactive nav
-  wrapper is `display:none`, so only one `Main` landmark exists at a time.
-  `<nav aria-label="Main">`,
-  `aria-current="page"` on the active link (`--accent-tint` fill +
-  `--accent-strong` text), 44px+ targets, skip-to-content link
-  (`app-skip`) as the shell's first focusable.
-- The plan box shows the plan name AND the billing date ("Renews {date}" /
-  "Trial ends {date}") — a display-only entitlement read; hiding the renewal
-  date from active subscribers is banned. (Amended 2026-07-21, C7 eng-review
-  D2:) Home renders the plan box ONLY when it carries actionable billing
-  truth — a running trial or a scheduled non-renewal (`planBoxAttention`);
-  the sidebar and /account always render the full box. The
-  hiding-the-renewal-date ban binds every rendered plan box.
-- The check CTA (`dash-cta-button`) is the one Committed color moment on the
-  dashboard (accent-filled card). At <768px it is the first interactive
-  element above the fold — the dashboard never adds friction before the
-  core action.
-- Day-0 empty state is the DEFAULT design, not a fallback: one CTA + the
-  Today card carrying the `dash-preview-note` warmth (the hollow-dot week
-  preview lives on /journey since C7); no fake data, no guilt copy.
-- Everything in the shell is assembled from tokens: no new colors, the one
-  card shadow, radii from the scale.
+## 9. Progress surfaces: reassurance, not gamification
 
-## Interaction rules
+Users are anxious by definition, so progress UI manufactures reassurance and never streak pressure.
 
-- Focus: themed `:focus-visible` on inputs/buttons (globals.css) — never remove outlines.
-- Status text updates use `aria-live="polite"`; progress = text count first, spinner optional.
-- Motion only from the sanctioned layer above; respect `prefers-reduced-motion`.
-- Empty states are features: warmth + one primary action + context. "No X found." alone is banned.
-- Never dead-end a paid or signed-in user: every error state names the next step (retry, support email, or "we'll email you").
-- Print (reports): `@media print` hides nav/buttons/paywall; black-on-white; `break-inside: avoid` on item rows.
+- **Additive framing only.** Counts that grow, nothing that can visually break, no loss aversion, no "streak at risk"
+  state ever. **Unchecked days render neutral** (dashed `--border-strong` on `--surface-muted`), never red, never "missed".
+- **Verdict colour on the week strip is information:** each day shows its most careful verdict
+  (`lib/coach/days.ts verdictWeekView`) with the verdict *icon* inside the mark, so shape carries the signal, plus a
+  per-day `sr-only` sentence.
+- **Illustrative data is always labeled.** `demoExampleEyebrow()` (AUD-008) computes the label from the evidence state
+  and swaps to `A real check, captured <date>` when a capture is authorised. ⛔ **Never hand-type it** — a literal
+  becomes a false claim the day a capture lands.
+- **The weekly view is the non-scored recap** (`lib/coach/recap.ts`, `/journey`): plain counts, no composite score, no
+  band words, no percentages, because a more-confident user who checks less must never read "progress declined".
 
-## App-UI guardrails (anti-slop)
+## 10. Component recipes
 
-Document-not-dashboard for content pages. No icon-in-circle decoration, no centered-everything,
-no card mosaics, no decorative gradients beyond `.page-shell`'s background. Colored fills and
-borders only from the semantic verdict token sets or the brand accent. Icons only from the
-sanctioned set (§Icons), always paired with text. Cards earn existence: if it isn't interactive
-or semantically bounded, it's typography, not a card.
+- **Result anatomy** (`.result-anatomy`) is a labeled document, not a poster: permission-first header on `--accent-tint`
+  leading with the most practical action (adjustment → swap → keepMost), then rows Meal · **Signal** (verdict icon +
+  label, the ONLY tinted row) · Why · Try. Card surface stays white, verdict colour appears on the border and Signal row
+  only, boundary copy stays in the fineprint, visible with the result.
+- **Selectable chips:** `.chip-row` (flex, 8px, wraps) of `<button class="selectable-chip">` at 999px, 1px
+  `--border-strong`, `--surface`, 16px, 44px min-height. Selected is `aria-pressed="true"` plus an `--accent` fill —
+  **a fill change only**, no icons or checkmarks. Buttons, never divs; one row per section, 1–3 word labels.
+- **Input-method row** on `/check`: the available methods in one `.chip-row` above the textarea, so users see every way
+  in before typing, and **all methods land in the same reviewed text path.** ⚠️ `photoInputEnabled()` is **false**, so
+  the row ships two methods; copy naming three is wrong today.
+- **Day-1 / first-win** is typography, not celebration: one `status-eyebrow` plus one `page-copy` sentence in a
+  `--surface-muted` inset at the 14px nested scale, inside the daily-loop card. No confetti, animation, emoji or
+  exclamation marks; at most once a day, only when `streak === 1`.
+- **Home meal-check hero** (`.meal-hero`) is the dashboard's one accent-filled card and a **hand-off, not a second check
+  surface**: the typed meal rides the `revora.recheck` prefill into `/check`, the one place a check runs.
+
+## 11. Marketing surfaces
+
+`/` is marketing; the app lives at `/check` (rail 15). Marketing keeps every token, the one shadow and the radius scale,
+and relaxes exactly three app rules here only: a wider frame (`max-width: 1080px`), a larger type scale, and the reading
+face. The system below is the tournament winner, **`W — One Card Back`** (`docs/plans/landing-tournament-winner-spec.md`),
+whose thesis is that **the page's unit of composition is the product's own artifact**, rendered in the live classes.
+
+- **One plane, with one exception.** `--page-bg` throughout; **white is card material, never a section background**, so a
+  white region that is not a card is a bug. **Sectioning is air plus a hairline on the block**, never an `<hr>`:
+  `padding: clamp(56px, 7vw, 92px) 0` with `border-top: 1px solid var(--border-soft)`, reset on `:first-of-type`. Hero
+  padding is deliberately smaller and **measured** — unifying it with the section clamp pushes the proof card off the fold.
+
+  ⚖️ **The rhythm was `clamp(72px, 10vw, 128px)` until the owner's 2026-08-06 ruling that the imported design file governs
+  layout while §11 governs type.** It pinned at its 128px ceiling from 1280px up and adjacent sections stack, so every
+  block boundary measured **257px** of dead vertical space at 1280px — and at 375px it sat on its 72px floor on *both*
+  sides of every seam. The new clamp computes 56px at 375px and 92px from 1314px up; boundaries land at **112px** narrow
+  and **184px** wide. This was not cosmetic: the same pass added three sections (the at-a-glance strip, "What actually
+  changes", the offer block), and **§11.1's worst desert had 124px of headroom** — at the old rhythm those sections could
+  not have been added at all. Measured after: **10,733px, 9 exits, worst desert 1,861px, 0 over budget.**
+
+  ⛔ **`.landing-changes` is the one section allowed a non-`--page-bg` ground** — `--accent-strong`, full-bleed via
+  `margin-inline: calc(50% - 50vw)`, which is why `.landing` carries `overflow-x: clip`. The deep-green bands deleted on
+  2026-08-05 were deleted because **white** on a non-card region is ambiguous with card material. That reasoning does not
+  extend here: no card on this page is dark, so an accent ground cannot be misread as a card. One section, named
+  explicitly. A second one re-opens the question. ⚠️ `overflow-x: clip` also means **`position: sticky` will not work
+  anywhere on this page** — the design file's sticky left columns were not implemented, and adding one silently fails.
+- **Two card families, down from eight:** the **result card, inherited and unmodified**, and the price tile (24px, 2px
+  `--border-soft`, `--surface`, the one shadow). ⛔ **No `.landing*` selector may declare `border-radius` or `border` on
+  `.result-card` or `.surface-card`** — the page's central claim is *marketing shows the product's card, unmodified*, and
+  an override makes it false while appearing to improve the page. The claim has no test and owes one.
+- **Zero eyebrows**, because the hero's eyebrow words became the H1 — **de-duplication, not deletion on principle**. The
+  contender that deleted the eyebrow on principle left a headline about a competitor as the only thing above the fold and
+  took the tournament's worst score.
+- **Type: one body size.** `18px / 1.65` for everything except H1 `clamp(1.9rem, 5.6vw, 3.8rem)` / `1.05` / `-0.02em` ·
+  H2 `clamp(1.6rem, 4vw, 2.2rem)` / `1.1` / `-0.025em` · card title `22px / 700` · lede `20px / 1.6` · FAQ summary
+  `19px / 700` · nav link `17px` · fineprint floor `16px`. Measure `62ch`. **The v2 sections take existing steps and add
+  none**: `.landing-glance-fact`, `.landing-offer-what` and `.landing-limits-trio h3` are all the `22px / 700` card-title
+  step, and every other line in them is body. ⚖️ **This is where the 2026-08-06 ruling bit.** The imported design file
+  carried its own scale — an H1 floor of `2.4rem` (38.4px, up from 30.4px) and a body ladder of
+  `15.5 / 16 / 16.5 / 17 / 17.5 / 19 / 19.5 / 20px` — and **none of it was adopted.** The H1 floor is the one that
+  mattered: at 375px the H1 sits on its floor, which is exactly where §11.1's budget is measured, so a 26% taller floor
+  spends headroom the new sections needed. The design's `12–13px` uppercase stage labels were dropped for two separate
+  reasons — they are eyebrows, and they are under the fineprint floor. This replaces the old "16.5–17px" range,
+  which needed a reason per value and had none; the lede step stays, because a scale without one loses the hierarchy
+  ratio. ⚖️ **The body was `17px` until 2026-08-05, when the owner previewed the built page and read it as too small.**
+  The tournament spec's figure was never read at size; one step up is the whole change, and H1/H2 are clamped so the
+  display scale is untouched. **The fineprint floor stays `16px`, and the result card's own copy stays app-layer `16px`**
+  — the card is the unit of composition, and it does not get a `.landing`-layer type override for reading smaller than
+  the prose wrapped around it.
+  ⚖️ **The H1 ceiling was `2.9rem` from `ea3b055` until the owner ruled it back to `3.8rem`, both on 2026-08-05.**
+  Raising the body to 18px while the ceiling sat at 46.4px took the H1/body ratio to **2.6×** against the deployed page's
+  **3.8×**, and the owner read the result as flat *despite* the larger body. The claim above that "H1/H2 are clamped so
+  the display scale is untouched" was **false in effect**: a clamp protects the *floor*, not the ratio, and the ratio is
+  what hierarchy is. **Measured in the browser against a production build, the restore is free.** Rendered H1: `30.4px`
+  at 375px — the `1.9rem` floor, *identical at both ceilings*, because `5.6vw` is only 21px there — then 35.8 / 46.4 /
+  50.4 / 60.5 / **60.8px** at 640 / 828 / 900 / 1080 / 1280px. Page length, exits and worst desert are unchanged at
+  **7,811px · 7 exits · 1,877px**, so the reachability budget (§11.1) is unaffected and needs no re-measure. Only
+  viewports ≥828px change, and the new H1/body ratio is **3.38×**. **The hero sub deliberately stays at body size**, so
+  the page still has one body size; the ruling was the ceiling alone, and a hero-sub step is a separate, *un*free change
+  that would cost length at 375px.
+  ⛔ **`--text-soft` is banned here entirely** (§3.1) — the plane is `--page-bg`, where it fails AA. No per-block exemption.
+- **Breakpoints 640 / 720 / 880:** footer two-column, three-up grids, full desktop step. Collapsed from eight ad-hoc
+  values 2026-07-29; **a new one needs a reason recorded here.** The shell keeps its own set (§8).
+- **The CTA is assembled once, by `LandingPrimaryCta`** — five hand-built copies had drifted into four shapes.
+  Accent-filled pill (`--accent` on `--accent-contrast`, computed **7.19:1**), 52px, 999px; `.landing-cta--ghost` is the
+  nav variant so the hero owns the only filled pill above the fold. **One filled pill per screenful** ⚠️ **is not
+  enforced in code** — the previous version of this file claimed it was, and no such assertion exists. The two closing
+  pills clear a screenful by **5px**. **Pre-specified fallback:** make the final exit a text link, not more distance.
+- **Credibility is honesty, not decoration.** No fabricated ratings, counts or testimonials (rail 2). The proof points
+  are the disclaimer, the research disclosure, encrypted-at-rest plus one-tap delete, and the pre-charge email promise —
+  **each attached to a rendered object.** The disclosure ships as prose, not a band (§1.2); the DPP statistic stays off
+  marketing entirely (rail 6); rail 16 binds every sentence here.
+
+### 11.1 ⚖️ The reachability budget: a rule change, named as one
+
+The tournament grafted a rule from a killed contender: *no stretch may exceed 1,460px at 375px.* **Measured in a browser
+the winner fails it in three places, worst by 764px, and no arrangement of its six exits satisfies it** — the best still
+misses by 15px and 103px. The figure came from a *different* contender's page, transplanted unchecked onto an 8,621px one.
+
+> **Ruling: restated in screenfuls, and this is a rule change, not a measurement result.** A pixel distance is not what
+> the reader experiences; the number of screenfuls between deciding and being able to act is. **No stretch between exits
+> may exceed three screenfuls, 2,001px at 375×667.** Measured worst on the winner's best free arrangement: **1,941px**;
+> on the incumbent, **5,228px, or 7.8 screenfuls**. The rule still bites hard and is no longer unachievable.
+>
+> **The half with real teeth is the measurement: every marketing layout change reports its measured page length, exit
+> count and desert map at 375px, in the browser, with the real fonts loaded. An unmeasured desert claim does not count.**
+> Estimates here ran 20% low on page length and 35% low on the worst desert.
+
+⚖️ **Related ruling: CTA position in the offer block.** The measured reorder that buys the budget puts a button between
+the price tiles and the cancel paragraph, whose power is its **adjacency to the price**, and a 661px pixel win does not
+outrank a scored copy graft. **The CTA moves to the first position that does not break the adjacency: immediately after
+the cancel paragraph, before the claims list.** That variant is unmeasured, so implementation measures and reports; if it
+misses the budget, the measured arrangement is the fallback and the adjacency is what gets spent — a known cost, recorded.
+
+## 12. Interaction rules
+
+- **Focus:** themed `:focus-visible`, never removed. `3px` ring at `rgba(13, 95, 87, 0.45)`; **2px offset on cards** so
+  the ring clears a 22/24px radius without colliding with the border; 6px radius on inline-link rings, deliberately off
+  the card scale, because a card radius on a one-line text link looks bulbous.
+- **Status updates use `aria-live="polite"`.** Progress is a text count first; a spinner is optional.
+- **`list-style: none` strips list semantics in Safari/VoiceOver**, so any list that looks like a list carries `role="list"`.
+- **Empty states are features:** warmth, one primary action, context. `"No X found."` alone is banned, and **no paid or
+  signed-in user is ever dead-ended** — every error names the next step.
+- **Print:** `@media print` hides nav, buttons and paywall; black on white; `break-inside: avoid` on item rows.
+
+## 13. The banned list
+
+1. **The winning organ and the killing defect must not be the same object.** True of all three killed contenders, of no survivor.
+2. **A named defect is not a mitigated defect.** All three killed contenders predicted their killing score in writing.
+3. **No dimension below 5.** A surface is scored on its floor; the two highest single scores both belong to corpses.
+4. **Emotional fit below 5 is fatal on its own.** Its distribution has a 2.83-point void: taken or refused, not a dial.
+5. **A diagnostic is not a design brief.** Three contenders built from an instrument, passed it, and lost the reader.
+6. **A rail passed by deletion is a rail with no subject.** Move the coverage; deleting copy *and* its test discharges it.
+7. **A ledger row that records a section's intent is not a pin.** `result-*` rows are verbatim and test-pinned;
+   `landing-*` rows record intent, and one describes a hero that never shipped. Never cite the genres interchangeably.
+8. **Confirmed anti-patterns.** Eight card families (0/7 defend) · three planes plus a hairline (7/7 collapse) · `Step N`
+   eyebrows (7/7) · an eyebrow above every section (7/7) · a how-it-works block selling typing and talking as the
+   mechanism (7/7) · a fixed conversion element held across a whole page · deleting the category answer to dodge a trope
+   · replacing recognition with definitions · side-stripe borders · gradient text · decorative glassmorphism · the
+   hero-metric template · identical card grids · numbered section markers as scaffolding.
+
+**NOT banned, and you will be tempted:** three price tiles (4/7 keep, surviving because the middle tile carries the least
+portable sentence on the page — **if that sentence ever leaves the tile, the tiles become the generic thing and should
+go**) and the 24px card radius (no convergence; inherited, §5).
+
+## 14. Scar tissue
+
+| Rule | Why it exists | Held by |
+|---|---|---|
+| `sans.className` stays on `<body>` | FINDING-030: the `font: inherit` control reset used to include `body` and killed the elemental font rules at equal specificity | `landing-wiring-pins.test.ts`, *"landing font wiring (FINDING-030)"* |
+| `reading.className` goes on the landing **root**, never `<body>` | two font classNames on `<body>` race by injection order and can flip the whole app's face | `landing-wiring-pins.test.ts` |
+| No `.landing*` selector declares `font-size` twice | an appended override block gave ~26 selectors two competing declarations resolved only by source order. **Never re-append an override block** | `landing-wiring-pins.test.ts`, *"no landing selector declares font-size twice"* |
+| The primary CTA is assembled once | five hand-built copies drifted into four shapes | **`LandingPrimaryCta` in `app/page.tsx`. No test. Owed** |
+| The DPP citation lives only on `/how-it-works` | rail 6, family `study-association` | `claims-boundary-copy.test.ts` + exemption guard |
+
+**One live hazard with no test and no incident yet.** `.landing .result-disclaimer` (16px) and
+`.result-fineprint .result-disclaimer` (13px) have **identical specificity (0,2,0)**; the landing wins only by being
+**later in `globals.css`**. Moving either block silently drops the marketing compliance line to 13px and breaks rail 10,
+and the duplicate-`font-size` pin cannot catch it: it counts declarations per selector and sees one on each. **The
+comment belongs on the rule in `globals.css`, not only here.**
+
+## 15. What this rewrite changed
+
+**361 lines → 360**, while adding the rails table, the banned list, the scar-tissue table and four rulings that
+existed nowhere before. ⚠️ **Word count went 3,309 → 4,657: this file is denser, not lighter.** The tournament plan
+docs hold the evidence; what stays here is the rule plus one clause of derivation.
+
+**Cut as accidents**, being rules that could not derive themselves: **§Class vocabulary**, an index half stale — it listed
+`request-status`, which has **zero** rules in `globals.css`, and named 8 of the 41 files in `components/`. **"CSS only, no
+animation libraries,"** a dependency policy wearing a design rule's clothes. **The 480px `.page-frame` legacy note**,
+because migration status is the roadmap's business. **The scope clause "for content pages"** in §App-UI guardrails, which
+is what let marketing become a card mosaic while a rule banning card mosaics sat in the same file. And **three retellings
+of one font incident**, now §14.
+
+**Corrected as false:** `--text-soft` "AA at 16px on white" (fails on two of four planes, §3.1) · "one filled pill per
+viewport, now enforced in code" (enforced nowhere, §11) · rail 7 as a CSS comment (structural now, §1.2) · the radius
+scale as three steps (five, and violated once, §5) · "landing body 16.5–17px" (one value, §11). **Re-verified, not
+trusted:** base `16px / 1.5` is live, `body` being out of the `font: inherit` reset at `globals.css:83-87`.
+
+**New rulings:** the reachability budget in screenfuls plus the measurement discipline that gives it teeth, and
+CTA-versus-cancel-paragraph priority (§11.1) · one system ease with a named press duration (§6) · the `DemoCheckCard`
+wrapper un-carded (§5) · rails 7 and 16 · banned-list item 7.
+
+**Owed, tracked in the implementation plan:** tests for rails 9 and 12 · the card-recipe override guard (§11) · a test for
+single-CTA assembly (§14) · the source-order comment written onto the `.landing .result-disclaimer` rule (§14) · the
+`DemoCheckCard` wrapper change across three routes (§5) · the `--ease` token change as its own commit (§6).
