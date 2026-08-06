@@ -21,7 +21,7 @@ with the reason. §13 is the banned list; §14 is scar tissue, each row naming i
 | 6 | Statistics trace to the evidence pack; the trial citation lives only on `/how-it-works` | family `study-association` + exemption guard | **TEST** |
 | 7 | **No statistic-shaped slot exists on a marketing surface** (§1.2) | structure | **STRUCTURAL** |
 | 8 | WCAG AA everywhere; health information never in `--text-soft` | `tests/smoke/landing-a11y.spec.ts` (axe) | **TEST (partial)** |
-| 9 | 44px touch targets, 52px on the marketing CTA | CSS only; axe does not test target size at AA | **NOT ASSERTED** |
+| 9 | 44px touch targets, **56px** on the marketing CTA (was 52px until 2026-08-06) | `landing-design-guards.test.ts` pins the 56px; axe does not test target size at AA | **TEST (CTA) · NOT ASSERTED (44px)** |
 | 10 | Nothing below 16px on a marketing surface except tracked uppercase | two CSS comments | **PROSE** |
 | 11 | Verdict colour is never the sole channel; every verdict renders icon + word | icons ship, uncovered | **PROSE** |
 | 12 | `prefers-reduced-motion: reduce` zeroes all motion | `globals.css:36-44`, uncovered | **NOT ASSERTED** |
@@ -121,6 +121,13 @@ disclaimer; axe tests AA and would not report a drop.
 
 > **Radius scale: outer surfaces 24px · inputs 18px · nested cards 14px · result cards 22px · pills, buttons and chips
 > 999px. Pick from the scale, never invent.**
+>
+> ⚖️ **2026-08-06 — the scale gains two members, both marketing-only:** **20px** (the landing's illustration surfaces —
+> `.landing-demo`, the hero card's frame in the design file) and **16px** (`.landing-verdict-card`). They are the design
+> file's, imported with §11's other measurements, and they are recorded here rather than left in the CSS because *never
+> invent* means the scale is the list. ⛔ **Marketing only.** No app surface takes 20px or 16px: inside the product the
+> scale is still 24/22/18/14/999, and an illustration radius leaking into `/check` would put four radii within 4px of
+> each other on one screen.
 
 `22px` is a member, not an exception: `.result-card` is the product's most-seen surface, ships at 22px on three routes,
 and the scale predates it. **The one place the product violates the scale** is `DemoCheckCard`
@@ -131,6 +138,13 @@ the worst available answer: too different to read as one surface, too similar to
 > rule is *cards earn existence*. The wrapper drops `surface-card` and becomes an unbordered labeled region carrying the
 > eyebrow and the two typed lines; the two `.result-card`s stay untouched at 22px. That removes the nesting, the delta
 > and the mosaic without editing the card the marketing page exists to show. **Product work item; three routes import it.**
+
+⚖️ **2026-08-06 — discharged on the landing, still open on the other two routes.** `<DemoCheckCard layout="table" />`
+gives the marketing page the design file's six-row labelled table: no nesting, no 2px delta, one surface at 20px, and
+the eyebrow and the two typed lines exactly where the ruling above put them. It is a **layout prop, not a replacement**,
+because `/check` and `/demo` render the same component and a marketing drawing has no authority over an in-app surface —
+so those two still nest, and the work item above is still theirs. The ruling's shape is now implemented once and can be
+lifted rather than redesigned.
 
 ⛔ **Do not restate a nested-card ban. This file has never had one** — the previous version gave nested cards a radius
 and used it. `impeccable` bans them; this file does not. The rule above is about one 2px delta, not a category.
@@ -233,14 +247,55 @@ Users are anxious by definition, so progress UI manufactures reassurance and nev
 ## 11. Marketing surfaces
 
 `/` is marketing; the app lives at `/check` (rail 15). Marketing keeps every token, the one shadow and the radius scale,
-and relaxes exactly three app rules here only: a wider frame (`max-width: 1080px`), a larger type scale, and the reading
-face. The system below is the tournament winner, **`W — One Card Back`** (`docs/plans/landing-tournament-winner-spec.md`),
-whose thesis is that **the page's unit of composition is the product's own artifact**, rendered in the live classes.
+and relaxes exactly three app rules here only: a wider frame (`max-width: 1120px`), a larger type scale, and the reading
+face.
 
-- **One plane, with one exception.** `--page-bg` throughout; **white is card material, never a section background**, so a
-  white region that is not a card is a bug. **Sectioning is air plus a hairline on the block**, never an `<hr>`:
-  `padding: clamp(56px, 7vw, 92px) 0` with `border-top: 1px solid var(--border-soft)`, reset on `:first-of-type`. Hero
-  padding is deliberately smaller and **measured** — unifying it with the section clamp pushes the proof card off the fold.
+> ### ⚖️ 2026-08-06 — the imported design file is the page, and it supersedes the tournament winner
+>
+> This section used to describe **`W — One Card Back`** (`docs/plans/landing-tournament-winner-spec.md`). The owner
+> reviewed the built page against `Revora Landing.dc.html` and ruled the design file **"way better and more readable"**,
+> and that it should be implemented as drawn. An earlier pass had implemented that file *filtered through* the rules
+> below — keeping §11's type scale, one plane and no-eyebrow rule over the design's — and the owner rejected the result.
+>
+> **So the precedence is now: the design file wins on type, plane and layout; the tournament thesis survives only where
+> the design does not contradict it.** What is preserved on purpose, because it is a safety or reachability constraint
+> rather than a style rule: §11.1's desert budget, the claims boundary, the 44px touch floor, and **"the page's unit of
+> composition is the product's own artifact, rendered in the live classes"** — where the design *draws* a UI (a result
+> card, a phone), the implementation renders the **real component or a real capture**, because a drawing can drift from
+> the app silently and the real thing cannot.
+>
+> ⚖️ **That last clause was narrowed on 2026-08-06, by the same owner, in the ruling below.** It now holds for the
+> **hero card** (the real `ExampleResultCard`) and the **phone** (the real `/check` capture, still pinned against
+> `TASTER_LIMIT` by `landing-art.test.ts`) — and NOT for §5's demo or §6's three answers, which are drawn. The owner was
+> shown the drift cost and took it. Where a surface is drawn, the containment is: **words from the shared fixture,
+> colours from risk tokens** (§11, card families).
+>
+> Everything below marked ⚖️ **2026-08-06 (design file)** is a rule this ruling changed. Measured after the whole
+> change: **12,771px · 11 exits · worst desert 1,960px · 0 over budget.**
+
+- ⚖️ **Alternating planes — 2026-08-06 (design file).** ⛔ **This reverses the previous rule, which was "white is card
+  material, never a section background."** Sections now alternate strictly between `--page-bg` and a full-bleed white
+  sheet (`.landing-section--sheet`): the at-a-glance strip, the scope block, the three-answers block, the FAQ and the
+  final CTA are sheets; the problem block, the pause, the limits block and the offer are the page plane; `.landing-changes`
+  is the one `--accent-strong` band. **The alternation is the mechanism that resolves the old ambiguity** — a sheet is
+  full-bleed with square corners and no border, a card has a border and a radius, and because sheets alternate they read
+  as "next section" rather than as an enormous card. ⚠️ **Two adjacent sheets, or a sheet that breaks the alternation,
+  brings the original bug straight back.** Sheets break out of the frame with `margin-inline: calc(50% - 50vw)` plus
+  matching `padding-inline`, so their content column stays aligned with every other section's.
+  ⛔ **A CARD MAY NOT SIT ON A SHEET WEARING THE SHEET'S OWN COLOUR.** The FAQ shipped for one day as bordered white
+  `<details>` boxes on a white sheet, which is the exact card/section ambiguity the alternation exists to prevent —
+  self-inflicted by making the FAQ a sheet without re-reading its rows. The design file's answer, now implemented: the
+  rows are **plain, separated by a 1px `--border-soft` rule**, with a `+` / `–` marker and **no border, radius or
+  background**. A hairline says *list*; a box on a same-coloured plane says nothing at all. The FAQ column is also the
+  page's one narrow one — **880px, centred**, heading included, because these are its longest paragraphs.
+  **Sectioning is still air plus a hairline on the block**, never an `<hr>`: `padding: clamp(56px, 7vw, 88px) 0` with
+  `border-top: 1px solid var(--border-soft)`, reset on `:first-of-type`. ⚖️ **88px, with exactly two sections at 92px**
+  — the problem block and the dark band, the page's two long-scroll blocks. That split is the design file's, not a
+  rounding artifact in the drawing; it is invisible below 1257px, where the clamp has not reached its ceiling.
+  Hero padding is deliberately smaller and
+  **measured** — unifying it with the section clamp pushes the proof card off the fold.
+  ⚠️ Anything setting block padding on a sheet must use **`padding-block`**, not the `padding: X 0` shorthand, or it
+  silently zeroes the sheet's inline padding and jams the copy against the viewport edge.
 
   ⚖️ **The rhythm was `clamp(72px, 10vw, 128px)` until the owner's 2026-08-06 ruling that the imported design file governs
   layout while §11 governs type.** It pinned at its 128px ceiling from 1280px up and adjacent sections stack, so every
@@ -250,36 +305,89 @@ whose thesis is that **the page's unit of composition is the product's own artif
   changes", the offer block), and **§11.1's worst desert had 124px of headroom** — at the old rhythm those sections could
   not have been added at all. Measured after: **10,733px, 9 exits, worst desert 1,861px, 0 over budget.**
 
-  ⛔ **`.landing-changes` is the one section allowed a non-`--page-bg` ground** — `--accent-strong`, full-bleed via
-  `margin-inline: calc(50% - 50vw)`, which is why `.landing` carries `overflow-x: clip`. The deep-green bands deleted on
-  2026-08-05 were deleted because **white** on a non-card region is ambiguous with card material. That reasoning does not
-  extend here: no card on this page is dark, so an accent ground cannot be misread as a card. One section, named
-  explicitly. A second one re-opens the question. ⚠️ `overflow-x: clip` also means **`position: sticky` will not work
-  anywhere on this page** — the design file's sticky left columns were not implemented, and adding one silently fails.
-- **Two card families, down from eight:** the **result card, inherited and unmodified**, and the price tile (24px, 2px
-  `--border-soft`, `--surface`, the one shadow). ⛔ **No `.landing*` selector may declare `border-radius` or `border` on
-  `.result-card` or `.surface-card`** — the page's central claim is *marketing shows the product's card, unmodified*, and
-  an override makes it false while appearing to improve the page. The claim has no test and owes one.
-- **Zero eyebrows**, because the hero's eyebrow words became the H1 — **de-duplication, not deletion on principle**. The
-  contender that deleted the eyebrow on principle left a headline about a competitor as the only thing above the fold and
-  took the tournament's worst score.
-- **Type: one body size.** `18px / 1.65` for everything except H1 `clamp(1.9rem, 5.6vw, 3.8rem)` / `1.05` / `-0.02em` ·
-  H2 `clamp(1.6rem, 4vw, 2.2rem)` / `1.1` / `-0.025em` · card title `22px / 700` · lede `20px / 1.6` · FAQ summary
-  `19px / 700` · nav link `17px` · fineprint floor `16px`. Measure `62ch`. **The v2 sections take existing steps and add
-  none**: `.landing-glance-fact`, `.landing-offer-what` and `.landing-limits-trio h3` are all the `22px / 700` card-title
-  step, and every other line in them is body. ⚖️ **This is where the 2026-08-06 ruling bit.** The imported design file
-  carried its own scale — an H1 floor of `2.4rem` (38.4px, up from 30.4px) and a body ladder of
-  `15.5 / 16 / 16.5 / 17 / 17.5 / 19 / 19.5 / 20px` — and **none of it was adopted.** The H1 floor is the one that
-  mattered: at 375px the H1 sits on its floor, which is exactly where §11.1's budget is measured, so a 26% taller floor
-  spends headroom the new sections needed. The design's `12–13px` uppercase stage labels were dropped for two separate
-  reasons — they are eyebrows, and they are under the fineprint floor. This replaces the old "16.5–17px" range,
-  which needed a reason per value and had none; the lede step stays, because a scale without one loses the hierarchy
-  ratio. ⚖️ **The body was `17px` until 2026-08-05, when the owner previewed the built page and read it as too small.**
-  The tournament spec's figure was never read at size; one step up is the whole change, and H1/H2 are clamped so the
-  display scale is untouched. **The fineprint floor stays `16px`, and the result card's own copy stays app-layer `16px`**
-  — the card is the unit of composition, and it does not get a `.landing`-layer type override for reading smaller than
-  the prose wrapped around it.
-  ⚖️ **The H1 ceiling was `2.9rem` from `ea3b055` until the owner ruled it back to `3.8rem`, both on 2026-08-05.**
+  ⛔ **`.landing-changes` is the one section allowed the `--accent-strong` ground**, full-bleed the same way. One
+  section, named explicitly; a second one re-opens the question.
+
+  ⚖️ **`overflow-x: clip` moved from `.landing` to `html` — 2026-08-06 (design file), and it is the reason sticky works
+  now.** The full-bleed sections overshoot by half a scrollbar because `vw` counts it, and that overshoot has to be
+  absorbed somewhere. On `.landing` it also made every descendant's `position: sticky` fail silently, which is why the
+  previous pass recorded the design's sticky columns as impossible. On `html`, overflow **propagates to the viewport**
+  and the element itself stays visible, so the overshoot is still clipped and sticky resolves against the viewport.
+  ⛔ **Never put a clip or scroll container on an ancestor between a sticky column and the viewport.** There is no error
+  and no failing test — the design just quietly stops happening. Two sticky left columns depend on this today
+  (`.landing-problem-head`, `.landing-pause-head`, both ≥900px).
+- **Card families.** ⚖️ **AMENDED 2026-08-06 by owner ruling — read this before citing the old thesis.** This bullet used
+  to read *"two families: the result card, inherited and unmodified, and the price tile"*, and the page's central claim
+  was *marketing shows the product's card, unmodified*. The price tile went with the pricing section on 2026-08-05. The
+  unmodified-card claim then went **from page-wide to hero-only**, because the design file draws §5's demo and §6's three
+  answers as flat illustrations rather than as the product's card, and the owner chose the design file over the claim,
+  with the drift cost stated. Three families now:
+  1. **The result card, inherited and unmodified** — the hero, `<ExampleResultCard labelled withFineprint />`. This is
+     where the claim survives, and it is the one card a reader meets before any argument, which is the right place for
+     it to survive if it only survives once.
+  2. **`.landing-verdict-*`** — §6's three flat illustrations. `--surface-muted`, 1px `--border-soft`, a 4px risk-token
+     top rule, 16px radius, no labels, no disclaimer row.
+  3. **`.landing-demo-*`** — §5's six-row label-gutter table, the landing's layout of `<DemoCheckCard layout="table" />`.
+  ⛔ **The override ban is UNCHANGED and still tested.** No `.landing*` selector may declare `border`, `border-radius` or
+  `box-shadow` on `.result-card` or `.surface-card` (landing-design-guards GUARD 1 — the claim no longer "owes a test";
+  it has had one since 2026-08-05). Families 2 and 3 are separate class families precisely so the guard keeps meaning
+  what it says: they do not restyle the card, they are not the card.
+  ⚠️ **What the ruling actually cost.** Nothing re-renders families 2 and 3 when `result-card.tsx`'s recipe changes, so
+  the illustrations can drift from the product's LOOK silently and no test will say so. Two things contain it, and both
+  must be preserved by anything that touches them: every string comes from the one fixture set in
+  `components/example-result-card.tsx` and from the promise registry, so the WORDS cannot drift; and every colour is a
+  risk token, never a hex, so a palette change still reaches them.
+- **No eyebrow above the H1**, because the hero's eyebrow words became the H1 — **de-duplication, not deletion on
+  principle**. The contender that deleted the eyebrow on principle left a headline about a competitor as the only thing
+  above the fold and took the tournament's worst score.
+  ⚖️ **2026-08-06 (design file): this is no longer a blanket ban on uppercase micro-labels.** It was, and that is why the
+  previous pass rewrote the design's `13px` stage labels to 18px sentence case. Two things were wrong with reading it
+  that way. The rule is about **not restating the headline above the headline**, which is a hero problem; and the page
+  was never actually free of uppercase micro-labels, because the result card renders its own (`.result-eyebrow`,
+  `.anatomy-label`) and the card ships **unmodified** by design. So: `.landing-offer-when` is `13px / 700 / .09em`
+  uppercase, as drawn — and note that **rail 10 has always permitted exactly this**: *"nothing below 16px on a marketing
+  surface **except tracked uppercase**."* The previous pass rewrote these labels citing a floor its own rail already
+  carved them out of. ⛔ **The 16px floor still holds for anything read as a sentence.** These are two-word positional
+  labels that name a column ("Day one", "After that"); the floor exists for prose, and prose is what it protects. Do not
+  reach for this size for anything longer.
+- ⚖️ **Type: the design file's scale — 2026-08-06 (design file).** ⛔ **This replaces "one body size", which was the rule
+  from 2026-07-29 until now.** The body base stays `18px / 1.65` and it is still what most of the page is set in, but the
+  page no longer pretends to a single size: **the design's scale was adopted, and the reason is that the owner read the
+  one-size version as less readable than the design and said so twice.**
+
+  | | Shipped |
+  |---|---|
+  | H1 | `clamp(2.4rem, 5.2vw, 3.9rem)` / `1.02` / `-0.032em` / **800** |
+  | H2 | `clamp(1.9rem, 3.8vw, 2.6rem)` / `1.06` / `-0.03em` / **800** |
+  | H2 — **problem block only** | `clamp(2rem, 4.2vw, 2.9rem)` / `1.02` / `-0.034em`, `max-width: 14ch` |
+  | H2 — **final CTA only** | `clamp(2.2rem, 5vw, 3.4rem)` / `1.02` / `-0.034em`, `max-width: 16ch` |
+  | Scope display line | `clamp(1.55rem, 2.9vw, 2.05rem)` / `1.18` / `-0.028em` / 800 |
+  | Lede, hero sub | `20px / 1.55` |
+  | Pause punch, offer note, dark-band "after" | `19px` |
+  | FAQ summary, limits `h3`, sources `h3` | `19.5px / 700` |
+  | Glance fact, offer "what" | `22–24px / 800` |
+  | Pain `h3` | `clamp(19px, 1.9vw, 21px) / 700` |
+  | Body, dark-band "now" | `18px` |
+  | Trust strip, card caption, FAQ answer, pain body | `17.5px` |
+  | Sources, limits body, offer body, demo row value/entry | `17px` |
+  | Glance label, verdict-card why/try | `16.5px` |
+  | Stage label, demo eyebrow | `13px / 700 / .09em` uppercase — **under the floor**, see the eyebrow bullet |
+  | Demo row label | `12px / 700 / .09em` uppercase — same carve-out, matching `.anatomy-label` |
+
+  ⛔ **H2 IS NOT ONE STEP, and flattening it back is a regression, not a tidy-up.** The two exceptions above are the
+  design file's: one heading opens the argument, one closes it, and both take a step the other six do not. The pass
+  before this one normalised them to the shared step and the owner rejected the result. Both overrides are `(0,2,0)`
+  against `.landing-h2`'s `(0,1,0)`, so they win on specificity rather than on source order.
+
+  **The H1 floor is the change that carried the cost.** `1.9rem → 2.4rem` is +26% at 375px, and 375px is exactly where
+  §11.1's budget is measured, because the H1 sits *on* its floor there. The previous pass refused the design's floor for
+  that reason and it was right about the arithmetic — it was wrong that the arithmetic settled it. **The headroom was
+  found elsewhere instead** (an exit moved to the foot of the glance strip; the pause's dare link moved after the card),
+  and the result is measured, not asserted: **12,803px · 10 exits · worst desert 1,916px · 0 over.**
+  **The fineprint floor stays `16px` for prose, and the result card's own copy stays app-layer `16px`** — the card is the
+  unit of composition and does not get a `.landing`-layer type override for reading smaller than the prose around it.
+  ⚖️ *(Superseded 2026-08-06 by the design file's scale above; kept because the reasoning about ratios still applies.)*
+  **The H1 ceiling was `2.9rem` from `ea3b055` until the owner ruled it back to `3.8rem`, both on 2026-08-05.**
   Raising the body to 18px while the ceiling sat at 46.4px took the H1/body ratio to **2.6×** against the deployed page's
   **3.8×**, and the owner read the result as flat *despite* the larger body. The claim above that "H1/H2 are clamped so
   the display scale is untouched" was **false in effect**: a clamp protects the *floor*, not the ratio, and the ratio is
@@ -294,7 +402,9 @@ whose thesis is that **the page's unit of composition is the product's own artif
 - **Breakpoints 640 / 720 / 880:** footer two-column, three-up grids, full desktop step. Collapsed from eight ad-hoc
   values 2026-07-29; **a new one needs a reason recorded here.** The shell keeps its own set (§8).
 - **The CTA is assembled once, by `LandingPrimaryCta`** — five hand-built copies had drifted into four shapes.
-  Accent-filled pill (`--accent` on `--accent-contrast`, computed **7.19:1**), 52px, 999px; `.landing-cta--ghost` is the
+  Accent-filled pill (`--accent` on `--accent-contrast`, computed **7.19:1**), **56px** (⚖️ 2026-08-06, the design
+  file's size, up from 52px — this raises the marketing floor, it does not relax the 44px global one), 999px;
+  `.landing-cta--ghost` is the
   nav variant so the hero owns the only filled pill above the fold. **One filled pill per screenful** ⚠️ **is not
   enforced in code** — the previous version of this file claimed it was, and no such assertion exists. The two closing
   pills clear a screenful by **5px**. **Pre-specified fallback:** make the final exit a text link, not more distance.

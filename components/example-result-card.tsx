@@ -12,6 +12,14 @@
  * That made the page's central claim ("marketing shows the product's card,
  * unmodified") false in the one place it is most load-bearing.
  *
+ * ⚖️ 2026-08-06 — that claim NO LONGER HOLDS PAGE-WIDE, by owner ruling. The
+ * design file draws §6's three answers as flat illustrations rather than as
+ * the product's card, and the owner chose the design file over the claim. The
+ * flat family is `LandingVerdictCard`, at the bottom of this file. It lives
+ * HERE, beside `ExampleResultCard`, for one reason: both read `EXAMPLE_RESULTS`
+ * above, so the illustration cannot drift from the real card's WORDS even
+ * though it no longer shares its recipe. See DESIGN.md §11.
+ *
  * ⛔ The three fixtures live HERE, not at the call sites. The hero card and
  * block 4's first card are byte-identical by construction — block 4's lede
  * says so in as many words ("The first card is the one from the top of this
@@ -146,5 +154,59 @@ export function ExampleResultCard({
         </div>
       ) : null}
     </section>
+  );
+}
+
+/**
+ * §6's card, the design file's — a flat illustration, not the product's card.
+ *
+ * ⚖️ THE TRADE-OFF, RECORDED. This is a SECOND card family on a page whose
+ * stated thesis was that it has none, and the cost is real: nothing here
+ * re-renders when `result-card.tsx`'s recipe changes, so the illustration can
+ * drift from the product's LOOK silently. The owner ruled for the design file
+ * on 2026-08-06 with that cost stated. Two things contain it:
+ *
+ *   1. Every string comes from `EXAMPLE_RESULTS` and `RISK_LABELS` above —
+ *      the same constants `ExampleResultCard` reads — so the copy cannot
+ *      drift even though the recipe can. Nothing here is retyped.
+ *   2. Every colour is a risk TOKEN, not a hex. The design file's
+ *      #0f766e / #b45309 / #b91c1c and its three tint backgrounds ARE
+ *      --safe-border / --moderate-border / --high-border and their -bg pairs,
+ *      so a palette change still reaches this card.
+ *
+ * The anatomy LABELS ("Meal", "Signal", "Why", "Try") are deliberately absent:
+ * the design draws this card without them, and the labelled gutter is what
+ * distinguishes the hero's real card from these illustrations of it.
+ *
+ * ⛔ No disclaimer row, also the design's. `.landing-verdict-note` under the
+ * grid carries the boundary line once for all three — three copies of it is
+ * the fine-print pattern AUD-008 argues against. Do not add one here without
+ * deleting the note, or the page states the same compliance line four times.
+ */
+export function LandingVerdictCard({ risk }: { risk: RevoraRisk }) {
+  const example = EXAMPLE_RESULTS[risk];
+  const VerdictIcon = RISK_ICONS[risk];
+  return (
+    <article className="landing-verdict-card" data-risk={risk}>
+      <p className="landing-verdict-meal">{example.meal}</p>
+      {/* The one tinted row, exactly as on the product card (DESIGN.md §10):
+          verdict colour is information, so it appears on the top rule and
+          here, nowhere else. */}
+      <p className="landing-verdict-signal" data-risk={risk}>
+        <VerdictIcon size={20} />
+        {RISK_LABELS[risk]}
+      </p>
+      <p className="landing-verdict-why">{example.why}</p>
+      {example.adjustment ? (
+        <p className="landing-verdict-try">
+          <strong>Adjustment:</strong> {example.adjustment}
+        </p>
+      ) : null}
+      {example.swap ? (
+        <p className="landing-verdict-try">
+          <strong>Swap:</strong> {example.swap}
+        </p>
+      ) : null}
+    </article>
   );
 }

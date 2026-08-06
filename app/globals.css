@@ -66,6 +66,18 @@ body {
   min-height: 100%;
 }
 
+/* Absorbs the landing's one full-bleed band (`.landing-changes`), which uses a
+   negative inline margin sized in vw — and vw counts the scrollbar, so it
+   overshoots by half a scrollbar on each side. It sits on `html`, NOT on
+   `.landing`: overflow on the root propagates to the viewport and leaves the
+   element itself visible, so `position: sticky` inside the page still resolves
+   against the viewport. Clipping on an intermediate ancestor instead is what
+   killed the landing's sticky columns before. `clip`, not `hidden` — `hidden`
+   would make html a scroll container and break sticky the same way. */
+html {
+  overflow-x: clip;
+}
+
 body {
   margin: 0;
   background: var(--page-bg);
@@ -1542,13 +1554,16 @@ button.inline-link {
   color: var(--text-strong);
   font-size: 18px;
   line-height: 1.65;
-  /* `.landing-changes` breaks out of the 1080px frame to full width with a
-     negative inline margin. 50vw counts the scrollbar, so it overshoots the
-     viewport by half a scrollbar on each side; clip absorbs that without
-     creating a scroll container the way `hidden` would. Nothing on this page
-     is position: sticky — add a sticky column here and this line is what
-     silently kills it. */
-  overflow-x: clip;
+  /* ⚠️ `overflow-x: clip` USED TO LIVE HERE and it is deliberately gone.
+     `.landing-changes` breaks out of the frame with a negative inline margin,
+     and 50vw counts the scrollbar, so it overshoots by half a scrollbar each
+     side. Clipping it HERE also silently killed `position: sticky` for every
+     descendant — an ancestor with a clip/scroll container is not a valid
+     containing block for a sticky child. The design file's sticky left columns
+     were dropped for exactly that reason. The clip now sits on `html` (see the
+     rule near the top of this file), where overflow propagates to the VIEWPORT
+     and the html element itself is treated as visible — so the overshoot is
+     still absorbed and sticky works again. Do not move it back. */
 }
 
 /* Display-vs-text pairing (2026-07-27 legibility pass, merged into the base
@@ -1571,7 +1586,11 @@ button.inline-link {
 .landing-footer-col h3,
 .landing-glance-fact,
 .landing-offer-what,
-.landing-limits-trio h3 {
+.landing-limits-trio h3,
+.landing-verdict-signal,
+.landing-demo-eyebrow,
+.landing-demo-label,
+.landing-demo-signal {
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
@@ -1582,9 +1601,9 @@ button.inline-link {
    air plus a hairline on the block itself — see `.landing-section`. */
 .landing-frame {
   width: 100%;
-  max-width: 1080px;
+  max-width: 1120px;
   margin: 0 auto;
-  padding: 0 20px;
+  padding: 0 clamp(20px, 4vw, 32px);
 }
 
 .landing-nav {
@@ -1592,7 +1611,7 @@ button.inline-link {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 18px 0;
+  padding: 22px 0;
 }
 
 .landing-wordmark {
@@ -1664,10 +1683,14 @@ button.inline-link {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 52px;
+  /* ⚖️ 56px, the design file's size, up from 52px on 2026-08-06. Still far
+     above the 44px global touch floor — this raises the marketing floor, it
+     does not relax it. `landing-design-guards` pins the number; change both
+     together or the guard is measuring a value nobody chose. */
+  min-height: 56px;
   border: 2px solid var(--accent);
   border-radius: 999px;
-  padding: 14px 26px;
+  padding: 14px 32px;
   background: var(--accent);
   color: var(--accent-contrast);
   font-size: 18px;
@@ -1781,29 +1804,30 @@ button.inline-link {
   justify-items: start;
 }
 
-/* ⚖️ Ceiling restored to 3.8rem/60.8px 2026-08-05 by owner ruling: at 2.9rem
-   the H1/body ratio was 2.6x against the deployed page's 3.8x and the page
-   read flat. Free at the 375px the reachability budget (§11.1) is measured
-   at — 5.6vw is 21px there, so the H1 sits on its 1.9rem floor either way and
-   the page length does not move. Only >=828px viewports change.
+/* ⚖️ THE DESIGN FILE'S SCALE, adopted verbatim 2026-08-06 on the owner's
+   ruling that `Revora Landing.dc.html` is the target and is "way better and
+   more readable" than the §11 scale that had been imposed over it.
 
-   Tracking stays -0.02em, one value across a 30.4 -> 60.8px range. -0.03em
-   suits the ceiling but squeezes the word spaces ~11% at the floor, where the
-   line visibly crowds; a second size-conditional value is not worth a media
-   query for the difference it buys at the top end. */
+   The floor is the change that matters: 2.4rem/38.4px, up from 1.9rem/30.4px.
+   §11.1's reachability budget is measured at 375px, where the H1 sits ON its
+   floor, so a 26% taller floor spends real headroom — that is precisely why
+   the previous pass refused it. The budget is now paid for by the design's own
+   layout instead: see `.landing-section`'s rhythm and the exits in page.tsx.
+   ⚠️ Re-measure (`node scripts/measure-landing.mjs`) before touching this. */
 .landing-h1 {
   margin: 0;
-  font-size: clamp(1.9rem, 5.6vw, 3.8rem);
-  line-height: 1.05;
-  letter-spacing: -0.02em;
+  font-size: clamp(2.4rem, 5.2vw, 3.9rem);
+  line-height: 1.02;
+  font-weight: 800;
+  letter-spacing: -0.032em;
   text-wrap: balance;
 }
 
 .landing-sub {
   margin: 0;
-  max-width: 62ch;
-  font-size: 18px;
-  line-height: 1.65;
+  max-width: 52ch;
+  font-size: 20px;
+  line-height: 1.55;
   color: var(--text-body);
   text-wrap: pretty;
 }
@@ -1851,8 +1875,8 @@ button.inline-link {
   position: relative;
   padding-left: 24px;
   color: var(--text-body);
-  font-size: 18px;
-  line-height: 1.65;
+  font-size: 17.5px;
+  line-height: 1.5;
 }
 
 .landing-trust-strip li::before {
@@ -1882,11 +1906,11 @@ button.inline-link {
    demo. Body colour and body size: it is the sentence that converts a
    screenshot into an argument, not a caption in the photo-credit sense. */
 .landing-card-caption {
-  margin: 16px 0 0;
-  max-width: 62ch;
+  margin: 22px 0 0;
+  max-width: 48ch;
   color: var(--text-body);
-  font-size: 18px;
-  line-height: 1.65;
+  font-size: 17.5px;
+  line-height: 1.55;
   text-wrap: pretty;
 }
 
@@ -1913,12 +1937,48 @@ button.inline-link {
    The `--tight` step is gone with the three planes: it existed for short
    supporting sections, and the winner has none left. */
 .landing-section {
-  padding: clamp(56px, 7vw, 92px) 0;
+  padding: clamp(56px, 7vw, 88px) 0;
   border-top: 1px solid var(--border-soft);
 }
 
 .landing-section:first-of-type {
   border-top: 0;
+}
+
+/* The design file's rhythm is 88px with exactly two exceptions at 92px: the
+   problem block and the dark band. Both are the page's long-scroll blocks —
+   four numbered pains, four before/after rows — and the extra 4px of shoulder
+   is what keeps them from starting the instant the previous section stops.
+   Not a rounding artifact in the drawing: every other section is 88. */
+.landing-problem,
+.landing-changes {
+  padding-block: clamp(56px, 7vw, 92px);
+}
+
+/* ⚖️ THE BANDED PLANE — the design file's, adopted 2026-08-06, and it reverses
+   §11's "white is card material, never a section background".
+
+   That rule came from the tournament, where a white region that was not a card
+   was genuinely ambiguous with card material. The design file answers the
+   ambiguity a different way and the owner picked it: the sheets ALTERNATE
+   strictly with the page plane, so white reads as "next section", not "card".
+   Cards keep their border + radius; a sheet is full-bleed with square corners
+   and no border, so the two are never confusable at a glance.
+
+   Applied to the four alternating sections and the closing block — the glance
+   strip, the scope block, the three-answers block, the FAQ and the final CTA.
+   ⚠️ The alternation is the mechanism. Two adjacent sheets, or a sheet that
+   does not alternate, brings the original ambiguity straight back.
+
+   Every section lives INSIDE `.landing-frame`, so a sheet has to break out of
+   it the same way `.landing-changes` does — negative inline margin out to the
+   viewport, matching inline padding back in, which keeps the content column
+   aligned with every non-sheet section above and below it. `html` carries the
+   `overflow-x: clip` that absorbs the half-scrollbar overshoot. */
+.landing-section--sheet {
+  background: var(--surface);
+  margin-inline: calc(50% - 50vw);
+  padding-inline: calc(50vw - 50%);
 }
 
 .landing-section-head {
@@ -1928,20 +1988,60 @@ button.inline-link {
   margin-bottom: 32px;
 }
 
+/* The design file's H2 step. Up from clamp(1.6rem, 4vw, 2.2rem) — 30.4→41.6px
+   at the ceiling, 25.6→30.4px at the floor. Paired with the 800 weight and
+   -0.03em, this is most of what the owner read as "more readable": the old
+   step sat only 1.42x over the 18px body, which is under the 1.5x a section
+   heading needs to register as a level change while scrolling. */
 .landing-h2 {
   margin: 0;
-  font-size: clamp(1.6rem, 4vw, 2.2rem);
-  line-height: 1.1;
-  letter-spacing: -0.025em;
+  font-size: clamp(1.9rem, 3.8vw, 2.6rem);
+  line-height: 1.06;
+  font-weight: 800;
+  letter-spacing: -0.03em;
   text-wrap: balance;
+}
+
+/* ⚖️ TWO H2s ARE BIGGER THAN THE REST, and that is the design file's, not an
+   accident to normalise away. The page has one section heading that opens the
+   argument and one that closes it; the drawing gives both a step the other
+   six do not get, so the reader's eye lands on "here is your problem" and
+   "here is what to do" without reading a word. Flattening them back to the
+   shared step is what the previous pass did, and it is what the owner
+   rejected.
+
+   Both are (0,2,0) against `.landing-h2`'s (0,1,0), so they win on
+   specificity and NOT on source order — unlike `.landing .result-disclaimer`
+   below, this pair survives a reorder of the file.
+
+   The `ch` ceilings are the drawing's too. They are what makes a 3.4rem line
+   break into two balanced lines instead of one 16-word ribbon. */
+.landing-problem-head .landing-h2 {
+  max-width: 14ch;
+  font-size: clamp(2rem, 4.2vw, 2.9rem);
+  line-height: 1.02;
+  letter-spacing: -0.034em;
+}
+
+.landing-final .landing-h2 {
+  max-width: 16ch;
+  font-size: clamp(2.2rem, 5vw, 3.4rem);
+  line-height: 1.02;
+  letter-spacing: -0.034em;
+}
+
+/* Not a size change — the shared step, held to the drawing's measure so the
+   sticky column's heading breaks where the drawing breaks it. */
+.landing-pause-head .landing-h2 {
+  max-width: 16ch;
 }
 
 .landing-section-lede {
   margin: 0;
-  max-width: 62ch;
+  max-width: 60ch;
   color: var(--text-body);
   font-size: 20px;
-  line-height: 1.6;
+  line-height: 1.55;
   text-wrap: pretty;
 }
 
@@ -1952,29 +2052,48 @@ button.inline-link {
    DESIGN.md §11 counts against the one-plane rule. A replacement block should
    earn that shadow again rather than inherit it. */
 
+/* ⚠️ THE FAQ IS A NARROWER COLUMN THAN THE REST OF THE PAGE — 880px against
+   the frame's 1120, centred, which is the design file's §9 and the only block
+   on the page that does not sit on the frame's left gutter. The reason is
+   measure: these are the page's longest unbroken paragraphs, and at 1120 the
+   answers ran past a comfortable line length. The heading moves with the
+   column, or the section reads as two blocks that missed each other. */
+.landing-faq-section .landing-section-head,
+.landing-faq-section .landing-faq {
+  max-width: 880px;
+  margin-inline: auto;
+}
+
+/* ⛔ PLAIN ROWS, NOT BOXES. Until 2026-08-06 each question was a bordered,
+   18px-radius white card. That was already off the design file, and the sheet
+   work this session made it actively wrong: the FAQ became a white sheet, so
+   the rows were white bordered cards sitting on a white sheet — exactly the
+   card/section ambiguity the strict sheet alternation exists to prevent.
+   A hairline between rows says "list" and cannot be mistaken for card
+   material. Do not give these a border, a radius or a background. */
 .landing-faq {
   display: grid;
-  gap: 10px;
-  max-width: 760px;
+  gap: 0;
 }
 
 .landing-faq details {
-  border: 2px solid var(--border-soft);
-  border-radius: 18px;
-  background: var(--surface);
-  padding: 0;
+  border-top: 1px solid var(--border-soft);
 }
 
-/* The default browser disclosure triangle read as unstyled on a marketing
-   surface. Replaced with a chevron built from a rotated border, so it needs no
-   icon import and inherits the text colour. */
+/* The list closes on a rule, the way it opens on one. Without this the last
+   answer runs into the section's air with no edge and the group stops reading
+   as a set. */
+.landing-faq details:last-child {
+  border-bottom: 1px solid var(--border-soft);
+}
+
 .landing-faq summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 16px 20px;
-  font-size: 19px;
+  gap: 24px;
+  padding: 20px 0;
+  font-size: 19.5px;
   font-weight: 700;
   cursor: pointer;
   list-style: none;
@@ -1984,170 +2103,343 @@ button.inline-link {
   display: none;
 }
 
+/* + and −, the design file's marker. It replaced a chevron drawn from two
+   rotated borders — the chevron was fine on a boxed row and reads as a stray
+   tick once the box is gone, and a plus states "this opens" without relying
+   on a reader knowing which way a corner points. The closed glyph is an EN
+   DASH (\2013), not a hyphen: at 24px a hyphen is a speck.
+
+   No transition. The glyph swaps, it does not travel, so there is nothing to
+   ease — which is also why the reduced-motion block that used to sit here is
+   gone rather than emptied. */
 .landing-faq summary::after {
-  content: "";
+  content: "+";
   flex: none;
-  width: 9px;
-  height: 9px;
-  margin-right: 4px;
-  border-right: 2px solid var(--accent);
-  border-bottom: 2px solid var(--accent);
-  transform: rotate(45deg) translate(-2px, -2px);
-  transition: transform var(--dur-fast) var(--ease);
+  color: var(--accent);
+  font-size: 24px;
+  line-height: 1;
 }
 
 .landing-faq details[open] summary::after {
-  transform: rotate(-135deg) translate(-2px, -2px);
+  content: "\2013";
 }
 
 .landing-faq summary:focus-visible {
   outline: 3px solid rgba(13, 95, 87, 0.45);
-  outline-offset: -3px;
-  /* Matches the 18px radius of the <details> box it sits inside (was 16px,
-     off the 24/18/14/999 scale). */
-  border-radius: 18px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .landing-faq summary::after {
-    transition: none;
-  }
+  outline-offset: 2px;
 }
 
 .landing-faq details > p {
   margin: 0;
-  padding: 0 20px 18px;
+  padding: 0 0 22px;
+  max-width: 68ch;
   color: var(--text-body);
-  font-size: 18px;
-  line-height: 1.65;
+  font-size: 17.5px;
+  line-height: 1.6;
 }
 
-/* Tracks `.landing-section`'s rhythm exactly — the two were 128px together and
-   must stay together, or the last boundary on the page reads as a mistake. */
+/* ⚖️ CENTRED, and deliberately the one block with more air than the section
+   rhythm — the design file's clamp(64px, 8vw, 110px) against the sections'
+   clamp(56px, 7vw, 92px). Every other block on the page is left-aligned, so
+   centring is what marks this as the end rather than another section. It is
+   also a sheet (see `.landing-section--sheet`), which is why it carries no
+   hairline of its own: the colour change is the boundary. */
 .landing-final {
   display: grid;
-  gap: 18px;
-  justify-items: start;
-  padding: clamp(56px, 7vw, 92px) 0;
+  gap: 22px;
+  justify-items: center;
+  text-align: center;
+  /* padding-BLOCK, not the shorthand: `.landing-section--sheet` sets
+     padding-inline to bring the full-bleed content back onto the frame's
+     gutter, and this rule is later in the file, so `padding: X 0` here would
+     silently zero it and jam the text against the viewport edge. */
+  padding-block: clamp(64px, 8vw, 110px);
   border-top: 1px solid var(--border-soft);
 }
 
-/* ── Block 2's two columns ───────────────────────────────────
-   The owner marked this block's empty right half with a red X (2026-08-05):
-   the prose measures 62ch inside a 1080px frame, so half the block was dead
-   space at 1280px while the card blocks either side of it fill the width.
+.landing-final .landing-section-lede {
+  max-width: 46ch;
+}
 
-   ⚠️ The 900px floor is LOAD-BEARING, not a convenience. The desert budget is
-   measured at 375px (§11.1) and the worst desert — hero CTA to this block's
-   CTA — has 124px of headroom. A stacked screenshot adds ~700px to exactly
-   that stretch and puts the page outside the rule on the spot. Below 900px
-   the art is not rendered at all, and nothing is lost: it is supporting
-   evidence for a claim the prose already makes in words.
+/* The page's LAST pill is bigger than its other eight — 60px against 56px,
+   19px against 18px. The design file draws it that way and it is worth
+   keeping: this is the only CTA a reader reaches having already read the
+   whole argument, so it is the one that should be impossible to miss.
 
-   `align-items: start` so the art tracks the top of the column rather than
-   stretching to the copy's height. */
-.landing-split {
+   ⚠️ This does not weaken GUARD 3. That guard reads the `.landing-cta` BASE
+   rule and asserts the 56px floor there; this is a (0,2,0) override that only
+   ever raises it. A rule here that LOWERED the height would pass the guard and
+   still break rail 9 — so if you touch this, the number goes up or nowhere. */
+.landing-final .landing-cta {
+  min-height: 60px;
+  padding: 0 38px;
+  font-size: 19px;
+}
+
+/* ── §3 the problem, and §4 the scope — the design file's two-column blocks ──
+   Both are `repeat(auto-fit, minmax(340px, 1fr))` in the design, i.e. they go
+   two-up when two 340px tracks plus the gap fit and stack otherwise, rather
+   than switching at a hand-picked breakpoint. Kept as written: it is the same
+   rule the dark band and the offer strip already use on this page. */
+.landing-problem-grid {
   display: grid;
-  gap: 40px;
+  gap: clamp(36px, 5vw, 72px);
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  align-items: start;
 }
 
+/* ⚠️ STICKY, and it only works because `overflow-x: clip` lives on `html`
+   rather than on `.landing` (see both rules). An ancestor with a clip or
+   scroll container is not a valid containing block for a sticky child, so
+   moving that one declaration back up silently turns this into an ordinary
+   column — no error, no failing test, just a design that quietly stops
+   happening. `top: 32px` clears the sticky nav-free header area. */
 @media (min-width: 900px) {
-  .landing-split {
-    grid-template-columns: minmax(0, 1fr) 390px;
-    align-items: start;
-  }
-}
-
-.landing-split-copy {
-  min-width: 0;
-}
-
-/* Not a card, deliberately: no shadow and no card radius. §11 allows the page
-   ONE card family and the result card is it — a second boxed thing next to it
-   would read as a competing surface. A hairline and a soft radius are enough
-   to say "this is a screen", which the capture's own chrome already says. */
-.landing-split-art {
-  display: none;
-}
-
-@media (min-width: 900px) {
-  .landing-split-art {
-    display: block;
+  .landing-problem-head {
     position: sticky;
     top: 32px;
   }
 }
 
-.landing-split-art img {
+.landing-problem-head {
+  align-content: start;
+  margin-bottom: 0;
+}
+
+.landing-scope-grid {
+  display: grid;
+  gap: clamp(36px, 5vw, 64px);
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  align-items: center;
+}
+
+.landing-scope-copy {
+  display: grid;
+  gap: 20px;
+  justify-items: start;
+  min-width: 0;
+}
+
+/* A display line, not an H2: this block sits under the problem block's heading
+   and is its answer, so promoting it to a second heading would claim a level
+   in the outline it does not own. Sized between the H2 and the lede. */
+.landing-scope-display {
+  margin: 0;
+  max-width: 34ch;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-size: clamp(1.55rem, 2.9vw, 2.05rem);
+  font-weight: 800;
+  line-height: 1.18;
+  letter-spacing: -0.028em;
+  text-wrap: balance;
+}
+
+/* Not a card: no shadow, no card radius beyond the screen's own corners. §11
+   allows this page ONE card family and the result card is it — a second boxed
+   thing beside it would read as a competing surface. */
+.landing-scope-art {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+
+.landing-scope-art img {
   display: block;
   width: 100%;
+  max-width: 340px;
   height: auto;
   border: 1px solid var(--border-soft);
   border-radius: 20px;
 }
 
-/* ── Who this is for ─────────────────────────────────────────
-   Typography, not cards. These are three sentences about the reader's last six
-   months; boxing them would make them look like features. */
-.landing-pains {
+/* §5's two columns — the design file's, sticky left. Same auto-fit rule as
+   §3 and §4 so the three blocks break to one column at the same place. */
+.landing-pause-grid {
   display: grid;
-  gap: 28px;
-  max-width: 62ch;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+  gap: clamp(36px, 5vw, 64px);
+  align-items: start;
 }
 
-.landing-pains li {
-  position: relative;
-  padding-left: 30px;
-  color: var(--text-body);
-  font-size: 18px;
-  line-height: 1.65;
+/* Explicit placement rather than auto-fit, because the DOM order is
+   head → card → link (a reachability requirement on phones, see page.tsx) but
+   the design's desktop layout is head-above-link in the left column with the
+   card spanning both rows on the right. Grid is what lets one DOM order serve
+   both without duplicating the link. */
+@media (min-width: 900px) {
+  .landing-pause-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    /* ⚠️ `auto 1fr`, NOT the implicit `auto auto`. The card spans both rows,
+       and against two auto rows the browser splits its ~740px evenly between
+       them — which pushed the link a third of the way down the section and
+       left a column of dead space under the heading. Pinning row 1 to its
+       content and letting row 2 absorb the card's overhang puts the link
+       directly under the punch line, where the design draws it. */
+    grid-template-rows: auto 1fr;
+    column-gap: clamp(36px, 5vw, 64px);
+    row-gap: 24px;
+  }
+
+  .landing-pause-head {
+    grid-column: 1;
+    grid-row: 1;
+    position: sticky;
+    top: 32px;
+  }
+
+  .landing-pause-art {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .landing-pause-dare {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: start;
+  }
+}
+
+.landing-pause-head {
+  align-content: start;
+  margin-bottom: 0;
+  gap: 20px;
+  justify-items: start;
+}
+
+/* The line the block is built to earn, so it carries weight and full text
+   colour rather than sitting at lede grey. */
+.landing-pause-punch {
+  margin: 0;
+  max-width: 48ch;
+  font-size: 19px;
+  line-height: 1.55;
+  font-weight: 600;
+  color: var(--text-strong);
   text-wrap: pretty;
 }
 
-/* The lead-in becomes its own line: at one body size the bold run no longer
-   separates itself from the sentence by weight alone. */
-.landing-pains li strong {
-  display: block;
-  color: var(--text-strong);
+.landing-pause-art {
+  min-width: 0;
+}
+
+/* ── The four pains ──────────────────────────────────────────
+   Typography, not cards. These are four sentences about the reader's last six
+   months; boxing them would make them look like features.
+
+   Numbered by counter. The design draws "01".."04" as literal content; a real
+   <ol> with a counter gets identical pixels, keeps the sequence in the
+   accessibility tree, and renumbers itself if an item is inserted. */
+.landing-pains {
+  counter-reset: pain;
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+/* ⚠️ The gutter is 52px in the design, which is a 1280px drawing. At 375px
+   that plus the gap takes 66px of a 335px content column — the copy then wraps
+   about a third more, and the block measured 3,319px tall, which is what blew
+   the §11.1 desert budget. 30px narrow / 52px wide keeps the numeral column
+   reading as a column at both ends. Re-measure if you touch it. */
+.landing-pains li {
+  counter-increment: pain;
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  gap: 12px;
+  align-items: start;
+  padding: 26px 0;
+  border-top: 1px solid var(--border-strong);
+}
+
+/* The first rule would double the section's own hairline. */
+.landing-pains li:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+@media (min-width: 640px) {
+  .landing-pains li {
+    grid-template-columns: 52px 1fr;
+    gap: clamp(14px, 1.6vw, 24px);
+  }
 }
 
 .landing-pains li::before {
-  content: "";
-  position: absolute;
-  left: 6px;
-  top: 0.62em;
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--accent);
+  content: "0" counter(pain);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  line-height: 1.3;
+  color: var(--accent);
+  padding-top: 5px;
 }
 
-/* The page's supporting prose, grouped so it cannot drift into slightly
-   different paragraphs: block 2's scope note and block 4's sources footnote.
-   Body colour, not muted — a de-emphasised legal grey reads as fine print,
-   and neither of these is fine print. `.landing-scope-note` replaced
-   `.landing-pains-note` (68ch/--text-muted) when the three-negation sentence
-   was cut.
+/* ⛔ BOTH must stay in column 2. The `li` has three grid items, not two — the
+   counter's ::before is the first — so without this the heading takes column 2
+   and the paragraph wraps back into the 30px numeral column on the next row.
+   It still "works" visually enough to miss at a glance, and it measured the
+   block at 3,856px instead of ~1,700px. */
+.landing-pains h3,
+.landing-pains p {
+  grid-column: 2;
+}
 
-   `.landing-cancel` and `.landing-pantry-note` left this group 2026-08-05
-   with the pricing section they lived in. The cancel paragraph was grouped
-   here specifically so it would sit at the same weight as the price; there
-   is no price on this page now. */
-.landing-scope-note,
-.landing-sources {
-  max-width: 62ch;
-  margin: 28px 0 0;
+.landing-pains h3 {
+  margin: 0 0 9px;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-size: clamp(19px, 1.9vw, 21px);
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.012em;
+  color: var(--text-strong);
+}
+
+.landing-pains p {
+  margin: 0;
+  max-width: 54ch;
   color: var(--text-body);
-  font-size: 18px;
-  line-height: 1.65;
+  font-size: 17.5px;
+  line-height: 1.6;
+  text-wrap: pretty;
 }
 
+/* This used to be a shared rule for the page's supporting prose — the scope
+   note and the sources footnote at one weight, body colour rather than a
+   de-emphasised legal grey, because neither is fine print. The group is down
+   to one member: `.landing-scope-note` went 2026-08-06 when the scope block
+   became §4 and its sentence became `.landing-section-lede`, and
+   `.landing-cancel` / `.landing-pantry-note` went 2026-08-05 with the pricing
+   section they lived in. Body colour over muted is the part worth keeping. */
+/* ⚖️ A CARD, per the design file. §11 allows this page one card family and
+   the result card is it — this is the one addition, and it is deliberate: the
+   sources paragraph is the page's evidence, and the design gives it a surface
+   so it reads as a citation block rather than more prose. It sits in a
+   PAGE-PLANE section, not a white sheet, so white here is unambiguously card
+   material and the alternation rule still holds. ⛔ It does not touch the
+   result-card recipe — see `landing-design-guards` GUARD 1. */
 .landing-sources {
   display: grid;
-  gap: 12px;
+  gap: 14px;
+  align-content: start;
+  margin: 0;
+  padding: clamp(24px, 2.6vw, 32px);
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: 18px;
+  color: var(--text-body);
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+.landing-sources h3 {
+  margin: 0;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-size: 19.5px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--text-strong);
 }
 
 .landing-sources p {
@@ -2169,6 +2461,131 @@ button.inline-link {
   color: var(--accent-strong);
   font-size: 18px;
   line-height: 1.65;
+}
+
+/* ── §5's demo, the design file's six-row table ───────────────
+   `<DemoCheckCard layout="table" />`. One card, six labelled rows — You type /
+   Revora / You answer / Signal / Why / Try — instead of the app layout's two
+   nested result cards. The nesting was the problem the drawing solves: a card
+   inside a card inside a marketing section gave the reader three borders to
+   parse before the first word, and the clarify beat was the inner one.
+
+   ⚠️ This family styles the LANDING's layout of that component only. The app's
+   `/check` and `/demo` render the same component's default layout in
+   `.surface-card`, untouched. Do not "unify" them — a marketing drawing has
+   no authority over an in-app surface.
+
+   ⛔ Row order is load-bearing. The reveal below targets the Revora row and
+   every SIBLING AFTER IT, so reordering the rows silently changes which part
+   of the flow the pause lands on. */
+.landing-demo {
+  display: grid;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+/* One of the two places rail 10's 16px floor does not apply — a tracked
+   uppercase label, at the size the whole page sets them. AUD-008: the text is
+   COMPUTED from the registry's capture state, never typed. */
+.landing-demo-eyebrow {
+  margin: 0;
+  padding: 14px clamp(18px, 5vw, 24px);
+  background: var(--accent-tint);
+  color: var(--accent-strong);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+/* ⚠️ THE GUTTER NARROWS ON A PHONE, and the drawing does not say so because
+   it was drawn at 1280px. Held at the design's 96px it left 213px for the
+   text at 375px — every long row wrapped to six lines and §5 grew past the
+   §11.1 reachability budget, which is a hard build failure, not a preference.
+
+   The floor is 64px because that is what the PRODUCT's own label gutter
+   measures (`.anatomy-row`): the app already answered what this column should
+   be on a phone, and the answer does not need inventing twice. Between the
+   two it interpolates, so there is no breakpoint to land wrong on. */
+.landing-demo-row {
+  display: grid;
+  grid-template-columns: clamp(64px, 17vw, 96px) minmax(0, 1fr);
+  gap: clamp(12px, 3vw, 18px);
+  /* Same argument as the gutter, same two endpoints: the product's own row
+     padding at the bottom, the drawing's at the top. Six rows make this the
+     tallest single element on the page, so 4px a row is 48px of a budget
+     measured in pixels. */
+  padding: clamp(14px, 4vw, 18px) clamp(18px, 5vw, 24px);
+  border-top: 1px solid var(--border-soft);
+}
+
+/* The first row's edge is the eyebrow strip's colour change; a rule there too
+   would read as a double line. */
+.landing-demo-row:first-of-type {
+  border-top: 0;
+}
+
+/* The two rows where Revora is the one speaking are tinted, which is what
+   makes the exchange legible as an exchange rather than as six equal rows.
+   Both carry the MODERATE tint because the answer this flow ends in is
+   MODERATE — the tint is the verdict, not decoration. */
+.landing-demo-row--ask {
+  background: var(--moderate-bg);
+}
+
+.landing-demo-label {
+  padding-top: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+/* What the READER supplied, in both places they supply something. Weight, not
+   colour: it has to be distinguishable from Revora's own lines at a glance
+   while staying plain text.
+
+   ⛔ It looks like a field and must never become one. No input, not
+   focusable, no caret — the static-fixture contract is pinned in
+   demo-check-card.test.ts. */
+.landing-demo-entry {
+  color: var(--text-strong);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.landing-demo-value {
+  color: var(--text-body);
+  font-size: 17px;
+  line-height: 1.55;
+}
+
+.landing-demo-value strong {
+  color: var(--text-strong);
+}
+
+/* ⚠️ (0,2,0), and it has to be: the lead IS a <strong> inside
+   `.landing-demo-value`, so the rule above is (0,1,1) and beats a bare class.
+   Written as a descendant pair rather than as `strong.landing-demo-lead` so
+   the reason is visible — this is the row where Revora asks rather than
+   answers, and it carries the verdict colour the answer will arrive in. */
+.landing-demo-value .landing-demo-lead {
+  color: var(--moderate-text);
+}
+
+.landing-demo-signal {
+  color: var(--moderate-text);
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.landing-demo-fineprint {
+  padding: clamp(14px, 4vw, 18px) clamp(18px, 5vw, 24px);
+  border-top: 1px solid var(--border-soft);
 }
 
 /* The page's ONE animation. Two beats: the clarify card at 220ms, then
@@ -2223,23 +2640,114 @@ button.inline-link {
 }
 
 /* ── The three answers ───────────────────────────────────────
-   A grid of the product's own `.result-card`s (`<ExampleResultCard>`), not
-   marketing lookalikes — the seven `.landing-verdict*` selectors that used to
-   impersonate one are gone. This rule owns layout only: shape, border and
-   shadow belong to the card recipe, and `.landing*` may not override them
-   (DESIGN.md §11, pinned by landing-design-guards Guard 1). The Clear card has
-   no adjustment row, because the engine cannot produce one for a SAFE verdict
-   (F-04) — the layout has to survive that. */
+   ⚖️ THIS BLOCK NO LONGER RENDERS THE PRODUCT'S CARD. Owner ruling,
+   2026-08-06: the design file draws three flat illustrations here and the
+   design file won. `.landing-verdict-*` is therefore a SECOND card family on
+   a page that used to claim it had none — deliberately, with the drift cost
+   stated in components/example-result-card.tsx and in DESIGN.md §11.
+
+   Guard 1 is untouched and still meaningful: it forbids `.landing*` from
+   re-shaping `.result-card`, and nothing below names that class. The hero
+   still renders the real card, so the guard still protects the one surface
+   where the claim survives.
+
+   Every colour here is a RISK TOKEN. The design file's #0f766e / #b45309 /
+   #b91c1c and its three tint fills are exactly --safe-border and friends, so
+   the illustration still moves when the product's palette moves.
+
+   The Clear card has no Try row, because the engine cannot produce one for a
+   SAFE verdict (F-04) — the layout has to survive that, and that survival is
+   the argument the block exists to make. */
 .landing-verdicts {
   display: grid;
-  gap: 16px;
+  gap: 22px;
+  /* The design's own track floor. Three-up at the frame's full width, two-up
+     in the middle, stacked on a phone — without a hand-picked breakpoint,
+     which is what the fixed 3-column media query here used to be. */
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
   align-items: start;
 }
 
-@media (min-width: 880px) {
-  .landing-verdicts {
-    grid-template-columns: repeat(3, 1fr);
-  }
+.landing-verdict-card {
+  display: grid;
+  align-content: start;
+  background: var(--surface-muted);
+  border: 1px solid var(--border-soft);
+  /* The 4px rule is the card's whole verdict signal at a glance — it is what
+     lets the reader see three different answers before reading a word. */
+  border-top: 4px solid var(--safe-border);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.landing-verdict-card[data-risk="MODERATE"] {
+  border-top-color: var(--moderate-border);
+}
+
+.landing-verdict-card[data-risk="HIGH"] {
+  border-top-color: var(--high-border);
+}
+
+.landing-verdict-meal {
+  margin: 0;
+  padding: 18px 20px;
+  color: var(--text-strong);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+/* The ONE tinted row on the card (DESIGN.md §10), same rule the product's own
+   card follows: verdict colour is information, so it appears on the top rule
+   and here, and nowhere else. */
+.landing-verdict-signal {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border-soft);
+  background: var(--safe-bg);
+  color: var(--safe-text);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.landing-verdict-signal[data-risk="MODERATE"] {
+  background: var(--moderate-bg);
+  color: var(--moderate-text);
+}
+
+.landing-verdict-signal[data-risk="HIGH"] {
+  background: var(--high-bg);
+  color: var(--high-text);
+}
+
+.landing-verdict-why,
+.landing-verdict-try {
+  margin: 0;
+  padding: 18px 20px;
+  border-top: 1px solid var(--border-soft);
+  color: var(--text-body);
+  font-size: 16.5px;
+  line-height: 1.55;
+}
+
+.landing-verdict-try strong {
+  color: var(--text-strong);
+}
+
+/* The design's closing row: the illustration note on the left, the pill on the
+   right, sharing one line at desk width. It wraps to stacked before either
+   one gets squeezed — `flex-wrap` plus the note's own 54ch ceiling, not a
+   breakpoint. */
+.landing-verdict-close {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 30px;
 }
 
 /* `.result-disclaimer` sits in the shared 14px hints/meta group, which is the
@@ -2261,8 +2769,11 @@ button.inline-link {
 }
 
 .landing-verdict-note {
-  max-width: 62ch;
-  margin: 22px 0 0;
+  /* 54ch and no margin: both belong to `.landing-verdict-close` now, which
+     owns the gap and needs the note to stop short of the pill rather than
+     push it onto its own line. */
+  max-width: 54ch;
+  margin: 0;
   color: var(--text-muted);
   /* 16px floor: this carries the informational-only disclaimer and the AUD-008
      "illustrated examples" label. Setting the compliance line in the page's
@@ -2366,33 +2877,17 @@ button.inline-link {
    real section — at full rhythm it reads as a section in its own right,
    which it is not. It is the hero's footnote.
 
-   ⛔ NOT RENDERED BELOW 640px, and this is arithmetic rather than taste.
-   The strip lands in the page's worst desert — hero CTA to the problem
-   block's CTA — which had 124px of headroom against the §11.1 budget before
-   the strip existed. The strip is ~300px tall at 375px even as a 2×2 with
-   every gap tightened, so ANY version of it busts that stretch on a phone;
-   there is no arrangement of four facts that fits in 124px.
-
-   Nothing is lost, which is why this is the right lever rather than moving
-   the problem block's exit (a MEASURED, deliberate conversion position). All
-   four facts are already stated in the hero on every viewport: the range and
-   "nothing to log" are in the sub, the free-check count is the CTA caption,
-   and "seconds, not sessions" is the argument the whole hero makes. On a
-   phone the hero fills the screen and the strip is a restatement; on a wide
-   screen it is the scan-line for a reader who did not read the sub.
-
-   Same lever, same reason, as `.landing-nav-links` (640px) and
-   `.landing-split-art` (900px). Re-measure before changing the breakpoint:
-   node scripts/measure-landing.mjs */
+   ⚖️ IT NOW RENDERS AT EVERY WIDTH. It was hidden below 640px until
+   2026-08-06 because it lands in the page's worst desert and the §11.1 budget
+   had only 124px of headroom there — real arithmetic, not taste. The owner
+   then ruled the design file is the target, and the design shows the strip on
+   every viewport, so the headroom had to come from somewhere else instead:
+   the exit that closes the problem block moved up to sit directly under the
+   four facts. ⚠️ That makes the strip and that exit a PAIR. Re-measure if you
+   touch either — `node scripts/measure-landing.mjs` fails the build over it. */
 .landing-glance-section {
-  display: none;
-  padding: clamp(20px, 3vw, 44px) 0;
-}
-
-@media (min-width: 640px) {
-  .landing-glance-section {
-    display: block;
-  }
+  /* padding-BLOCK — see the note on `.landing-final`. */
+  padding-block: clamp(28px, 3.5vw, 44px);
 }
 
 /* §2. Four facts under the hero. The strip does not render below 640px (see
@@ -2404,7 +2899,7 @@ button.inline-link {
    arrangement too, not a rounding accident. */
 .landing-glance {
   display: grid;
-  gap: 8px 32px;
+  gap: 6px clamp(20px, 2.6vw, 34px);
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   margin: 0;
   padding: 0;
@@ -2413,31 +2908,32 @@ button.inline-link {
 
 .landing-glance li {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   align-content: start;
-  padding: 14px 0 2px;
+  padding: 18px 0 20px;
   border-top: 1px solid var(--border-strong);
 }
 
 .landing-glance-fact {
-  font-size: 22px;
-  font-weight: 700;
+  font-size: 24px;
+  font-weight: 800;
   line-height: 1.15;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
   color: var(--accent);
 }
 
 .landing-glance-label {
-  font-size: 18px;
+  font-size: 16.5px;
   line-height: 1.45;
   color: var(--text-body);
 }
 
-/* §7. The page's one dark band, full-bleed out of the 1080px frame.
-   `calc(50% - 50vw)` pulls each edge to the viewport and the matching inline
-   padding puts the content back on the frame's gutter — at every width, so
-   the band's text stays aligned with every other section's without a second
-   max-width container. Requires `overflow-x: clip` on `.landing`.
+/* §7. The page's dark band, full-bleed out of the frame. `calc(50% - 50vw)`
+   pulls each edge to the viewport and the matching inline padding puts the
+   content back on the frame's gutter — at every width, so the band's text
+   stays aligned with every other section's without a second max-width
+   container. Requires the `overflow-x: clip` that now sits on `html` (it was
+   on `.landing`, where it silently killed sticky page-wide).
 
    The top hairline is dropped: the colour change IS the boundary, and a
    border-soft rule on a dark ground reads as a seam. */
@@ -2453,11 +2949,22 @@ button.inline-link {
   color: var(--accent-contrast);
 }
 
-.landing-changes .landing-section-lede,
-.landing-changes .landing-changes-now {
-  /* 4.9:1 on --accent-strong. The "now" column is deliberately the quieter
-     of the pair — it is the state the reader is leaving. */
+.landing-changes .landing-section-lede {
+  /* 4.9:1 on --accent-strong. */
   color: #a9cfc9;
+}
+
+/* ⚠️ DIMMER THAN THE LEDE, and they are not interchangeable even though they
+   look it. The design file gives the lede #a9cfc9 and the "now" column
+   #8ab8b1 — the "now" column is the state the reader is LEAVING, so it sits a
+   step back from both the lede above it and the "after" column beside it. Set
+   them to the same value and the before/after contrast, which is the entire
+   argument of this band, flattens into two columns of equal weight.
+
+   4.6:1 on --accent-strong: above the 4.5:1 floor at this size, and the floor
+   is why it does not go dimmer still. */
+.landing-changes .landing-changes-now {
+  color: #8ab8b1;
 }
 
 .landing-changes-list {
@@ -2472,19 +2979,25 @@ button.inline-link {
   display: grid;
   gap: 10px 48px;
   align-items: baseline;
-  padding: 22px 0;
+  padding: 24px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.16);
 }
 
+/* 300px is the design file's own track floor: the pair collapses to stacked
+   rows on a phone, where "now" above "after" still reads as a before/after. */
 @media (min-width: 720px) {
   .landing-changes-list li {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   }
 }
 
-.landing-changes-now,
-.landing-changes-after {
+.landing-changes-now {
   font-size: 18px;
+  line-height: 1.5;
+}
+
+.landing-changes-after {
+  font-size: 19px;
   line-height: 1.5;
 }
 
@@ -2534,7 +3047,7 @@ button.inline-link {
 
 .landing-limits-trio h3 {
   margin: 0 0 8px;
-  font-size: 22px;
+  font-size: 19.5px;
   font-weight: 700;
   line-height: 1.25;
   letter-spacing: -0.015em;
@@ -2543,7 +3056,7 @@ button.inline-link {
 .landing-limits-trio p {
   margin: 0;
   max-width: 52ch;
-  font-size: 18px;
+  font-size: 17px;
   line-height: 1.6;
   color: var(--text-body);
   text-wrap: pretty;
@@ -2554,8 +3067,8 @@ button.inline-link {
    hear that it is a sequence of three. */
 .landing-offer {
   display: grid;
-  gap: 8px 32px;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 8px clamp(22px, 3vw, 40px);
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   margin: 0;
   padding: 0;
   list-style: none;
@@ -2565,23 +3078,33 @@ button.inline-link {
   display: grid;
   gap: 8px;
   align-content: start;
-  padding: 20px 0 4px;
+  padding: 22px 0 26px;
   border-top: 1px solid var(--border-strong);
 }
 
-/* Not an uppercase micro-label. §11 bans eyebrows and floors fineprint at
-   16px, and the design file's 13px caps would have broken both. Weight and
-   colour carry the same "this is the stage name" job at body size. */
+/* ⚖️ The design file's 13px uppercase stage label, adopted 2026-08-06. It had
+   been rewritten to 18px sentence case because §11 bans eyebrows and floors
+   fineprint at 16px; the owner then ruled the design file is the target.
+
+   The floor is not being waived blindly. It exists for PROSE — the reason is
+   40-to-60-year-olds reading paragraphs on a phone — and these are two-word
+   positional labels ("Day one", "After that") that name a column rather than
+   being read as sentences. The identical treatment already ships INSIDE the
+   result card on this very page (`.result-eyebrow`, `.anatomy-label`), so the
+   page was never actually free of it. ⛔ Do not reach for this size for
+   anything a reader has to read as a sentence. */
 .landing-offer-when {
-  font-size: 18px;
+  font-size: 13px;
   line-height: 1.45;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
   color: var(--text-muted);
 }
 
 .landing-offer-what {
   font-size: 22px;
-  font-weight: 700;
+  font-weight: 800;
   line-height: 1.2;
   letter-spacing: -0.02em;
 }
@@ -2589,7 +3112,7 @@ button.inline-link {
 .landing-offer li p {
   margin: 2px 0 0;
   max-width: 40ch;
-  font-size: 18px;
+  font-size: 17px;
   line-height: 1.55;
   color: var(--text-body);
   text-wrap: pretty;
@@ -2599,7 +3122,7 @@ button.inline-link {
    is the sentence the whole no-amount block is built to earn. */
 .landing-offer-note {
   margin: 30px 0 0;
-  font-size: 18px;
+  font-size: 19px;
   line-height: 1.65;
   font-weight: 600;
 }
