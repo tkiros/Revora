@@ -32,8 +32,91 @@ export function demoExampleEyebrow(lastLiveCaptureAt: string | null): string {
   return `A real check, captured ${date}`;
 }
 
-export function DemoCheckCard() {
+/**
+ * The three ledgered lines (`demo-check-reason` / `-adjustment` / `-swap`),
+ * hoisted so the two layouts below cannot drift apart. Typed ONCE — two copies
+ * of a ledgered string is how a card and its ledger row quietly stop agreeing,
+ * and `demo-check-card.test.ts` pins these against the ledger by source match,
+ * which a second copy would still satisfy.
+ */
+const REASON =
+  "Oatmeal on its own is a carb-heavy start, so it can have a higher blood-sugar impact than its healthy reputation suggests.";
+const ADJUSTMENT =
+  "If practical, add protein — Greek yogurt, nuts, or eggs on the side — to make it easier to handle.";
+const SWAP = "Steel-cut oats hold up steadier than instant packets.";
+
+/**
+ * `layout="table"` is the LANDING's rendering: the design file's six-row
+ * label-gutter table (You type / Revora / You answer / Signal / Why / Try).
+ * The default is the app's, and it is the default deliberately — `/check` and
+ * `/demo` render this component too, and the design file is a marketing
+ * drawing with no authority over an in-app surface. Changing the default
+ * restyles two app routes to match a landing page.
+ *
+ * Both layouts read the same registry entry and the same three consts above,
+ * so the only thing that varies is the shape.
+ */
+export function DemoCheckCard({ layout }: { layout?: "table" } = {}) {
   const example = OATMEAL_EXAMPLE;
+  if (layout === "table") {
+    return (
+      <section
+        className="landing-demo"
+        aria-label="Example check"
+        data-testid="demo-check-card"
+      >
+        <p className="landing-demo-eyebrow">
+          {demoExampleEyebrow(example.lastLiveCaptureAt)}
+        </p>
+        <div className="landing-demo-row">
+          <span className="landing-demo-label">You type</span>
+          <span className="landing-demo-entry">{example.input}</span>
+        </div>
+        {/* ⚠️ KEEP `data-testid="demo-clarify"` AND KEEP THIS ROW WHERE IT IS.
+            The page's one animation is `[data-testid="demo-clarify"]` plus its
+            following siblings on a 520ms delay, so the pause reads as a pause
+            (globals.css, `.landing-pause-stage`). In this layout every later
+            row is a sibling, which is what makes the beat land on the answer
+            rather than on one nested box. */}
+        <div
+          className="landing-demo-row landing-demo-row--ask"
+          data-testid="demo-clarify"
+        >
+          <span className="landing-demo-label">Revora</span>
+          <span className="landing-demo-value">
+            <strong className="landing-demo-lead">Need one more detail</strong>
+            <br />
+            {example.expectedClarifyQuestion}
+          </span>
+        </div>
+        <div className="landing-demo-row">
+          <span className="landing-demo-label">You answer</span>
+          <span className="landing-demo-entry">{example.followUp}</span>
+        </div>
+        <div className="landing-demo-row landing-demo-row--ask">
+          <span className="landing-demo-label">Signal</span>
+          <span className="landing-demo-signal" data-risk="MODERATE">
+            Be careful
+          </span>
+        </div>
+        <div className="landing-demo-row">
+          <span className="landing-demo-label">Why</span>
+          <span className="landing-demo-value">{REASON}</span>
+        </div>
+        <div className="landing-demo-row">
+          <span className="landing-demo-label">Try</span>
+          <span className="landing-demo-value">
+            <strong>Adjustment:</strong> {ADJUSTMENT}
+            <br />
+            <strong>Swap:</strong> {SWAP}
+          </span>
+        </div>
+        <div className="landing-demo-fineprint">
+          <DisclaimerLine />
+        </div>
+      </section>
+    );
+  }
   return (
     <section
       className="surface-card hero-card"
@@ -71,23 +154,18 @@ export function DemoCheckCard() {
           <IconAlert size={26} />
           Be careful
         </p>
-        <p className="page-copy">
-          Oatmeal on its own is a carb-heavy start, so it can have a higher
-          blood-sugar impact than its healthy reputation suggests.
-        </p>
+        <p className="page-copy">{REASON}</p>
         <div className="result-list">
           <p className="page-copy result-row">
             <IconLeaf size={16} />
             <span>
-              <strong>Adjustment:</strong> If practical, add protein — Greek
-              yogurt, nuts, or eggs on the side — to make it easier to handle.
+              <strong>Adjustment:</strong> {ADJUSTMENT}
             </span>
           </p>
           <p className="page-copy result-row">
             <IconArrowRight size={16} />
             <span>
-              <strong>Swap:</strong> Steel-cut oats hold up steadier than
-              instant packets.
+              <strong>Swap:</strong> {SWAP}
             </span>
           </p>
         </div>
