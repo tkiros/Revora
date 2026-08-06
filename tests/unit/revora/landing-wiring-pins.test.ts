@@ -34,12 +34,10 @@ async function renderLanding(env: Record<string, string> = {}): Promise<string> 
 }
 
 const text = (html: string) => html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ");
-const count = (haystack: string, needle: string) =>
-  haystack.split(needle).length - 1;
 
 /**
  * Landing wiring pins — the invariants the 2026-07-28 ship coverage audit
- * found unguarded. Three families:
+ * found unguarded. Two families:
  *
  *  1. FONT WIRING (FINDING-030). reading.className on the landing root is the
  *     SOLE source of the landing body face — the var-based CSS fallback was
@@ -47,13 +45,14 @@ const count = (haystack: string, needle: string) =>
  *     font). The font-google stub renders distinguishable markers so a deleted
  *     className goes red here instead of only in a production browser.
  *
- *  2. FLAG BRANCHES. NEXT_PUBLIC_PHOTO_INPUT is ON in production but blank in
- *     every test env, so the shipped branch of every photoEnabled conditional
- *     was never rendered by any test — including the "way-count must match
- *     Step 1's input list" invariant.
+ *  2. FOOTER PROMISES. The nav collapses below 640px and the footer is the
+ *     fallback, so it must never carry an inert store line.
  *
- *  3. FEATURE-CARD SET. The origin/main merge dropped a duplicated card; pin
- *     that the set stays deduplicated in both journey-flag states.
+ * Two families were retired here on 2026-08-05 with the blocks they pinned.
+ * FLAG BRANCHES pinned the how-it-works step list, and FEATURE-CARD SET pinned
+ * the feature grid; both blocks are deleted. The journey flag's branch coverage
+ * moved to tests/unit/client/journey-card-flag.test.ts — the surface that
+ * actually ships it — BEFORE the deletion, not after.
  */
 
 describe("landing font wiring (FINDING-030)", () => {
@@ -128,43 +127,10 @@ describe("landing font wiring (FINDING-030)", () => {
   });
 });
 
-describe("photo-flag branches of the landing copy", () => {
-  it("flag off: two ways in, and Step 1 lists two inputs", async () => {
-    const t = text(await renderLanding());
-    expect(t).toContain("Two ways in.");
-    expect(t).not.toContain("Three ways in.");
-    expect(t).toContain("Dictate it or type it.");
-  });
-
-  it("flag on: three ways in, and Step 1 gains the photo path", async () => {
-    const t = text(await renderLanding({ NEXT_PUBLIC_PHOTO_INPUT: "1" }));
-    expect(t).toContain("Three ways in.");
-    expect(t).not.toContain("Two ways in.");
-    expect(t).toContain("Snap a photo, dictate it, or type it.");
-  });
-});
-
-describe("journey-flag branches keep the feature-card set deduplicated", () => {
-  it("flag off: the recap card renders, each differentiator exactly once", async () => {
-    const t = text(await renderLanding());
-    expect(t).toContain("A weekly recap in sentences");
-    expect(t).not.toContain("A 90-day journey, recapped weekly");
-    expect(count(t, "A record you can actually show someone")).toBe(1);
-    expect(count(t, "It asks before it guesses")).toBe(1);
-  });
-
-  it("flag on: the journey card replaces the recap, no card duplicated", async () => {
-    const t = text(await renderLanding({ NEXT_PUBLIC_LEARNING_JOURNEY: "1" }));
-    expect(t).toContain("A 90-day journey, recapped weekly");
-    expect(t).not.toContain("A weekly recap in sentences");
-    expect(count(t, "A record you can actually show someone")).toBe(1);
-  });
-});
-
 describe("footer apps column never renders an inert promise", () => {
-  // "coming soon" alone would false-positive on the what-you-get lede's own
-  // promise sentence ("Nothing on this list is coming soon…") — pin the exact
-  // inert store strings instead.
+  // Pin the exact inert store strings, not the bare phrase "coming soon":
+  // that phrase used to false-positive on the what-you-get lede, and pinning
+  // the real strings is what a reader of the footer would actually see.
   it("no waitlist configured: the true today-story, no inert store lines", async () => {
     const t = text(await renderLanding());
     expect(t).toContain("Add to home screen — works today");
