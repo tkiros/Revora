@@ -237,10 +237,25 @@ and relaxes exactly three app rules here only: a wider frame (`max-width: 1080px
 face. The system below is the tournament winner, **`W — One Card Back`** (`docs/plans/landing-tournament-winner-spec.md`),
 whose thesis is that **the page's unit of composition is the product's own artifact**, rendered in the live classes.
 
-- **One plane.** `--page-bg` throughout; **white is card material, never a section background**, so a white region that
-  is not a card is a bug. **Sectioning is air plus a hairline on the block**, never an `<hr>`:
-  `padding: clamp(72px, 10vw, 128px) 0` with `border-top: 1px solid var(--border-soft)`, reset on `:first-of-type`. Hero
+- **One plane, with one exception.** `--page-bg` throughout; **white is card material, never a section background**, so a
+  white region that is not a card is a bug. **Sectioning is air plus a hairline on the block**, never an `<hr>`:
+  `padding: clamp(56px, 7vw, 92px) 0` with `border-top: 1px solid var(--border-soft)`, reset on `:first-of-type`. Hero
   padding is deliberately smaller and **measured** — unifying it with the section clamp pushes the proof card off the fold.
+
+  ⚖️ **The rhythm was `clamp(72px, 10vw, 128px)` until the owner's 2026-08-06 ruling that the imported design file governs
+  layout while §11 governs type.** It pinned at its 128px ceiling from 1280px up and adjacent sections stack, so every
+  block boundary measured **257px** of dead vertical space at 1280px — and at 375px it sat on its 72px floor on *both*
+  sides of every seam. The new clamp computes 56px at 375px and 92px from 1314px up; boundaries land at **112px** narrow
+  and **184px** wide. This was not cosmetic: the same pass added three sections (the at-a-glance strip, "What actually
+  changes", the offer block), and **§11.1's worst desert had 124px of headroom** — at the old rhythm those sections could
+  not have been added at all. Measured after: **10,733px, 9 exits, worst desert 1,861px, 0 over budget.**
+
+  ⛔ **`.landing-changes` is the one section allowed a non-`--page-bg` ground** — `--accent-strong`, full-bleed via
+  `margin-inline: calc(50% - 50vw)`, which is why `.landing` carries `overflow-x: clip`. The deep-green bands deleted on
+  2026-08-05 were deleted because **white** on a non-card region is ambiguous with card material. That reasoning does not
+  extend here: no card on this page is dark, so an accent ground cannot be misread as a card. One section, named
+  explicitly. A second one re-opens the question. ⚠️ `overflow-x: clip` also means **`position: sticky` will not work
+  anywhere on this page** — the design file's sticky left columns were not implemented, and adding one silently fails.
 - **Two card families, down from eight:** the **result card, inherited and unmodified**, and the price tile (24px, 2px
   `--border-soft`, `--surface`, the one shadow). ⛔ **No `.landing*` selector may declare `border-radius` or `border` on
   `.result-card` or `.surface-card`** — the page's central claim is *marketing shows the product's card, unmodified*, and
@@ -248,15 +263,33 @@ whose thesis is that **the page's unit of composition is the product's own artif
 - **Zero eyebrows**, because the hero's eyebrow words became the H1 — **de-duplication, not deletion on principle**. The
   contender that deleted the eyebrow on principle left a headline about a competitor as the only thing above the fold and
   took the tournament's worst score.
-- **Type: one body size.** `18px / 1.65` for everything except H1 `clamp(1.9rem, 5.6vw, 2.9rem)` / `1.05` / `-0.02em` ·
+- **Type: one body size.** `18px / 1.65` for everything except H1 `clamp(1.9rem, 5.6vw, 3.8rem)` / `1.05` / `-0.02em` ·
   H2 `clamp(1.6rem, 4vw, 2.2rem)` / `1.1` / `-0.025em` · card title `22px / 700` · lede `20px / 1.6` · FAQ summary
-  `19px / 700` · nav link `17px` · fineprint floor `16px`. Measure `62ch`. This replaces the old "16.5–17px" range,
+  `19px / 700` · nav link `17px` · fineprint floor `16px`. Measure `62ch`. **The v2 sections take existing steps and add
+  none**: `.landing-glance-fact`, `.landing-offer-what` and `.landing-limits-trio h3` are all the `22px / 700` card-title
+  step, and every other line in them is body. ⚖️ **This is where the 2026-08-06 ruling bit.** The imported design file
+  carried its own scale — an H1 floor of `2.4rem` (38.4px, up from 30.4px) and a body ladder of
+  `15.5 / 16 / 16.5 / 17 / 17.5 / 19 / 19.5 / 20px` — and **none of it was adopted.** The H1 floor is the one that
+  mattered: at 375px the H1 sits on its floor, which is exactly where §11.1's budget is measured, so a 26% taller floor
+  spends headroom the new sections needed. The design's `12–13px` uppercase stage labels were dropped for two separate
+  reasons — they are eyebrows, and they are under the fineprint floor. This replaces the old "16.5–17px" range,
   which needed a reason per value and had none; the lede step stays, because a scale without one loses the hierarchy
   ratio. ⚖️ **The body was `17px` until 2026-08-05, when the owner previewed the built page and read it as too small.**
   The tournament spec's figure was never read at size; one step up is the whole change, and H1/H2 are clamped so the
   display scale is untouched. **The fineprint floor stays `16px`, and the result card's own copy stays app-layer `16px`**
   — the card is the unit of composition, and it does not get a `.landing`-layer type override for reading smaller than
   the prose wrapped around it.
+  ⚖️ **The H1 ceiling was `2.9rem` from `ea3b055` until the owner ruled it back to `3.8rem`, both on 2026-08-05.**
+  Raising the body to 18px while the ceiling sat at 46.4px took the H1/body ratio to **2.6×** against the deployed page's
+  **3.8×**, and the owner read the result as flat *despite* the larger body. The claim above that "H1/H2 are clamped so
+  the display scale is untouched" was **false in effect**: a clamp protects the *floor*, not the ratio, and the ratio is
+  what hierarchy is. **Measured in the browser against a production build, the restore is free.** Rendered H1: `30.4px`
+  at 375px — the `1.9rem` floor, *identical at both ceilings*, because `5.6vw` is only 21px there — then 35.8 / 46.4 /
+  50.4 / 60.5 / **60.8px** at 640 / 828 / 900 / 1080 / 1280px. Page length, exits and worst desert are unchanged at
+  **7,811px · 7 exits · 1,877px**, so the reachability budget (§11.1) is unaffected and needs no re-measure. Only
+  viewports ≥828px change, and the new H1/body ratio is **3.38×**. **The hero sub deliberately stays at body size**, so
+  the page still has one body size; the ruling was the ceiling alone, and a hero-sub step is a separate, *un*free change
+  that would cost length at 375px.
   ⛔ **`--text-soft` is banned here entirely** (§3.1) — the plane is `--page-bg`, where it fails AA. No per-block exemption.
 - **Breakpoints 640 / 720 / 880:** footer two-column, three-up grids, full desktop step. Collapsed from eight ad-hoc
   values 2026-07-29; **a new one needs a reason recorded here.** The shell keeps its own set (§8).
