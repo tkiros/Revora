@@ -80,19 +80,33 @@ test("free-tier limit renders the calm upsell card", async ({ page }) => {
   await expect(card).not.toContainText(/warning|blocked|denied/i);
 });
 
-// §0.2 #4 — the landing pricing section renders from the same server flag the
-// paywall enforces. This server is pinned PAYWALL_MODE=legacy, so the landing
-// must describe the legacy funnel and never promise the 7-day trial.
-test("landing pricing matches the legacy funnel this server runs", async ({
+// §0.2 #4 — this server is pinned PAYWALL_MODE=legacy.
+//
+// This used to assert the landing's price tiles described the legacy ladder.
+// The pricing section was deleted on 2026-08-05 ("the price should not be
+// mentioned, only focus on free check"), so the assertion inverts: under the
+// legacy mode too, the landing must show NO section and NO amount. Its twin
+// runs the same check against the trial server (trial-wall.spec.ts).
+test("the legacy-mode landing renders no pricing section and no amount", async ({
   page
 }) => {
   await page.goto("/");
-  const tiles = page.locator("#pricing .landing-price-what");
-  await expect(tiles).toHaveText([
-    /free checks$/,
-    "A free account",
-    "$12.99/month"
-  ]);
-  await expect(page.locator("#pricing")).not.toContainText("7 days free");
-  await expect(page.locator("#faq")).not.toContainText("7-day");
+  await expect(page.locator("#pricing")).toHaveCount(0);
+  await expect(page.locator(".landing-price-what")).toHaveCount(0);
+  await expect(page.locator('a[href="#pricing"]')).toHaveCount(0);
+  await expect(page.locator("main.landing")).not.toContainText(/\$\d/);
+});
+
+// The surviving §0.2 #4 mechanism: the FAQ's card answer still branches on
+// the live flag. This server runs legacy, so it must render the legacy answer
+// and must never promise the 7-day trial it does not run.
+test("the legacy-mode landing FAQ describes the free account, not a trial", async ({
+  page
+}) => {
+  await page.goto("/");
+  const faq = page.locator("#faq");
+  await expect(faq).toContainText("a free account includes");
+  await expect(faq).toContainText("still no card");
+  await expect(faq).not.toContainText("7-day");
+  await expect(faq).not.toContainText("7 days free");
 });
