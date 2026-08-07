@@ -23,7 +23,12 @@ const LANDING_DESCRIPTION =
 
 export const metadata: Metadata = {
   title: "Prediabetes Meal Checker — What You Can Eat | Revora",
-  description: LANDING_DESCRIPTION
+  description: LANDING_DESCRIPTION,
+  // Resolved against metadataBase (app/layout.tsx) to the production origin.
+  // Every launch channel is a tagged link (components/attribution-capture.tsx),
+  // and ?utm_* variants of this page are 200s with identical content — without
+  // this they are crawlable near-duplicates competing with the page itself.
+  alternates: { canonical: "/" }
 };
 
 // Marketing landing (DESIGN.md §Marketing landing). The app lives at /check;
@@ -828,6 +833,7 @@ export default function LandingPage() {
             </div>
             <div className="landing-footer-col">
               <h3>Learn</h3>
+              <Link href="/about">About Revora</Link>
               <Link href="/how-it-works">How the weekly recap works</Link>
               <Link href="/guides">Prediabetes guides</Link>
               <a href="#live-example">See a live example</a>
