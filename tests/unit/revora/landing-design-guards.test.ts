@@ -105,9 +105,14 @@ describe("touch targets keep their floors", () => {
     expect(rule?.[1]).toContain("min-height: 44px;");
   });
 
-  it("the marketing CTA is 52px", () => {
+  // Raised 52 -> 56px on 2026-08-06 with the design file's button size. The
+  // guard's job is that the marketing CTA stays comfortably above the 44px
+  // global floor, not that it is any one number — but it must name the number
+  // someone actually chose, so it moves with the CSS rather than being widened
+  // to a range that would let the value drift back down unnoticed.
+  it("the marketing CTA is 56px", () => {
     const rule = css.match(/\n\.landing-cta \{([^}]*)\}/);
-    expect(rule?.[1]).toContain("min-height: 52px;");
+    expect(rule?.[1]).toContain("min-height: 56px;");
   });
 });
 
