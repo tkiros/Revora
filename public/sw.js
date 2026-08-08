@@ -27,9 +27,18 @@ const OFFLINE_URL = "/offline.html";
 // Losing the worker on a local `next start` is deliberate and harmless — the
 // offline fallback and push cannot be meaningfully exercised on the same origin
 // a dev server keeps reclaiming. Deployed origins are unaffected.
-const IS_LOCAL_DEV = ["localhost", "127.0.0.1", "[::1]", "::1"].includes(
-  self.location.hostname
-);
+// ⚠️ Loopback is NOT the whole set. `next dev` binds 0.0.0.0 and prints a
+// Network URL, and testing push or the offline fallback on a real phone needs a
+// PRODUCTION build — so `next start` on http://192.168.x.x:3000 is exactly how
+// you'd exercise this worker, and it registers the controller on that origin.
+// Come back with `next dev` on the same LAN IP and the reload loop returns,
+// with only sw-register.tsx defending — which the block above explains is not
+// enough. Private ranges and mDNS names are dev origins too.
+const HOST = self.location.hostname;
+const IS_LOCAL_DEV =
+  ["localhost", "127.0.0.1", "[::1]", "::1"].includes(HOST) ||
+  /^10\.|^192\.168\.|^172\.(1[6-9]|2\d|3[01])\./.test(HOST) ||
+  /\.local(host)?$/.test(HOST);
 
 if (IS_LOCAL_DEV) {
   self.addEventListener("install", () => self.skipWaiting());

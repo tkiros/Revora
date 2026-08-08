@@ -85,10 +85,64 @@ describe("service worker: dev teardown", () => {
  */
 const SW = readFileSync(join(process.cwd(), "public/sw.js"), "utf8");
 
+// ⚠️ Unlike the pins above, this one EXECUTES the guard rather than grepping for
+// it. The predicate depends only on a hostname string, so it needs no DOM and
+// runs fine under `environment: "node"`. It has to execute: the guard is now a
+// pair of character classes, and a source pin cannot tell a correct range from a
+// typo'd one. The suite already shipped a Firefox defect that passed three
+// Chromium verifications — an assertion that cannot observe the failure is worse
+// than no assertion, because it reports green.
+function isLocalDev(hostname: string): boolean {
+  const start = SW.indexOf("const IS_LOCAL_DEV =");
+  expect(start, "the kill-switch guard must still exist").toBeGreaterThan(-1);
+  const end = SW.indexOf(";", start);
+  expect(end, "the guard must terminate").toBeGreaterThan(start);
+  const expr = SW.slice(start + "const IS_LOCAL_DEV =".length, end);
+  return new Function("HOST", `return (${expr});`)(hostname) as boolean;
+}
+
 describe("service worker: local-dev kill switch", () => {
-  it("treats every loopback hostname as local dev", () => {
-    for (const host of ["localhost", "127.0.0.1", "[::1]", "::1"]) {
-      expect(SW, `${host} must be recognised as local dev`).toContain(`"${host}"`);
+  it("treats every local dev origin as local dev", () => {
+    for (const host of [
+      // loopback
+      "localhost",
+      "127.0.0.1",
+      "[::1]",
+      "::1",
+      // ⚠️ LAN origins. `next start` on one of these is how you test push and
+      // the offline fallback on a phone, so it is precisely where the worker
+      // gets installed — and where the loop came back before this was covered.
+      "192.168.1.5",
+      "10.0.0.4",
+      "172.16.0.9",
+      "172.31.255.254",
+      // mDNS
+      "tefera-laptop.local"
+    ]) {
+      expect(isLocalDev(host), `${host} must be recognised as local dev`).toBe(
+        true
+      );
+    }
+  });
+
+  it("leaves real deployed origins controlled — the worker must still work in production", () => {
+    // The inverse assertion matters as much as the one above: widening the kill
+    // switch must never reach revora.plus, or the offline fallback and push
+    // silently die for every real user.
+    for (const host of [
+      "revora.plus",
+      "www.revora.plus",
+      "revora-git-main.vercel.app",
+      // just outside RFC1918 — pins the range edges, which is the whole reason
+      // this test executes the guard instead of grepping it
+      "172.32.0.1",
+      "172.15.0.1",
+      "192.169.1.1",
+      "11.0.0.1"
+    ]) {
+      expect(isLocalDev(host), `${host} must NOT be treated as local dev`).toBe(
+        false
+      );
     }
   });
 
